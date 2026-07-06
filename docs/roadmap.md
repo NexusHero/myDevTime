@@ -21,8 +21,8 @@ issue's comments before implementing it.
 | Milestone | Theme | Issues |
 |---|---|---|
 | **M0 — Foundation** | Client-stack spike, meeting-capture spike, monorepo + CI, backend skeleton, auth, data model | [#1](https://github.com/NexusHero/myDevTime/issues/1) [#31](https://github.com/NexusHero/myDevTime/issues/31) [#2](https://github.com/NexusHero/myDevTime/issues/2) [#3](https://github.com/NexusHero/myDevTime/issues/3) [#4](https://github.com/NexusHero/myDevTime/issues/4) [#5](https://github.com/NexusHero/myDevTime/issues/5) [#6](https://github.com/NexusHero/myDevTime/issues/6) |
-| **M1 — Tracking core** | Time math, timers & entries, sync engine, budgets & rates | [#7](https://github.com/NexusHero/myDevTime/issues/7) [#8](https://github.com/NexusHero/myDevTime/issues/8) [#9](https://github.com/NexusHero/myDevTime/issues/9) [#10](https://github.com/NexusHero/myDevTime/issues/10) |
-| **M2 — Client apps** | Design system, mobile timer UX, dashboard, timesheet export | [#11](https://github.com/NexusHero/myDevTime/issues/11) [#12](https://github.com/NexusHero/myDevTime/issues/12) [#13](https://github.com/NexusHero/myDevTime/issues/13) [#14](https://github.com/NexusHero/myDevTime/issues/14) |
+| **M1 — Tracking core** | Time math, timers & entries, attendance (punch clock), sync engine, budgets & rates | [#7](https://github.com/NexusHero/myDevTime/issues/7) [#8](https://github.com/NexusHero/myDevTime/issues/8) [#36](https://github.com/NexusHero/myDevTime/issues/36) [#9](https://github.com/NexusHero/myDevTime/issues/9) [#10](https://github.com/NexusHero/myDevTime/issues/10) |
+| **M2 — Client apps** | Design system, mobile timer UX, dashboard, absences, exports (timesheet + signable report) | [#11](https://github.com/NexusHero/myDevTime/issues/11) [#12](https://github.com/NexusHero/myDevTime/issues/12) [#13](https://github.com/NexusHero/myDevTime/issues/13) [#37](https://github.com/NexusHero/myDevTime/issues/37) [#14](https://github.com/NexusHero/myDevTime/issues/14) [#38](https://github.com/NexusHero/myDevTime/issues/38) |
 | **M3 — Automation & AI** | Calendar ingestion, rules engine, LLM proposals, NL entry, summaries, assistant, meeting transcription + insights | [#15](https://github.com/NexusHero/myDevTime/issues/15) [#16](https://github.com/NexusHero/myDevTime/issues/16) [#17](https://github.com/NexusHero/myDevTime/issues/17) [#18](https://github.com/NexusHero/myDevTime/issues/18) [#19](https://github.com/NexusHero/myDevTime/issues/19) [#20](https://github.com/NexusHero/myDevTime/issues/20) [#32](https://github.com/NexusHero/myDevTime/issues/32) [#33](https://github.com/NexusHero/myDevTime/issues/33) |
 | **M4 — Monetization** | Entitlement service, AI-credit ledger, Stripe web subscriptions, store IAP | [#21](https://github.com/NexusHero/myDevTime/issues/21) [#34](https://github.com/NexusHero/myDevTime/issues/34) [#22](https://github.com/NexusHero/myDevTime/issues/22) [#23](https://github.com/NexusHero/myDevTime/issues/23) |
 | **M5 — Launch** | Security, privacy/DSGVO, observability, E2E, distribution, pricing | [#24](https://github.com/NexusHero/myDevTime/issues/24) [#25](https://github.com/NexusHero/myDevTime/issues/25) [#26](https://github.com/NexusHero/myDevTime/issues/26) [#27](https://github.com/NexusHero/myDevTime/issues/27) [#28](https://github.com/NexusHero/myDevTime/issues/28) [#29](https://github.com/NexusHero/myDevTime/issues/29) |
@@ -59,12 +59,15 @@ M0  #1 (client spike → ADR-0004 accepted) ──────┐
                                     │            │               │
 M1  #7 (tracking core, pure) ◄──────┘            │               │
       ├──► #8 (timers & entries) ──► #9 (sync)   │               │
+      ├──► #36 (attendance: punches, breaks, overtime)           │
       └──► #10 (budgets & rates)                 │               │
                                     │            │               │
 M2  #11 (design system) ◄───────────┴────────────┘               │
-      ├──► #12 (mobile timer UX) ◄── #8                          │
-      ├──► #13 (dashboard) ◄── #7 + #10                          │
-      └──► #14 (timesheet export) ◄── #7 + #10                   │
+      ├──► #12 (mobile timer UX + punch UI) ◄── #8 + #36         │
+      ├──► #13 (dashboard: projects + work hours) ◄── #7/#10/#36/#37
+      ├──► #37 (absences) ◄── #36                                │
+      ├──► #14 (timesheet export) ◄── #7 + #10                   │
+      └──► #38 (signable report PDF/XLSX) ◄── #36 + #37          │
                                     │                            │
 M3  #15 (calendar) ──► #16 (rules engine) ──► #17 (LLM proposals)│
               │                                  ├──► #18 (NL entry)
@@ -87,6 +90,8 @@ Parallelism notes:
 - #7 is a pure package — it can start against fixture contracts as soon as #2 lands, before the
   backend skeleton is finished.
 - #10 (budgets/rates) is independent of #8/#9 — a good parallel track inside M1.
+- #36 (attendance) is pure-core + API work parallel to #8; #37 (absences) follows it; both are
+  independent of the calendar/AI chain.
 - #16 (rules engine, pure) can be developed against the `CandidateEntry` contract before #15's
   providers are finished.
 - #21 (entitlements) is pure domain work — it can start any time after #3; only its enforcement
@@ -122,6 +127,9 @@ Parallelism notes:
   test tracks ([#28](https://github.com/NexusHero/myDevTime/issues/28)).
 - Security (#24), privacy (#25), and observability (#26) baselines fully landed — these are
   launch gates, not fast-follows.
+- The work-time story complete per [ADR-0010](adr/0010-attendance-absences-signable-report.md):
+  attendance (#36), absences (#37), and the signable PDF/XLSX report (#38) shipped — the punch
+  clock is 1.0 scope, not a fast-follow.
 
 ## Post-1.0 backlog (deferred deliberately, not forgotten)
 
@@ -138,4 +146,7 @@ Parallelism notes:
 - **AI depth**: learning loop from accepted/corrected proposals (the data is already captured per
   ADR-0005), additional LLM providers, voice-first capture beyond platform dictation.
 - **Auth depth**: 2FA/passkeys, magic links.
+- **Work-time depth**: digital signature/approval workflow on the work-time report (drawn or
+  cryptographic signatures — 1.0 report is print/PDF-countersign, ADR-0010), geofenced
+  auto-punch, multi-employer schedules.
 - **CSV/transcript import** from Tyme/Toggl/Tactiq for switchers; localization beyond de/en.

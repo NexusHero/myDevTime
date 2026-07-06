@@ -28,6 +28,7 @@ below in number order.
 | [0007](0007-authentication-email-oauth-sessions.md) | Email/password + Google & Apple sign-in, rotating token sessions, self-hosted auth module | Accepted |
 | [0008](0008-tactiq-realignment-transcription-and-credits.md) | Scope update: Tactiq (not Tackle) as second reference; meeting transcription in 1.0; explicit AI-credit billing | Accepted — amends 0002 & 0006 |
 | [0009](0009-meeting-capture-asr-approach.md) | Meeting-capture channel & ASR provider — decision frame fixed, winner pending the capture spike ([#31](https://github.com/NexusHero/myDevTime/issues/31)) | Proposed — pending the capture spike |
+| [0010](0010-attendance-absences-signable-report.md) | Scope update: attendance (punch clock, breaks, overtime), absences (vacation/sick/holidays), signable PDF+XLSX work-time report — all 1.0 | Accepted — extends 0002/0008 |
 
 ## Tech Radar
 

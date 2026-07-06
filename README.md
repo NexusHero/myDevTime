@@ -5,6 +5,9 @@ codebase. myDevTime unifies the two best products in the space and adds its own 
 
 - **Tyme-class UX**: fast timers, clients → projects → tasks, budgets & hourly rates, beautiful
   statistics, offline-first with cross-device sync — native-feeling on phone and tablet.
+- **Full work-time story**: clock-in/clock-out with breaks and overtime balance, vacation & sick
+  days, and a signable monthly work-time report (PDF + Excel) your supervisor or client can
+  countersign — with project time tracked inside the work day.
 - **Tactiq-class meeting AI & monetization**: consent-first meeting transcription with AI
   summaries, action items, and reusable custom prompts — monetized Tactiq-style through a
   visible AI-credit balance with purchasable top-ups, on a web + in-app subscription base.
