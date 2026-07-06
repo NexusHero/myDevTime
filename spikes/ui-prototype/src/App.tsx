@@ -30,6 +30,8 @@ export default function App() {
   const [breaks, setBreaks] = useState<BreakSpan[]>(initialBreaks)
   const [punchedIn, setPunchedIn] = useState(true)
   const [onBreak, setOnBreak] = useState(false)
+  const [targetMin, setTargetMin] = useState(8 * 60)
+  const [maxMin, setMaxMin] = useState(10 * 60)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<number>()
@@ -166,6 +168,9 @@ export default function App() {
           {view === 'today' && (
             <Today
               blocks={blocks} breaks={breaks} punchIn={punchIn} punchedIn={punchedIn} now={now}
+              targetMin={targetMin} maxMin={maxMin}
+              onTargetChange={setTargetMin} onMaxChange={setMaxMin}
+              onTogglePunch={togglePunch}
               onAcceptGhost={acceptGhost} onDismissGhost={dismissGhost}
               onAcceptAll={acceptAll} onDismissAll={dismissAll}
               onGapClick={() => setPaletteOpen(true)}
