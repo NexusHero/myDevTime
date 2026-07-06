@@ -20,12 +20,14 @@ below in number order.
 | ADR | Decision | Status |
 |-----|----------|--------|
 | [0001](0001-adopt-ultimate-development-process.md) | Adopt the Ultimate Development Process (via sibling project Finanzo) as this project's governance model | Accepted |
-| [0002](0002-product-scope-unify-tyme-and-tackle.md) | Product scope: unify Tyme's mobile/tablet UX with Tackle's AI automation & billing, plus an own AI layer — iOS + Android + Web from 1.0 | Accepted |
+| [0002](0002-product-scope-unify-tyme-and-tackle.md) | Product scope: unify Tyme's mobile/tablet UX with the second reference's AI automation & billing, plus an own AI layer — iOS + Android + Web from 1.0 | Accepted, amended by 0008 (reference = Tactiq; transcription in 1.0) |
 | [0003](0003-node-typescript-backend.md) | Node.js/TypeScript backend as a modular monolith | Accepted |
 | [0004](0004-react-native-expo-client.md) | React Native + Expo client for all three platforms | Proposed — pending the cross-platform spike |
 | [0005](0005-deterministic-core-llm-assist.md) | Deterministic tracking/billing core; LLM strictly an assist layer with recorded provenance | Accepted |
-| [0006](0006-subscription-billing-stripe-plus-store-iap.md) | Subscriptions via Stripe on web + native IAP in stores, unified by an internal entitlement service | Accepted |
+| [0006](0006-subscription-billing-stripe-plus-store-iap.md) | Subscriptions via Stripe on web + native IAP in stores, unified by an internal entitlement service | Accepted, amended by 0008 (explicit AI credits) |
 | [0007](0007-authentication-email-oauth-sessions.md) | Email/password + Google & Apple sign-in, rotating token sessions, self-hosted auth module | Accepted |
+| [0008](0008-tactiq-realignment-transcription-and-credits.md) | Scope update: Tactiq (not Tackle) as second reference; meeting transcription in 1.0; explicit AI-credit billing | Accepted — amends 0002 & 0006 |
+| [0009](0009-meeting-capture-asr-approach.md) | Meeting-capture channel & ASR provider — decision frame fixed, winner pending the capture spike ([#31](https://github.com/NexusHero/myDevTime/issues/31)) | Proposed — pending the capture spike |
 
 ## Tech Radar
 
@@ -41,5 +43,7 @@ One line per technology so the stack's shape stays visible without re-reading th
 | StoreKit 2 / Play Billing | Adopt | ADR-0006 |
 | RevenueCat | Assess (re-evaluate when IAP work starts) | ADR-0006 |
 | LLM providers (multi-provider via config) | Adopt (behind one adapter interface) | ADR-0005 |
+| ASR providers (Whisper/Deepgram/AssemblyAI/…) | Assess (spike #31, behind `TranscriptionPort`) | ADR-0009 |
+| Meeting-bot capture service (Recall.ai-style) | Assess (first candidate in the capture spike) | ADR-0009 |
 | Auth SaaS (Auth0/Clerk/…) | Hold | ADR-0007 |
 | argon2 password hashing, OIDC client libs | Adopt | ADR-0007 |

@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted
+Accepted — amended by [ADR-0008](0008-tactiq-realignment-transcription-and-credits.md): AI
+usage is monetized as an explicit AI-credit ledger with top-up packs (à la Tactiq), not
+invisible plan caps. Rails, entitlement service, and everything else below stand.
 
 ## Context
 
