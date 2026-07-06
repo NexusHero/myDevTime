@@ -16,6 +16,9 @@ human) picking up any task gets the complete picture by reading, in this order:
    changes them.
 4. **[`docs/roadmap.md`](docs/roadmap.md)** — milestones M0–M5, the dependency graph (what
    blocks what), and the Definition of 1.0.
+4a. **[`docs/design/ux-vision.md`](docs/design/ux-vision.md)** — binding for any client/UI work:
+   design principles, the Day Canvas/Co-Planner/Island concepts, IA, visual & motion language.
+   UI that contradicts it fails review.
 5. **The GitHub issue you are implementing** — each issue (#1–#34) carries milestone, REQ/ADR
    references, acceptance criteria (checkboxes), and the test approach. **Read the issue's
    comments first**: scope changes are recorded as ⚠️-comments and override the issue body.
@@ -25,10 +28,11 @@ human) picking up any task gets the complete picture by reading, in this order:
 Cross-platform time tracking (iOS + Android + Web from one codebase) that unifies **Tyme's**
 mobile/tablet UX with **Tactiq's** meeting AI & credit-based monetization, plus an own AI layer:
 calendar auto-capture, deterministic rules engine, AI categorization proposals, natural-language
-time entry, meeting transcription with AI insights, AI summaries, a grounded assistant — and the
+time entry, meeting transcription with AI insights, AI summaries, a grounded assistant, an AI
+**Co-Planner** (proposed day plans as ghost blocks, plan-vs-actual, evening review) — and the
 full work-time story (clock-in/out with breaks and overtime, vacation/sick days, a signable
 PDF/XLSX work-time report) — monetized via subscriptions (Stripe + store IAP) and a visible
-AI-credit ledger. See ADR-0002 as amended by ADR-0008 and extended by ADR-0010.
+AI-credit ledger. See ADR-0002 as amended by ADR-0008 and extended by ADR-0010/0011.
 
 ## Non-negotiable design rules (from the ADRs — violating these fails review)
 
