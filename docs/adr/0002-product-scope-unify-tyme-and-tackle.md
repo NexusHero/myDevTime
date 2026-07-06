@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted
+Accepted — amended by [ADR-0008](0008-tactiq-realignment-transcription-and-credits.md): the
+second reference product is **Tactiq** (tactiq.io), not Tackle (a research misidentification);
+meeting transcription + AI meeting insights join the 1.0 scope. Everything else below stands.
 
 ## Context
 
