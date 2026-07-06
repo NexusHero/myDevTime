@@ -20,14 +20,19 @@ in the space — each of which lacks what the other has:
 - **Tyme** (Apple-only): the benchmark for mobile/tablet-first tracking UX — fast timers,
   client → project → task hierarchy, budgets, statistics, offline-first sync — but no web app, no
   automation, no AI, no billing workflow.
-- **Tackle** (web-only): the benchmark for automated, AI-assisted tracking — calendar
-  auto-capture, rules + AI categorization, hourly rates feeding accurate invoicing, subscription
-  business model — but generic web UX, nowhere near native mobile quality.
+- **Tactiq** (tactiq.io, browser-extension/web): the benchmark for meeting AI and AI
+  monetization — live meeting transcription (Meet/Zoom/Teams, 30+ languages), AI summaries and
+  action items, reusable AI prompts/workflows, sold through tiered plans with **AI credits**
+  (1 credit = 1 AI action) — but it is not a time tracker and has no mobile app
+  ([ADR-0008](adr/0008-tactiq-realignment-transcription-and-credits.md), amending ADR-0002's
+  original reference).
 
 On top of the union, myDevTime adds its **own AI layer**: natural-language time entry,
 AI-generated summaries/standup reports, and a chat assistant grounded exclusively in the user's
-own tracking data. The commercial foundation — authentication and subscription billing across
-web and both app stores — is in scope from the start, not a retrofit.
+own tracking data. Calendar auto-capture (Google/Microsoft) stays in scope as the strongest
+automation source and the anchor that ties meetings — and their transcripts — to tracked time.
+The commercial foundation — authentication and subscription billing across web and both app
+stores — is in scope from the start, not a retrofit.
 
 **The problem:** tracked time is billing-relevant data, and the tools that make capture effortless
 (automation, AI) are exactly the tools that can silently corrupt it. The architecture therefore
@@ -53,6 +58,11 @@ integration marketplace, multi-currency workspaces, 2FA/passkeys.
 | F8 | Produce billing-grade timesheet exports (CSV/PDF) with per-value provenance and explicit rounding profiles |
 | F9 | Authenticate via email/password, Google, and Apple; sessions revocable; account deletable |
 | F10 | Sell a Pro subscription via Stripe on web and native IAP in both stores, unified by one internal entitlement service |
+| F11 | Transcribe meetings (consent-first, capture channel per ADR-0009) and attach the transcript to the tracked time entry |
+| F12 | Run AI actions on transcripts — summaries, action items, reusable custom prompts — each debiting a visible AI-credit balance with purchasable top-ups |
+| F13 | Track the work day itself: clock-in/clock-out, breaks, target-hour schedules, overtime balance, break-rule warnings — with project entries recorded inside that frame |
+| F14 | Record absences (vacation, sick, public holidays, custom types) with allowance/carry-over accounting, integrated with target hours and statistics |
+| F15 | Export a signable monthly work-time report (Arbeitszeitnachweis) as PDF with signature blocks and as structured Excel/XLSX |
 
 ## Requirements Register {#_requirements_register}
 
@@ -86,6 +96,12 @@ a Runtime-View sequence diagram (§6).
 | REQ-022 | E2E suite: golden paths across web + both mobile platforms, faked externals, 20-consecutive-green flake gate | [#27](https://github.com/NexusHero/myDevTime/issues/27) | Proposed |
 | REQ-023 | Distribution: web (PWA-installable) + App Store + Play Store, store-policy self-review, staged rollout | [#28](https://github.com/NexusHero/myDevTime/issues/28) | Proposed |
 | REQ-024 | Pricing decision: free-tier limits + per-rail Pro prices, unit-economics check — recorded as an ADR before store submission | [#29](https://github.com/NexusHero/myDevTime/issues/29) | Proposed |
+| REQ-025 | Meeting transcription pipeline: consent-first capture, `TranscriptionPort` ASR adapter, transcript linked to the time entry, DSGVO-grade lifecycle | ADR-0008/0009, [#32](https://github.com/NexusHero/myDevTime/issues/32) | Proposed — blocked on the capture spike [#31](https://github.com/NexusHero/myDevTime/issues/31) |
+| REQ-026 | AI meeting insights: summaries, action items, Tactiq-style reusable custom prompts over transcripts; confirmed-only task creation | ADR-0008, [#33](https://github.com/NexusHero/myDevTime/issues/33) | Proposed |
+| REQ-027 | AI-credit ledger: append-only, idempotent debits, monthly plan allowances, top-up packs on all three payment rails, visible balance | ADR-0008, [#34](https://github.com/NexusHero/myDevTime/issues/34) | Proposed |
+| REQ-028 | Attendance: clock-in/out, breaks, effective-dated target-hour schedules, overtime balance, project-coverage reconciliation, configurable break-rule check (ArbZG §4 preset) | ADR-0010, [#36](https://github.com/NexusHero/myDevTime/issues/36) | Proposed |
+| REQ-029 | Absences: vacation/sick/holiday/custom types, half-days, regional holiday calendars, allowance & carry-over math, target-hour interplay | ADR-0010, [#37](https://github.com/NexusHero/myDevTime/issues/37) | Proposed |
+| REQ-030 | Signable work-time report: monthly Arbeitszeitnachweis as PDF with signature blocks + structured XLSX, rendered exclusively from domain-computed values | ADR-0010, [#38](https://github.com/NexusHero/myDevTime/issues/38) | Proposed |
 
 The full milestone plan (M0–M5), dependency graph, and the Definition of 1.0 live in
 [`docs/roadmap.md`](roadmap.md).
@@ -98,7 +114,7 @@ The full milestone plan (M0–M5), dependency graph, and the Definition of 1.0 l
 | 2 | **Auditability** | Every entry carries provenance (`timer`/`manual`/`calendar`/`rule:<id>@<version>`/`ai-proposal` + accepted/corrected/rejected); every exported number traces back to its entries and rounding profile |
 | 3 | **Offline-first reliability** | Tracking never blocks on connectivity: timers, entries, and edits work offline and converge without losing or duplicating minutes (REQ-006) |
 | 4 | **UX responsiveness** | The Tyme bar: ≤2-tap timer start, native-feeling phone/tablet apps, keyboard-first web — automation must never make capture slower |
-| 5 | **Data protection** | Time data reveals clients, work patterns, and income: DSGVO-compliant handling, encrypted third-party grants, no training of provider models on user data |
+| 5 | **Data protection** | Time data reveals clients, work patterns, and income — and meeting transcripts are verbatim third-party speech: DSGVO-compliant handling, consent-first capture, encrypted third-party grants, no training of provider models on user data |
 | 6 | **Extensibility** | New capture source, new LLM provider, new payment rail = new adapter behind an existing port — no change to domain logic (OCP, §2.2) |
 
 ## Stakeholders {#_stakeholders}
@@ -122,6 +138,7 @@ The full milestone plan (M0–M5), dependency graph, and the Definition of 1.0 l
 | Client: one React Native + Expo codebase for iOS/Android/Web | [ADR-0004](adr/0004-react-native-expo-client.md) — Proposed, gated on the spike ([#1](https://github.com/NexusHero/myDevTime/issues/1)) |
 | Offline-first is core architecture, not a feature | ADR-0002; forces the sync engine (REQ-006) into M1 |
 | LLMs never produce billing-relevant state | [ADR-0005](adr/0005-deterministic-core-llm-assist.md) |
+| Meeting capture is consent-first; channel + ASR provider pending the spike | [ADR-0009](adr/0009-meeting-capture-asr-approach.md), [#31](https://github.com/NexusHero/myDevTime/issues/31) |
 | Digital subscriptions inside the apps must use store IAP | Apple/Google policy — see [ADR-0006](adr/0006-subscription-billing-stripe-plus-store-iap.md) |
 | Third-party login ⇒ Sign in with Apple mandatory | App Store guideline 4.8 — see [ADR-0007](adr/0007-authentication-email-oauth-sessions.md) |
 
@@ -154,7 +171,9 @@ External actors and systems at 1.0:
 |----------------|-------------|
 | User (phone / tablet / browser) | Tracks time, reviews AI proposals, exports timesheets, manages subscription |
 | Google Calendar / Microsoft 365 | Read-only event source for candidate entries (REQ-010) |
-| LLM provider(s) | Categorization proposals, NL parsing, summaries, assistant — behind one adapter (REQ-012) |
+| LLM provider(s) | Categorization proposals, NL parsing, summaries, assistant, meeting insights — behind one adapter (REQ-012) |
+| ASR provider / meeting-capture channel | Meeting audio/captions → transcripts, per ADR-0009 (REQ-025) |
+| Meeting platforms (Meet, Teams, Zoom) | The environments the capture channel must cover (REQ-025) |
 | Stripe | Web subscription checkout, billing portal, webhooks (REQ-017) |
 | Apple App Store / Google Play | App distribution + IAP subscriptions + server notifications (REQ-018, REQ-023) |
 | Google / Apple identity | OAuth sign-in (REQ-002) |
@@ -231,8 +250,10 @@ in < Ns without data loss") as they're defined per milestone._
 | **Sync correctness** | A wrong merge silently changes billed minutes — worst-case product failure, hard to detect late | Sync-protocol ADR + simulation/property tests are acceptance criteria of [#9](https://github.com/NexusHero/myDevTime/issues/9) |
 | **LLM cost overrun** | AI features are variable-cost; an unmetered free tier can be exploited into real money loss | Metering + caps in [#21](https://github.com/NexusHero/myDevTime/issues/21), spend alerts in [#26](https://github.com/NexusHero/myDevTime/issues/26), unit-economics check in [#29](https://github.com/NexusHero/myDevTime/issues/29) |
 | **Store-policy rejection** | IAP, Sign in with Apple, account deletion, subscription-steering rules — any miss delays launch by review cycles | Policy items are explicit acceptance criteria in [#5](https://github.com/NexusHero/myDevTime/issues/5) [#23](https://github.com/NexusHero/myDevTime/issues/23) [#28](https://github.com/NexusHero/myDevTime/issues/28) |
-| **Prompt injection via calendar events** | Event titles are attacker-controlled input that reaches the LLM layer | Guardrails in [#17](https://github.com/NexusHero/myDevTime/issues/17); adversarial review in [#24](https://github.com/NexusHero/myDevTime/issues/24) |
-| **Competing with two entrenched products** | Feature-parity chase without the union thesis landing = no differentiation | ADR-0002 non-goals + the "would this feel at home in Tyme / reach Tackle automation" review questions |
+| **Prompt injection via calendar events & transcripts** | Event titles and meeting-transcript content are attacker/participant-controlled input that reaches the LLM layer | Guardrails in [#17](https://github.com/NexusHero/myDevTime/issues/17) [#33](https://github.com/NexusHero/myDevTime/issues/33); adversarial review in [#24](https://github.com/NexusHero/myDevTime/issues/24) |
+| **Recording consent & law** | Transcribing meetings records third parties: DSGVO and two-party-consent rules (e.g. §201 StGB) apply — a consent misstep is a legal, not a UX, failure | Consent analysis in the capture spike [#31](https://github.com/NexusHero/myDevTime/issues/31); consent-first capture is an acceptance criterion of [#32](https://github.com/NexusHero/myDevTime/issues/32) |
+| **ASR unit cost** | Transcription has a real per-minute cost; mispriced, every active user loses money | Cost table from [#31](https://github.com/NexusHero/myDevTime/issues/31) feeds the credit model [#34](https://github.com/NexusHero/myDevTime/issues/34) and pricing [#29](https://github.com/NexusHero/myDevTime/issues/29) |
+| **Competing with two entrenched products** | Feature-parity chase without the union thesis landing = no differentiation | ADR-0002 non-goals + the "would this feel at home in Tyme / reach Tactiq-level meeting AI" review questions |
 
 ---
 
@@ -245,3 +266,5 @@ in < Ns without data loss") as they're defined per milestone._
 | Entitlement | Provider-agnostic record of an account's plan, period, and source — the only thing feature gates consult |
 | Rounding profile | A named, versioned rounding configuration applied at report/export time; raw entries stay exact |
 | Slot integrity | The test-enforced rule that every number inside AI-generated narrative equals the deterministically computed value passed in |
+| AI credit | The unit of AI usage: 1 credit = 1 AI action, tracked in an append-only ledger with monthly plan allowances and purchasable top-ups (ADR-0008) |
+| Transcript | The stored, consent-gated text of a captured meeting, linked to its time entry; source data for AI meeting insights (REQ-025/026) |
