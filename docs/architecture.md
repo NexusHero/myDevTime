@@ -1,0 +1,247 @@
+---
+title: "myDevTime — Architecture Documentation"
+subtitle: "Based on arc42 Template Version 9.0 · arc42.org"
+status: "Work in Progress"
+lang: en
+toc: true
+toc-depth: 3
+numbersections: true
+---
+
+# Introduction and Goals {#section-introduction-and-goals}
+
+## Requirements Overview {#_requirements_overview}
+
+**myDevTime** is a cross-platform time-tracking product for developers, freelancers, and small
+teams, shipping on **iOS, Android, and Web** from 1.0. Its product thesis
+([ADR-0002](adr/0002-product-scope-unify-tyme-and-tackle.md)) is to unify the two best products
+in the space — each of which lacks what the other has:
+
+- **Tyme** (Apple-only): the benchmark for mobile/tablet-first tracking UX — fast timers,
+  client → project → task hierarchy, budgets, statistics, offline-first sync — but no web app, no
+  automation, no AI, no billing workflow.
+- **Tackle** (web-only): the benchmark for automated, AI-assisted tracking — calendar
+  auto-capture, rules + AI categorization, hourly rates feeding accurate invoicing, subscription
+  business model — but generic web UX, nowhere near native mobile quality.
+
+On top of the union, myDevTime adds its **own AI layer**: natural-language time entry,
+AI-generated summaries/standup reports, and a chat assistant grounded exclusively in the user's
+own tracking data. The commercial foundation — authentication and subscription billing across
+web and both app stores — is in scope from the start, not a retrofit.
+
+**The problem:** tracked time is billing-relevant data, and the tools that make capture effortless
+(automation, AI) are exactly the tools that can silently corrupt it. The architecture therefore
+follows one principle throughout ([ADR-0005](adr/0005-deterministic-core-llm-assist.md)):
+**deterministic logic decides everything that reaches a timesheet or invoice; LLMs propose, parse,
+explain, and assist — with recorded provenance — but never act as the bookkeeper.**
+
+**Non-goals for 1.0** (backlog, not scope — ADR-0002): team/enterprise administration beyond a
+personal workspace, native macOS/watchOS apps, screen-time/app-usage surveillance tracking,
+integration marketplace, multi-currency workspaces, 2FA/passkeys.
+
+**Essential functional requirements:**
+
+| # | Requirement |
+|---|-------------|
+| F1 | Track time via live timers and manual entries, fully offline-capable, synced across devices |
+| F2 | Organize work as clients → projects → tasks with tags, budgets, deadlines, and hourly rates |
+| F3 | Ingest calendar events (Google/Microsoft) as candidate entries — never auto-committed without a rule the user enabled |
+| F4 | Categorize candidates deterministically via user-defined, versioned rules; an LLM proposes only where rules are undecided, constrained to code-enforced candidates |
+| F5 | Parse natural-language input ("2h Finanzo Review gestern") into draft entries the user confirms |
+| F6 | Generate AI summaries, standup reports, and budget-risk explanations whose every number equals the deterministically computed one |
+| F7 | Answer questions in a chat assistant grounded exclusively in the user's own workspace — read-only, deep-links instead of state mutation |
+| F8 | Produce billing-grade timesheet exports (CSV/PDF) with per-value provenance and explicit rounding profiles |
+| F9 | Authenticate via email/password, Google, and Apple; sessions revocable; account deletable |
+| F10 | Sell a Pro subscription via Stripe on web and native IAP in both stores, unified by one internal entitlement service |
+
+## Requirements Register {#_requirements_register}
+
+Living register of tracked requirements (process skill §1.1). GitHub issues are where a
+requirement is *discussed*; this table is where it is *tracked*. Each fulfilled requirement gains
+a Runtime-View sequence diagram (§6).
+
+| ID | Requirement | Delivered by | Status |
+|----|-------------|-------------|--------|
+| REQ-001 | Workspace & tracking data model: clients → projects → tasks, tags, archiving; every query workspace-scoped by construction | [#6](https://github.com/NexusHero/myDevTime/issues/6) | Proposed |
+| REQ-002 | Authentication: email/password + verification, Sign in with Google & Apple, rotating revocable sessions, rate limiting, account deletion | ADR-0007, [#4](https://github.com/NexusHero/myDevTime/issues/4) [#5](https://github.com/NexusHero/myDevTime/issues/5) | Proposed |
+| REQ-003 | Deterministic tracking core: timezone/DST-safe time math, overlap policy, rounding rules as data, aggregations — pure and dependency-free | ADR-0005, [#7](https://github.com/NexusHero/myDevTime/issues/7) | Proposed |
+| REQ-004 | Timers & manual entries: one running timer, reboot-safe, offline-first local store, provenance on every entry | [#8](https://github.com/NexusHero/myDevTime/issues/8) | Proposed |
+| REQ-005 | Budgets, effective-dated hourly rates (workspace→client→project→task precedence), deadlines, threshold alerts; integer money math | [#10](https://github.com/NexusHero/myDevTime/issues/10) | Proposed |
+| REQ-006 | Cross-device sync: offline-first, idempotent, resumable; conflicts never silently merge into wrong durations | [#9](https://github.com/NexusHero/myDevTime/issues/9) + sync-protocol ADR | Proposed |
+| REQ-007 | Mobile timer UX at the Tyme bar: today view, ≤2-tap start, background visibility (notification/Live Activity), tablet split-view | [#12](https://github.com/NexusHero/myDevTime/issues/12) | Proposed |
+| REQ-008 | Statistics dashboard & report builder, keyboard-first on web (shortcuts + command palette), responsive on phone/tablet | [#13](https://github.com/NexusHero/myDevTime/issues/13) | Proposed |
+| REQ-009 | Timesheet & invoice-ready export (CSV/PDF): rates, rounding profile, totals — every number traceable to the deterministic core | [#14](https://github.com/NexusHero/myDevTime/issues/14) | Proposed |
+| REQ-010 | Calendar integration (Google/Microsoft, read-only): encrypted revocable grants, events normalized into candidate entries, never auto-committed | [#15](https://github.com/NexusHero/myDevTime/issues/15) | Proposed |
+| REQ-011 | Deterministic rules engine: ordered versioned matchers → categorization actions, dry-run preview, `rule:<id>@<version>` provenance | ADR-0005, [#16](https://github.com/NexusHero/myDevTime/issues/16) | Proposed |
+| REQ-012 | LLM assist layer: one multi-provider adapter, proposals only for rule-undecided candidates, code-enforced candidate guardrail, graceful degradation | ADR-0005, [#17](https://github.com/NexusHero/myDevTime/issues/17) | Proposed |
+| REQ-013 | Natural-language time entry (de/en): deterministic pre-parser + LLM fallback, always a confirmed draft, never silently persisted | ADR-0005, [#18](https://github.com/NexusHero/myDevTime/issues/18) | Proposed |
+| REQ-014 | AI summaries & standup reports: narrative around domain-computed numbers (slot integrity), read-only artifacts, plain-template degradation | ADR-0005, [#19](https://github.com/NexusHero/myDevTime/issues/19) | Proposed |
+| REQ-015 | AI assistant chat: grounded in workspace data via read-only query tools, defined refusals, deep-links only — no state mutation from chat | ADR-0005, [#20](https://github.com/NexusHero/myDevTime/issues/20) | Proposed |
+| REQ-016 | Entitlement service: provider-agnostic plan model (`free`/`pro`), feature gates, AI usage caps, idempotent webhook-event convergence | ADR-0006, [#21](https://github.com/NexusHero/myDevTime/issues/21) | Proposed |
+| REQ-017 | Stripe subscriptions on web: Checkout, Billing portal, signature-verified idempotent webhooks, Stripe Tax | ADR-0006, [#22](https://github.com/NexusHero/myDevTime/issues/22) | Proposed |
+| REQ-018 | Store subscriptions: StoreKit 2 + Play Billing with server notifications as source of truth; store-policy-compliant cross-rail UX | ADR-0006, [#23](https://github.com/NexusHero/myDevTime/issues/23) | Proposed |
+| REQ-019 | Security hardening baseline: authz sweep, rate-limit map, headers/CORS, input validation, scanning, prompt-injection review — test-enforced | [#24](https://github.com/NexusHero/myDevTime/issues/24) | Proposed |
+| REQ-020 | Privacy/DSGVO package: Art. 15 export, Art. 17 erasure, retention in code, provider DPA/no-training matrix, consent points | [#25](https://github.com/NexusHero/myDevTime/issues/25) | Proposed |
+| REQ-021 | Observability & ops baseline: structured PII-free logging, metrics/alerts (incl. webhook lag + LLM spend), deploy/rollback, rehearsed restore | [#26](https://github.com/NexusHero/myDevTime/issues/26) | Proposed |
+| REQ-022 | E2E suite: golden paths across web + both mobile platforms, faked externals, 20-consecutive-green flake gate | [#27](https://github.com/NexusHero/myDevTime/issues/27) | Proposed |
+| REQ-023 | Distribution: web (PWA-installable) + App Store + Play Store, store-policy self-review, staged rollout | [#28](https://github.com/NexusHero/myDevTime/issues/28) | Proposed |
+| REQ-024 | Pricing decision: free-tier limits + per-rail Pro prices, unit-economics check — recorded as an ADR before store submission | [#29](https://github.com/NexusHero/myDevTime/issues/29) | Proposed |
+
+The full milestone plan (M0–M5), dependency graph, and the Definition of 1.0 live in
+[`docs/roadmap.md`](roadmap.md).
+
+## Quality Goals {#_quality_goals}
+
+| Priority | Quality Attribute | Goal |
+|----------|------------------|------|
+| 1 | **Correctness** | Tracked minutes become invoiced money: durations, rates, budgets, and exports are computed by deterministic, exhaustively tested pure logic — never by an LLM, never twice in two places (ADR-0005) |
+| 2 | **Auditability** | Every entry carries provenance (`timer`/`manual`/`calendar`/`rule:<id>@<version>`/`ai-proposal` + accepted/corrected/rejected); every exported number traces back to its entries and rounding profile |
+| 3 | **Offline-first reliability** | Tracking never blocks on connectivity: timers, entries, and edits work offline and converge without losing or duplicating minutes (REQ-006) |
+| 4 | **UX responsiveness** | The Tyme bar: ≤2-tap timer start, native-feeling phone/tablet apps, keyboard-first web — automation must never make capture slower |
+| 5 | **Data protection** | Time data reveals clients, work patterns, and income: DSGVO-compliant handling, encrypted third-party grants, no training of provider models on user data |
+| 6 | **Extensibility** | New capture source, new LLM provider, new payment rail = new adapter behind an existing port — no change to domain logic (OCP, §2.2) |
+
+## Stakeholders {#_stakeholders}
+
+| Role | Expectations |
+|------|-------------|
+| **Freelancer / developer (primary user)** | Effortless capture, trustworthy invoices, their data private and exportable; AI that saves time without ever quietly changing their numbers |
+| **The user's clients (indirect)** | Timesheets/invoices that are accurate, itemized, and reproducible on inquiry |
+| **Developer (Suhay Sevinc)** | A stack one person can sustain (one language end to end), testable pure core, volatile vendors behind adapters |
+| **App Store / Play Store review (gatekeeper)** | Policy compliance: IAP for digital goods, Sign in with Apple, account deletion, honest privacy labels |
+
+---
+
+# Architecture Constraints {#section-architecture-constraints}
+
+## Technical Constraints
+
+| Constraint | Background |
+|-----------|------------|
+| Backend: single Node.js/TypeScript modular monolith | [ADR-0003](adr/0003-node-typescript-backend.md) |
+| Client: one React Native + Expo codebase for iOS/Android/Web | [ADR-0004](adr/0004-react-native-expo-client.md) — Proposed, gated on the spike ([#1](https://github.com/NexusHero/myDevTime/issues/1)) |
+| Offline-first is core architecture, not a feature | ADR-0002; forces the sync engine (REQ-006) into M1 |
+| LLMs never produce billing-relevant state | [ADR-0005](adr/0005-deterministic-core-llm-assist.md) |
+| Digital subscriptions inside the apps must use store IAP | Apple/Google policy — see [ADR-0006](adr/0006-subscription-billing-stripe-plus-store-iap.md) |
+| Third-party login ⇒ Sign in with Apple mandatory | App Store guideline 4.8 — see [ADR-0007](adr/0007-authentication-email-oauth-sessions.md) |
+
+## Organizational Constraints
+
+| Constraint | Background |
+|-----------|------------|
+| One-person project (for now) | One runtime, one client codebase, one deployment; modular-monolith seams instead of microservices (ADR-0003) |
+| Store review cycles gate every mobile release | Release process must include store lead time; staged rollouts (REQ-023) |
+| LLM usage has real unit costs | AI features are metered and entitlement-capped (REQ-016); pricing must cover worst-case usage (REQ-024) |
+
+## Conventions
+
+| Convention | Application |
+|-----------|-------------|
+| Conventional Commits | All git commits follow `type(scope): summary` in English |
+| arc42 (Markdown) | This documentation |
+| MADR | ADRs in [`docs/adr/`](adr/README.md) |
+| See [`skills/ultimate-dev-process/SKILL.md`](../skills/ultimate-dev-process/SKILL.md) | Full governance process (architecture, testing, implementation style, commits) |
+
+---
+
+# Context and Scope {#section-context-and-scope}
+
+## Business Context {#_business_context}
+
+External actors and systems at 1.0:
+
+| Actor / System | Interaction |
+|----------------|-------------|
+| User (phone / tablet / browser) | Tracks time, reviews AI proposals, exports timesheets, manages subscription |
+| Google Calendar / Microsoft 365 | Read-only event source for candidate entries (REQ-010) |
+| LLM provider(s) | Categorization proposals, NL parsing, summaries, assistant — behind one adapter (REQ-012) |
+| Stripe | Web subscription checkout, billing portal, webhooks (REQ-017) |
+| Apple App Store / Google Play | App distribution + IAP subscriptions + server notifications (REQ-018, REQ-023) |
+| Google / Apple identity | OAuth sign-in (REQ-002) |
+
+## Technical Context {#_technical_context}
+
+_Fill in (deployment topology, protocols, webhook endpoints) once the backend skeleton
+([#3](https://github.com/NexusHero/myDevTime/issues/3)) lands._
+
+---
+
+# Solution Strategy {#section-solution-strategy}
+
+| Problem | Decision | Rationale | Quality Goal |
+|---------|----------|-----------|--------------|
+| Three platforms, one developer | One TypeScript codebase everywhere: Node backend (ADR-0003) + React Native/Expo clients (ADR-0004) with shared domain packages | Domain logic written once, tested once, used by client and server | Correctness, Extensibility |
+| Automation vs. billing integrity | Deterministic core + rules engine decide; LLM proposes/parses/explains with provenance (ADR-0005) | Billing data must be reproducible and auditable; LLM output is neither | Correctness, Auditability |
+| Three payment rails, one plan | Internal entitlement service as single source of truth; Stripe/StoreKit/Play as adapters (ADR-0006) | Cross-rail edge cases handled once; providers swappable | Extensibility, Correctness |
+| Capture must work anywhere | Offline-first local store + sync engine in the core (REQ-004/006) | Tyme-class reliability is a launch bar, not an optimization | Offline-first reliability |
+
+---
+
+# Building Block View {#section-building-block-view}
+
+Backend modules (ADR-0003): `auth` · `tracking` · `sync` · `automation` (calendar + rules) ·
+`ai` · `billing` (entitlements + payment adapters). Shared packages: `packages/domain` (pure
+logic: time math, budgets, rules engine), `packages/shared` (types/schemas).
+
+_Diagrams follow once the bootstrap ([#2](https://github.com/NexusHero/myDevTime/issues/2)) and
+backend skeleton ([#3](https://github.com/NexusHero/myDevTime/issues/3)) land._
+
+---
+
+# Runtime View {#section-runtime-view}
+
+Each fulfilled requirement gets a scenario here (a Mermaid sequence diagram) linking back to its
+`REQ-NNN` — see the process skill §1.3.
+
+---
+
+# Cross-cutting Concepts {#section-concepts}
+
+- **Provenance** (ADR-0005): every time entry records its origin and review state — the audit
+  spine of the product.
+- **Ports & adapters for volatile vendors** (process skill §2.2): LLM providers, payment
+  providers, calendar providers — one narrow interface, vendor types in one file each.
+- **Entitlement gating**: features and AI quotas ask the `billing` module's entitlement API,
+  never a payment SDK (ADR-0006).
+- **Workspace isolation**: repository layer takes a workspace id by construction (REQ-001).
+
+_Extend (error handling, i18n de/en, notification surface) as they emerge._
+
+---
+
+# Architecture Decisions {#section-design-decisions}
+
+ADRs live in [`docs/adr/`](adr/README.md) as individual files — see that directory's index and
+Tech Radar for the full list.
+
+---
+
+# Quality Requirements {#section-quality-scenarios}
+
+_Fill in concrete quality-attribute scenarios (e.g. "sync of a 30-day offline backlog completes
+in < Ns without data loss") as they're defined per milestone._
+
+---
+
+# Risks and Technical Debt {#section-technical-risks}
+
+| Risk | Impact if unaddressed | Tracking |
+|------|----------------------|----------|
+| **Client-stack bet (ADR-0004) unvalidated** | If RN/Expo can't hit the Tyme UX bar (background timers, offline store, RN-web dashboards), every client feature built before finding out is rework | Spike [#1](https://github.com/NexusHero/myDevTime/issues/1) is M0 and blocks all client issues; Flutter is the named fallback |
+| **Sync correctness** | A wrong merge silently changes billed minutes — worst-case product failure, hard to detect late | Sync-protocol ADR + simulation/property tests are acceptance criteria of [#9](https://github.com/NexusHero/myDevTime/issues/9) |
+| **LLM cost overrun** | AI features are variable-cost; an unmetered free tier can be exploited into real money loss | Metering + caps in [#21](https://github.com/NexusHero/myDevTime/issues/21), spend alerts in [#26](https://github.com/NexusHero/myDevTime/issues/26), unit-economics check in [#29](https://github.com/NexusHero/myDevTime/issues/29) |
+| **Store-policy rejection** | IAP, Sign in with Apple, account deletion, subscription-steering rules — any miss delays launch by review cycles | Policy items are explicit acceptance criteria in [#5](https://github.com/NexusHero/myDevTime/issues/5) [#23](https://github.com/NexusHero/myDevTime/issues/23) [#28](https://github.com/NexusHero/myDevTime/issues/28) |
+| **Prompt injection via calendar events** | Event titles are attacker-controlled input that reaches the LLM layer | Guardrails in [#17](https://github.com/NexusHero/myDevTime/issues/17); adversarial review in [#24](https://github.com/NexusHero/myDevTime/issues/24) |
+| **Competing with two entrenched products** | Feature-parity chase without the union thesis landing = no differentiation | ADR-0002 non-goals + the "would this feel at home in Tyme / reach Tackle automation" review questions |
+
+---
+
+# Glossary {#section-glossary}
+
+| Term | Definition |
+|------|-----------|
+| Candidate entry | A normalized, not-yet-confirmed potential time entry (e.g. from a calendar event) awaiting rules/AI/user decision |
+| Provenance | The recorded origin + review state of an entry (`timer`, `manual`, `calendar`, `rule:<id>@<version>`, `ai-proposal`; accepted/corrected/rejected) |
+| Entitlement | Provider-agnostic record of an account's plan, period, and source — the only thing feature gates consult |
+| Rounding profile | A named, versioned rounding configuration applied at report/export time; raw entries stay exact |
+| Slot integrity | The test-enforced rule that every number inside AI-generated narrative equals the deterministically computed value passed in |
