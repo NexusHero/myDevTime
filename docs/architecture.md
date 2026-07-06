@@ -63,6 +63,7 @@ integration marketplace, multi-currency workspaces, 2FA/passkeys.
 | F13 | Track the work day itself: clock-in/clock-out, breaks, target-hour schedules, overtime balance, break-rule warnings — with project entries recorded inside that frame |
 | F14 | Record absences (vacation, sick, public holidays, custom types) with allowance/carry-over accounting, integrated with target hours and statistics |
 | F15 | Export a signable monthly work-time report (Arbeitszeitnachweis) as PDF with signature blocks and as structured Excel/XLSX |
+| F16 | Co-plan the day: AI-proposed timebox plan (ghost blocks) anchored on meetings and weighted by deadlines/budgets/target hours; live plan-vs-actual; evening review feeding the standup |
 
 ## Requirements Register {#_requirements_register}
 
@@ -102,6 +103,7 @@ a Runtime-View sequence diagram (§6).
 | REQ-028 | Attendance: clock-in/out, breaks, effective-dated target-hour schedules, overtime balance, project-coverage reconciliation, configurable break-rule check (ArbZG §4 preset) | ADR-0010, [#36](https://github.com/NexusHero/myDevTime/issues/36) | Proposed |
 | REQ-029 | Absences: vacation/sick/holiday/custom types, half-days, regional holiday calendars, allowance & carry-over math, target-hour interplay | ADR-0010, [#37](https://github.com/NexusHero/myDevTime/issues/37) | Proposed |
 | REQ-030 | Signable work-time report: monthly Arbeitszeitnachweis as PDF with signature blocks + structured XLSX, rendered exclusively from domain-computed values | ADR-0010, [#38](https://github.com/NexusHero/myDevTime/issues/38) | Proposed |
+| REQ-031 | AI Co-Planner: versioned plan entity, deterministic planning algorithm with LLM garnish (ADR-0005 discipline), ghost-block proposals on the Day Canvas, plan-vs-actual + evening review | ADR-0011, [#40](https://github.com/NexusHero/myDevTime/issues/40) | Proposed |
 
 The full milestone plan (M0–M5), dependency graph, and the Definition of 1.0 live in
 [`docs/roadmap.md`](roadmap.md).
@@ -223,6 +225,9 @@ Each fulfilled requirement gets a scenario here (a Mermaid sequence diagram) lin
 - **Entitlement gating**: features and AI quotas ask the `billing` module's entitlement API,
   never a payment SDK (ADR-0006).
 - **Workspace isolation**: repository layer takes a workspace id by construction (REQ-001).
+- **Design language**: all client surfaces follow the binding UX vision
+  ([`docs/design/ux-vision.md`](design/ux-vision.md)) — Day Canvas, Island, calm-AI ghost
+  styling, keyboard-first web — validated by the prototype gate (#39) before component code.
 
 _Extend (error handling, i18n de/en, notification surface) as they emerge._
 
