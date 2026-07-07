@@ -287,6 +287,8 @@ kbd {
   margin-bottom: var(--sp-4);
 }
 .worktime-alert.warn { background: var(--accent-soft); color: var(--accent-text); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+.worktime-alert.info { background: var(--surface); color: var(--ink-2); border: 1px dashed var(--border-strong); }
+.worktime-alert.info strong { color: var(--ink); }
 .worktime-alert.crit { background: var(--crit-soft); color: var(--crit); border: 1px solid color-mix(in srgb, var(--crit) 45%, transparent); }
 
 .worktime-bar {
@@ -506,6 +508,7 @@ kbd {
 .island .i-time { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: var(--fs-md); font-weight: 700; color: var(--accent-text); white-space: nowrap; }
 .island .i-sub { font-size: var(--fs-xs); color: var(--ink-3); }
 .island-idle .live-dot { background: var(--ink-3); animation: none; }
+.island-focus { border-color: var(--accent); box-shadow: var(--shadow-island), 0 0 0 3px var(--accent-soft); }
 
 .island-expand {
   display: flex; gap: var(--sp-2);

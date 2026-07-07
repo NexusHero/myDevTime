@@ -45,6 +45,7 @@ function AbsenceCalendar() {
 export function Profile({ onToast }: { onToast: (msg: string) => void }) {
   const [ruleState, setRuleState] = useState(rules.map(r => r.enabled))
   const [msConnected, setMsConnected] = useState(false)
+  const [mirror, setMirror] = useState(false)
   const remaining = allowance.entitled - allowance.taken - allowance.planned
 
   return (
@@ -144,6 +145,20 @@ export function Profile({ onToast }: { onToast: (msg: string) => void }) {
               <span className="lbl"><strong style={{ color: 'var(--ink)' }}>Meeting-Aufnahme</strong> · Einwilligung pro Meeting<br />
                 <span style={{ fontSize: 'var(--fs-xs)' }}>Consent-first: keine Aufnahme ohne gespeichertes Opt-in · Bot sichtbar</span></span>
               <span className="chip warn">pro Meeting</span>
+            </div>
+            <div className="summary-item">
+              <span className="lbl"><strong style={{ color: 'var(--ink)' }}>Ist-Blöcke in Kalender spiegeln</strong><br />
+                <span style={{ fontSize: 'var(--fs-xs)' }}>Eigener Kalender „myDevTime Ist“ · Detailgrad wählbar · Schreibrecht erst bei Aktivierung</span></span>
+              <button
+                className={`switch ${mirror ? 'on' : ''}`}
+                role="switch" aria-checked={mirror} aria-label="Kalender-Spiegelung"
+                onClick={() => { setMirror(m => !m); onToast(mirror ? 'Spiegelung aus — Aufräumen des Ist-Kalenders angeboten' : 'Schreibrecht angefragt, Kalender „myDevTime Ist“ wird angelegt (Demo)') }}
+              />
+            </div>
+            <div className="summary-item">
+              <span className="lbl"><strong style={{ color: 'var(--ink)' }}>Jira · Linear · Slack</strong> · Insight-Export<br />
+                <span style={{ fontSize: 'var(--fs-xs)' }}>Action Items & Zusammenfassungen dorthin senden, wo gearbeitet wird — immer mit Vorschau</span></span>
+              <button className="btn btn-ghost btn-sm" onClick={() => onToast('OAuth pro Ziel, minimale Scopes — Demo')}>Verbinden</button>
             </div>
           </div>
         </section>

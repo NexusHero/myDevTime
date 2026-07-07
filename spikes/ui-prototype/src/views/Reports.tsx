@@ -84,6 +84,11 @@ export function Reports({ onOpenReport, onToast }: { onOpenReport: () => void; o
           <div className="s-value num">17 Tage</div>
           <div className="s-sub">3 genommen · 2 krank dieses Jahr</div>
         </div>
+        <div className="card card-pad stat-tile">
+          <div className="s-label">Fokus-Serie</div>
+          <div className="s-value num">12 Tage</div>
+          <div className="s-sub num">8 Sessions diese Woche · 3:20 h Fokuszeit</div>
+        </div>
         <div className="card card-pad stat-tile" style={{ display: 'grid', placeItems: 'center' }}>
           <OvertimeGauge hours={3.33} />
         </div>
