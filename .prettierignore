@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+pnpm-lock.yaml
+spikes/
+
+# Markdown is hand-authored prose with carefully aligned tables (arc42 docs,
+# ADRs, roadmap). Prettier pads table cells to equal width, which bloats the
+# source and fights hand-editing. Docs integrity is enforced instead by the
+# deterministic docs-staleness gate (scripts/check-docs.mjs, SKILL §1.5).
+*.md

@@ -321,14 +321,16 @@ would not need reminding to write a test.
 
 ## Appendix: Stack Adaptation
 
-Fill this in per project; keep the section headings above stack-agnostic.
+Stack: pnpm-workspace TypeScript monorepo (ADR-0003/0014). Node ≥ 22, pnpm ≥ 10.
+Run `pnpm install` once (it wires the git hooks via `core.hooksPath`).
 
 | Gate | Command |
 |------|---------|
-| Full local gate (mirrors CI) | `<fill in — e.g. ./test.sh>` |
-| Build | `<fill in>` |
-| Lint / format check | `<fill in>` |
-| Unit / pure-logic tests | `<fill in>` |
-| Integration / acceptance tests | `<fill in>` |
-| Coverage report | `<fill in>` |
-| Type check (if applicable) | `<fill in>` |
+| Full local gate (mirrors CI) | `./test.sh` (or `pnpm gate`) |
+| Build | `pnpm build` (`pnpm -r build`) |
+| Lint / format check | `pnpm lint` · `pnpm format:check` (fix: `pnpm format`) |
+| Unit / pure-logic tests | `pnpm test` (`vitest run`) · watch: `pnpm test:watch` |
+| Integration / acceptance tests | _added with the backend skeleton (#3); same `vitest run`_ |
+| Coverage report | `pnpm coverage` — ≥ 90% gate on `packages/domain` |
+| Type check | `pnpm typecheck` (`pnpm -r typecheck`, `tsc --noEmit`) |
+| Docs staleness | `pnpm check:docs` (dead links · dangling ADR refs · orphan diagrams) |
