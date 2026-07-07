@@ -20,3 +20,6 @@ coverage/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Generated OpenAPI artifact (emitted by CI)
+apps/api/openapi.json
