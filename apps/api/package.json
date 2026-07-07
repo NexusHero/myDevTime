@@ -1,0 +1,10 @@
+{
+  "name": "@mydevtime/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Node.js/TypeScript backend — modular monolith (ADR-0003). Skeleton, module layout, persistence choice and OpenAPI land in issue #3.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

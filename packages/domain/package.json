@@ -1,0 +1,17 @@
+{
+  "name": "@mydevtime/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure, deterministic domain core — time math, budgets, rules (ADR-0005). No I/O, no framework imports. Held to ≥90% coverage (SKILL §3.4).",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}
