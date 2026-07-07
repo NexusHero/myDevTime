@@ -73,6 +73,25 @@ const paths: Record<string, JSX.Element> = {
       <path d="M14 3v4h4M9 12h6M9 16h6" />
     </>
   ),
+  user: (
+    <>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
+    </>
+  ),
+  send: <path d="M4 12l16-8-6 16-2.5-6.5z" />,
+  plus: <path d="M12 5v14M5 12h14" strokeWidth="2.4" />,
+  trash: (
+    <>
+      <path d="M5 7h14M10 7V5h4v2M8 7l1 13h6l1-13" />
+    </>
+  ),
+  download: (
+    <>
+      <path d="M12 4v10M8 10l4 4 4-4" />
+      <path d="M5 20h14" />
+    </>
+  ),
 }
 
 export function Icon({ name, size = 18 }: { name: keyof typeof paths | string; size?: number }) {
