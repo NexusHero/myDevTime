@@ -30,6 +30,7 @@ below in number order.
 | [0009](0009-meeting-capture-asr-approach.md) | Meeting-capture channel & ASR provider — decision frame fixed, winner pending the capture spike ([#31](https://github.com/NexusHero/myDevTime/issues/31)) | Proposed — pending the capture spike |
 | [0010](0010-attendance-absences-signable-report.md) | Scope update: attendance (punch clock, breaks, overtime), absences (vacation/sick/holidays), signable PDF+XLSX work-time report — all 1.0 | Accepted — extends 0002/0008 |
 | [0011](0011-ai-co-planner-and-design-language.md) | AI Co-Planner in 1.0 (plan entity, deterministic planner, ghost-block proposals) + binding UX vision with a prototype gate before component code | Accepted — extends scope; adds gate #39 → #11 |
+| [0012](0012-competitive-feature-adoption.md) | Competitive adoption: focus mode + streaks, idle/forgotten-tracking detection, calendar write-back, Jira/Linear/Slack insight export — all 1.0 | Accepted — extends 0002/0008/0010/0011 |
 
 ## Tech Radar
 

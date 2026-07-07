@@ -58,10 +58,18 @@ export function Meetings({ onToast }: { onToast: (msg: string) => void }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {sel.actions!.map((a, i) => (
                   <div key={i} className="action-row">
-                    <span>{a}</span>
-                    <button className="btn btn-ghost btn-sm" onClick={() => onToast('Als Task angelegt — nach Bestätigung, nie automatisch.')}>
-                      → Task erstellen
-                    </button>
+                    <span style={{ minWidth: 0, flex: 1 }}>{a}</span>
+                    <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      <button className="btn btn-ghost btn-sm" onClick={() => onToast('Als Task angelegt — nach Bestätigung, nie automatisch.')}>
+                        → Task
+                      </button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => onToast('Jira-Issue mit Vorschau-Payload — Demo (#44)')}>
+                        → Jira
+                      </button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => onToast('Slack-Nachricht mit Deep-Link — Demo (#44)')}>
+                        → Slack
+                      </button>
+                    </span>
                   </div>
                 ))}
               </div>

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { DayCanvas } from '../components/DayCanvas'
 import { Icon } from '../components/Icon'
 import { fmtDur, fmtClock, type Block, type BreakSpan } from '../data'
@@ -39,6 +40,7 @@ function TimeStepper({ label, value, min, max, onChange }: { label: string; valu
 export function Today(props: Props) {
   const { blocks, breaks, punchIn, punchedIn, now, targetMin, maxMin } = props
   const ghosts = blocks.filter(b => b.status === 'ghost')
+  const [correctionOpen, setCorrectionOpen] = useState(true)
 
   // Kennzahlen deterministisch aus den Blöcken/Stempeldaten abgeleitet
   const tracked = blocks
@@ -87,6 +89,22 @@ export function Today(props: Props) {
           )}
         </button>
       </div>
+
+      {correctionOpen && (
+        <div className="worktime-alert info" role="status">
+          <span style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <Icon name="punch" size={15} />
+            <span style={{ flex: 1, minWidth: 200 }}>
+              <strong>Ausstempeln vergessen?</strong> Gestern lief die Stempeluhr bis 23:59 — letzte Aktivität
+              war <span className="num">17:28</span> (Timer gestoppt). Vorschlag: Feierabend <span className="num">17:30</span>.
+            </span>
+            <span style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-primary btn-sm" onClick={() => setCorrectionOpen(false)}>Auf 17:30 setzen</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setCorrectionOpen(false)}>Ignorieren</button>
+            </span>
+          </span>
+        </div>
+      )}
 
       {(overMax || nearMax) && (
         <div className={`worktime-alert ${overMax ? 'crit' : 'warn'}`} role="alert">

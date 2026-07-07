@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Icon } from './components/Icon'
-import { Island } from './components/Island'
+import { Island, type FocusState } from './components/Island'
 import { Palette } from './components/Palette'
 import { Assistant } from './components/Assistant'
 import { ReviewModal, ReportModal, EditSheet, Onboarding } from './components/Modals'
@@ -42,6 +42,7 @@ export default function App() {
   const [reportOpen, setReportOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [onboardOpen, setOnboardOpen] = useState(true)
+  const [focus, setFocus] = useState<FocusState | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<number>()
 
@@ -106,6 +107,17 @@ export default function App() {
         showToast('Pause läuft — Timer pausiert nicht automatisch (Demo)')
       }
       return !prev
+    })
+  }, [now, showToast])
+
+  const toggleFocus = useCallback(() => {
+    setFocus(f => {
+      if (f) {
+        showToast('Fokus-Session beendet — zählt zur Serie')
+        return null
+      }
+      showToast('Fokus gestartet · 25 min · DND an (Demo)')
+      return { endsAt: now + 25, cycle: 1, totalCycles: 4 }
     })
   }, [now, showToast])
 
@@ -199,8 +211,9 @@ export default function App() {
       </main>
 
       <Island
-        now={now} running={running} punchedIn={punchedIn} onBreak={onBreak}
+        now={now} running={running} punchedIn={punchedIn} onBreak={onBreak} focus={focus}
         onStop={stopTimer} onStart={startTimer} onToggleBreak={toggleBreak} onTogglePunch={togglePunch}
+        onToggleFocus={toggleFocus}
       />
 
       <nav className="tabbar" aria-label="Hauptnavigation">
