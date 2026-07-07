@@ -1,0 +1,23 @@
+#!/bin/sh
+# Reject a commit whose subject doesn't match Conventional Commits (SKILL §5).
+# Types: feat fix docs test refactor chore ci build perf style revert.
+set -e
+
+subject=$(head -n1 "$1")
+
+# Allow merge/revert/fixup commits produced by git itself.
+case "$subject" in
+  "Merge "*|"Revert "*|"fixup! "*|"squash! "*) exit 0 ;;
+esac
+
+pattern='^(feat|fix|docs|test|refactor|chore|ci|build|perf|style|revert)(\([a-z0-9._/-]+\))?!?: .+'
+
+if printf '%s' "$subject" | grep -Eq "$pattern"; then
+  exit 0
+fi
+
+echo "✗ commit message does not follow Conventional Commits:" >&2
+echo "    $subject" >&2
+echo "  expected: type(scope): summary   e.g. feat(tracking): add overlap detection" >&2
+echo "  types: feat fix docs test refactor chore ci build perf style revert" >&2
+exit 1

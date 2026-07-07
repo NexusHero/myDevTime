@@ -32,6 +32,7 @@ below in number order.
 | [0011](0011-ai-co-planner-and-design-language.md) | AI Co-Planner in 1.0 (plan entity, deterministic planner, ghost-block proposals) + binding UX vision with a prototype gate before component code | Accepted — extends scope; adds gate #39 → #11 |
 | [0012](0012-competitive-feature-adoption.md) | Competitive adoption: focus mode + streaks, idle/forgotten-tracking detection, calendar write-back, Jira/Linear/Slack insight export — all 1.0 | Accepted — extends 0002/0008/0010/0011 |
 | [0013](0013-competitive-adoption-round-2.md) | Competitive adoption round 2: entry notes, month overview with gap markers, budget burn-down forecast, Siri/App-Intents + Quick Tile, classic day list, Zeitausgleich absence type | Accepted — extends scope; next scope ADR must displace, not add |
+| [0014](0014-monorepo-toolchain.md) | Monorepo toolchain: pnpm workspaces, Vitest (+ v8 coverage gate), ESLint flat type-checked + Prettier, one `test.sh` gate = CI, git hooks | Accepted |
 
 ## Tech Radar
 
@@ -41,6 +42,9 @@ One line per technology so the stack's shape stays visible without re-reading th
 | Technology | Ring | Decided by |
 |------------|------|------------|
 | Node.js + TypeScript (`strict`) backend | Adopt | ADR-0003 |
+| pnpm workspaces (monorepo) | Adopt | ADR-0014 |
+| Vitest (+ v8 coverage gate) | Adopt | ADR-0014 |
+| ESLint flat (type-checked) + Prettier | Adopt | ADR-0014 |
 | React Native + Expo (+ react-native-web, EAS) | Trial → Adopt after spike | ADR-0004 |
 | Flutter | Hold (named fallback if the spike fails) | ADR-0004 |
 | Stripe (Checkout + Billing) | Adopt | ADR-0006 |

@@ -19,16 +19,27 @@ one place. Read that skill first; this file only pins down the parts specific to
 
 ## Setup
 
-The backend stack is Node.js/TypeScript ([ADR-0003](docs/adr/0003-node-typescript-backend.md));
-the client stack is proposed as React Native + Expo pending the cross-platform spike
-([ADR-0004](docs/adr/0004-react-native-expo-client.md)). Once the repo is bootstrapped:
+pnpm-workspace TypeScript monorepo ([ADR-0003](docs/adr/0003-node-typescript-backend.md),
+[ADR-0014](docs/adr/0014-monorepo-toolchain.md)). Requirements: **Node ≥ 22, pnpm ≥ 10**
+(`corepack enable`).
 
-1. Fill in the **Appendix: Stack Adaptation** table in
-   [`skills/ultimate-dev-process/SKILL.md`](skills/ultimate-dev-process/SKILL.md) with the real
-   build/lint/test/coverage commands.
-2. Add a single local gate script (`./test.sh` or equivalent) that runs everything CI runs.
-3. Install git hooks that run that script on `pre-commit` and enforce Conventional Commits on
-   `commit-msg` (see the sibling repos' `scripts/hooks/` for a reference implementation).
+```bash
+pnpm install     # installs deps AND wires the git hooks (core.hooksPath)
+./test.sh        # the local gate — exactly what CI runs
+```
+
+The gate runs, in order: `format:check` → `lint` → `typecheck` → `coverage` → `check:docs`.
+Individual commands (`pnpm lint`, `pnpm test`, `pnpm coverage`, `pnpm typecheck`,
+`pnpm check:docs`, `pnpm build`) and the full gate table are in
+[`skills/ultimate-dev-process/SKILL.md`](skills/ultimate-dev-process/SKILL.md) → Appendix.
+
+Layout: `apps/api` (backend — skeleton in [#3](https://github.com/NexusHero/myDevTime/issues/3)),
+`apps/mobile` (**gated on spike #1** — README only, no client code yet), `packages/domain`
+(pure deterministic core, held to ≥ 90 % coverage), `packages/shared` (types/schemas).
+`spikes/*` are throwaway prototypes outside the workspace.
+
+Git hooks are automatic after `pnpm install`: `pre-commit` runs the gate, `commit-msg` enforces
+Conventional Commits. Bypass in a real emergency with `git commit --no-verify`.
 
 ## Branching & commits
 

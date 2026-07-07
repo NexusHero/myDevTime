@@ -1,0 +1,5 @@
+#!/bin/sh
+# Run the full local gate before every commit — the same thing CI runs
+# (SKILL §5). Bypass in a genuine emergency with `git commit --no-verify`.
+set -e
+exec ./test.sh
