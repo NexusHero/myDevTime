@@ -29,7 +29,9 @@ jobs:
         run: ./test.sh
 
       - name: Emit OpenAPI spec
-        run: pnpm --filter @mydevtime/api openapi:emit apps/api/openapi.json
+        # The script runs in the package dir (apps/api); default output is
+        # apps/api/openapi.json, which the upload step below picks up.
+        run: pnpm --filter @mydevtime/api openapi:emit
 
       - name: Upload OpenAPI artifact
         uses: actions/upload-artifact@v4
