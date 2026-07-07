@@ -22,8 +22,8 @@ issue's comments before implementing it.
 |---|---|---|
 | **M0 — Foundation** | Client-stack spike, meeting-capture spike, monorepo + CI, backend skeleton, auth, data model | [#1](https://github.com/NexusHero/myDevTime/issues/1) [#31](https://github.com/NexusHero/myDevTime/issues/31) [#2](https://github.com/NexusHero/myDevTime/issues/2) [#3](https://github.com/NexusHero/myDevTime/issues/3) [#4](https://github.com/NexusHero/myDevTime/issues/4) [#5](https://github.com/NexusHero/myDevTime/issues/5) [#6](https://github.com/NexusHero/myDevTime/issues/6) |
 | **M1 — Tracking core** | Time math, timers & entries, attendance (punch clock), sync engine, budgets & rates | [#7](https://github.com/NexusHero/myDevTime/issues/7) [#8](https://github.com/NexusHero/myDevTime/issues/8) [#36](https://github.com/NexusHero/myDevTime/issues/36) [#9](https://github.com/NexusHero/myDevTime/issues/9) [#10](https://github.com/NexusHero/myDevTime/issues/10) |
-| **M2 — Client apps** | Design system, mobile timer UX, dashboard, absences, exports (timesheet + signable report) | [#11](https://github.com/NexusHero/myDevTime/issues/11) [#12](https://github.com/NexusHero/myDevTime/issues/12) [#13](https://github.com/NexusHero/myDevTime/issues/13) [#37](https://github.com/NexusHero/myDevTime/issues/37) [#14](https://github.com/NexusHero/myDevTime/issues/14) [#38](https://github.com/NexusHero/myDevTime/issues/38) |
-| **M3 — Automation & AI** | Calendar ingestion, rules engine, LLM proposals, NL entry, summaries, assistant, meeting transcription + insights | [#15](https://github.com/NexusHero/myDevTime/issues/15) [#16](https://github.com/NexusHero/myDevTime/issues/16) [#17](https://github.com/NexusHero/myDevTime/issues/17) [#18](https://github.com/NexusHero/myDevTime/issues/18) [#19](https://github.com/NexusHero/myDevTime/issues/19) [#20](https://github.com/NexusHero/myDevTime/issues/20) [#32](https://github.com/NexusHero/myDevTime/issues/32) [#33](https://github.com/NexusHero/myDevTime/issues/33) |
+| **M2 — Client apps** | UX prototype (gate), design system, mobile timer UX, focus mode, idle detection, dashboard, absences, exports (timesheet + signable report) | [#39](https://github.com/NexusHero/myDevTime/issues/39) [#11](https://github.com/NexusHero/myDevTime/issues/11) [#12](https://github.com/NexusHero/myDevTime/issues/12) [#41](https://github.com/NexusHero/myDevTime/issues/41) [#42](https://github.com/NexusHero/myDevTime/issues/42) [#13](https://github.com/NexusHero/myDevTime/issues/13) [#37](https://github.com/NexusHero/myDevTime/issues/37) [#14](https://github.com/NexusHero/myDevTime/issues/14) [#38](https://github.com/NexusHero/myDevTime/issues/38) |
+| **M3 — Automation & AI** | Calendar ingestion + write-back, rules engine, LLM proposals, NL entry, summaries, assistant, meeting transcription + insights, dev-tool export, Co-Planner | [#15](https://github.com/NexusHero/myDevTime/issues/15) [#43](https://github.com/NexusHero/myDevTime/issues/43) [#16](https://github.com/NexusHero/myDevTime/issues/16) [#17](https://github.com/NexusHero/myDevTime/issues/17) [#18](https://github.com/NexusHero/myDevTime/issues/18) [#19](https://github.com/NexusHero/myDevTime/issues/19) [#20](https://github.com/NexusHero/myDevTime/issues/20) [#32](https://github.com/NexusHero/myDevTime/issues/32) [#33](https://github.com/NexusHero/myDevTime/issues/33) [#44](https://github.com/NexusHero/myDevTime/issues/44) [#40](https://github.com/NexusHero/myDevTime/issues/40) |
 | **M4 — Monetization** | Entitlement service, AI-credit ledger, Stripe web subscriptions, store IAP | [#21](https://github.com/NexusHero/myDevTime/issues/21) [#34](https://github.com/NexusHero/myDevTime/issues/34) [#22](https://github.com/NexusHero/myDevTime/issues/22) [#23](https://github.com/NexusHero/myDevTime/issues/23) |
 | **M5 — Launch** | Security, privacy/DSGVO, observability, E2E, distribution, pricing | [#24](https://github.com/NexusHero/myDevTime/issues/24) [#25](https://github.com/NexusHero/myDevTime/issues/25) [#26](https://github.com/NexusHero/myDevTime/issues/26) [#27](https://github.com/NexusHero/myDevTime/issues/27) [#28](https://github.com/NexusHero/myDevTime/issues/28) [#29](https://github.com/NexusHero/myDevTime/issues/29) |
 
@@ -44,7 +44,11 @@ issue's comments before implementing it.
    ([#29](https://github.com/NexusHero/myDevTime/issues/29)) and the credit cost table
    ([#34](https://github.com/NexusHero/myDevTime/issues/34)) need real per-action/per-minute
    numbers; instrument from the first call, don't reconstruct later.
-4. **Provider DPAs / no-training confirmations**
+4. **UX prototype** ([#39](https://github.com/NexusHero/myDevTime/issues/39)) — design is
+   calendar-bound like the spikes: start the vision-to-Figma work during M0/M1 so the #39 → #11
+   gate never idles the client track. The Day Canvas micro-interactions must be settled before
+   M2 component work.
+5. **Provider DPAs / no-training confirmations**
    ([#25](https://github.com/NexusHero/myDevTime/issues/25)) — verify before choosing the default
    LLM provider in [#17](https://github.com/NexusHero/myDevTime/issues/17), not after.
 
@@ -62,7 +66,7 @@ M1  #7 (tracking core, pure) ◄──────┘            │            
       ├──► #36 (attendance: punches, breaks, overtime)           │
       └──► #10 (budgets & rates)                 │               │
                                     │            │               │
-M2  #11 (design system) ◄───────────┴────────────┘               │
+M2  #39 (UX prototype, gate) ──► #11 (design system) ◄─┴─────────┘
       ├──► #12 (mobile timer UX + punch UI) ◄── #8 + #36         │
       ├──► #13 (dashboard: projects + work hours) ◄── #7/#10/#36/#37
       ├──► #37 (absences) ◄── #36                                │
@@ -75,6 +79,7 @@ M3  #15 (calendar) ──► #16 (rules engine) ──► #17 (LLM proposals)│
               │                                  └──► #20 (assistant) ◄── #11 deep links
               └──► #32 (transcription pipeline) ◄────────────────┘
                           └──► #33 (meeting insights) ◄── #17 + #34
+    #40 (Co-Planner) ◄── #7 + #15 + #17 + #36 + #11/#39 (Day Canvas)
                                     │
 M4  #21 (entitlements) ──► #34 (AI-credit ledger)
                       ├──► #22 (Stripe web  + credit top-ups)
@@ -130,13 +135,21 @@ Parallelism notes:
 - The work-time story complete per [ADR-0010](adr/0010-attendance-absences-signable-report.md):
   attendance (#36), absences (#37), and the signable PDF/XLSX report (#38) shipped — the punch
   clock is 1.0 scope, not a fast-follow.
+- The competitive-adoption set per [ADR-0012](adr/0012-competitive-feature-adoption.md): focus
+  mode + streaks (#41), idle detection (#42), calendar write-back (#43), dev-tool export (#44) —
+  #44 may degrade to Slack-first if the schedule demands it (documented in the ADR).
+- The Co-Planner (#40) shipped per [ADR-0011](adr/0011-ai-co-planner-and-design-language.md):
+  plan entity + Day Canvas + manual timeboxing are hard 1.0; if M3 overruns, only the AI
+  proposal garnish may degrade (documented fallback in the ADR) — and the shipped UI passed the
+  #39 prototype gate, no design-in-code shortcuts.
 
 ## Post-1.0 backlog (deferred deliberately, not forgotten)
 
-- **Developer-focused capture**: Git/issue-tracker integrations (commit/branch/issue-key →
-  auto-suggested entries), IDE presence signals — the "myDevTime" name is a program (ADR-0002).
+- **Developer-focused capture**: Git-commit/branch/issue-key → auto-suggested entries, IDE
+  presence signals — the "myDevTime" name is a program (ADR-0002). (Insight *export* to
+  Jira/Linear/Slack is 1.0 since ADR-0012; *capture from* those tools is this backlog item.)
 - **Platform depth**: macOS/watchOS apps, widgets & watch complications beyond the 1.0
-  notification/Live-Activity surface, Pomodoro mode.
+  notification/Live-Activity surface.
 - **Teams**: shared workspaces, roles, approval flows, team analytics, auto-shared meeting
   insights (Tactiq's Team/Business tiers).
 - **Capture channels beyond ADR-0009's winner**: mobile in-person recording, additional meeting

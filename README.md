@@ -15,6 +15,9 @@ codebase. myDevTime unifies the two best products in the space and adds its own 
   deterministic rules engine with AI-assisted categorization, natural-language time entry
   ("2h Finanzo Review gestern"), AI weekly summaries & standup reports, a chat assistant
   grounded exclusively in your own data, and billing-grade timesheet exports.
+- **A Co-Planner, not a logbook**: the Day Canvas shows plan (AI-proposed ghost blocks) and
+  reality on one surface — morning briefing, live drift, evening review. UX direction in
+  [`docs/design/ux-vision.md`](docs/design/ux-vision.md).
 
 One principle runs through the whole architecture: **deterministic logic decides everything that
 reaches a timesheet or invoice; AI proposes, parses, explains — with recorded provenance — but
@@ -32,6 +35,7 @@ with milestone M0.
 | [`docs/roadmap.md`](docs/roadmap.md) | Milestones M0–M5, dependency graph, Definition of 1.0, post-1.0 backlog |
 | [`docs/architecture.md`](docs/architecture.md) | arc42 architecture documentation incl. the Requirements Register (REQ-001…) |
 | [`docs/adr/`](docs/adr/README.md) | Architecture Decision Records + Tech Radar |
+| [`docs/design/ux-vision.md`](docs/design/ux-vision.md) | Binding UX vision: principles, Day Canvas, Co-Planner, Island, visual & motion language |
 | [`skills/ultimate-dev-process/SKILL.md`](skills/ultimate-dev-process/SKILL.md) | The development process (governance, TDD, SOLID, Definition of Done) |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Ways of working, branching, commits |
 
