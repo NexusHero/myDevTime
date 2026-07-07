@@ -17,13 +17,16 @@ interface Props {
   onQuickEntry: (minutes: number, title: string, yesterday: boolean, project?: string) => void
   onTogglePunch: () => void
   onToggleBreak: () => void
+  onOpenAssistant: () => void
+  onOpenReport: () => void
+  onOpenReview: () => void
 }
 
 /**
  * ⌘K-Command-Palette (ux-vision §2.4): ein Eingabefeld für Navigation,
  * Aktionen und Natural-Language-Zeiteinträge ("45m Code Review", "2h Doku gestern").
  */
-export function Palette({ onClose, onNavigate, onQuickEntry, onTogglePunch, onToggleBreak }: Props) {
+export function Palette({ onClose, onNavigate, onQuickEntry, onTogglePunch, onToggleBreak, onOpenAssistant, onOpenReport, onOpenReview }: Props) {
   const [q, setQ] = useState('')
   const [idx, setIdx] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -39,10 +42,14 @@ export function Palette({ onClose, onNavigate, onQuickEntry, onTogglePunch, onTo
       { id: 'nav-projects', label: 'Projekte öffnen', kind: 'Navigation', icon: 'projects', run: () => onNavigate('projects') },
       { id: 'nav-reports', label: 'Berichte öffnen', kind: 'Navigation', icon: 'reports', run: () => onNavigate('reports') },
       { id: 'nav-meetings', label: 'Meetings öffnen', kind: 'Navigation', icon: 'meetings', run: () => onNavigate('meetings') },
+      { id: 'nav-profile', label: 'Profil öffnen', kind: 'Navigation', icon: 'user', run: () => onNavigate('profile') },
       { id: 'act-punch', label: 'Ein-/Ausstempeln', kind: 'Aktion', icon: 'punch', run: onTogglePunch },
       { id: 'act-break', label: 'Pause starten/beenden', kind: 'Aktion', icon: 'coffee', run: onToggleBreak },
+      { id: 'act-assist', label: 'Assistent fragen', kind: 'KI · 1 Credit', icon: 'sparkle', run: onOpenAssistant },
+      { id: 'act-review', label: 'Tag abschließen (Abend-Review)', kind: 'Co-Planer', icon: 'check', run: onOpenReview },
+      { id: 'act-report', label: 'Arbeitszeitnachweis exportieren', kind: 'Export', icon: 'download', run: onOpenReport },
     ],
-    [onNavigate, onTogglePunch, onToggleBreak],
+    [onNavigate, onTogglePunch, onToggleBreak, onOpenAssistant, onOpenReport, onOpenReview],
   )
 
   const filtered = useMemo(() => {

@@ -164,3 +164,73 @@ export function parseQuickEntry(input: string): { minutes: number; title: string
   if (minutes <= 0 || minutes > 12 * 60 || !title) return null
   return { minutes, title, yesterday, project }
 }
+
+/* ---------- Profil: Abwesenheiten (Juli 2026, 1.7. = Mittwoch) ---------- */
+export type AbsenceKind = 'vacation' | 'sick' | 'holiday'
+export const absences: Record<number, AbsenceKind> = {
+  2: 'sick', 3: 'sick',
+  10: 'vacation',
+  20: 'vacation', 21: 'vacation', 22: 'vacation', 23: 'vacation', 24: 'vacation',
+}
+export const TODAY_DATE = 9 // Do, 9. Juli 2026
+export const allowance = { entitled: 30, taken: 3, planned: 6, sick: 2 }
+
+/* ---------- Credits-Ledger (ADR-0008, #34) ---------- */
+export interface LedgerEntry { label: string; when: string; delta: number }
+export const creditBalance = 62
+export const ledger: LedgerEntry[] = [
+  { label: 'Co-Planer-Briefing', when: 'Heute 08:35', delta: -1 },
+  { label: 'Meeting-Zusammenfassung „Daily Standup“', when: 'Heute 09:47', delta: -1 },
+  { label: 'Wochen-Review generiert', when: 'So 18:02', delta: -1 },
+  { label: 'Top-up-Paket (50)', when: '28.6.', delta: +50 },
+  { label: 'Monats-Kontingent Pro', when: '1.7.', delta: +100 },
+]
+
+/* ---------- Regeln (#16) ---------- */
+export interface Rule { id: string; name: string; cond: string; action: string; auto: boolean; hits: number; enabled: boolean }
+export const rules: Rule[] = [
+  { id: 'r1', name: 'Standups', cond: 'Kalender-Titel enthält „Standup“', action: '→ myDevTime App · nicht abrechenbar', auto: true, hits: 21, enabled: true },
+  { id: 'r2', name: 'Finanzo-Termine', cond: 'Organisator endet auf @nexushero.de', action: '→ Finanzo Backend · abrechenbar', auto: false, hits: 8, enabled: true },
+  { id: 'r3', name: 'Huber-Calls', cond: 'Titel enthält „Huber“ · Wochentag Di–Do', action: '→ Website-Relaunch · abrechenbar', auto: false, hits: 3, enabled: false },
+]
+
+/* ---------- Abend-Review (Plan vs. Ist, #40) ---------- */
+export interface ReviewRow { title: string; state: 'kept' | 'moved' | 'longer' | 'dropped'; note: string }
+export const reviewRows: ReviewRow[] = [
+  { title: 'Code-Review PR #218', state: 'kept', note: 'wie geplant' },
+  { title: 'Sync-Engine: Konflikt-Tests', state: 'longer', note: '+25 min länger als geplant' },
+  { title: 'Angebot Huber nachfassen', state: 'moved', note: 'von 14:00 vorgezogen auf 11:30' },
+  { title: 'Sync-Engine: Tombstones', state: 'dropped', note: 'entfallen — morgen erneut vorschlagen' },
+]
+export const standupDraft = `Gestern: Konflikt-Testsuite für die Sync-Engine erweitert, PR #218 reviewt.
+Heute: Day-Canvas-Prototyp fertigstellen, danach Finanzo Sprint-Review (15:00).
+Blocker: keine.`
+
+/* ---------- Arbeitszeitnachweis (Auszug, #38) ---------- */
+export interface SheetRow { date: string; from: string; to: string; brk: string; net: string; note?: string; flag?: boolean }
+export const sheetRows: SheetRow[] = [
+  { date: 'Mi 1.7.', from: '08:15', to: '17:05', brk: '0:45', net: '8:05' },
+  { date: 'Do 2.7.', from: '—', to: '—', brk: '—', net: '—', note: 'Krank' },
+  { date: 'Fr 3.7.', from: '—', to: '—', brk: '—', net: '—', note: 'Krank' },
+  { date: 'Mo 6.7.', from: '08:28', to: '17:20', brk: '0:52', net: '8:00' },
+  { date: 'Di 7.7.', from: '08:45', to: '18:10', brk: '0:30', net: '8:55' },
+  { date: 'Mi 8.7.', from: '09:02', to: '19:26', brk: '0:30', net: '9:54', note: 'Pausenregel: 45 min fällig', flag: true },
+  { date: 'Do 9.7.', from: '08:32', to: 'läuft', brk: '0:30', net: '—' },
+]
+
+/* ---------- Assistent (#20) ---------- */
+export interface ChatMsg { role: 'user' | 'assistant'; text: string; links?: { label: string; view: string }[]; refusal?: boolean }
+export const assistantScript: ChatMsg[] = [
+  { role: 'user', text: 'Wie viele Stunden habe ich diesen Monat für Finanzo gearbeitet?' },
+  {
+    role: 'assistant',
+    text: '31:00 h auf Finanzo Backend in diesem Monat, davon 28:30 h abrechenbar (≈ 3.135 €). Das Budget liegt bei 88 % — bei deinem Tempo ist es am 21.7. erschöpft.',
+    links: [{ label: 'Berichte öffnen', view: 'reports' }, { label: 'Projekt ansehen', view: 'projects' }],
+  },
+  { role: 'user', text: 'Kann ich die Fahrten zum Kunden von der Steuer absetzen?' },
+  {
+    role: 'assistant',
+    text: 'Dazu gebe ich keine Auskunft — ich beantworte nur Fragen zu deinen eigenen Zeit-, Projekt- und Meetingdaten in diesem Workspace. Für Steuerfragen wende dich an eine Steuerberatung.',
+    refusal: true,
+  },
+]

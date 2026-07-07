@@ -18,6 +18,7 @@ interface Props {
   onAcceptAll: () => void
   onDismissAll: () => void
   onGapClick: () => void
+  onOpenReview: () => void
 }
 
 /** Stepper für Arbeitszeit-Limits (30-min-Schritte). */
@@ -182,6 +183,16 @@ export function Today(props: Props) {
                 <span className="val num">{fmtDur(breakMin)}</span>
               </div>
             </div>
+          </section>
+
+          <section className="card card-pad" aria-label="Tag abschließen">
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Icon name="sparkle" size={14} /> Abend-Review
+            </div>
+            <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--ink-2)', marginBottom: 'var(--sp-3)' }}>
+              Plan vs. Ist ansehen, Standup generieren, Entfallenes auf morgen schieben.
+            </p>
+            <button className="btn btn-ghost btn-sm" onClick={props.onOpenReview}>Tag abschließen →</button>
           </section>
 
           <section className="card card-pad" aria-label="Pausenregel">

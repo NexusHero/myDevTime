@@ -19,8 +19,12 @@ npm run build    # dist/index.html — ein einziges, teilbares HTML-File
 | **Island** §2.3 | Schwebende Pill: laufender Timer (tickt), Stempelstatus; expandiert zu Quick-Actions (Timer, Pause, Stempeln) |
 | **Command Palette** §2.4 | ⌘K/Ctrl+K: Navigation, Aktionen, NL-Schnelleintrag („45m Code Review“, „2h Finanzo Doku gestern“) mit Parse-Vorschau |
 | **Instrumente** §2.5 | Berichte: Stat-Tiles, Überstunden-Gauge, Budget-Ringe (Warnstufen 80/100 %), Stunden-Balken mit Legende, 12-Wochen-Heatmap; Projekt-Sparklines |
-| Arbeitszeit (ADR-0010) | Netto-Anwesenheit, Abdeckungs-Quote, Pausenregel-Karte (ArbZG-Preset), Urlaubs-Kachel, Abwesenheits-Overlay im Planer |
+| Arbeitszeit (ADR-0010) | Stempel-CTA („Arbeitszeit läuft“), Soll/Max-Stepper mit Fortschrittsbalken + Warnbanner, Netto-Anwesenheit, Abdeckungs-Quote, Pausenregel-Karte (ArbZG-Preset), Abwesenheits-Overlay im Planer |
 | Meetings (ADR-0008/0009) | Transkript-Liste, AI-Insights mit Credit-Kennzeichnung, eigene Prompts, Consent-Status |
+| **Profil** (#37/#34/#16/#21) | Abwesenheits-Kalender mit Urlaubskonto, AI-Credit-Ledger + Top-up-Packs, Regeln mit Toggles & Dry-Run-Treffern, Integrationen/Einwilligungen, Arbeitszeit-Schema (effective-dated), Abo |
+| **Assistent** (#20) | Slide-over-Chat: gegroundete Antwort mit Deep-Links, definierter Refusal, Quellen-Hinweis, Credit-Kosten |
+| **Abend-Review** (#40/#19) | Plan-vs-Ist (wie geplant/länger/verschoben/entfallen), Standup-Entwurf zum Kopieren |
+| **Arbeitszeitnachweis** (#38) | Monats-Vorschau: Stempelzeiten, Pausen, Krank-Tage, ⚠-markierte Pausenregel-Verstöße, Summen, zwei Unterschriftsfelder, PDF/XLSX |
 
 Design-Tokens in [`src/styles.css`](src/styles.css): Dark-first + Light (Toggle in der Sidebar,
 `data-theme` auf `<html>`), 8-pt-Grid, System-Schriften (bewusst — die RN-App nutzt native
@@ -31,4 +35,4 @@ Kontrast ≥ 3:1 — je Theme eigene Stufen).
 ## Bewusst nicht drin (gehört in #39/#1, nicht in diesen Spike)
 
 Drag/Stretch/Split der Blöcke (Micro-Interaction-Spec + RN-Gesten-Beweis), echte
-NL-Parser-Qualität, Wochen-Drag im Planer, Onboarding, Settings/Profil.
+NL-Parser-Qualität, Wochen-Drag im Planer, Onboarding/Login-Flow.

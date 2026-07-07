@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Icon } from '../components/Icon'
 import { projects, weekHours, heat, fmtHours } from '../data'
 
 /** Budget-Ring (SVG): Verbrauch auf einen Blick, Warnstufen ab 80/100 %. */
@@ -53,7 +54,7 @@ function OvertimeGauge({ hours, min = -10, max = 10 }: { hours: number; min?: nu
   )
 }
 
-export function Reports() {
+export function Reports({ onOpenReport, onToast }: { onOpenReport: () => void; onToast: (m: string) => void }) {
   const [hover, setHover] = useState<number | null>(null)
   const maxDay = Math.max(...weekHours.map(d => d.billable + d.rest), 8)
   const weekTotal = weekHours.reduce((s, d) => s + d.billable + d.rest, 0)
@@ -129,6 +130,29 @@ export function Reports() {
               </div>
             ))}
           </div>
+        </section>
+
+        <section className="card card-pad" aria-label="Exporte">
+          <div className="card-title">Exporte</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="action-row">
+              <span style={{ minWidth: 0 }}>
+                <strong style={{ fontWeight: 600 }}>Arbeitszeitnachweis</strong>
+                <span style={{ display: 'block', fontSize: 'var(--fs-xs)', color: 'var(--ink-3)' }}>Monat · PDF mit Unterschriftsfeldern · XLSX</span>
+              </span>
+              <button className="btn btn-primary btn-sm" onClick={onOpenReport}><Icon name="doc" size={14} /> Vorschau</button>
+            </div>
+            <div className="action-row">
+              <span style={{ minWidth: 0 }}>
+                <strong style={{ fontWeight: 600 }}>Projekt-Timesheet</strong>
+                <span style={{ display: 'block', fontSize: 'var(--fs-xs)', color: 'var(--ink-3)' }}>Aktuelle Auswahl · CSV · PDF · XLSX · mit Runden-Profil</span>
+              </span>
+              <button className="btn btn-ghost btn-sm" onClick={() => onToast('Timesheet-Export mit Provenance je Wert — Demo')}><Icon name="download" size={14} /> Export</button>
+            </div>
+          </div>
+          <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--ink-3)', marginTop: 'var(--sp-3)' }}>
+            Serverseitig erzeugt — identische Dokumente auf allen Plattformen.
+          </p>
         </section>
 
         <section className="card card-pad" style={{ gridColumn: '1 / -1' }} aria-label="Intensität der letzten 12 Wochen">

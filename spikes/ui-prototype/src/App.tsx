@@ -2,17 +2,20 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Icon } from './components/Icon'
 import { Island } from './components/Island'
 import { Palette } from './components/Palette'
+import { Assistant } from './components/Assistant'
+import { ReviewModal, ReportModal } from './components/Modals'
 import { Today } from './views/Today'
 import { Planner } from './views/Planner'
 import { Projects } from './views/Projects'
 import { Reports } from './views/Reports'
 import { Meetings } from './views/Meetings'
+import { Profile } from './views/Profile'
 import {
   DEMO_START, initialBlocks, initialBreaks, punchIn,
   fmtDur, type Block, type BreakSpan, type ProjectId,
 } from './data'
 
-export type View = 'today' | 'planner' | 'projects' | 'reports' | 'meetings'
+export type View = 'today' | 'planner' | 'projects' | 'reports' | 'meetings' | 'profile'
 
 const NAV: { id: View; label: string; icon: string }[] = [
   { id: 'today', label: 'Heute', icon: 'today' },
@@ -20,6 +23,7 @@ const NAV: { id: View; label: string; icon: string }[] = [
   { id: 'projects', label: 'Projekte', icon: 'projects' },
   { id: 'reports', label: 'Berichte', icon: 'reports' },
   { id: 'meetings', label: 'Meetings', icon: 'meetings' },
+  { id: 'profile', label: 'Profil', icon: 'user' },
 ]
 
 export default function App() {
@@ -33,6 +37,9 @@ export default function App() {
   const [targetMin, setTargetMin] = useState(8 * 60)
   const [maxMin, setMaxMin] = useState(10 * 60)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [assistantOpen, setAssistantOpen] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<number>()
 
@@ -153,6 +160,9 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-foot">
+          <button className="nav-item" onClick={() => setAssistantOpen(true)}>
+            <Icon name="sparkle" /> Assistent
+          </button>
           <button className="palette-hint" onClick={() => setPaletteOpen(true)}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="search" size={14} /> Suchen & erfassen</span>
             <kbd>⌘K</kbd>
@@ -174,12 +184,14 @@ export default function App() {
               onAcceptGhost={acceptGhost} onDismissGhost={dismissGhost}
               onAcceptAll={acceptAll} onDismissAll={dismissAll}
               onGapClick={() => setPaletteOpen(true)}
+              onOpenReview={() => setReviewOpen(true)}
             />
           )}
           {view === 'planner' && <Planner />}
           {view === 'projects' && <Projects />}
-          {view === 'reports' && <Reports />}
+          {view === 'reports' && <Reports onOpenReport={() => setReportOpen(true)} onToast={showToast} />}
           {view === 'meetings' && <Meetings onToast={showToast} />}
+          {view === 'profile' && <Profile onToast={showToast} />}
         </div>
       </main>
 
@@ -203,8 +215,14 @@ export default function App() {
           onQuickEntry={quickEntry}
           onTogglePunch={togglePunch}
           onToggleBreak={toggleBreak}
+          onOpenAssistant={() => setAssistantOpen(true)}
+          onOpenReport={() => setReportOpen(true)}
+          onOpenReview={() => setReviewOpen(true)}
         />
       )}
+      {assistantOpen && <Assistant onClose={() => setAssistantOpen(false)} onNavigate={setView} />}
+      {reviewOpen && <ReviewModal onClose={() => setReviewOpen(false)} onToast={showToast} />}
+      {reportOpen && <ReportModal onClose={() => setReportOpen(false)} onToast={showToast} />}
 
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
