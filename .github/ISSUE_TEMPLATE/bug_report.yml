@@ -1,0 +1,56 @@
+name: Bug report
+description: Something isn't working
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Fill in as much as you can — it speeds up the fix.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Backend — apps/api (Fastify)
+        - Domain logic — packages/domain / packages/shared
+        - Mobile/Web client — apps/mobile
+        - Build / CI / tooling
+        - Docs / ADRs
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: What did you expect, and what actually happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start the API with `pnpm --filter @mydevtime/api dev`
+        2. Call `GET /health`
+        3. ...
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or errors
+      render: shell
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: 'macOS 14 / Windows 11 / Ubuntu 22.04'
+
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      placeholder: 'e.g. 22.11.0'

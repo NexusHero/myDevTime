@@ -34,6 +34,7 @@ below in number order.
 | [0013](0013-competitive-adoption-round-2.md) | Competitive adoption round 2: entry notes, month overview with gap markers, budget burn-down forecast, Siri/App-Intents + Quick Tile, classic day list, Zeitausgleich absence type | Accepted — extends scope; next scope ADR must displace, not add |
 | [0014](0014-monorepo-toolchain.md) | Monorepo toolchain: pnpm workspaces, Vitest (+ v8 coverage gate), ESLint flat type-checked + Prettier, one `test.sh` gate = CI, git hooks | Accepted |
 | [0015](0015-backend-framework-and-persistence.md) | Backend framework & persistence: Fastify modular monolith (plugin-per-module) + PostgreSQL + Drizzle; RFC 7807 errors; generated OpenAPI | Accepted (realizes 0003) |
+| [0016](0016-cicd-pipeline.md) | CI/CD pipeline (mirrors the Résumé project): commitlint, security (audit + dependency-review), CodeQL, Dependabot, tag-driven release, GitHub Pages OpenAPI mirror | Accepted |
 
 ## Tech Radar
 
@@ -59,3 +60,7 @@ One line per technology so the stack's shape stays visible without re-reading th
 | Meeting-bot capture service (Recall.ai-style) | Assess (first candidate in the capture spike) | ADR-0009 |
 | Auth SaaS (Auth0/Clerk/…) | Hold | ADR-0007 |
 | argon2 password hashing, OIDC client libs | Adopt | ADR-0007 |
+| GitHub Actions CI (gate + Postgres integration + commitlint) | Adopt | ADR-0014/0016 |
+| CodeQL (javascript-typescript, security-and-quality) | Adopt | ADR-0016 |
+| Dependabot (npm + github-actions, grouped) | Adopt | ADR-0016 |
+| GitHub Pages OpenAPI mirror (self-hosted Swagger UI) | Adopt | ADR-0016 |
