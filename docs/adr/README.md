@@ -31,6 +31,7 @@ below in number order.
 | [0010](0010-attendance-absences-signable-report.md) | Scope update: attendance (punch clock, breaks, overtime), absences (vacation/sick/holidays), signable PDF+XLSX work-time report — all 1.0 | Accepted — extends 0002/0008 |
 | [0011](0011-ai-co-planner-and-design-language.md) | AI Co-Planner in 1.0 (plan entity, deterministic planner, ghost-block proposals) + binding UX vision with a prototype gate before component code | Accepted — extends scope; adds gate #39 → #11 |
 | [0012](0012-competitive-feature-adoption.md) | Competitive adoption: focus mode + streaks, idle/forgotten-tracking detection, calendar write-back, Jira/Linear/Slack insight export — all 1.0 | Accepted — extends 0002/0008/0010/0011 |
+| [0013](0013-competitive-adoption-round-2.md) | Competitive adoption round 2: entry notes, month overview with gap markers, budget burn-down forecast, Siri/App-Intents + Quick Tile, classic day list, Zeitausgleich absence type | Accepted — extends scope; next scope ADR must displace, not add |
 
 ## Tech Radar
 

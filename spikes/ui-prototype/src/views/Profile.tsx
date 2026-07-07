@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { absences, allowance, creditBalance, ledger, rules, TODAY_DATE, type AbsenceKind } from '../data'
+import { absences, activityDots, allowance, creditBalance, gapDays, ledger, rules, TODAY_DATE, type AbsenceKind } from '../data'
 
 /** Juli 2026 — 1.7. ist ein Mittwoch; Monatsraster Mo–So. */
 function AbsenceCalendar() {
@@ -12,31 +12,46 @@ function AbsenceCalendar() {
   while (cells.length % 7 !== 0) cells.push(null)
 
   const kindClass = (k?: AbsenceKind) =>
-    k === 'vacation' ? 'cal-vac' : k === 'sick' ? 'cal-sick' : k === 'holiday' ? 'cal-hol' : ''
+    k === 'vacation' ? 'cal-vac' : k === 'sick' ? 'cal-sick' : k === 'holiday' ? 'cal-hol' : k === 'comp' ? 'cal-comp' : ''
 
   return (
     <>
       <div className="cal-head">
         {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(d => <span key={d}>{d}</span>)}
       </div>
-      <div className="cal-grid" role="grid" aria-label="Abwesenheiten Juli 2026">
+      <div className="cal-grid" role="grid" aria-label="Monatsübersicht Juli 2026">
         {cells.map((d, i) => {
           const weekend = i % 7 >= 5
+          const gap = d !== null && gapDays.includes(d)
+          const dots = d !== null ? activityDots[d] : undefined
           return (
             <div
               key={i}
-              className={`cal-cell ${d ? '' : 'empty'} ${weekend ? 'weekend' : ''} ${d ? kindClass(absences[d]) : ''} ${d === TODAY_DATE ? 'today' : ''}`}
-              title={d && absences[d] ? { vacation: 'Urlaub', sick: 'Krank', holiday: 'Feiertag' }[absences[d]] : undefined}
+              className={`cal-cell ${d ? '' : 'empty'} ${weekend ? 'weekend' : ''} ${d ? kindClass(absences[d]) : ''} ${d === TODAY_DATE ? 'today' : ''} ${gap ? 'cal-gap' : ''}`}
+              title={
+                d && absences[d]
+                  ? { vacation: 'Urlaub', sick: 'Krank', holiday: 'Feiertag', comp: 'Zeitausgleich' }[absences[d]]
+                  : gap ? 'Anwesenheit ohne Buchung — Lücke füllen' : undefined
+              }
             >
-              {d ?? ''}
+              <span>{d ?? ''}</span>
+              {dots && (
+                <span className="cal-dots" aria-hidden="true">
+                  {dots.slice(0, 3).map((slot, j) => <span key={j} style={{ background: `var(--proj-${slot})` }} />)}
+                </span>
+              )}
+              {gap && <span className="cal-gap-mark" aria-hidden="true">!</span>}
             </div>
           )
         })}
       </div>
-      <div className="legend" style={{ marginTop: 'var(--sp-3)' }}>
+      <div className="legend" style={{ marginTop: 'var(--sp-3)', flexWrap: 'wrap' }}>
         <span className="lg"><span className="sw" style={{ background: 'var(--good)' }} /> Urlaub</span>
         <span className="lg"><span className="sw" style={{ background: 'var(--crit)' }} /> Krank</span>
+        <span className="lg"><span className="sw" style={{ background: 'var(--proj-4)' }} /> Zeitausgleich</span>
         <span className="lg"><span className="sw" style={{ background: 'var(--accent)' }} /> heute</span>
+        <span className="lg">• Buchungen</span>
+        <span className="lg">! Lücke</span>
       </div>
     </>
   )
@@ -63,7 +78,8 @@ export function Profile({ onToast }: { onToast: (msg: string) => void }) {
             <div className="summary-item"><span className="lbl">Urlaubsanspruch</span><span className="val num">{allowance.entitled} Tage</span></div>
             <div className="summary-item"><span className="lbl">Genommen · geplant</span><span className="val num">{allowance.taken} · {allowance.planned}</span></div>
             <div className="summary-item"><span className="lbl">Übrig</span><span className="val"><span className="chip good">{remaining} Tage</span></span></div>
-            <div className="summary-item"><span className="lbl">Krankheitstage {`(${new Date().getFullYear() === 2026 ? '2026' : '2026'})`}</span><span className="val num">{allowance.sick}</span></div>
+            <div className="summary-item"><span className="lbl">Krankheitstage (2026)</span><span className="val num">{allowance.sick}</span></div>
+            <div className="summary-item"><span className="lbl">Zeitausgleich geplant (17.7.)</span><span className="val"><span className="chip">1 Tag · vom Überstundenkonto</span></span></div>
           </div>
           <button className="btn btn-ghost btn-sm" style={{ marginTop: 'var(--sp-3)' }} onClick={() => onToast('Abwesenheit eintragen — ≤3 Taps, im Prototyp gemockt')}>
             + Abwesenheit eintragen
@@ -154,6 +170,11 @@ export function Profile({ onToast }: { onToast: (msg: string) => void }) {
                 role="switch" aria-checked={mirror} aria-label="Kalender-Spiegelung"
                 onClick={() => { setMirror(m => !m); onToast(mirror ? 'Spiegelung aus — Aufräumen des Ist-Kalenders angeboten' : 'Schreibrecht angefragt, Kalender „myDevTime Ist“ wird angelegt (Demo)') }}
               />
+            </div>
+            <div className="summary-item">
+              <span className="lbl"><strong style={{ color: 'var(--ink)' }}>Siri, Kurzbefehle & Quick Tile</strong><br />
+                <span style={{ fontSize: 'var(--fs-xs)' }}>„Hey Siri, einstempeln“ · Stempeln/Timer/Pause/Fokus ohne App-Öffnen · offline-fähig</span></span>
+              <button className="btn btn-ghost btn-sm" onClick={() => onToast('App Intents (iOS) / Quick Settings Tile (Android) — Demo (#49)')}>Einrichten</button>
             </div>
             <div className="summary-item">
               <span className="lbl"><strong style={{ color: 'var(--ink)' }}>Jira · Linear · Slack</strong> · Insight-Export<br />

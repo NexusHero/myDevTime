@@ -1,6 +1,42 @@
 import { useState } from 'react'
 import { Icon } from '../components/Icon'
-import { projects, weekHours, heat, fmtHours } from '../data'
+import { burndown, projects, weekHours, heat, fmtHours } from '../data'
+
+/** Budget-Verlauf (REQ-038): Verbleibend über Zeit + Run-Rate-Prognose als gestrichelte Verlängerung. */
+function Burndown() {
+  const W = 460, H = 150, padL = 44, padR = 64, padY = 16
+  const max = burndown.points[0].left
+  const xs = (i: number, n: number) => padL + (i * (W - padL - padR)) / (n - 1)
+  const ys = (v: number) => padY + (1 - v / max) * (H - 2 * padY)
+  const pts = burndown.points.map((p, i) => [xs(i, burndown.points.length + 5), ys(p.left)] as const)
+  const line = pts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`).join(' ')
+  const [lx, ly] = pts[pts.length - 1]
+  const fx = xs(burndown.points.length + 4, burndown.points.length + 5)
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} role="img"
+      aria-label={`Budget-Verlauf ${projects.find(p => p.id === burndown.project)?.name}: verbleibend, Prognose erschöpft ${burndown.exhausted}`}>
+      {[0, 0.5, 1].map(f => (
+        <g key={f}>
+          <line x1={padL} x2={W - padR} y1={ys(max * f)} y2={ys(max * f)} stroke="var(--border)" strokeWidth="1" />
+          <text x={padL - 6} y={ys(max * f) + 3} textAnchor="end" style={{ font: '10px var(--font-num)', fill: 'var(--ink-3)' }}>
+            {(max * f / 1000).toFixed(1)}k€
+          </text>
+        </g>
+      ))}
+      <path d={`${line} L ${lx} ${ys(0)} L ${pts[0][0]} ${ys(0)} Z`} fill="var(--proj-2)" opacity="0.12" />
+      <path d={line} fill="none" stroke="var(--proj-2)" strokeWidth="2" strokeLinecap="round" />
+      <circle cx={lx} cy={ly} r="3" fill="var(--proj-2)" />
+      <line x1={lx} y1={ly} x2={fx} y2={ys(0)} stroke="var(--accent-text)" strokeWidth="1.6" strokeDasharray="4 4" />
+      <circle cx={fx} cy={ys(0)} r="3" fill="none" stroke="var(--accent-text)" strokeWidth="1.5" />
+      <text x={fx} y={ys(0) - 8} textAnchor="end" style={{ font: '600 10.5px var(--font-ui)', fill: 'var(--accent-text)' }}>
+        erschöpft {burndown.exhausted}
+      </text>
+      {burndown.points.map((p, i) => (
+        i % 2 === 0 ? <text key={p.d} x={xs(i, burndown.points.length + 5)} y={H - 2} textAnchor="middle" style={{ font: '9.5px var(--font-num)', fill: 'var(--ink-3)' }}>{p.d}</text> : null
+      ))}
+    </svg>
+  )
+}
 
 /** Budget-Ring (SVG): Verbrauch auf einen Blick, Warnstufen ab 80/100 %. */
 function Ring({ pct, slot, size = 76 }: { pct: number; slot: number; size?: number }) {
@@ -135,6 +171,14 @@ export function Reports({ onOpenReport, onToast }: { onOpenReport: () => void; o
               </div>
             ))}
           </div>
+        </section>
+
+        <section className="card card-pad" aria-label="Budget-Verlauf">
+          <div className="card-title">Budget-Verlauf · Finanzo Backend</div>
+          <Burndown />
+          <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--ink-3)', marginTop: 6 }}>
+            ø −{burndown.perDay} €/Tag (Fenster: letzte 6 Arbeitstage) · Prognose linear — unter 4 Datenpunkten keine Prognose
+          </p>
         </section>
 
         <section className="card card-pad" aria-label="Exporte">
