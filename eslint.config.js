@@ -42,8 +42,8 @@ export default tseslint.config(
     },
   },
   {
-    // Root config files and Node scripts — lint without type information.
-    files: ['*.{js,mjs,ts}', 'scripts/**/*.{js,mjs}'],
+    // Root/tool config files and Node scripts — lint without type information.
+    files: ['*.{js,mjs,ts}', '**/*.config.{js,mjs,ts}', 'scripts/**/*.{js,mjs}'],
     extends: [eslint.configs.recommended, tseslint.configs.disableTypeChecked],
     languageOptions: {
       globals: { ...globals.node },

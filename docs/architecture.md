@@ -217,12 +217,30 @@ _Fill in (deployment topology, protocols, webhook endpoints) once the backend sk
 
 # Building Block View {#section-building-block-view}
 
-Backend modules (ADR-0003): `auth` · `tracking` · `sync` · `automation` (calendar + rules) ·
-`ai` · `billing` (entitlements + payment adapters). Shared packages: `packages/domain` (pure
-logic: time math, budgets, rules engine), `packages/shared` (types/schemas).
+The backend is a **Fastify modular monolith** (ADR-0003/0015): each module is an encapsulated
+plugin registered under its own prefix in `apps/api/src/app.ts`, and a boundary test forbids
+cross-module internal imports (modules may depend only on another module's `contract.ts`).
 
-_Diagrams follow once the bootstrap ([#2](https://github.com/NexusHero/myDevTime/issues/2)) and
-backend skeleton ([#3](https://github.com/NexusHero/myDevTime/issues/3)) land._
+```
+apps/api  (Fastify modular monolith)
+  ├─ /health, /health/ready            operational (liveness / readiness → DB ping)
+  ├─ /api/auth        auth             authN & sessions (REQ-002)
+  ├─ /api/tracking    tracking         entries · projects · attendance · budgets (REQ-001/003–005)
+  ├─ /api/sync        sync             offline-first cross-device sync (REQ-006)
+  ├─ /api/automation  automation       calendar ingestion + deterministic rules (REQ-010/011)
+  ├─ /api/ai          ai               LLM/ASR assist — proposals only (ADR-0005)
+  └─ /api/billing     billing          entitlements + credit ledger (ADR-0006/0008)
+packages/domain   pure deterministic core (time math, budgets, rules) — no I/O, ≥90% coverage
+packages/shared   branded id types & schemas shared with the clients
+```
+
+Persistence is **PostgreSQL via Drizzle** (ADR-0015); the driver is confined to the `db` module
+and never imported by `packages/domain` (ADR-0005). Request/response validation and the generated
+**OpenAPI** spec both come from Zod route schemas; errors are RFC 7807 `problem+json`.
+
+_Bootstrap [#2](https://github.com/NexusHero/myDevTime/issues/2) and backend skeleton
+[#3](https://github.com/NexusHero/myDevTime/issues/3) landed; module internals fill in per their
+own issues._
 
 ---
 
