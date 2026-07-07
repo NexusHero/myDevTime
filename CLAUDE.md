@@ -57,12 +57,12 @@ AI-credit ledger. See ADR-0002 as amended by ADR-0008 and extended by ADR-0010/0
 
 | Layer | Decision | Status |
 |-------|----------|--------|
-| Backend | Node.js + TypeScript modular monolith: `auth`, `tracking`, `sync`, `automation`, `ai`, `billing` | ADR-0003, Accepted |
+| Backend | Fastify modular monolith (plugin-per-module: `auth`, `tracking`, `sync`, `automation`, `ai`, `billing`); RFC 7807 errors; Zod-generated OpenAPI | ADR-0003/0015, Accepted (skeleton in #3) |
 | Clients | React Native + Expo (+ react-native-web, EAS) — one codebase for iOS/Android/Web | ADR-0004, **Proposed — no client code before spike #1 resolves it**; Flutter is the named fallback |
 | Meeting capture / ASR | Decision frame fixed, winner pending spike #31 | ADR-0009, Proposed |
 | Toolchain | pnpm workspaces · TS strict · Vitest (+v8 coverage ≥90% on `domain`) · ESLint flat + Prettier · `./test.sh` gate = CI · git hooks | ADR-0014, Accepted (issue #2) |
-| Monorepo layout | `apps/api` (skeleton in #3), `apps/mobile` (README-only, gated on #1), `packages/domain` (pure logic), `packages/shared` (types/schemas); `spikes/*` outside the workspace | Bootstrapped (#2) |
-| Persistence, backend framework, ORM | Decided as a fresh ADR when issue #3 lands | Open |
+| Persistence | PostgreSQL + Drizzle (drizzle-kit migrations); driver confined to the `db` module, never imported by `packages/domain` | ADR-0015, Accepted (#3) |
+| Monorepo layout | `apps/api` (Fastify skeleton, #3), `apps/mobile` (README-only, gated on #1), `packages/domain` (pure logic), `packages/shared` (types/schemas); `spikes/*` outside the workspace | Bootstrapped (#2) |
 
 Run `pnpm install` once (wires git hooks), then `./test.sh` is the local gate.
 

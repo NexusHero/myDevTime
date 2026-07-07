@@ -16,9 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -29,3 +27,48 @@ jobs:
 
       - name: Run the gate
         run: ./test.sh
+
+      - name: Emit OpenAPI spec
+        run: pnpm --filter @mydevtime/api openapi:emit apps/api/openapi.json
+
+      - name: Upload OpenAPI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi
+          path: apps/api/openapi.json
+
+  integration:
+    name: Integration (Postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: mydevtime
+          POSTGRES_PASSWORD: mydevtime
+          POSTGRES_DB: mydevtime
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mydevtime"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://mydevtime:mydevtime@localhost:5432/mydevtime
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply migrations
+        run: pnpm --filter @mydevtime/api db:migrate
+
+      - name: Run tests against Postgres
+        run: pnpm test
