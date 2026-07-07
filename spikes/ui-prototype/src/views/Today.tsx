@@ -19,6 +19,7 @@ interface Props {
   onDismissAll: () => void
   onGapClick: () => void
   onOpenReview: () => void
+  onEditBlock: (id: string) => void
 }
 
 /** Stepper für Arbeitszeit-Limits (30-min-Schritte). */
@@ -95,20 +96,9 @@ export function Today(props: Props) {
         </div>
       )}
 
-      <div className="today-grid">
-        <section className="card canvas-card" aria-label="Tagesverlauf">
-          <div className="canvas-head">
-            <h2>Day Canvas</h2>
-            <span className="chip">
-              <span className="dot" style={{ background: 'var(--accent)' }} />
-              Jetzt-Linie · {fmtClock(now)}
-            </span>
-          </div>
-          <DayCanvas {...props} />
-        </section>
-
-        <aside className="today-rail">
-          {ghosts.length > 0 && (
+      <div className={`today-grid ${ghosts.length === 0 ? 'no-briefing' : ''}`}>
+        {ghosts.length > 0 && (
+          <div className="briefing-slot">
             <section className="card card-pad briefing" aria-label="Co-Planer-Vorschlag">
               <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Icon name="sparkle" size={14} /> Co-Planer
@@ -128,8 +118,21 @@ export function Today(props: Props) {
                 <Icon name="sparkle" size={12} /> 1 AI-Credit · Modell-Vorschlag, Blöcke bleiben Entwurf bis du sie übernimmst
               </div>
             </section>
-          )}
+          </div>
+        )}
 
+        <section className="card canvas-card canvas-slot" aria-label="Tagesverlauf">
+          <div className="canvas-head">
+            <h2>Day Canvas</h2>
+            <span className="chip">
+              <span className="dot" style={{ background: 'var(--accent)' }} />
+              Jetzt-Linie · {fmtClock(now)}
+            </span>
+          </div>
+          <DayCanvas {...props} />
+        </section>
+
+        <aside className="today-rail rail-slot">
           <section className="card card-pad" aria-label="Arbeitszeit heute">
             <div className="card-title">Arbeitszeit heute</div>
             <div className="worktime-bar" role="img" aria-label={`${fmtDur(presence)} von maximal ${fmtDur(maxMin)}`}>

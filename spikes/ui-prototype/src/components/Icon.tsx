@@ -80,6 +80,12 @@ const paths: Record<string, JSX.Element> = {
     </>
   ),
   send: <path d="M4 12l16-8-6 16-2.5-6.5z" />,
+  plus: <path d="M12 5v14M5 12h14" strokeWidth="2.4" />,
+  trash: (
+    <>
+      <path d="M5 7h14M10 7V5h4v2M8 7l1 13h6l1-13" />
+    </>
+  ),
   download: (
     <>
       <path d="M12 4v10M8 10l4 4 4-4" />

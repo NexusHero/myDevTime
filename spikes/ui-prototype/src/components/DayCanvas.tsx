@@ -19,6 +19,7 @@ interface Props {
   onAcceptGhost: (id: string) => void
   onDismissGhost: (id: string) => void
   onGapClick: () => void
+  onEditBlock: (id: string) => void
 }
 
 /**
@@ -26,7 +27,7 @@ interface Props {
  * innen Projekt-/Meeting-Blöcke, Ghost-Blöcke = Co-Planer-Vorschläge,
  * Jetzt-Linie mit Zeit-Chip. Lücken sind sichtbar und antippbar.
  */
-export function DayCanvas({ blocks, breaks, punchIn, punchOut, punchedIn, now, onAcceptGhost, onDismissGhost, onGapClick }: Props) {
+export function DayCanvas({ blocks, breaks, punchIn, punchOut, punchedIn, now, onAcceptGhost, onDismissGhost, onGapClick, onEditBlock }: Props) {
   const hours = Array.from({ length: (DAY_END - DAY_START) / 60 + 1 }, (_, i) => DAY_START + i * 60)
 
   // Anwesenheits-Segmente: Stempelrahmen minus Pausen
@@ -116,9 +117,13 @@ export function DayCanvas({ blocks, breaks, punchIn, punchOut, punchedIn, now, o
             return (
               <div
                 key={b.id}
-                className={`block ${b.status} ${b.kind === 'meeting' ? 'meeting' : ''} ${tiny ? 'tiny' : ''}`}
+                className={`block ${b.status} ${b.kind === 'meeting' ? 'meeting' : ''} ${tiny ? 'tiny' : ''} ${b.status !== 'ghost' ? 'editable' : ''}`}
                 style={{ top: y(b.start) + 1, height, ['--pc' as string]: proj ? `var(--proj-${proj.slot})` : 'var(--ink-3)' }}
-                title={`${b.title} · ${fmtClock(b.start)}–${b.status === 'running' ? 'jetzt' : fmtClock(b.end)}`}
+                title={b.status === 'ghost' ? `${b.title} · Vorschlag` : `${b.title} · antippen zum Bearbeiten`}
+                role={b.status !== 'ghost' ? 'button' : undefined}
+                tabIndex={b.status !== 'ghost' ? 0 : undefined}
+                onClick={b.status !== 'ghost' ? () => onEditBlock(b.id) : undefined}
+                onKeyDown={b.status !== 'ghost' ? e => e.key === 'Enter' && onEditBlock(b.id) : undefined}
               >
                 <span className="b-title">
                   <span className="txt">{b.title}</span>
@@ -136,10 +141,10 @@ export function DayCanvas({ blocks, breaks, punchIn, punchOut, punchedIn, now, o
                 )}
                 {b.status === 'ghost' && (
                   <span className="ghost-actions">
-                    <button className="icon-btn ok" onClick={() => onAcceptGhost(b.id)} aria-label={`Vorschlag „${b.title}“ übernehmen`}>
+                    <button className="icon-btn ok" onClick={e => { e.stopPropagation(); onAcceptGhost(b.id) }} aria-label={`Vorschlag „${b.title}“ übernehmen`}>
                       <Icon name="check" size={13} />
                     </button>
-                    <button className="icon-btn no" onClick={() => onDismissGhost(b.id)} aria-label={`Vorschlag „${b.title}“ verwerfen`}>
+                    <button className="icon-btn no" onClick={e => { e.stopPropagation(); onDismissGhost(b.id) }} aria-label={`Vorschlag „${b.title}“ verwerfen`}>
                       <Icon name="x" size={13} />
                     </button>
                   </span>

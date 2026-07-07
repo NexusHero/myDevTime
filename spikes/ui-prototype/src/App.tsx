@@ -3,7 +3,7 @@ import { Icon } from './components/Icon'
 import { Island } from './components/Island'
 import { Palette } from './components/Palette'
 import { Assistant } from './components/Assistant'
-import { ReviewModal, ReportModal } from './components/Modals'
+import { ReviewModal, ReportModal, EditSheet, Onboarding } from './components/Modals'
 import { Today } from './views/Today'
 import { Planner } from './views/Planner'
 import { Projects } from './views/Projects'
@@ -40,6 +40,8 @@ export default function App() {
   const [assistantOpen, setAssistantOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [onboardOpen, setOnboardOpen] = useState(true)
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<number>()
 
@@ -185,6 +187,7 @@ export default function App() {
               onAcceptAll={acceptAll} onDismissAll={dismissAll}
               onGapClick={() => setPaletteOpen(true)}
               onOpenReview={() => setReviewOpen(true)}
+              onEditBlock={setEditId}
             />
           )}
           {view === 'planner' && <Planner />}
@@ -223,6 +226,22 @@ export default function App() {
       {assistantOpen && <Assistant onClose={() => setAssistantOpen(false)} onNavigate={setView} />}
       {reviewOpen && <ReviewModal onClose={() => setReviewOpen(false)} onToast={showToast} />}
       {reportOpen && <ReportModal onClose={() => setReportOpen(false)} onToast={showToast} />}
+      {editId && (() => {
+        const blk = blocks.find(b => b.id === editId)
+        return blk ? (
+          <EditSheet
+            block={blk} now={now}
+            onSave={patch => { setBlocks(bs => bs.map(b => (b.id === editId ? { ...b, ...patch } : b))); showToast('Eintrag gespeichert') }}
+            onDelete={() => { setBlocks(bs => bs.filter(b => b.id !== editId)); showToast('Eintrag gelöscht') }}
+            onClose={() => setEditId(null)}
+          />
+        ) : null
+      })()}
+      {onboardOpen && <Onboarding onClose={() => setOnboardOpen(false)} />}
+
+      <button className="fab" onClick={() => setPaletteOpen(true)} aria-label="Schnell erfassen">
+        <Icon name="plus" size={24} />
+      </button>
 
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>

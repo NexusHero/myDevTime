@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Icon } from './Icon'
 import { useEscape } from './Assistant'
-import { reviewRows, sheetRows, standupDraft } from '../data'
+import { fmtClock, projects, reviewRows, sheetRows, standupDraft, type Block, type ProjectId } from '../data'
 
 function Modal({ title, chip, onClose, children }: { title: string; chip?: ReactNode; onClose: () => void; children: ReactNode }) {
   useEscape(onClose)
@@ -113,5 +113,123 @@ export function ReportModal({ onClose, onToast }: { onClose: () => void; onToast
         Jede Zahl stammt aus dem deterministischen Kern; markierte Tage (⚠) werden nie stillschweigend bereinigt.
       </p>
     </Modal>
+  )
+}
+
+/** Eintrag bearbeiten: Block antippen → Sheet (mobil unten, Desktop zentriert). */
+export function EditSheet({ block, now, onSave, onDelete, onClose }: {
+  block: Block
+  now: number
+  onSave: (patch: Partial<Block>) => void
+  onDelete: () => void
+  onClose: () => void
+}) {
+  useEscape(onClose)
+  const [title, setTitle] = useState(block.title)
+  const [project, setProject] = useState<ProjectId | undefined>(block.project)
+  const [billable, setBillable] = useState(block.billable ?? false)
+  const [start, setStart] = useState(block.start)
+  const [end, setEnd] = useState(block.status === 'running' ? now : block.end)
+  const running = block.status === 'running'
+
+  const TimeAdjust = ({ label, value, onChange, min, max }: { label: string; value: number; onChange: (v: number) => void; min: number; max: number }) => (
+    <div className="stepper-row">
+      <span className="lbl">{label}</span>
+      <span className="stepper">
+        <button className="icon-btn" onClick={() => onChange(Math.max(min, value - 5))} aria-label={`${label} früher`}>−</button>
+        <span className="num stepper-val">{fmtClock(value)}</span>
+        <button className="icon-btn" onClick={() => onChange(Math.min(max, value + 5))} aria-label={`${label} später`}>+</button>
+      </span>
+    </div>
+  )
+
+  return (
+    <div className="modal-backdrop sheet-backdrop" onClick={onClose}>
+      <div className="modal edit-sheet" role="dialog" aria-label="Eintrag bearbeiten" onClick={e => e.stopPropagation()}>
+        <header className="modal-head">
+          <h2>Eintrag bearbeiten</h2>
+          {running && <span className="chip warn">läuft</span>}
+          {block.source && <span className="chip">{block.source}</span>}
+          <button className="icon-btn" onClick={onClose} aria-label="Schließen"><Icon name="x" size={13} /></button>
+        </header>
+        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 'var(--fs-sm)', color: 'var(--ink-2)' }}>
+            Titel
+            <input className="text-input" value={title} onChange={e => setTitle(e.target.value)} />
+          </label>
+
+          <div>
+            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--ink-2)', marginBottom: 8 }}>Projekt</div>
+            <div className="prompt-chips" style={{ marginTop: 0 }}>
+              {projects.map(p => (
+                <button
+                  key={p.id}
+                  className="chip"
+                  style={project === p.id ? { borderColor: `var(--proj-${p.slot})`, color: 'var(--ink)', background: `color-mix(in srgb, var(--proj-${p.slot}) 16%, transparent)` } : undefined}
+                  onClick={() => setProject(p.id)}
+                >
+                  <span className="dot" style={{ background: `var(--proj-${p.slot})` }} /> {p.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="stepper-group" style={{ marginTop: 0, borderTop: 'none', paddingTop: 0 }}>
+            <TimeAdjust label="Beginn" value={start} onChange={setStart} min={6 * 60} max={end - 5} />
+            {!running && <TimeAdjust label="Ende" value={end} onChange={setEnd} min={start + 5} max={20 * 60} />}
+            <div className="stepper-row">
+              <span className="lbl">Abrechenbar</span>
+              <button className={`switch ${billable ? 'on' : ''}`} role="switch" aria-checked={billable} aria-label="Abrechenbar" onClick={() => setBillable(b => !b)} />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 'var(--sp-2)', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+            <button className="btn btn-ghost btn-sm" style={{ color: 'var(--crit)' }} onClick={() => { onDelete(); onClose() }}>
+              <Icon name="trash" size={14} /> Löschen
+            </button>
+            <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
+              <button className="btn btn-ghost btn-sm" onClick={onClose}>Abbrechen</button>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => { onSave({ title, project, billable, start, ...(running ? {} : { end }) }); onClose() }}
+              >
+                Speichern
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Onboarding/Login (Demo): E-Mail + Google + Apple, Consent-Hinweis. */
+export function Onboarding({ onClose }: { onClose: () => void }) {
+  useEscape(onClose)
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal onboard" role="dialog" aria-label="Anmelden" onClick={e => e.stopPropagation()}>
+        <div className="modal-body" style={{ textAlign: 'center', padding: 'var(--sp-6) var(--sp-5)' }}>
+          <span className="brand-mark" style={{ width: 44, height: 44, fontSize: 18, margin: '0 auto', display: 'grid' }}>mD</span>
+          <h2 style={{ fontSize: 'var(--fs-xl)', fontWeight: 700, letterSpacing: '-0.03em', margin: '14px 0 6px' }}>
+            my<span style={{ color: 'var(--accent-text)' }}>Dev</span>Time
+          </h2>
+          <p style={{ color: 'var(--ink-2)', fontSize: 'var(--fs-sm)', maxWidth: 380, margin: '0 auto var(--sp-5)' }}>
+            Dein Tag, geplant und erfasst — Stempeluhr, Projekte, Meetings und ein Co-Planer, der mitdenkt.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 320, margin: '0 auto' }}>
+            <button className="btn btn-primary" onClick={onClose}> Mit Apple anmelden</button>
+            <button className="btn btn-ghost" onClick={onClose}>G&nbsp; Mit Google anmelden</button>
+            <button className="btn btn-ghost" onClick={onClose}>@&nbsp; Mit E-Mail registrieren</button>
+            <button className="btn btn-ghost btn-sm" style={{ border: 'none', color: 'var(--ink-3)' }} onClick={onClose}>
+              Demo erkunden →
+            </button>
+          </div>
+          <p style={{ color: 'var(--ink-3)', fontSize: 'var(--fs-xs)', marginTop: 'var(--sp-5)', maxWidth: 380, marginLeft: 'auto', marginRight: 'auto' }}>
+            Kalender-Zugriff und Meeting-Aufnahme verbindest du später — immer einzeln, immer widerrufbar (Consent-first).
+          </p>
+        </div>
+      </div>
+    </div>
   )
 }
