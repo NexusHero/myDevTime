@@ -127,6 +127,7 @@ export function DayCanvas({ blocks, breaks, punchIn, punchOut, punchedIn, now, o
               >
                 <span className="b-title">
                   <span className="txt">{b.title}</span>
+                  {b.note && <Icon name="doc" size={11} />}
                   {b.hasTranscript && <span className="transcript-dot" title="Transkript vorhanden" />}
                 </span>
                 {!compact && (

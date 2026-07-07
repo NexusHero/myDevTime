@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { DayCanvas } from '../components/DayCanvas'
+import { DayList } from '../components/DayList'
 import { Icon } from '../components/Icon'
 import { fmtDur, fmtClock, type Block, type BreakSpan } from '../data'
 
@@ -41,6 +42,7 @@ export function Today(props: Props) {
   const { blocks, breaks, punchIn, punchedIn, now, targetMin, maxMin } = props
   const ghosts = blocks.filter(b => b.status === 'ghost')
   const [correctionOpen, setCorrectionOpen] = useState(true)
+  const [dayView, setDayView] = useState<'canvas' | 'list'>('canvas')
 
   // Kennzahlen deterministisch aus den Blöcken/Stempeldaten abgeleitet
   const tracked = blocks
@@ -141,13 +143,26 @@ export function Today(props: Props) {
 
         <section className="card canvas-card canvas-slot" aria-label="Tagesverlauf">
           <div className="canvas-head">
-            <h2>Day Canvas</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <h2>{dayView === 'canvas' ? 'Day Canvas' : 'Tagesliste'}</h2>
+              <div className="seg" role="tablist" aria-label="Ansicht wählen">
+                <button role="tab" aria-selected={dayView === 'canvas'} className={dayView === 'canvas' ? 'on' : ''} onClick={() => setDayView('canvas')}>Canvas</button>
+                <button role="tab" aria-selected={dayView === 'list'} className={dayView === 'list' ? 'on' : ''} onClick={() => setDayView('list')}>Liste</button>
+              </div>
+            </div>
             <span className="chip">
               <span className="dot" style={{ background: 'var(--accent)' }} />
-              Jetzt-Linie · {fmtClock(now)}
+              {dayView === 'canvas' ? 'Jetzt-Linie · ' : 'jetzt '}{fmtClock(now)}
             </span>
           </div>
-          <DayCanvas {...props} />
+          {dayView === 'canvas' ? (
+            <DayCanvas {...props} />
+          ) : (
+            <DayList
+              blocks={blocks} breaks={breaks} now={now}
+              onAcceptGhost={props.onAcceptGhost} onDismissGhost={props.onDismissGhost} onEditBlock={props.onEditBlock}
+            />
+          )}
         </section>
 
         <aside className="today-rail rail-slot">

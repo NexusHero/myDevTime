@@ -128,6 +128,7 @@ export function EditSheet({ block, now, onSave, onDelete, onClose }: {
   const [title, setTitle] = useState(block.title)
   const [project, setProject] = useState<ProjectId | undefined>(block.project)
   const [billable, setBillable] = useState(block.billable ?? false)
+  const [note, setNote] = useState(block.note ?? '')
   const [start, setStart] = useState(block.start)
   const [end, setEnd] = useState(block.status === 'running' ? now : block.end)
   const running = block.status === 'running'
@@ -174,6 +175,15 @@ export function EditSheet({ block, now, onSave, onDelete, onClose }: {
             </div>
           </div>
 
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 'var(--fs-sm)', color: 'var(--ink-2)' }}>
+            Notiz <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--ink-3)' }}>wird Positionstext auf dem Timesheet</span>
+            <textarea
+              className="text-input" rows={2} maxLength={280}
+              placeholder="Was wurde geliefert? (optional)"
+              value={note} onChange={e => setNote(e.target.value)}
+            />
+          </label>
+
           <div className="stepper-group" style={{ marginTop: 0, borderTop: 'none', paddingTop: 0 }}>
             <TimeAdjust label="Beginn" value={start} onChange={setStart} min={6 * 60} max={end - 5} />
             {!running && <TimeAdjust label="Ende" value={end} onChange={setEnd} min={start + 5} max={20 * 60} />}
@@ -191,7 +201,7 @@ export function EditSheet({ block, now, onSave, onDelete, onClose }: {
               <button className="btn btn-ghost btn-sm" onClick={onClose}>Abbrechen</button>
               <button
                 className="btn btn-primary btn-sm"
-                onClick={() => { onSave({ title, project, billable, start, ...(running ? {} : { end }) }); onClose() }}
+                onClick={() => { onSave({ title, project, billable, note: note.trim() || undefined, start, ...(running ? {} : { end }) }); onClose() }}
               >
                 Speichern
               </button>

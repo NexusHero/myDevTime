@@ -31,6 +31,8 @@ export interface Block {
   hasTranscript?: boolean
   /** provenance chip text, e.g. "KI-Vorschlag" | "Regel: Standup" */
   source?: string
+  /** Positionstext fürs Timesheet (REQ-036) */
+  note?: string
 }
 
 export interface BreakSpan {
@@ -59,7 +61,7 @@ export const initialBreaks: BreakSpan[] = [{ start: h(12, 30), end: h(13, 0) }]
 export const initialBlocks: Block[] = [
   { id: 'b1', title: 'Code-Review PR #218', project: 'mdt', start: h(8, 40), end: h(9, 28), kind: 'focus', status: 'actual', billable: true },
   { id: 'b2', title: 'Daily Standup', project: 'mdt', start: h(9, 30), end: h(9, 45), kind: 'meeting', status: 'actual', hasTranscript: true, source: 'Kalender' },
-  { id: 'b3', title: 'Sync-Engine: Konflikt-Tests', project: 'mdt', start: h(9, 50), end: h(11, 20), kind: 'focus', status: 'actual', billable: true },
+  { id: 'b3', title: 'Sync-Engine: Konflikt-Tests', project: 'mdt', start: h(9, 50), end: h(11, 20), kind: 'focus', status: 'actual', billable: true, note: 'Konfliktfälle A–D grün; Tombstone-Fälle offen → PR #221.' },
   { id: 'b4', title: 'Angebot Huber nachfassen', project: 'huber', start: h(11, 30), end: h(12, 10), kind: 'admin', status: 'actual', billable: false },
   { id: 'b5', title: 'Day-Canvas-Prototyp', project: 'mdt', start: h(13, 5), end: DEMO_START, kind: 'focus', status: 'running', billable: true },
   // Fixed meeting later today (from calendar)
@@ -166,11 +168,30 @@ export function parseQuickEntry(input: string): { minutes: number; title: string
 }
 
 /* ---------- Profil: Abwesenheiten (Juli 2026, 1.7. = Mittwoch) ---------- */
-export type AbsenceKind = 'vacation' | 'sick' | 'holiday'
+export type AbsenceKind = 'vacation' | 'sick' | 'holiday' | 'comp'
 export const absences: Record<number, AbsenceKind> = {
   2: 'sick', 3: 'sick',
   10: 'vacation',
+  17: 'comp', // Zeitausgleich — debitiert das Überstundenkonto (ADR-0013)
   20: 'vacation', 21: 'vacation', 22: 'vacation', 23: 'vacation', 24: 'vacation',
+}
+
+/** Aktivitäts-Dots je Tag (Projekt-Slots); 8.7. = Anwesenheit ohne Buchung → Lücke (REQ-037) */
+export const activityDots: Record<number, number[]> = {
+  1: [1, 2], 6: [1, 3], 7: [1, 2, 5], 9: [1],
+}
+export const gapDays = [8]
+
+/** Budget-Verlauf Finanzo (REQ-038): Verbleibend € je Datum + Prognose */
+export const burndown = {
+  project: 'finanzo' as ProjectId,
+  points: [
+    { d: '1.7.', left: 4800 }, { d: '3.7.', left: 4180 }, { d: '6.7.', left: 3260 },
+    { d: '7.7.', left: 2840 }, { d: '8.7.', left: 2310 }, { d: '9.7.', left: 1980 },
+  ],
+  perDay: 402,
+  exhausted: '≈ 21.7.',
+  total: 16500,
 }
 export const TODAY_DATE = 9 // Do, 9. Juli 2026
 export const allowance = { entitled: 30, taken: 3, planned: 6, sick: 2 }
