@@ -1,11 +1,12 @@
 import type { FastifyBaseLogger } from 'fastify'
+import { createTransport } from 'nodemailer'
+import type { Config } from '../../config.js'
 
 /**
- * Port for transactional auth emails — verification and password reset (ADR-0007
- * §2.2: volatile vendors behind a narrow interface). The real transport
- * (SES/Resend/Postmark) is its own adapter and issue; nothing upstream imports
- * it. The dev implementation logs the message instead of sending it, so local
- * and CI runs never depend on an external mail service.
+ * Port for transactional auth emails — verification, password reset, and
+ * account-deletion confirmation (ADR-0007 §2.2: volatile vendors behind a narrow
+ * interface). Nothing upstream imports the transport; the module picks SMTP or
+ * a dev logger from config.
  */
 export interface EmailMessage {
   readonly to: string
@@ -25,4 +26,24 @@ export function loggingEmailPort(log: FastifyBaseLogger): EmailPort {
       return Promise.resolve()
     },
   }
+}
+
+/** SMTP transport (nodemailer) built from a connection URL. */
+export function smtpEmailPort(smtpUrl: string, from: string): EmailPort {
+  const transport = createTransport(smtpUrl)
+  return {
+    send: async (message: EmailMessage): Promise<void> => {
+      await transport.sendMail({
+        from,
+        to: message.to,
+        subject: message.subject,
+        text: message.text,
+      })
+    },
+  }
+}
+
+/** Choose the transport: SMTP when configured, otherwise the dev logger. */
+export function createEmailPort(config: Config, log: FastifyBaseLogger): EmailPort {
+  return config.SMTP_URL ? smtpEmailPort(config.SMTP_URL, config.EMAIL_FROM) : loggingEmailPort(log)
 }

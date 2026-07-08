@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
+import type { FastifyInstance } from 'fastify'
 import { loadConfig } from '../../config.js'
 import { createDb } from '../../db/client.js'
 import { user } from '../../db/auth-schema.js'
@@ -18,6 +19,19 @@ const config = loadConfig({
   AUTH_SECRET: 'integration-test-secret-'.padEnd(32, 'x'),
 })
 
+async function post(
+  app: FastifyInstance,
+  url: string,
+  payload: Record<string, unknown>,
+  cookie?: string,
+) {
+  return app.inject({ method: 'POST', url, payload, ...(cookie ? { headers: { cookie } } : {}) })
+}
+
+function cookieHeader(res: { cookies: readonly { name: string; value: string }[] }): string {
+  return res.cookies.map(c => `${c.name}=${c.value}`).join('; ')
+}
+
 describe.skipIf(!databaseUrl)('auth module (integration)', () => {
   const handle = createDb(databaseUrl!)
 
@@ -30,10 +44,10 @@ describe.skipIf(!databaseUrl)('auth module (integration)', () => {
     const email = 'signup@example.test'
     await handle.db.delete(user).where(eq(user.email, email))
 
-    const res = await app.inject({
-      method: 'POST',
-      url: '/api/auth/sign-up/email',
-      payload: { name: 'Sign Up', email, password: 'sup3r-secret-pw' },
+    const res = await post(app, '/api/auth/sign-up/email', {
+      name: 'Sign Up',
+      email,
+      password: 'sup3r-secret-pw',
     })
 
     expect(res.statusCode).toBe(200)
@@ -46,12 +60,47 @@ describe.skipIf(!databaseUrl)('auth module (integration)', () => {
     await app.close()
   })
 
-  it('GetMe_NoSession_Returns401', async () => {
+  it('VerifiedUser_SignsInThenGetMe_ReturnsIdentity', async () => {
     const app = await buildApp({ config, db: handle })
+    const email = 'login@example.test'
+    const password = 'sup3r-secret-pw'
+    await handle.db.delete(user).where(eq(user.email, email))
 
-    const res = await app.inject({ method: 'GET', url: '/api/auth/me' })
+    await post(app, '/api/auth/sign-up/email', { name: 'Login User', email, password })
+    // Simulate the email verification step so sign-in is allowed.
+    await handle.db.update(user).set({ emailVerified: true }).where(eq(user.email, email))
 
-    expect(res.statusCode).toBe(401)
+    const signIn = await post(app, '/api/auth/sign-in/email', { email, password })
+    expect(signIn.statusCode).toBe(200)
+    const cookie = cookieHeader(signIn)
+    expect(cookie.length).toBeGreaterThan(0)
+
+    const me = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie } })
+    expect(me.statusCode).toBe(200)
+    expect(me.json()).toMatchObject({ email, emailVerified: true })
+
+    // Sign-out revokes the session (logout) — the same cookie no longer works.
+    const signOut = await post(app, '/api/auth/sign-out', {}, cookie)
+    expect(signOut.statusCode).toBe(200)
+    const meAfter = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie } })
+    expect(meAfter.statusCode).toBe(401)
+
+    await handle.db.delete(user).where(eq(user.email, email))
+    await app.close()
+  })
+
+  it('SignInEmail_TooManyAttempts_RateLimited429', async () => {
+    const app = await buildApp({ config, db: handle })
+    const email = 'ratelimit@example.test'
+
+    // customRules: /sign-in/email is window 60s / max 5. The 6th attempt trips it.
+    const statuses: number[] = []
+    for (let i = 0; i < 6; i++) {
+      const res = await post(app, '/api/auth/sign-in/email', { email, password: 'wrong-pw' })
+      statuses.push(res.statusCode)
+    }
+
+    expect(statuses).toContain(429)
     await app.close()
   })
 
