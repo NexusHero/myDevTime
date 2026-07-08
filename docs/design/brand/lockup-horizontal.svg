@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 342 96" width="342" height="96" role="img" aria-label="myDevTime">
+  <title>myDevTime — horizontal lockup</title>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b222b"/>
+      <stop offset="1" stop-color="#0f1318"/>
+    </linearGradient>
+  </defs>
+  <!-- icon -->
+  <g>
+    <rect x="3" y="3" width="90" height="90" rx="24" fill="url(#tile)" stroke="#ffffff" stroke-opacity="0.08"/>
+    <rect x="4.5" y="4.5" width="87" height="43" rx="22" fill="#ffffff" opacity="0.06"/>
+    <rect x="24" y="30" width="44" height="9" rx="4.5" fill="#1fa894"/>
+    <rect x="24" y="47" width="34" height="9" rx="4.5" fill="#8b7bf5"/>
+    <rect x="24" y="64" width="40" height="9" rx="4.5" fill="#3e97dd"/>
+    <line x1="54" y1="23" x2="54" y2="75" stroke="#e8a33d" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="54" cy="23" r="4.4" fill="#e8a33d"/>
+  </g>
+  <!-- wordmark: monospaced; colours chosen to read on light or neutral grounds.
+       For dark app surfaces, recolour "my"→#9aa6b4, "Dev"→#e8a33d, "Time"→#e9edf2. -->
+  <text x="116" y="49" dominant-baseline="central"
+        font-family="ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace"
+        font-size="40" font-weight="600" letter-spacing="-1.6">
+    <tspan fill="#55606d">my</tspan><tspan fill="#b9761a">Dev</tspan><tspan fill="#1c232c">Time</tspan>
+  </text>
+</svg>
