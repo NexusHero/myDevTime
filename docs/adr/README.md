@@ -38,6 +38,7 @@ below in number order.
 | [0017](0017-auth-implementation-library.md) | Auth implementation: **Better-Auth** (self-hosted, MIT); focused libraries (openid-client + argon2 + @fastify/\*) kept as documented fallback; integration validated as acceptance criteria in #4 | Accepted — realizes & amends ADR-0007 |
 | [0018](0018-social-providers-and-auth-edge.md) | Social providers **Google + Apple + GitHub** (Facebook rejected); Better-Auth hidden internally but exposed at the client edge on purpose | Accepted — extends ADR-0007 |
 | [0019](0019-sync-protocol.md) | Cross-device sync: server-authoritative delta sync with per-entity optimistic versioning; deterministic per-entity-type conflict policy in `packages/domain` (LWW for catalog metadata, user-surfaced conflicts for time-entry intervals & delete-vs-edit) | Accepted — realizes the `sync` module (0003); engine is #9 Phase 2 |
+| [0020](0020-export-rendering-stack.md) | Timesheet export/rendering: hand-rolled CSV, ExcelJS (XLSX), PDFKit (PDF) behind per-format serializer adapters over the deterministic `buildTimesheet`; server-side, `Intl` de/en formats | Accepted — realizes REQ-009's rendering layer (#14) |
 
 ## Tech Radar
 
@@ -71,6 +72,9 @@ One line per technology so the stack's shape stays visible without re-reading th
 | Server-authoritative delta sync (per-entity versioning + tombstones) | Adopt | ADR-0019 |
 | Deterministic per-entity conflict policy (in `packages/domain`) | Adopt | ADR-0019 |
 | CRDT libraries (Yjs / Automerge) | Assess/Hold (revisit only for real multi-user collaboration) | ADR-0019 |
+| ExcelJS (XLSX export, behind an adapter) | Adopt | ADR-0020 |
+| PDFKit (PDF export, behind an adapter) | Adopt | ADR-0020 |
+| Headless Chromium → PDF (Puppeteer) | Hold (heavy + non-deterministic bytes; revisit if layout outgrows PDFKit) | ADR-0020 |
 | GitHub Actions CI (gate + Postgres integration + commitlint) | Adopt | ADR-0014/0016 |
 | CodeQL (javascript-typescript, security-and-quality) | Adopt | ADR-0016 |
 | Dependabot (npm + github-actions, grouped) | Adopt | ADR-0016 |
