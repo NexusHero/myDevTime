@@ -12,11 +12,34 @@ describe('loadConfig', () => {
   })
 
   it('LoadConfig_ValidOverrides_ParsesAndCoerces', () => {
-    const config = loadConfig({ NODE_ENV: 'production', PORT: '8080', LOG_LEVEL: 'warn' })
+    const config = loadConfig({
+      NODE_ENV: 'production',
+      PORT: '8080',
+      LOG_LEVEL: 'warn',
+      AUTH_SECRET: 'x'.repeat(32),
+    })
 
     expect(config.NODE_ENV).toBe('production')
     expect(config.PORT).toBe(8080)
     expect(config.LOG_LEVEL).toBe('warn')
+  })
+
+  it('LoadConfig_ProductionWithoutAuthSecret_Throws', () => {
+    const act = (): unknown => loadConfig({ NODE_ENV: 'production' })
+
+    expect(act).toThrow(/AUTH_SECRET/)
+  })
+
+  it('LoadConfig_DevWithoutAuthSecret_Ok', () => {
+    const config = loadConfig({ NODE_ENV: 'development' })
+
+    expect(config.AUTH_SECRET).toBeUndefined()
+  })
+
+  it('LoadConfig_ShortAuthSecret_Throws', () => {
+    const act = (): unknown => loadConfig({ NODE_ENV: 'production', AUTH_SECRET: 'too-short' })
+
+    expect(act).toThrow(/AUTH_SECRET/)
   })
 
   it('LoadConfig_InvalidPort_ThrowsListingTheField', () => {

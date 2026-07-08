@@ -15,3 +15,7 @@ export const workspaces = pgTable('workspaces', {
 
 export type Workspace = typeof workspaces.$inferSelect
 export type NewWorkspace = typeof workspaces.$inferInsert
+
+// Better-Auth identity tables (user/session/account/verification) live alongside
+// the workspace root and are picked up by drizzle-kit + the db client from here.
+export * from './auth-schema.js'
