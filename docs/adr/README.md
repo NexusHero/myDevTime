@@ -22,7 +22,7 @@ below in number order.
 | [0001](0001-adopt-ultimate-development-process.md) | Adopt the Ultimate Development Process (via sibling project Finanzo) as this project's governance model | Accepted |
 | [0002](0002-product-scope-unify-tyme-and-tackle.md) | Product scope: unify Tyme's mobile/tablet UX with the second reference's AI automation & billing, plus an own AI layer — iOS + Android + Web from 1.0 | Accepted, amended by 0008 (reference = Tactiq; transcription in 1.0) |
 | [0003](0003-node-typescript-backend.md) | Node.js/TypeScript backend as a modular monolith | Accepted |
-| [0004](0004-react-native-expo-client.md) | React Native + Expo client for all three platforms | Proposed — pending the cross-platform spike |
+| [0004](0004-react-native-expo-client.md) | React Native + Expo client for all three platforms | Accepted (provisional) — confirmed by spike [#1](https://github.com/NexusHero/myDevTime/issues/1) ([findings](../spikes/0001-client-rn-expo.md)); residual on-device checklist (C1–C7) before the qualifier drops |
 | [0005](0005-deterministic-core-llm-assist.md) | Deterministic tracking/billing core; LLM strictly an assist layer with recorded provenance | Accepted |
 | [0006](0006-subscription-billing-stripe-plus-store-iap.md) | Subscriptions via Stripe on web + native IAP in stores, unified by an internal entitlement service | Accepted, amended by 0008 (explicit AI credits) |
 | [0007](0007-authentication-email-oauth-sessions.md) | Email/password + Google & Apple sign-in, rotating token sessions, self-hosted auth module | Accepted — session mechanism amended by 0017 (opaque DB sessions); provider list extended by 0018 (+GitHub) |
@@ -54,8 +54,10 @@ One line per technology so the stack's shape stays visible without re-reading th
 | Fastify (backend HTTP framework) | Adopt | ADR-0015 |
 | PostgreSQL | Adopt | ADR-0015 |
 | Drizzle ORM (+ drizzle-kit migrations) | Adopt | ADR-0015 |
-| React Native + Expo (+ react-native-web, EAS) | Trial → Adopt after spike | ADR-0004 |
-| Flutter | Hold (named fallback if the spike fails) | ADR-0004 |
+| React Native + Expo (+ react-native-web, EAS) | Adopt (provisional — spike #1 passed; on-device checklist pending) | ADR-0004 |
+| react-native-reanimated + Gesture Handler (Day Canvas 60fps) | Adopt | ADR-0004/0011 |
+| expo-sqlite (offline-first local store) | Adopt | ADR-0004/0019 |
+| Flutter | Hold (named fallback; not triggered by the spike) | ADR-0004 |
 | Stripe (Checkout + Billing) | Adopt | ADR-0006 |
 | StoreKit 2 / Play Billing | Adopt | ADR-0006 |
 | RevenueCat | Assess (re-evaluate when IAP work starts) | ADR-0006 |
