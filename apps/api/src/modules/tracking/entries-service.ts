@@ -20,9 +20,17 @@ import { NotFoundError, ValidationError } from '../../errors.js'
  * (`@mydevtime/domain`): the service maps rows to the core's absolute-instant
  * model and rejects anything the core deems invalid, so the API can never
  * persist an entry the timesheet math would choke on.
+ *
+ * Deletes are **soft** (REQ-006, ADR-0019): `deleted_at` is stamped so the row
+ * survives as a tombstone for sync, and every read filters `deleted_at IS NULL`.
  */
 
 export type Entry = typeof timeEntries.$inferSelect
+
+/** Scope to a workspace's live (non-tombstoned) rows. */
+function live(workspaceId: string) {
+  return and(eq(timeEntries.workspaceId, workspaceId), isNull(timeEntries.deletedAt))
+}
 
 function one(rows: readonly Entry[]): Entry {
   const row = rows[0]
@@ -58,7 +66,7 @@ export async function startTimer(
     await tx
       .update(timeEntries)
       .set({ endedAt: startedAt, updatedAt: new Date() })
-      .where(and(eq(timeEntries.workspaceId, workspaceId), isNull(timeEntries.endedAt)))
+      .where(and(live(workspaceId), isNull(timeEntries.endedAt)))
     const rows = await tx
       .insert(timeEntries)
       .values({
@@ -82,7 +90,7 @@ export async function getRunning(db: Db, workspaceId: string): Promise<Entry | n
   const rows = await db
     .select()
     .from(timeEntries)
-    .where(and(eq(timeEntries.workspaceId, workspaceId), isNull(timeEntries.endedAt)))
+    .where(and(live(workspaceId), isNull(timeEntries.endedAt)))
     .limit(1)
   return rows[0] ?? null
 }
@@ -96,7 +104,7 @@ export async function stopTimer(
   const rows = await db
     .update(timeEntries)
     .set({ endedAt, updatedAt: new Date() })
-    .where(and(eq(timeEntries.workspaceId, workspaceId), isNull(timeEntries.endedAt)))
+    .where(and(live(workspaceId), isNull(timeEntries.endedAt)))
     .returning()
   if (rows.length === 0) throw new NotFoundError('no running timer')
   return one(rows)
@@ -155,7 +163,7 @@ export function listEntries(
   workspaceId: string,
   filter: ListEntriesFilter = {},
 ): Promise<Entry[]> {
-  const bounds = [eq(timeEntries.workspaceId, workspaceId)]
+  const bounds = [eq(timeEntries.workspaceId, workspaceId), isNull(timeEntries.deletedAt)]
   if (filter.from) bounds.push(gte(timeEntries.startedAt, filter.from))
   if (filter.to) bounds.push(lt(timeEntries.startedAt, filter.to))
   return db
@@ -169,7 +177,7 @@ export async function getEntry(db: Db, workspaceId: string, id: string): Promise
   const rows = await db
     .select()
     .from(timeEntries)
-    .where(and(eq(timeEntries.workspaceId, workspaceId), eq(timeEntries.id, id)))
+    .where(and(live(workspaceId), eq(timeEntries.id, id)))
   return one(rows)
 }
 
@@ -210,7 +218,7 @@ export async function updateEntry(
   const rows = await db
     .update(timeEntries)
     .set(values)
-    .where(and(eq(timeEntries.workspaceId, workspaceId), eq(timeEntries.id, id)))
+    .where(and(live(workspaceId), eq(timeEntries.id, id)))
     .returning()
   return one(rows)
 }
@@ -231,7 +239,7 @@ export async function splitEntry(
     const rows = await tx
       .select()
       .from(timeEntries)
-      .where(and(eq(timeEntries.workspaceId, workspaceId), eq(timeEntries.id, id)))
+      .where(and(live(workspaceId), eq(timeEntries.id, id)))
     const entry = one(rows)
     if (entry.endedAt === null) throw new ValidationError('cannot split a running timer')
     const atMs = at.getTime()
@@ -241,7 +249,7 @@ export async function splitEntry(
     const firstRows = await tx
       .update(timeEntries)
       .set({ endedAt: at, updatedAt: new Date() })
-      .where(and(eq(timeEntries.workspaceId, workspaceId), eq(timeEntries.id, id)))
+      .where(and(live(workspaceId), eq(timeEntries.id, id)))
       .returning()
     const secondRows = await tx
       .insert(timeEntries)
@@ -263,8 +271,9 @@ export async function splitEntry(
 
 export async function deleteEntry(db: Db, workspaceId: string, id: string): Promise<void> {
   const rows = await db
-    .delete(timeEntries)
-    .where(and(eq(timeEntries.workspaceId, workspaceId), eq(timeEntries.id, id)))
+    .update(timeEntries)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(and(live(workspaceId), eq(timeEntries.id, id)))
     .returning({ id: timeEntries.id })
   if (rows.length === 0) throw new NotFoundError('time entry not found')
 }
