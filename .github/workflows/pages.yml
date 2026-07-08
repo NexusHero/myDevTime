@@ -41,7 +41,7 @@ jobs:
         run: node scripts/build-api-docs.mjs dist-pages
 
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist-pages
 
