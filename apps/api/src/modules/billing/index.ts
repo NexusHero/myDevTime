@@ -11,6 +11,7 @@ import * as svc from './service.js'
 import { loadTimesheet } from './export/timesheet-source.js'
 import { timesheetToCsv } from './export/csv.js'
 import { timesheetToXlsx } from './export/xlsx.js'
+import { timesheetToPdf } from './export/pdf.js'
 
 export interface BillingModuleDeps {
   readonly db: Db | null
@@ -243,9 +244,9 @@ export function billingModule(deps: BillingModuleDeps): FastifyPluginAsyncZod {
       },
     )
 
-    // ── Timesheet export (CSV / XLSX; PDF is #14 Phase C) ─────────────────────
+    // ── Timesheet export (CSV / XLSX / PDF) ──────────────────────────────────
     const exportQuery = z.object({
-      format: z.enum(['csv', 'xlsx']).default('csv'),
+      format: z.enum(['csv', 'xlsx', 'pdf']).default('csv'),
       from: z.coerce.date().optional(),
       to: z.coerce.date().optional(),
       groupBy: z.enum(['entry', 'day', 'project', 'task']).default('entry'),
@@ -255,6 +256,7 @@ export function billingModule(deps: BillingModuleDeps): FastifyPluginAsyncZod {
         .refine(n => [1, 5, 6, 15, 30, 60].includes(n), 'unsupported rounding increment')
         .default(1),
       billableOnly: z.coerce.boolean().default(false),
+      locale: z.enum(['en', 'de']).default('en'),
       asOf: z.coerce.date().optional(),
     })
     app.get(
@@ -263,7 +265,7 @@ export function billingModule(deps: BillingModuleDeps): FastifyPluginAsyncZod {
         ...guard(app),
         schema: {
           tags: ['billing'],
-          summary: 'Export a project timesheet (CSV or XLSX)',
+          summary: 'Export a project timesheet (CSV, XLSX or PDF)',
           params: idParam,
           querystring: exportQuery,
         },
@@ -288,6 +290,13 @@ export function billingModule(deps: BillingModuleDeps): FastifyPluginAsyncZod {
           return reply
             .header('content-disposition', `attachment; filename="${base}.xlsx"`)
             .type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            .send(buffer)
+        }
+        if (q.format === 'pdf') {
+          const buffer = await timesheetToPdf(timesheet, meta, q.locale)
+          return reply
+            .header('content-disposition', `attachment; filename="${base}.pdf"`)
+            .type('application/pdf')
             .send(buffer)
         }
         return reply
