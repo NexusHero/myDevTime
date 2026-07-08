@@ -34,3 +34,6 @@ export * from './sync-schema.js'
 
 // Money: effective-dated rates, budgets, threshold alerts (REQ-005).
 export * from './billing-schema.js'
+
+// Entitlements: provider-agnostic event log; plan derived on read (REQ-016).
+export * from './entitlements-schema.js'
