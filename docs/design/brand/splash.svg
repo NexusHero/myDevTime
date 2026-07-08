@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 2280" width="1080" height="2280" role="img" aria-label="myDevTime splash screen">
+  <title>myDevTime — splash screen</title>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="34%" r="75%">
+      <stop offset="0" stop-color="#171d26"/>
+      <stop offset="55%" stop-color="#0f1318"/>
+      <stop offset="100%" stop-color="#0b0e12"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#e8a33d" stop-opacity="0.24"/>
+      <stop offset="70%" stop-color="#e8a33d" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b222b"/>
+      <stop offset="1" stop-color="#0f1318"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#e8a33d" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#e8a33d"/>
+      <stop offset="1" stop-color="#e8a33d" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1080" height="2280" fill="url(#bg)"/>
+  <rect x="140" y="560" width="800" height="800" fill="url(#glow)"/>
+
+  <!-- icon (96-unit mark scaled ×3.125 → 300px, centred at x=390) -->
+  <g transform="translate(390 740) scale(3.125)">
+    <rect x="3" y="3" width="90" height="90" rx="24" fill="url(#tile)" stroke="#ffffff" stroke-opacity="0.08"/>
+    <rect x="4.5" y="4.5" width="87" height="43" rx="22" fill="#ffffff" opacity="0.06"/>
+    <rect x="24" y="30" width="44" height="9" rx="4.5" fill="#1fa894"/>
+    <rect x="24" y="47" width="34" height="9" rx="4.5" fill="#8b7bf5"/>
+    <rect x="24" y="64" width="40" height="9" rx="4.5" fill="#3e97dd"/>
+    <line x1="54" y1="23" x2="54" y2="75" stroke="#e8a33d" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="54" cy="23" r="4.4" fill="#e8a33d"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="540" y="1200" text-anchor="middle"
+        font-family="ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace"
+        font-size="86" font-weight="600" letter-spacing="-3">
+    <tspan fill="#9aa6b4">my</tspan><tspan fill="#e8a33d">Dev</tspan><tspan fill="#e9edf2">Time</tspan>
+  </text>
+
+  <!-- tagline -->
+  <text x="540" y="1272" text-anchor="middle"
+        font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+        font-size="34" fill="#9aa6b4" letter-spacing="0.3">Plan the day. Track the truth.</text>
+
+  <!-- hydration hairline -->
+  <rect x="430" y="2010" width="220" height="6" rx="3" fill="#ffffff" opacity="0.10"/>
+  <rect x="430" y="2010" width="220" height="6" rx="3" fill="url(#bar)"/>
+
+  <!-- footer -->
+  <text x="540" y="2100" text-anchor="middle"
+        font-family="ui-monospace, 'SF Mono', Menlo, monospace"
+        font-size="26" fill="#4b5561" letter-spacing="0.5">v1.0 · offline-first</text>
+</svg>

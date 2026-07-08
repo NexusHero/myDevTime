@@ -18,7 +18,6 @@ async function main(): Promise<void> {
     await migrate(drizzle(sql), {
       migrationsFolder: new URL('./migrations', import.meta.url).pathname,
     })
-    // eslint-disable-next-line no-console -- CLI script, intentional operator feedback
     console.log('✓ migrations applied')
   } finally {
     await sql.end({ timeout: 5 })
@@ -26,7 +25,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: unknown) => {
-  // eslint-disable-next-line no-console -- CLI script, surface the failure
   console.error(err)
   process.exit(1)
 })

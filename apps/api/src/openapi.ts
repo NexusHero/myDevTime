@@ -19,12 +19,10 @@ async function main(): Promise<void> {
   writeFileSync(out, JSON.stringify(spec, null, 2))
   await app.close()
   await handle.close()
-  // eslint-disable-next-line no-console -- CLI script, intentional operator feedback
   console.log(`✓ OpenAPI written to ${out}`)
 }
 
 main().catch((err: unknown) => {
-  // eslint-disable-next-line no-console -- CLI script, surface the failure
   console.error(err)
   process.exit(1)
 })
