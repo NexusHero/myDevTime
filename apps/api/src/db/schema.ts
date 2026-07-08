@@ -25,3 +25,6 @@ export * from './catalog-schema.js'
 
 // Time entries: timers + manual entries, workspace-scoped (REQ-004).
 export * from './entries-schema.js'
+
+// Sync bookkeeping: idempotency ledger + surfaced conflicts (REQ-006).
+export * from './sync-schema.js'
