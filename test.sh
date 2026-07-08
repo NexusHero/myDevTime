@@ -9,6 +9,10 @@ run() {
   "$@"
 }
 
+# Build the workspace libraries first: apps/api consumes @mydevtime/domain (and
+# @mydevtime/shared) through their published `dist` entrypoints, so typecheck,
+# type-aware lint, and the tests all need those built before they run.
+run "Build packages" pnpm --filter "./packages/*" build
 run "Format check"  pnpm format:check
 run "Lint"          pnpm lint
 run "Typecheck"     pnpm typecheck
