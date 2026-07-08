@@ -19,3 +19,6 @@ export type NewWorkspace = typeof workspaces.$inferInsert
 // Better-Auth identity tables (user/session/account/verification) live alongside
 // the workspace root and are picked up by drizzle-kit + the db client from here.
 export * from './auth-schema.js'
+
+// Workspace catalog: clients → projects → tasks, tags, membership (REQ-001).
+export * from './catalog-schema.js'
