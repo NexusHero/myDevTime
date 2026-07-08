@@ -9,8 +9,13 @@ responsive navigation shell driven by that package's route/layout model.
 ```bash
 pnpm install          # once, from the repo root
 cd apps/mobile
-npx expo start        # press i (iOS) · a (Android) · w (web)
+pnpm start            # builds the workspace packages first, then Metro (i / a / w)
+# direct `npx expo start` also works, but run `pnpm build:deps` first —
+# the app imports the built dist of @mydevtime/design (Metro bundles from dist).
 ```
+
+Verified to bundle: `npx expo export --platform web` produces a runnable web bundle
+(Metro resolves the app, the component library, and `@mydevtime/design` cleanly).
 
 ## What's wired
 

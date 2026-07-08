@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { ScrollView, Text, View, useWindowDimensions } from 'react-native'
 import { projectColor } from '@mydevtime/design'
-import { useTheme } from '../theme/ThemeProvider.js'
-import { Badge, Button, Card, DayBlock, Island } from '../components/index.js'
+import { useTheme } from '../theme/ThemeProvider'
+import { Badge, Button, Card, DayBlock, Island } from '../components/index'
 
 /**
  * Today — the Day Canvas home (ux-vision §2.1, §3): the morning briefing with the
