@@ -10,6 +10,9 @@ import { pgTable, uuid, text, timestamp } from 'drizzle-orm/pg-core'
 export const workspaces = pgTable('workspaces', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
+  // One workspace currency at 1.0 (multi-currency is backlog) — ISO 4217 code.
+  // All money on the deterministic path is integer minor units of this currency.
+  currencyCode: text('currency_code').notNull().default('EUR'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -28,3 +31,6 @@ export * from './entries-schema.js'
 
 // Sync bookkeeping: idempotency ledger + surfaced conflicts (REQ-006).
 export * from './sync-schema.js'
+
+// Money: effective-dated rates, budgets, threshold alerts (REQ-005).
+export * from './billing-schema.js'

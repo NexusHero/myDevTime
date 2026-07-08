@@ -98,7 +98,9 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   })
   await app.register(automationModule, { prefix: '/api/automation' })
   await app.register(aiModule, { prefix: '/api/ai' })
-  await app.register(billingModule, { prefix: '/api/billing' })
+  await app.register(billingModule({ db: deps.db ? deps.db.db : null, config: deps.config }), {
+    prefix: '/api/billing',
+  })
 
   await app.ready()
   return app
