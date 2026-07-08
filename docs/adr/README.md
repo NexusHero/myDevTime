@@ -39,6 +39,7 @@ below in number order.
 | [0018](0018-social-providers-and-auth-edge.md) | Social providers **Google + Apple + GitHub** (Facebook rejected); Better-Auth hidden internally but exposed at the client edge on purpose | Accepted — extends ADR-0007 |
 | [0019](0019-sync-protocol.md) | Cross-device sync: server-authoritative delta sync with per-entity optimistic versioning; deterministic per-entity-type conflict policy in `packages/domain` (LWW for catalog metadata, user-surfaced conflicts for time-entry intervals & delete-vs-edit) | Accepted — realizes the `sync` module (0003); engine is #9 Phase 2 |
 | [0020](0020-export-rendering-stack.md) | Timesheet export/rendering: hand-rolled CSV, ExcelJS (XLSX), PDFKit (PDF) behind per-format serializer adapters over the deterministic `buildTimesheet`; server-side, `Intl` de/en formats | Accepted — realizes REQ-009's rendering layer (#14) |
+| [0021](0021-task-effort-estimation.md) | Task effort estimation: deterministic category→hours-range baseline + user's own estimate + assist-only AI estimate review (never mutates the number) + estimate-vs-actual | Accepted — grows 1.0 (REQ-041, #90); no displacement, by explicit owner choice |
 
 ## Tech Radar
 

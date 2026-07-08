@@ -97,6 +97,8 @@ importers:
         specifier: ^4.19.2
         version: 4.23.0
 
+  packages/design: {}
+
   packages/domain: {}
 
   packages/shared: {}

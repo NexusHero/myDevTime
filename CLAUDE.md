@@ -62,7 +62,7 @@ AI-credit ledger. See ADR-0002 as amended by ADR-0008 and extended by ADR-0010/0
 | Meeting capture / ASR | Decision frame fixed, winner pending spike #31 | ADR-0009, Proposed |
 | Toolchain | pnpm workspaces · TS strict · Vitest (+v8 coverage ≥90% on `domain`) · ESLint flat + Prettier · `./test.sh` gate = CI · git hooks | ADR-0014, Accepted (issue #2) |
 | Persistence | PostgreSQL + Drizzle (drizzle-kit migrations); driver confined to the `db` module, never imported by `packages/domain` | ADR-0015, Accepted (#3) |
-| Monorepo layout | `apps/api` (Fastify skeleton, #3), `apps/mobile` (README-only, gated on #1), `packages/domain` (pure logic), `packages/shared` (types/schemas); `spikes/*` outside the workspace | Bootstrapped (#2) |
+| Monorepo layout | `apps/api` (Fastify skeleton, #3), `apps/mobile` (README-only, client-code-unblocked by spike #1), `packages/domain` (pure logic), `packages/shared` (types/schemas), `packages/design` (design tokens + theme, #11 Phase A — held to the coverage bar); `spikes/*` outside the workspace | Bootstrapped (#2) |
 
 Run `pnpm install` once (wires git hooks), then `./test.sh` is the local gate.
 
