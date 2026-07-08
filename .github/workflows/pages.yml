@@ -1,0 +1,60 @@
+name: Pages — API docs
+
+# Publishes a static Swagger-UI mirror of the generated OpenAPI reference to
+# GitHub Pages. The interactive version for real calls stays at the running
+# server's /documentation.
+#
+# One-time manual step (not doable from a workflow):
+#   Settings → Pages → Source → "GitHub Actions".
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/api/src/**'
+      - 'scripts/build-api-docs.mjs'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the static Swagger-UI mirror
+        run: node scripts/build-api-docs.mjs dist-pages
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist-pages
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
