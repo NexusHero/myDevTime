@@ -90,7 +90,9 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   // The auth module decorates `requireAuth` at the root (fastify-plugin) and
   // mounts its own routes under /api/auth, so it registers without a prefix here.
   await app.register(authModule({ db: deps.db ? deps.db.db : null, config: deps.config }))
-  await app.register(trackingModule, { prefix: '/api/tracking' })
+  await app.register(trackingModule({ db: deps.db ? deps.db.db : null, config: deps.config }), {
+    prefix: '/api/tracking',
+  })
   await app.register(syncModule, { prefix: '/api/sync' })
   await app.register(automationModule, { prefix: '/api/automation' })
   await app.register(aiModule, { prefix: '/api/ai' })

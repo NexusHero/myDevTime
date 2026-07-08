@@ -15,6 +15,13 @@
       "when": 1783484379856,
       "tag": "0001_motionless_loners",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783491985775,
+      "tag": "0002_peaceful_warstar",
+      "breakpoints": true
     }
   ]
 }
