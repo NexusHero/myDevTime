@@ -81,7 +81,7 @@ a Runtime-View sequence diagram (§6).
 
 | ID | Requirement | Delivered by | Status |
 |----|-------------|-------------|--------|
-| REQ-001 | Workspace & tracking data model: clients → projects → tasks, tags, archiving; every query workspace-scoped by construction | [#6](https://github.com/NexusHero/myDevTime/issues/6) | Proposed |
+| REQ-001 | Workspace & tracking data model: clients → projects → tasks, tags, archiving; every query workspace-scoped by construction (repository takes `workspaceId` non-optionally; negative isolation tests per entity) | [#6](https://github.com/NexusHero/myDevTime/issues/6) | Done (#6) |
 | REQ-002 | Authentication: email/password + verification, Sign in with Google, Apple & GitHub, opaque revocable sessions (logout-everywhere), rate limiting, account deletion — self-hosted on Better-Auth behind a `requireAuth` guard | ADR-0007/0017/0018, [#4](https://github.com/NexusHero/myDevTime/issues/4) [#5](https://github.com/NexusHero/myDevTime/issues/5) | Done (#4) |
 | REQ-003 | Deterministic tracking core: timezone/DST-safe time math, overlap policy, rounding rules as data, aggregations — pure and dependency-free (`packages/domain/tracking`, purity-gated) | ADR-0005, [#7](https://github.com/NexusHero/myDevTime/issues/7) | Done (#7) |
 | REQ-004 | Timers & manual entries: one running timer, reboot-safe, offline-first local store, provenance on every entry | [#8](https://github.com/NexusHero/myDevTime/issues/8) | Proposed |
