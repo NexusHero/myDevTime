@@ -28,3 +28,24 @@ export {
   AA_NORMAL,
   AA_LARGE,
 } from './contrast.js'
+
+// App shell (#11): the navigation route map (deep-link build/parse for every
+// screen) and the responsive width→chrome model. Pure, platform-independent.
+export {
+  ROUTES,
+  PHONE_TABS,
+  SIDEBAR_ITEMS,
+  buildPath,
+  parsePath,
+  type Screen,
+  type RouteDef,
+  type Match,
+} from './nav.js'
+export {
+  BREAKPOINTS,
+  layoutForWidth,
+  chromeForWidth,
+  type LayoutClass,
+  type NavMode,
+  type Chrome,
+} from './responsive.js'
