@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted
+Accepted — session mechanism amended by [ADR-0017](0017-auth-implementation-library.md): the
+"short access token + rotating refresh token" pair below is realized as **opaque server-side
+database sessions** (Better-Auth), which keep the same policy (short-lived, revocable, device
+list) with instant cross-device revocation. Identity, providers, and hardening are unchanged.
 
 ## Context
 
