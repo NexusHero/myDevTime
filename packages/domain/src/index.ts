@@ -64,3 +64,13 @@ export {
   deadlineStatus,
   isDueWithin,
 } from './budgets/budget.js'
+
+// Timesheet reporting (REQ-009, ADR-0005) — the single source every export serializes.
+export type {
+  TimesheetGroupBy,
+  TimesheetEntryInput,
+  TimesheetOptions,
+  TimesheetLine,
+  Timesheet,
+} from './reporting/timesheet.js'
+export { buildTimesheet } from './reporting/timesheet.js'
