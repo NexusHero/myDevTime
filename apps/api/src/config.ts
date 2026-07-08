@@ -11,7 +11,7 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   // Optional so the app can boot for unit tests / OpenAPI emit without a DB;
   // readiness checks and integration tests require it.
-  DATABASE_URL: z.string().url().optional(),
+  DATABASE_URL: z.url().optional(),
 })
 
 export type Config = Readonly<z.infer<typeof envSchema>>
