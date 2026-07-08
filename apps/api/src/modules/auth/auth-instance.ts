@@ -69,6 +69,33 @@ export function createAuth({ db, config, email }: CreateAuthDeps) {
     account: {
       accountLinking: { enabled: true, trustedProviders: ['google', 'apple', 'github'] },
     },
+    // Account deletion — DSGVO / store-policy groundwork (REQ-002). Deletion is
+    // confirmed by an emailed token; full domain-data erasure lands with the M5
+    // privacy issue.
+    user: {
+      deleteUser: {
+        enabled: true,
+        sendDeleteAccountVerification: ({ user: u, url }) =>
+          email.send({
+            to: u.email,
+            subject: 'Confirm your myDevTime account deletion',
+            text: url,
+          }),
+      },
+    },
+    // Abuse protection (REQ-002 / SKILL §4): on in every environment, with
+    // stricter windows on the credential and reset endpoints. In-memory store is
+    // fine for the single-process monolith; database storage is a scaling concern.
+    rateLimit: {
+      enabled: true,
+      window: 60,
+      max: 100,
+      customRules: {
+        '/sign-in/email': { window: 60, max: 5 },
+        '/sign-up/email': { window: 60, max: 5 },
+        '/forget-password': { window: 60, max: 3 },
+      },
+    },
     ...(Object.keys(socialProviders).length > 0 ? { socialProviders } : {}),
   })
 }

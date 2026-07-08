@@ -23,6 +23,12 @@ const envSchema = z
     // Comma-separated list of origins allowed to send credentialed auth requests.
     TRUSTED_ORIGINS: z.string().optional(),
 
+    // Transactional email (verification, password reset, account-deletion). When
+    // SMTP_URL is set the SMTP transport is used; otherwise emails are logged
+    // (dev/CI). EMAIL_FROM is the sender address.
+    SMTP_URL: z.string().optional(),
+    EMAIL_FROM: z.string().default('myDevTime <no-reply@mydevtime.app>'),
+
     // Social providers (Google + Apple + GitHub). Each provider is enabled only
     // when both id and secret are present, so the app runs with any subset.
     GOOGLE_CLIENT_ID: z.string().optional(),
