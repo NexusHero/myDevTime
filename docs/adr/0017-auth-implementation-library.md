@@ -1,9 +1,11 @@
-# ADR 0017: Authentication Implementation — Better-Auth (pending spike) vs. Focused Libraries
+# ADR 0017: Authentication Implementation — Better-Auth (focused libraries as fallback)
 
 ## Status
 
-Proposed — decision frame fixed; winner confirmed by spike #64 before any auth code lands.
-Realizes the identity/session policy of ADR-0007 (which stays Accepted and unchanged).
+Accepted — **Better-Auth**. Realizes the identity/session policy of ADR-0007 and **amends its
+session mechanism** (access/refresh JWT → opaque server-side DB sessions); see the status note on
+ADR-0007. The owner chose to adopt directly rather than run a de-risking spike first, so the
+integration checks move into #4 as blocking acceptance criteria (below).
 
 ## Context
 
@@ -30,7 +32,7 @@ Two constraints from our own rules gate the decision and cannot be waived:
 
 ## Options
 
-### Option B — Better-Auth (recommended, pending spike)
+### Option B — Better-Auth (chosen)
 
 MIT, self-hosted, official Fastify integration (`auth.api.getSession`, `fromNodeHeaders`),
 Drizzle+PostgreSQL adapter, Google & Apple OAuth, email/password with verification & reset,
@@ -47,8 +49,8 @@ plugin (React Native session in `SecureStore`, bearer token, offline cache — R
 **Session-model note:** Better-Auth's opaque, server-side DB sessions are *not* the
 access-JWT + rotating-refresh-token pair ADR-0007 sketched — they are the simpler
 instantly-revocable pattern the security literature (RFC 9700) prefers for a modular monolith.
-Adopting Better-Auth therefore **amends ADR-0007's session mechanism** (via a status note on
-0007 in the implementing PR), not its policy.
+Adopting Better-Auth therefore **amends ADR-0007's session mechanism**, not its policy — the
+status note is added to ADR-0007 in this PR.
 
 ### Option A — Focused libraries (fallback)
 
@@ -68,22 +70,28 @@ is additionally rejected as a dependency (retired upstream).
 
 ## Decision
 
-**Adopt Better-Auth (Option B) *if and only if* spike #64 proves it composes cleanly with**
-workspace isolation and the `AuthenticatedUser` boundary. The spike's exit criteria:
+**Adopt Better-Auth (Option B).** No standalone de-risking spike (owner decision — accept the
+integration risk inside #4). The checks a spike would have front-loaded become **blocking
+acceptance criteria for #4**; if any cannot be met, #4 falls back to **Option A** (fully specified
+below) and this ADR is superseded rather than silently ignored:
 
-1. Its generated schema (users, sessions, accounts) coexists with our `workspaces` root and can
-   be scoped/queried by `workspace_id` without breaking negative isolation tests.
-2. The whole library stays confinable behind the `auth` module contract (nothing upstream imports
-   Better-Auth types).
-3. Google + Apple + email/password + verify/reset + mobile (Expo/SecureStore) all work end-to-end
-   against our Fastify + Postgres/Drizzle stack.
+1. Better-Auth's generated schema (users, sessions, accounts) coexists with our `workspaces` root
+   and is scoped/queried by `workspace_id` **without breaking the negative isolation tests**.
+2. The library stays **confinable behind the `auth` module contract** — nothing upstream imports
+   Better-Auth types; upstream sees only `AuthenticatedUser`.
+3. Google + Apple + email/password + verify/reset + mobile (Expo/`SecureStore`) all work
+   end-to-end on our Fastify + Postgres/Drizzle stack.
 
-If any criterion fails, fall back to **Option A**. Either way #4 implements the winner test-first
-(SKILL §), and this ADR moves to Accepted recording which won.
+#4 implements this test-first (SKILL §). Because the risk is carried in #4 rather than a spike,
+the first #4 PR must exercise criteria 1–2 explicitly (isolation + boundary tests) before the
+provider flows.
 
 ## Consequences
 
-- One short spike (#64) precedes #4; #4 is unblocked either way (fallback is fully specified).
+- No standalone spike: #4 carries the Better-Auth integration risk as blocking acceptance
+  criteria (owner decision). The focused-libs fallback (Option A) stays documented as the escape
+  hatch if #4 proves Better-Auth cannot meet criteria 1–3. (Spike issue #64 closed as folded into
+  #4.)
 - Non-negotiable, library-independent hardening still applies and is the review checklist for #4:
   argon2id at OWASP parameters, opaque server-side sessions (or refresh rotation + reuse
   detection if Option A), `httpOnly`+`Secure`+`SameSite` cookies with CSRF protection, login
