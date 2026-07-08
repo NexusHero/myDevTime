@@ -43,3 +43,24 @@ export type {
   PullResponse,
 } from './sync/engine.js'
 export { emptyServer, entityKey, applyPush, pull } from './sync/engine.js'
+
+// Money, rates & budgets (REQ-005, ADR-0005) — integer minor units, no float.
+export type { Money, MoneyRounding } from './budgets/money.js'
+export { costOf, sumMoney, hoursToMs } from './budgets/money.js'
+export type { RateLevel, RateRule } from './budgets/rates.js'
+export { resolveRate, rateAmountAt } from './budgets/rates.js'
+export type {
+  BudgetBasis,
+  BudgetPeriod,
+  Budget,
+  BudgetStatus,
+  ThresholdEvaluation,
+  DeadlineStatus,
+} from './budgets/budget.js'
+export {
+  budgetStatus,
+  consumedDuration,
+  evaluateThresholds,
+  deadlineStatus,
+  isDueWithin,
+} from './budgets/budget.js'
