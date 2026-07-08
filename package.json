@@ -19,6 +19,7 @@
     "coverage": "vitest run --coverage",
     "build": "pnpm -r --if-present build",
     "check:docs": "node scripts/check-docs.mjs",
+    "check:purity": "node scripts/check-domain-purity.mjs",
     "gate": "./test.sh",
     "prepare": "node scripts/install-hooks.mjs"
   },
