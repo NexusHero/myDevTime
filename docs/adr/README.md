@@ -35,6 +35,7 @@ below in number order.
 | [0014](0014-monorepo-toolchain.md) | Monorepo toolchain: pnpm workspaces, Vitest (+ v8 coverage gate), ESLint flat type-checked + Prettier, one `test.sh` gate = CI, git hooks | Accepted |
 | [0015](0015-backend-framework-and-persistence.md) | Backend framework & persistence: Fastify modular monolith (plugin-per-module) + PostgreSQL + Drizzle; RFC 7807 errors; generated OpenAPI | Accepted (realizes 0003) |
 | [0016](0016-cicd-pipeline.md) | CI/CD pipeline (mirrors the Résumé project): commitlint, security (audit + dependency-review), CodeQL, Dependabot, tag-driven release, GitHub Pages OpenAPI mirror | Accepted |
+| [0017](0017-auth-implementation-library.md) | Auth implementation: Better-Auth (self-hosted, MIT) vs. focused libraries (openid-client + argon2 + @fastify/\*); winner confirmed by spike #64 before #4 | Proposed — realizes ADR-0007 |
 
 ## Tech Radar
 
@@ -60,6 +61,9 @@ One line per technology so the stack's shape stays visible without re-reading th
 | Meeting-bot capture service (Recall.ai-style) | Assess (first candidate in the capture spike) | ADR-0009 |
 | Auth SaaS (Auth0/Clerk/…) | Hold | ADR-0007 |
 | argon2 password hashing, OIDC client libs | Adopt | ADR-0007 |
+| Better-Auth (self-hosted TS auth framework) | Trial → Adopt after spike #64 | ADR-0017 |
+| openid-client + @node-rs/argon2 + @fastify/\* (focused-libs fallback) | Assess (fallback if the spike fails) | ADR-0017 |
+| Lucia (auth library) | Hold (retired upstream — not a dependency) | ADR-0017 |
 | GitHub Actions CI (gate + Postgres integration + commitlint) | Adopt | ADR-0014/0016 |
 | CodeQL (javascript-typescript, security-and-quality) | Adopt | ADR-0016 |
 | Dependabot (npm + github-actions, grouped) | Adopt | ADR-0016 |
