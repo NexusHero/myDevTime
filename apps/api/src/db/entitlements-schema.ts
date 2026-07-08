@@ -36,3 +36,29 @@ export const entitlementEvents = pgTable(
   },
   t => [unique('entitlement_events_ws_provider_uq').on(t.workspaceId, t.providerEventId)],
 )
+
+/**
+ * Maps a workspace to its provider-side account id (e.g. a Stripe customer id),
+ * so a webhook that carries only the customer id can be routed back to the right
+ * workspace, and so checkout re-uses the same customer (REQ-017, #22). One
+ * account per (workspace, provider); the (provider, customer) pair is unique too,
+ * which is the reverse lookup the webhook uses.
+ */
+export const billingCustomers = pgTable(
+  'billing_customers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    /** 'stripe' | 'app_store' | 'play'. */
+    provider: text('provider').notNull(),
+    /** The provider-side account id (Stripe `cus_…`). */
+    customerId: text('customer_id').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  t => [
+    unique('billing_customers_ws_provider_uq').on(t.workspaceId, t.provider),
+    unique('billing_customers_provider_customer_uq').on(t.provider, t.customerId),
+  ],
+)

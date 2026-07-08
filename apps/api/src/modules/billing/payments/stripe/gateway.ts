@@ -78,7 +78,28 @@ export function stripeEventToEntitlement(event: Stripe.Event): NormalizedEvent |
   return null
 }
 
-export function createStripeGateway(cfg: StripeGatewayConfig): PaymentProviderPort {
+/**
+ * The Stripe gateway: the webhook `normalize` (a `PaymentProviderPort`) plus the
+ * outbound Checkout / Billing-portal / customer calls the routes need. Every
+ * method that touches the Stripe network stays here so the SDK is confined to
+ * this file; callers get plain strings back.
+ */
+export interface StripeGateway extends PaymentProviderPort {
+  /** Create a Stripe customer for a workspace and return its id (`cus_…`). */
+  createCustomer(input: { workspaceId: string; email?: string }): Promise<string>
+  /** A Checkout session URL for the Pro subscription. `client_reference_id` = workspace. */
+  createCheckoutSession(input: {
+    customerId: string
+    priceId: string
+    workspaceId: string
+    successUrl: string
+    cancelUrl: string
+  }): Promise<string>
+  /** A Billing customer-portal URL for self-service (payment method, cancel, invoices). */
+  createPortalSession(input: { customerId: string; returnUrl: string }): Promise<string>
+}
+
+export function createStripeGateway(cfg: StripeGatewayConfig): StripeGateway {
   const stripe = new Stripe(cfg.secretKey)
   return {
     source: 'stripe',
@@ -87,6 +108,33 @@ export function createStripeGateway(cfg: StripeGatewayConfig): PaymentProviderPo
       const event = stripe.webhooks.constructEvent(raw.body, raw.signature, cfg.webhookSecret)
       const mapped = stripeEventToEntitlement(event)
       return mapped ? [mapped] : []
+    },
+    async createCustomer({ workspaceId, email }) {
+      const customer = await stripe.customers.create({
+        ...(email !== undefined ? { email } : {}),
+        metadata: { workspaceId },
+      })
+      return customer.id
+    },
+    async createCheckoutSession({ customerId, priceId, workspaceId, successUrl, cancelUrl }) {
+      const session = await stripe.checkout.sessions.create({
+        mode: 'subscription',
+        customer: customerId,
+        client_reference_id: workspaceId,
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        automatic_tax: { enabled: true },
+      })
+      if (!session.url) throw new Error('Stripe did not return a Checkout URL')
+      return session.url
+    },
+    async createPortalSession({ customerId, returnUrl }) {
+      const session = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: returnUrl,
+      })
+      return session.url
     },
   }
 }
