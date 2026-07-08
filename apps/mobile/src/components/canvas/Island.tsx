@@ -1,5 +1,5 @@
 import { Pressable, Text, View } from 'react-native'
-import { useTheme } from '../../theme/ThemeProvider.js'
+import { useTheme } from '../../theme/ThemeProvider'
 
 /**
  * Island (canvas) — the one persistent, glanceable pill carrying live state

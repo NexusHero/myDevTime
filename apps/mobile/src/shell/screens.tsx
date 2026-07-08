@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native'
 import type { Screen } from '@mydevtime/design'
-import { useTheme } from '../theme/ThemeProvider.js'
-import { TodayScreen } from '../screens/TodayScreen.js'
+import { useTheme } from '../theme/ThemeProvider'
+import { TodayScreen } from '../screens/TodayScreen'
 
 /**
  * Human labels for every deep-linkable screen (ux-vision §3). The rendered

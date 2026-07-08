@@ -1,5 +1,5 @@
 import { Pressable, type ViewStyle } from 'react-native'
-import { useTheme } from '../../theme/ThemeProvider.js'
+import { useTheme } from '../../theme/ThemeProvider'
 
 /**
  * IconButton (core) — a square, pill-radius tap target for a single glyph. Always

@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "description": "Shared types & schemas used across backend and clients (SKILL §2.1).",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

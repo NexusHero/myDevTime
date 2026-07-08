@@ -1,6 +1,6 @@
 import { Pressable, Text, type ViewStyle } from 'react-native'
 import type { Theme } from '@mydevtime/design'
-import { useTheme } from '../../theme/ThemeProvider.js'
+import { useTheme } from '../../theme/ThemeProvider'
 
 /**
  * Button (core) — pill-shaped, four variants. Press feedback dims (ux-vision §4:

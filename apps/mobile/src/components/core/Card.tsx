@@ -1,5 +1,5 @@
 import { Text, View, type ViewStyle } from 'react-native'
-import { useTheme } from '../../theme/ThemeProvider.js'
+import { useTheme } from '../../theme/ThemeProvider'
 
 /**
  * Card (core) — a raised surface with an optional header (title + subtitle +

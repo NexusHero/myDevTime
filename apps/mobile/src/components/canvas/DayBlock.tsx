@@ -1,5 +1,5 @@
 import { Pressable, Text, View, type ViewStyle } from 'react-native'
-import { useTheme } from '../../theme/ThemeProvider.js'
+import { useTheme } from '../../theme/ThemeProvider'
 
 /**
  * DayBlock (canvas) — one block on the Day Canvas. `actual` is solid and
