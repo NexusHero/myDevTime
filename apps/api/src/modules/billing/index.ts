@@ -8,6 +8,7 @@ import { resolveWorkspaceId } from '../../core/workspace.js'
 import type { RoundingIncrementMinutes } from '@mydevtime/domain'
 import { UnauthorizedError } from '../../errors.js'
 import * as svc from './service.js'
+import * as entitlements from './entitlements-service.js'
 import { loadTimesheet } from './export/timesheet-source.js'
 import { timesheetToCsv } from './export/csv.js'
 import { timesheetToXlsx } from './export/xlsx.js'
@@ -62,13 +63,45 @@ const budgetEvalResponse = budgetStatusResponse.extend({ evaluation: evaluationS
 const idParam = z.object({ id: z.uuid() })
 const asOfQuery = z.object({ asOf: z.coerce.date().optional() })
 
+const entitlementSource = z.enum(['stripe', 'app_store', 'play', 'promo'])
+const entitlementEventType = z.enum([
+  'subscribed',
+  'renewed',
+  'payment_failed',
+  'recovered',
+  'canceled',
+  'expired',
+  'revoked',
+  'promo_granted',
+])
+const feature = z.enum([
+  'basic_tracking',
+  'unlimited_projects',
+  'calendar_integration',
+  'ai_proposals',
+  'meeting_transcription',
+  'advanced_reports',
+])
+const entitlementResponse = z.object({
+  plan: z.enum(['free', 'pro']),
+  status: z.enum(['free', 'active', 'past_due', 'canceled_at_period_end', 'expired']),
+  source: entitlementSource.nullable(),
+  /** Epoch-ms end of current Pro coverage, or null for free/unbounded. */
+  currentPeriodEnd: z.number().nullable(),
+  inGrace: z.boolean(),
+  features: z.array(feature),
+})
+
 /**
- * The `billing` module (ADR-0003/0006): the money layer at 1.0 — effective-dated
- * hourly rates, budgets, project cost, and budget threshold alerts (REQ-005).
- * Every route runs behind `requireAuth` and resolves the caller's workspace, so
- * money is workspace-isolated by construction. Without a DB only the status route
- * is mounted. (Payments/entitlements — Stripe & store IAP, ADR-0006 — are a
- * separate concern layered onto this module later.)
+ * The `billing` module (ADR-0003/0006/0008): the money + monetization layer.
+ * REQ-005 — effective-dated hourly rates, budgets, project cost, threshold
+ * alerts; REQ-009 — timesheet export; REQ-016 — the entitlement service
+ * (provider-agnostic plan derived from an append-only event log; feature gates
+ * ask here, never a payment SDK). Every route runs behind `requireAuth` and
+ * resolves the caller's workspace, so state is workspace-isolated by
+ * construction. Without a DB only the status route is mounted. Real payment
+ * providers (Stripe #22, store IAP #23) plug in as `PaymentProviderPort`
+ * adapters that feed the entitlement event log.
  */
 export function billingModule(deps: BillingModuleDeps): FastifyPluginAsyncZod {
   return async app => {
@@ -303,6 +336,57 @@ export function billingModule(deps: BillingModuleDeps): FastifyPluginAsyncZod {
           .header('content-disposition', `attachment; filename="${base}.csv"`)
           .type('text/csv; charset=utf-8')
           .send(timesheetToCsv(timesheet, meta))
+      },
+    )
+
+    // ── Entitlements (REQ-016, ADR-0006/0008) ────────────────────────────────
+    // Plan is derived from the event log on read; feature gates ask this module,
+    // never a payment SDK. The record-events route is the internal seam the
+    // payment adapters (#22/#23) and promo grants call — idempotent by event id.
+    app.get(
+      '/entitlement',
+      {
+        ...guard(app),
+        schema: {
+          tags: ['billing'],
+          summary: 'The caller’s current plan, status, and unlocked features',
+          querystring: asOfQuery,
+          response: { 200: entitlementResponse },
+        },
+      },
+      async (request): Promise<z.infer<typeof entitlementResponse>> => {
+        const asOf = request.query.asOf ?? new Date()
+        const view = await entitlements.getEntitlement(db, await workspaceOf(request), asOf)
+        return view as z.infer<typeof entitlementResponse>
+      },
+    )
+    app.post(
+      '/entitlement/events',
+      {
+        ...guard(app),
+        schema: {
+          tags: ['billing'],
+          summary: 'Record a provider-agnostic entitlement event (idempotent by event id)',
+          body: z.object({
+            providerEventId: z.string().min(1),
+            source: entitlementSource,
+            type: entitlementEventType,
+            effectiveAt: z.coerce.date(),
+            periodEnd: z.coerce.date().nullish(),
+            graceUntil: z.coerce.date().nullish(),
+          }),
+          response: {
+            200: z.object({ recorded: z.boolean(), entitlement: entitlementResponse }),
+          },
+        },
+      },
+      async (
+        request,
+      ): Promise<{ recorded: boolean; entitlement: z.infer<typeof entitlementResponse> }> => {
+        const workspaceId = await workspaceOf(request)
+        const { recorded } = await entitlements.recordEvent(db, workspaceId, request.body)
+        const entitlement = await entitlements.getEntitlement(db, workspaceId, new Date())
+        return { recorded, entitlement: entitlement as z.infer<typeof entitlementResponse> }
       },
     )
   }

@@ -50,6 +50,13 @@
       "when": 1783512600637,
       "tag": "0006_grey_blackheart",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783525566368,
+      "tag": "0007_woozy_blacklash",
+      "breakpoints": true
     }
   ]
 }
