@@ -42,7 +42,7 @@ jobs:
         run: pnpm --filter @mydevtime/api openapi:emit
 
       - name: Publish release with the OpenAPI spec
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
           files: apps/api/openapi.json
