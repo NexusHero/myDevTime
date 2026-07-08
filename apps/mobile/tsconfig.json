@@ -1,0 +1,20 @@
+{
+  "//": "RN/Expo needs bundler resolution + JSX, which the NodeNext base forbids — so this overrides those bits while keeping the base's strictness (strict, exactOptionalPropertyTypes, noUncheckedIndexedAccess). `pnpm -r typecheck` runs this.",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "verbatimModuleSyntax": false,
+    "isolatedModules": true,
+    "types": ["react"],
+    "lib": ["ESNext", "DOM"],
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "rootDir": "."
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules"]
+}
