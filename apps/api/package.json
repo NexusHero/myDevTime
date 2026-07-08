@@ -16,15 +16,16 @@
   "dependencies": {
     "@fastify/swagger": "^9.5.1",
     "@fastify/swagger-ui": "^6.0.0",
+    "@mydevtime/domain": "workspace:*",
     "better-auth": "^1.6.23",
     "drizzle-orm": "^0.45.2",
+    "exceljs": "^4.4.0",
     "fastify": "^5.5.0",
     "fastify-plugin": "^6.0.0",
     "fastify-type-provider-zod": "^7.0.0",
     "nodemailer": "^9.0.3",
     "postgres": "^3.4.5",
-    "zod": "^4.0.0",
-    "@mydevtime/domain": "workspace:*"
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@types/nodemailer": "^8.0.1",

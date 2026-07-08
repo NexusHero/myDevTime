@@ -5,8 +5,12 @@ import type { Config } from '../../config.js'
 import type { Db } from '../../db/client.js'
 import { moduleStatusRoute } from '../../core/module.js'
 import { resolveWorkspaceId } from '../../core/workspace.js'
+import type { RoundingIncrementMinutes } from '@mydevtime/domain'
 import { UnauthorizedError } from '../../errors.js'
 import * as svc from './service.js'
+import { loadTimesheet } from './export/timesheet-source.js'
+import { timesheetToCsv } from './export/csv.js'
+import { timesheetToXlsx } from './export/xlsx.js'
 
 export interface BillingModuleDeps {
   readonly db: Db | null
@@ -236,6 +240,60 @@ export function billingModule(deps: BillingModuleDeps): FastifyPluginAsyncZod {
       async request => {
         const asOf = request.query.asOf ?? new Date()
         return svc.projectCost(db, await workspaceOf(request), request.params.id, asOf)
+      },
+    )
+
+    // ── Timesheet export (CSV / XLSX; PDF is #14 Phase C) ─────────────────────
+    const exportQuery = z.object({
+      format: z.enum(['csv', 'xlsx']).default('csv'),
+      from: z.coerce.date().optional(),
+      to: z.coerce.date().optional(),
+      groupBy: z.enum(['entry', 'day', 'project', 'task']).default('entry'),
+      roundingMode: z.enum(['none', 'nearest', 'up']).default('none'),
+      roundingIncrement: z.coerce
+        .number()
+        .refine(n => [1, 5, 6, 15, 30, 60].includes(n), 'unsupported rounding increment')
+        .default(1),
+      billableOnly: z.coerce.boolean().default(false),
+      asOf: z.coerce.date().optional(),
+    })
+    app.get(
+      '/projects/:id/timesheet',
+      {
+        ...guard(app),
+        schema: {
+          tags: ['billing'],
+          summary: 'Export a project timesheet (CSV or XLSX)',
+          params: idParam,
+          querystring: exportQuery,
+        },
+      },
+      async (request, reply) => {
+        const q = request.query
+        const { timesheet, meta } = await loadTimesheet(db, await workspaceOf(request), {
+          projectId: request.params.id,
+          from: q.from,
+          to: q.to,
+          groupBy: q.groupBy,
+          rounding: {
+            mode: q.roundingMode,
+            incrementMinutes: q.roundingIncrement as RoundingIncrementMinutes,
+          },
+          billableOnly: q.billableOnly,
+          asOf: q.asOf ?? new Date(),
+        })
+        const base = `timesheet-${meta.projectName}`.replace(/[^\w.-]+/g, '_')
+        if (q.format === 'xlsx') {
+          const buffer = await timesheetToXlsx(timesheet, meta)
+          return reply
+            .header('content-disposition', `attachment; filename="${base}.xlsx"`)
+            .type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            .send(buffer)
+        }
+        return reply
+          .header('content-disposition', `attachment; filename="${base}.csv"`)
+          .type('text/csv; charset=utf-8')
+          .send(timesheetToCsv(timesheet, meta))
       },
     )
   }
