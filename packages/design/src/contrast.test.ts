@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { AA_LARGE, AA_NORMAL, contrastRatio, meetsAA, parseHex } from './contrast.js'
-import { dark, light, type Palette } from './palette.js'
+import { dark, palettes, ACCENT_THEMES, type Palette } from './palette.js'
 
 describe('WCAG contrast math', () => {
   it('KnownPairs_ComputeCorrectly', () => {
@@ -21,12 +21,16 @@ describe('WCAG contrast math', () => {
 
 /**
  * The palette's a11y contract, enforced as a test (ux-vision §4: "WCAG AA
- * contrast in both themes"). A token change that breaks contrast fails the build.
+ * contrast in both themes") — now across all three accents × both modes
+ * (ADR-0022). A token change that breaks contrast in *any* of the six
+ * combinations fails the build.
  */
-describe.each([
-  ['dark', dark],
-  ['light', light],
-])('%s theme a11y contract', (_name, p: Palette) => {
+const combos: readonly [string, Palette][] = ACCENT_THEMES.flatMap(accent => [
+  [`${accent}/dark`, palettes[accent].dark] as [string, Palette],
+  [`${accent}/light`, palettes[accent].light] as [string, Palette],
+])
+
+describe.each(combos)('%s a11y contract', (_name, p: Palette) => {
   it('PrimaryInk_ClearsAaNormalOnEverySurface', () => {
     for (const surface of [p.bg, p.surface, p.raised, p.overlay]) {
       expect(meetsAA(p.ink, surface, AA_NORMAL)).toBe(true)
@@ -45,5 +49,6 @@ describe.each([
   it('StatusColors_ClearAaLargeOnSurface', () => {
     expect(meetsAA(p.good, p.surface, AA_LARGE)).toBe(true)
     expect(meetsAA(p.crit, p.surface, AA_LARGE)).toBe(true)
+    expect(meetsAA(p.warn, p.surface, AA_LARGE)).toBe(true)
   })
 })
