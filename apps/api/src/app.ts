@@ -87,7 +87,9 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(healthModule({ db: deps.db }))
 
   // Business modules — each encapsulated under its own prefix.
-  await app.register(authModule, { prefix: '/api/auth' })
+  await app.register(authModule({ db: deps.db ? deps.db.db : null, config: deps.config }), {
+    prefix: '/api/auth',
+  })
   await app.register(trackingModule, { prefix: '/api/tracking' })
   await app.register(syncModule, { prefix: '/api/sync' })
   await app.register(automationModule, { prefix: '/api/automation' })
