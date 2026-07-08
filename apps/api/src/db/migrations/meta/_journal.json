@@ -57,6 +57,13 @@
       "when": 1783525566368,
       "tag": "0007_woozy_blacklash",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783544606828,
+      "tag": "0008_organic_queen_noir",
+      "breakpoints": true
     }
   ]
 }
