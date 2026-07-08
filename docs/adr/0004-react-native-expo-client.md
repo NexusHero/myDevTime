@@ -2,8 +2,16 @@
 
 ## Status
 
-Proposed — to be confirmed or overturned by the cross-platform spike (see the spike issue in
-`docs/roadmap.md` M0) before the first client code merges.
+**Accepted (provisional)** — confirmed by the cross-platform spike
+([#1](https://github.com/NexusHero/myDevTime/issues/1), findings in
+[`docs/spikes/0001-client-rn-expo.md`](../spikes/0001-client-rn-expo.md)). The spike resolved the
+architecture, offline-first/sync-fit, and react-native-web risks with machine-checked evidence and
+found no Flutter-fallback trigger. Two intrinsically device-bound checks — a running timer
+surviving a hard **reboot**, and the Day Canvas holding **60fps** on a mid-range device — remain as
+a documented on-device checklist (C1–C7 in the findings). Client code may proceed on this basis;
+the **"provisional"** qualifier is dropped once that checklist is signed off. If any core check
+fails and cannot be resolved at the native edge, this ADR is **superseded** by a Flutter decision,
+not edited.
 
 ## Context
 
@@ -43,7 +51,11 @@ timers) is isolated behind interfaces so native modules stay at the edge, per th
   pages, invoice PDFs) can be plain React without violating this ADR.
 - Widgets/watch complications/live activities require native modules — budgeted as
   platform-specific work at the edges, not a reason to fork the codebase.
-- The spike must validate the three riskiest assumptions before this ADR is marked Accepted:
-  (1) background/foreground timer reliability on both mobile OSes, (2) offline-first local
-  persistence + sync fit, (3) react-native-web quality for the dashboard screens. If the spike
-  fails, Flutter is the named fallback and this ADR gets superseded, not edited.
+- The spike validated the riskiest assumptions (see the findings): (1) background/kill/reboot
+  timer reliability — solved by deriving elapsed from persisted epoch timestamps, not ticks;
+  (2) offline-first local persistence mapping cleanly onto the deterministic sync engine
+  (ADR-0019); (3) react-native-web quality for a keyboard-first dashboard; and (4, added by
+  ADR-0011) Day Canvas direct manipulation at 60fps via Reanimated worklets. The correctness-
+  critical logic for each is a pure, unit-tested module reusable by the real client. The residual
+  device checklist (C1–C7) is the only gate left before the "provisional" status is removed; a
+  core failure there is the Flutter-fallback trigger, and this ADR would be superseded, not edited.

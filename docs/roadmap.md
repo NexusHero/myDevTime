@@ -7,8 +7,8 @@ and a visible AI-credit ledger are 1.0 scope — plus calendar auto-capture and 
 top ([ADR-0002](adr/0002-product-scope-unify-tyme-and-tackle.md) as amended by
 [ADR-0008](adr/0008-tactiq-realignment-transcription-and-credits.md)). Stack: Node.js/TypeScript backend
 ([ADR-0003](adr/0003-node-typescript-backend.md)), React Native + Expo clients
-([ADR-0004](adr/0004-react-native-expo-client.md), gated on the
-[#1](https://github.com/NexusHero/myDevTime/issues/1) spike).
+([ADR-0004](adr/0004-react-native-expo-client.md), Accepted (provisional) — spike
+[#1](https://github.com/NexusHero/myDevTime/issues/1) passed; [findings](spikes/0001-client-rn-expo.md)).
 
 Every work item is a tracked GitHub issue with acceptance and test criteria detailed enough to
 implement from directly. Process rules (`skills/ultimate-dev-process/SKILL.md`) apply to every
@@ -29,9 +29,12 @@ issue's comments before implementing it.
 
 ## Cross-cutting workstreams — start early, they don't wait for their milestone
 
-1. **Client-stack spike** ([#1](https://github.com/NexusHero/myDevTime/issues/1)) — the single
-   biggest de-risking item; needs real iOS + Android hardware. Everything client-side (#11–#14,
-   parts of #12's background-timer work) is bet on its outcome. Do it first.
+1. **Client-stack spike** ([#1](https://github.com/NexusHero/myDevTime/issues/1)) — ✅ **done, GO
+   (provisional)**: React Native + Expo confirmed ([findings](spikes/0001-client-rn-expo.md),
+   scaffold `spikes/client-rn-expo`); the four risks are resolved with machine-checked evidence and
+   Flutter is not triggered. One residual gate remains — the on-device checklist (C1–C7) on real
+   iOS + Android hardware — before the "provisional" qualifier drops. Everything client-side
+   (#11–#14, #12's background-timer work) is now unblocked.
 1. **Meeting-capture spike** ([#31](https://github.com/NexusHero/myDevTime/issues/31)) — the
    second big bet (ADR-0009): capture channel, ASR provider, per-minute cost, and the
    consent/legal analysis. Blocks #32/#33 and feeds #29/#34; run it in parallel with #1.
