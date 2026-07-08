@@ -74,3 +74,18 @@ export type {
   Timesheet,
 } from './reporting/timesheet.js'
 export { buildTimesheet } from './reporting/timesheet.js'
+
+// Entitlements — the domain of monetization (REQ-016, ADR-0006/0008). Provider-
+// agnostic plan/state machine; payment providers are adapters layered on later.
+export type {
+  Plan,
+  EntitlementSource,
+  EntitlementStatus,
+  EntitlementEventType,
+  EntitlementEvent,
+  Entitlement,
+} from './entitlements/types.js'
+export { FREE } from './entitlements/types.js'
+export { deriveEntitlement } from './entitlements/derive.js'
+export type { Feature } from './entitlements/features.js'
+export { can, featuresFor } from './entitlements/features.js'
