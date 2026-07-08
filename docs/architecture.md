@@ -84,7 +84,7 @@ a Runtime-View sequence diagram (§6).
 | REQ-001 | Workspace & tracking data model: clients → projects → tasks, tags, archiving; every query workspace-scoped by construction (repository takes `workspaceId` non-optionally; negative isolation tests per entity) | [#6](https://github.com/NexusHero/myDevTime/issues/6) | Done (#6) |
 | REQ-002 | Authentication: email/password + verification, Sign in with Google, Apple & GitHub, opaque revocable sessions (logout-everywhere), rate limiting, account deletion — self-hosted on Better-Auth behind a `requireAuth` guard | ADR-0007/0017/0018, [#4](https://github.com/NexusHero/myDevTime/issues/4) [#5](https://github.com/NexusHero/myDevTime/issues/5) | Done (#4) |
 | REQ-003 | Deterministic tracking core: timezone/DST-safe time math, overlap policy, rounding rules as data, aggregations — pure and dependency-free (`packages/domain/tracking`, purity-gated) | ADR-0005, [#7](https://github.com/NexusHero/myDevTime/issues/7) | Done (#7) |
-| REQ-004 | Timers & manual entries: one running timer, reboot-safe, offline-first local store, provenance on every entry | [#8](https://github.com/NexusHero/myDevTime/issues/8) | Proposed |
+| REQ-004 | Timers & manual entries: one running timer (DB-enforced, per-workspace), reboot-safe (running = persisted start instant, clock derived), manual create/edit/split/delete validated by the tracking core, provenance `source` on every entry; offline-first local store follows the client | [#8](https://github.com/NexusHero/myDevTime/issues/8) | API done (#8); offline-first store gated on client spike [#1](https://github.com/NexusHero/myDevTime/issues/1) |
 | REQ-005 | Budgets, effective-dated hourly rates (workspace→client→project→task precedence), deadlines, threshold alerts; integer money math | [#10](https://github.com/NexusHero/myDevTime/issues/10) | Proposed |
 | REQ-006 | Cross-device sync: offline-first, idempotent, resumable; conflicts never silently merge into wrong durations | [#9](https://github.com/NexusHero/myDevTime/issues/9) + sync-protocol ADR | Proposed |
 | REQ-007 | Mobile timer UX at the Tyme bar: today view, ≤2-tap start, background visibility (notification/Live Activity), tablet split-view | [#12](https://github.com/NexusHero/myDevTime/issues/12) | Proposed |
@@ -248,6 +248,32 @@ own issues._
 
 Each fulfilled requirement gets a scenario here (a Mermaid sequence diagram) linking back to its
 `REQ-NNN` — see the process skill §1.3.
+
+## Start a timer — one running timer per workspace (REQ-004)
+
+Starting a timer must never leave two running timers in a workspace. The service stops any
+already-running timer and inserts the new one inside a single transaction, so the partial unique
+index `time_entries_one_running_per_ws` (on `workspace_id WHERE ended_at IS NULL`) never observes
+two open rows — the invariant holds even if two starts race. A running timer is just a row with a
+persisted `started_at` and `ended_at IS NULL`; the elapsed clock is derived from that instant, so
+it survives app kill and device reboot.
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant API as tracking module
+    participant S as entries-service
+    participant DB as Postgres
+    C->>API: POST /api/tracking/entries/timer/start
+    API->>API: requireAuth → resolve workspaceId
+    API->>S: startTimer(db, workspaceId, userId, input)
+    S->>DB: BEGIN
+    S->>DB: UPDATE time_entries SET ended_at = now WHERE workspace_id = ws AND ended_at IS NULL
+    S->>DB: INSERT time_entries (source='timer', ended_at = NULL)
+    S->>DB: COMMIT
+    S-->>API: new running entry
+    API-->>C: 201 entry
+```
 
 ---
 

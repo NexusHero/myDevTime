@@ -23,7 +23,8 @@
     "fastify-type-provider-zod": "^7.0.0",
     "nodemailer": "^9.0.3",
     "postgres": "^3.4.5",
-    "zod": "^4.0.0"
+    "zod": "^4.0.0",
+    "@mydevtime/domain": "workspace:*"
   },
   "devDependencies": {
     "@types/nodemailer": "^8.0.1",

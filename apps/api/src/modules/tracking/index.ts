@@ -7,6 +7,7 @@ import { moduleStatusRoute } from '../../core/module.js'
 import { UnauthorizedError } from '../../errors.js'
 import { resolveWorkspaceId } from './workspace.js'
 import * as svc from './service.js'
+import * as entries from './entries-service.js'
 
 export interface TrackingModuleDeps {
   readonly db: Db | null
@@ -51,6 +52,20 @@ const tagSchema = z.object({
   ...timestamps,
 })
 
+const entrySchema = z.object({
+  id: z.string(),
+  workspaceId: z.string(),
+  userId: z.string(),
+  projectId: z.string().nullable(),
+  taskId: z.string().nullable(),
+  startedAt: z.date(),
+  endedAt: z.date().nullable(),
+  billable: z.boolean(),
+  source: z.string(),
+  note: z.string().nullable(),
+  ...timestamps,
+})
+
 const idParam = z.object({ id: z.uuid() })
 const listQuery = z.object({ includeArchived: z.coerce.boolean().default(false) })
 const name = z.string().min(1).max(200)
@@ -73,6 +88,16 @@ export function trackingModule(deps: TrackingModuleDeps): FastifyPluginAsyncZod 
       const authUser = request.authUser
       if (!authUser) throw new UnauthorizedError('Authentication required')
       return resolveWorkspaceId(db, authUser.id, authUser.name)
+    }
+
+    // Both the caller's workspace and their user id (for entry ownership).
+    const contextOf = async (
+      request: FastifyRequest,
+    ): Promise<{ workspaceId: string; userId: string }> => {
+      const authUser = request.authUser
+      if (!authUser) throw new UnauthorizedError('Authentication required')
+      const workspaceId = await resolveWorkspaceId(db, authUser.id, authUser.name)
+      return { workspaceId, userId: authUser.id }
     }
 
     const guard = (instance: FastifyInstance): { preHandler: [typeof instance.requireAuth] } => ({
@@ -344,6 +369,149 @@ export function trackingModule(deps: TrackingModuleDeps): FastifyPluginAsyncZod 
       },
       async (request, reply) => {
         await svc.deleteTag(db, await workspaceOf(request), request.params.id)
+        return reply.code(204).send(null)
+      },
+    )
+
+    // ── Time entries (REQ-004) ─────────────────────────────────────────────────
+    app.post(
+      '/entries/timer/start',
+      {
+        ...guard(app),
+        schema: {
+          tags: ['tracking'],
+          summary: 'Start a timer (stops any running one first)',
+          body: z.object({
+            projectId: z.uuid().nullish(),
+            taskId: z.uuid().nullish(),
+            billable: z.boolean().optional(),
+            note: z.string().nullish(),
+            startedAt: z.coerce.date().optional(),
+          }),
+          response: { 201: entrySchema },
+        },
+      },
+      async (request, reply) => {
+        const { workspaceId, userId } = await contextOf(request)
+        const entry = await entries.startTimer(db, workspaceId, userId, request.body)
+        return reply.code(201).send(entry)
+      },
+    )
+    app.post(
+      '/entries/timer/stop',
+      {
+        ...guard(app),
+        schema: {
+          tags: ['tracking'],
+          summary: 'Stop the running timer',
+          body: z.object({ endedAt: z.coerce.date().optional() }).optional(),
+          response: { 200: entrySchema },
+        },
+      },
+      async request => {
+        const endedAt = request.body?.endedAt
+        return entries.stopTimer(db, await workspaceOf(request), endedAt ?? new Date())
+      },
+    )
+    app.get(
+      '/entries/running',
+      {
+        ...guard(app),
+        schema: { tags: ['tracking'], response: { 200: entrySchema.nullable() } },
+      },
+      async request => entries.getRunning(db, await workspaceOf(request)),
+    )
+    app.post(
+      '/entries',
+      {
+        ...guard(app),
+        schema: {
+          tags: ['tracking'],
+          summary: 'Create a manual time entry',
+          body: z.object({
+            startedAt: z.coerce.date(),
+            endedAt: z.coerce.date(),
+            projectId: z.uuid().nullish(),
+            taskId: z.uuid().nullish(),
+            billable: z.boolean().optional(),
+            note: z.string().nullish(),
+          }),
+          response: { 201: entrySchema },
+        },
+      },
+      async (request, reply) => {
+        const { workspaceId, userId } = await contextOf(request)
+        const entry = await entries.createManualEntry(db, workspaceId, userId, request.body)
+        return reply.code(201).send(entry)
+      },
+    )
+    app.get(
+      '/entries',
+      {
+        ...guard(app),
+        schema: {
+          tags: ['tracking'],
+          querystring: z.object({
+            from: z.coerce.date().optional(),
+            to: z.coerce.date().optional(),
+          }),
+          response: { 200: z.array(entrySchema) },
+        },
+      },
+      async request => entries.listEntries(db, await workspaceOf(request), request.query),
+    )
+    app.get(
+      '/entries/:id',
+      {
+        ...guard(app),
+        schema: { tags: ['tracking'], params: idParam, response: { 200: entrySchema } },
+      },
+      async request => entries.getEntry(db, await workspaceOf(request), request.params.id),
+    )
+    app.patch(
+      '/entries/:id',
+      {
+        ...guard(app),
+        schema: {
+          tags: ['tracking'],
+          params: idParam,
+          body: z.object({
+            startedAt: z.coerce.date().optional(),
+            endedAt: z.coerce.date().nullish(),
+            projectId: z.uuid().nullish(),
+            taskId: z.uuid().nullish(),
+            billable: z.boolean().optional(),
+            note: z.string().nullish(),
+          }),
+          response: { 200: entrySchema },
+        },
+      },
+      async request =>
+        entries.updateEntry(db, await workspaceOf(request), request.params.id, request.body),
+    )
+    app.post(
+      '/entries/:id/split',
+      {
+        ...guard(app),
+        schema: {
+          tags: ['tracking'],
+          summary: 'Split an entry at an instant into two adjacent entries',
+          params: idParam,
+          body: z.object({ at: z.coerce.date() }),
+          response: { 200: z.tuple([entrySchema, entrySchema]) },
+        },
+      },
+      async request =>
+        entries.splitEntry(db, await workspaceOf(request), request.params.id, request.body.at),
+    )
+    app.delete(
+      '/entries/:id',
+      {
+        ...guard(app),
+        schema: { tags: ['tracking'], params: idParam, response: { 204: z.null() } },
+      },
+      async (request, reply) => {
+        await entries.deleteEntry(db, await workspaceOf(request), request.params.id)
         return reply.code(204).send(null)
       },
     )

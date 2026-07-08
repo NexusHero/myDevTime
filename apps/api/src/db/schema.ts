@@ -22,3 +22,6 @@ export * from './auth-schema.js'
 
 // Workspace catalog: clients → projects → tasks, tags, membership (REQ-001).
 export * from './catalog-schema.js'
+
+// Time entries: timers + manual entries, workspace-scoped (REQ-004).
+export * from './entries-schema.js'
