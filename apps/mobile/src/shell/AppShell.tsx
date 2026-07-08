@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { PHONE_TABS, SIDEBAR_ITEMS, chromeForWidth, type Screen } from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider.js'
-import { PlaceholderScreen, SCREEN_TITLES } from './screens.js'
+import { ScreenView, SCREEN_TITLES } from './screens.js'
 
 /**
  * The responsive navigation shell (issue #11). It reads the viewport width, asks
@@ -59,7 +59,7 @@ export function AppShell(): React.JSX.Element {
           {nav}
         </View>
         <View style={styles.fill}>
-          <PlaceholderScreen screen={active} />
+          <ScreenView screen={active} />
         </View>
       </View>
     )
@@ -68,7 +68,7 @@ export function AppShell(): React.JSX.Element {
   return (
     <View style={[styles.fill, { backgroundColor: t.color.bg }]}>
       <View style={styles.fill}>
-        <PlaceholderScreen screen={active} />
+        <ScreenView screen={active} />
       </View>
       <View
         style={[
