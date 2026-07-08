@@ -74,6 +74,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # apps/api tests import @mydevtime/domain through its built dist entrypoint.
+      - name: Build workspace packages
+        run: pnpm --filter "./packages/*" build
+
       - name: Apply migrations
         run: pnpm --filter @mydevtime/api db:migrate
 
