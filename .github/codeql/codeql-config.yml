@@ -1,0 +1,10 @@
+name: 'CodeQL config — scan our own code, skip prototypes/build output'
+
+# CodeQL otherwise scans everything, flooding the alerts with findings in code
+# we do not hand-author for production: the throwaway spikes (React prototype,
+# scanners) and compiled output. Excluding them leaves the alerts that matter —
+# the Fastify backend (apps/api) and the pure domain packages.
+paths-ignore:
+  - spikes/**
+  - '**/dist/**'
+  - '**/*.min.js'
