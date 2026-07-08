@@ -1,5 +1,42 @@
 #!/bin/sh
-# Run the full local gate before every commit — the same thing CI runs
-# (SKILL §5). Bypass in a genuine emergency with `git commit --no-verify`.
+# Run the full local gate before every commit — the same thing CI runs (SKILL §5).
+# Bypass in a genuine emergency with `git commit --no-verify`.
+#
+# Resolving pnpm robustly: editors/GUIs (and non-login shells) invoke hooks with a
+# minimal PATH that often omits a version manager's shims, so a bare `pnpm` isn't
+# found and the commit is blocked. We enrich PATH, load common version managers,
+# and fall back to corepack / npx so the gate runs under any user's environment.
+# On CI (pnpm already on PATH) this short-circuits immediately — behaviour there is
+# unchanged.
 set -e
+
+# 1) Common install locations + version-manager shims (all best-effort).
+export PATH="$HOME/Library/pnpm:$HOME/.local/share/pnpm:$HOME/.volta/bin:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+[ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh" >/dev/null 2>&1 || true
+[ -s "$HOME/.asdf/asdf.sh" ] && . "$HOME/.asdf/asdf.sh" >/dev/null 2>&1 || true
+command -v fnm >/dev/null 2>&1 && eval "$(fnm env 2>/dev/null)" >/dev/null 2>&1 || true
+
+# 2) Ensure a `pnpm` command exists on PATH — test.sh calls it directly.
+if ! command -v pnpm >/dev/null 2>&1 && command -v corepack >/dev/null 2>&1; then
+  corepack enable pnpm >/dev/null 2>&1 || true
+fi
+if ! command -v pnpm >/dev/null 2>&1 && command -v npx >/dev/null 2>&1; then
+  # Fall back to an npx-fetched pnpm, pinned to the version the repo declares.
+  ver=$(node -p "require('./package.json').packageManager.split('@')[1]" 2>/dev/null || echo "")
+  [ -n "$ver" ] && spec="pnpm@$ver" || spec="pnpm"
+  shim_dir=$(mktemp -d)
+  printf '#!/bin/sh\nexec npx --yes %s "$@"\n' "$spec" >"$shim_dir/pnpm"
+  chmod +x "$shim_dir/pnpm"
+  export PATH="$shim_dir:$PATH"
+fi
+
+# 3) If pnpm still can't be resolved, don't silently block the commit — tell the
+#    user how to run the gate and let the commit through (CI still enforces it).
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "⚠ pre-commit: pnpm not found and no corepack/npx fallback available." >&2
+  echo "  Skipping the local gate for this commit — CI will still run it." >&2
+  echo "  Install pnpm (e.g. 'corepack enable') and run ./test.sh before pushing." >&2
+  exit 0
+fi
+
 exec ./test.sh
