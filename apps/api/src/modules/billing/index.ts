@@ -6,9 +6,11 @@ import type { Db } from '../../db/client.js'
 import { moduleStatusRoute } from '../../core/module.js'
 import { resolveWorkspaceId } from '../../core/workspace.js'
 import type { RoundingIncrementMinutes } from '@mydevtime/domain'
-import { UnauthorizedError } from '../../errors.js'
+import { NotFoundError, UnauthorizedError, ValidationError } from '../../errors.js'
 import * as svc from './service.js'
 import * as entitlements from './entitlements-service.js'
+import { createStripeGateway } from './payments/stripe/gateway.js'
+import * as stripeSvc from './payments/stripe/service.js'
 import { loadTimesheet } from './export/timesheet-source.js'
 import { timesheetToCsv } from './export/csv.js'
 import { timesheetToXlsx } from './export/xlsx.js'
@@ -389,5 +391,93 @@ export function billingModule(deps: BillingModuleDeps): FastifyPluginAsyncZod {
         return { recorded, entitlement: entitlement as z.infer<typeof entitlementResponse> }
       },
     )
+
+    // ── Stripe web rail (REQ-017, ADR-0006, #22) ─────────────────────────────
+    // Mounted only when Stripe is configured. Checkout/portal run behind auth and
+    // resolve the caller's workspace; the webhook is authenticated by its Stripe
+    // signature (not the session guard) and reads the raw body to verify it.
+    const { config } = deps
+    if (config.STRIPE_SECRET_KEY && config.STRIPE_WEBHOOK_SECRET) {
+      const gateway = createStripeGateway({
+        secretKey: config.STRIPE_SECRET_KEY,
+        webhookSecret: config.STRIPE_WEBHOOK_SECRET,
+      })
+      const baseUrl = config.AUTH_BASE_URL ?? `http://localhost:${String(config.PORT)}`
+
+      app.post(
+        '/checkout',
+        {
+          ...guard(app),
+          schema: {
+            tags: ['billing'],
+            summary: 'Start a Stripe Checkout session for the Pro subscription',
+            response: { 200: z.object({ url: z.string() }) },
+          },
+        },
+        async request => {
+          if (!config.STRIPE_PRICE_PRO)
+            throw new ValidationError('STRIPE_PRICE_PRO is not configured')
+          const url = await stripeSvc.startCheckout(
+            db,
+            gateway,
+            { priceId: config.STRIPE_PRICE_PRO, baseUrl },
+            await workspaceOf(request),
+          )
+          return { url }
+        },
+      )
+
+      app.post(
+        '/portal',
+        {
+          ...guard(app),
+          schema: {
+            tags: ['billing'],
+            summary: 'Open the Stripe Billing customer portal',
+            response: { 200: z.object({ url: z.string() }) },
+          },
+        },
+        async request => {
+          const url = await stripeSvc.startPortal(db, gateway, baseUrl, await workspaceOf(request))
+          if (!url) throw new NotFoundError('No billing customer for this workspace yet')
+          return { url }
+        },
+      )
+
+      // The webhook needs the raw request bytes to verify the signature, so it
+      // lives in its own encapsulated scope with a buffer body parser — the
+      // module's other JSON routes keep the default parser.
+      await app.register(webhook => {
+        webhook.addContentTypeParser(
+          'application/json',
+          { parseAs: 'buffer' },
+          (_req, body, done) => {
+            done(null, body)
+          },
+        )
+        webhook.post(
+          '/stripe/webhook',
+          {
+            schema: {
+              tags: ['billing'],
+              summary: 'Stripe webhook — signature-verified, records entitlement events',
+              response: { 200: z.object({ received: z.boolean() }) },
+            },
+          },
+          async request => {
+            const signature = request.headers['stripe-signature']
+            if (typeof signature !== 'string') throw new ValidationError('missing stripe-signature')
+            const body = (request.body as Buffer).toString('utf8')
+            try {
+              await stripeSvc.handleWebhook(db, gateway, { body, signature })
+            } catch {
+              // A bad signature (or malformed payload) is a 400 so Stripe surfaces it.
+              throw new ValidationError('invalid Stripe signature')
+            }
+            return { received: true }
+          },
+        )
+      })
+    }
   }
 }

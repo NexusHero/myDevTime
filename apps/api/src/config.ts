@@ -37,6 +37,14 @@ const envSchema = z
     APPLE_CLIENT_SECRET: z.string().optional(),
     GITHUB_CLIENT_ID: z.string().optional(),
     GITHUB_CLIENT_SECRET: z.string().optional(),
+
+    // Stripe web payment rail (ADR-0006, #22). All optional so the app boots
+    // without billing configured; the checkout/portal routes and the webhook
+    // endpoint each require the relevant values (checked where used).
+    STRIPE_SECRET_KEY: z.string().optional(),
+    STRIPE_WEBHOOK_SECRET: z.string().optional(),
+    // The Stripe Price id for the Pro subscription (test/live), used by Checkout.
+    STRIPE_PRICE_PRO: z.string().optional(),
   })
   .superRefine((cfg, ctx) => {
     if (cfg.NODE_ENV === 'production' && !cfg.AUTH_SECRET) {
