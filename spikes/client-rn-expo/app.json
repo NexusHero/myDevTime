@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "myDevTime Spike",
+    "slug": "mydevtime-spike-client",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "scheme": "mydevtimespike",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": ["processing"]
+      }
+    },
+    "android": {
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": ["expo-sqlite", "expo-notifications"]
+  }
+}
