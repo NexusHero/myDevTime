@@ -37,6 +37,7 @@ below in number order.
 | [0016](0016-cicd-pipeline.md) | CI/CD pipeline (mirrors the Résumé project): commitlint, security (audit + dependency-review), CodeQL, Dependabot, tag-driven release, GitHub Pages OpenAPI mirror | Accepted |
 | [0017](0017-auth-implementation-library.md) | Auth implementation: **Better-Auth** (self-hosted, MIT); focused libraries (openid-client + argon2 + @fastify/\*) kept as documented fallback; integration validated as acceptance criteria in #4 | Accepted — realizes & amends ADR-0007 |
 | [0018](0018-social-providers-and-auth-edge.md) | Social providers **Google + Apple + GitHub** (Facebook rejected); Better-Auth hidden internally but exposed at the client edge on purpose | Accepted — extends ADR-0007 |
+| [0019](0019-sync-protocol.md) | Cross-device sync: server-authoritative delta sync with per-entity optimistic versioning; deterministic per-entity-type conflict policy in `packages/domain` (LWW for catalog metadata, user-surfaced conflicts for time-entry intervals & delete-vs-edit) | Accepted — realizes the `sync` module (0003); engine is #9 Phase 2 |
 
 ## Tech Radar
 
@@ -67,6 +68,9 @@ One line per technology so the stack's shape stays visible without re-reading th
 | Facebook login | Hold (rejected — weak fit for the dev audience) | ADR-0018 |
 | openid-client + @node-rs/argon2 + @fastify/\* (focused-libs fallback) | Assess (documented escape hatch if #4 can't meet the criteria) | ADR-0017 |
 | Lucia (auth library) | Hold (retired upstream — not a dependency) | ADR-0017 |
+| Server-authoritative delta sync (per-entity versioning + tombstones) | Adopt | ADR-0019 |
+| Deterministic per-entity conflict policy (in `packages/domain`) | Adopt | ADR-0019 |
+| CRDT libraries (Yjs / Automerge) | Assess/Hold (revisit only for real multi-user collaboration) | ADR-0019 |
 | GitHub Actions CI (gate + Postgres integration + commitlint) | Adopt | ADR-0014/0016 |
 | CodeQL (javascript-typescript, security-and-quality) | Adopt | ADR-0016 |
 | Dependabot (npm + github-actions, grouped) | Adopt | ADR-0016 |
