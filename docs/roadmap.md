@@ -69,7 +69,7 @@ M1  #7 (tracking core, pure) ◄──────┘            │            
       ├──► #36 (attendance: punches, breaks, overtime)           │
       └──► #10 (budgets & rates)                 │               │
                                     │            │               │
-M2  #39 (UX prototype, gate) ──► #11 (design system) ◄─┴─────────┘
+M2  #39 (UX prototype, gate) ──► #11 (design system; tokens = `packages/design`) ◄─┴─────────┘
       ├──► #12 (mobile timer UX + punch UI) ◄── #8 + #36         │
       ├──► #13 (dashboard: projects + work hours) ◄── #7/#10/#36/#37
       ├──► #37 (absences) ◄── #36                                │
