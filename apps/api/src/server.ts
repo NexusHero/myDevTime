@@ -28,7 +28,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: unknown) => {
-  // eslint-disable-next-line no-console -- top-level boot failure, before logger is guaranteed
   console.error(err)
   process.exit(1)
 })
