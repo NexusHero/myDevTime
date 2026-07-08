@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { theme, themes } from './theme.js'
-import { dark, light } from './palette.js'
+import { dark, light, palettes, ACCENT_THEMES, DEFAULT_ACCENT } from './palette.js'
 import { spacing, touchTarget } from './tokens.js'
 
 describe('theme resolver', () => {
@@ -17,9 +17,30 @@ describe('theme resolver', () => {
     expect(theme('light').color).toBe(light)
   })
 
-  it('Themes_ExposesBothPreResolved', () => {
+  it('DefaultsToSovereign_TheFlagshipAccent', () => {
+    // ADR-0022: no accent argument = Sovereign (the default flagship).
+    expect(DEFAULT_ACCENT).toBe('sovereign')
+    expect(theme('dark').accent).toBe('sovereign')
+    expect(theme('dark').color).toBe(palettes.sovereign.dark)
+  })
+
+  it('Accent_SelectsThatAccentsPaletteForTheMode', () => {
+    for (const accent of ACCENT_THEMES) {
+      expect(theme('dark', accent).color).toBe(palettes[accent].dark)
+      expect(theme('light', accent).color).toBe(palettes[accent].light)
+      expect(theme('light', accent).accent).toBe(accent)
+    }
+  })
+
+  it('ProjectColors_AreAccentIndependent', () => {
+    // A project keeps its identity when the accent theme flips (ux-vision §4).
+    expect(theme('dark', 'ember').projectColors).toBe(theme('dark', 'blueprint').projectColors)
+  })
+
+  it('Themes_ExposesBothPreResolvedAtDefaultAccent', () => {
     expect(themes.dark.mode).toBe('dark')
     expect(themes.light.mode).toBe('light')
+    expect(themes.dark.accent).toBe('sovereign')
   })
 
   it('TouchTarget_MeetsThe44ptFloor', () => {
