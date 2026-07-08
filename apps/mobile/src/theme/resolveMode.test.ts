@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveMode } from './resolveMode.js'
+import { resolveMode } from './resolveMode'
 
 describe('theme mode resolution', () => {
   it('ExplicitPreference_OverridesOsScheme', () => {

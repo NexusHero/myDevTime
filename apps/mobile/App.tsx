@@ -1,7 +1,7 @@
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
-import { ThemeProvider } from './src/theme/ThemeProvider.js'
-import { AppShell } from './src/shell/AppShell.js'
+import { ThemeProvider } from './src/theme/ThemeProvider'
+import { AppShell } from './src/shell/AppShell'
 
 /**
  * App root (issue #11): the design-system `ThemeProvider` wraps the responsive

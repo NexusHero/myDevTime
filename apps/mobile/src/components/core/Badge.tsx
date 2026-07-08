@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native'
 import type { Theme } from '@mydevtime/design'
-import { useTheme } from '../../theme/ThemeProvider.js'
+import { useTheme } from '../../theme/ThemeProvider'
 
 /**
  * Badge (core) — a small pill carrying a status tone. Ported from the design

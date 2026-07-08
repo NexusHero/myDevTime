@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { PHONE_TABS, SIDEBAR_ITEMS, chromeForWidth, type Screen } from '@mydevtime/design'
-import { useTheme } from '../theme/ThemeProvider.js'
-import { ScreenView, SCREEN_TITLES } from './screens.js'
+import { useTheme } from '../theme/ThemeProvider'
+import { ScreenView, SCREEN_TITLES } from './screens'
 
 /**
  * The responsive navigation shell (issue #11). It reads the viewport width, asks

@@ -1,5 +1,5 @@
 import { Pressable, Text, View } from 'react-native'
-import { useTheme } from '../../theme/ThemeProvider.js'
+import { useTheme } from '../../theme/ThemeProvider'
 
 /**
  * Tabs (navigation) — an underline tab strip for in-screen section switching

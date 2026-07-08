@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Text, TextInput, View } from 'react-native'
-import { useTheme } from '../../theme/ThemeProvider.js'
+import { useTheme } from '../../theme/ThemeProvider'
 
 /**
  * Input (form) — labeled text field with an error state and an optional mono

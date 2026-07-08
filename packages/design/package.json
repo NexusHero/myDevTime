@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "description": "Design tokens + theme resolver — the settled visual language (docs/design/ux-vision.md §4) as pure, platform-agnostic TypeScript. Consumed by the RN + react-native-web client (ADR-0004). No React, no RN imports.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
 import { useColorScheme } from 'react-native'
 import { theme, DEFAULT_ACCENT, type AccentTheme, type Theme } from '@mydevtime/design'
-import { resolveMode, type ThemePref } from './resolveMode.js'
+import { resolveMode, type ThemePref } from './resolveMode'
 
 /**
  * Theme context (issue #11). Resolves the effective `Theme` from the OS color

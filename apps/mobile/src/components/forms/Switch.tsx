@@ -1,5 +1,5 @@
 import { Pressable, Text, View } from 'react-native'
-import { useTheme } from '../../theme/ThemeProvider.js'
+import { useTheme } from '../../theme/ThemeProvider'
 
 /**
  * Switch (form) — a custom pill toggle matching the design system's `Switch`
