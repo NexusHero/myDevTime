@@ -30,3 +30,7 @@ export type {
   Bucket,
 } from './tracking/aggregation.js'
 export { aggregate } from './tracking/aggregation.js'
+
+// Deterministic cross-device sync core (REQ-006, ADR-0019).
+export type { SyncEntityType, SyncValue, EntityState, Resolution } from './sync/types.js'
+export { resolve } from './sync/resolve.js'
