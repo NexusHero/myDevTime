@@ -24,12 +24,15 @@
     "fastify-plugin": "^6.0.0",
     "fastify-type-provider-zod": "^7.0.0",
     "nodemailer": "^9.0.3",
+    "pdfkit": "^0.19.1",
     "postgres": "^3.4.5",
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@types/nodemailer": "^8.0.1",
+    "@types/pdfkit": "^0.17.6",
     "drizzle-kit": "^0.31.10",
+    "pdf-parse": "^2.4.5",
     "tsx": "^4.19.2"
   }
 }
