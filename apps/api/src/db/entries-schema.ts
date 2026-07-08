@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, boolean, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import { pgTable, uuid, text, boolean, bigint, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 import { workspaces } from './schema.js'
 import { user } from './auth-schema.js'
@@ -35,10 +35,15 @@ export const timeEntries = pgTable(
     note: text('note'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    // Sync metadata (REQ-006, ADR-0019): monotonic version stamped by a DB
+    // trigger; deleted_at is the tombstone so deletions propagate.
+    version: bigint('version', { mode: 'number' }).notNull().default(0),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   t => [
+    // At most one *live* running timer per workspace (a tombstoned row is exempt).
     uniqueIndex('time_entries_one_running_per_ws')
       .on(t.workspaceId)
-      .where(sql`${t.endedAt} is null`),
+      .where(sql`${t.endedAt} is null and ${t.deletedAt} is null`),
   ],
 )

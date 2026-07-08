@@ -4,10 +4,12 @@ import {
   text,
   boolean,
   numeric,
+  bigint,
   timestamp,
   primaryKey,
   uniqueIndex,
 } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 import { workspaces } from './schema.js'
 import { user } from './auth-schema.js'
 
@@ -22,6 +24,19 @@ import { user } from './auth-schema.js'
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}
+
+/**
+ * Sync metadata (REQ-006, ADR-0019) carried by every syncable entity:
+ * `version` is a per-database monotonic counter stamped by a DB trigger on every
+ * insert/update (so it is a storage invariant, independent of which code writes),
+ * and `deleted_at` is the tombstone — deletions soft-delete so they can sync.
+ * The default of `0` only lets Drizzle omit `version` on insert; the trigger
+ * immediately overwrites it with the next sequence value.
+ */
+const syncColumns = {
+  version: bigint('version', { mode: 'number' }).notNull().default(0),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
 }
 
 /**
@@ -51,6 +66,7 @@ export const clients = pgTable('clients', {
   name: text('name').notNull(),
   archived: boolean('archived').notNull().default(false),
   ...timestamps,
+  ...syncColumns,
 })
 
 export const projects = pgTable('projects', {
@@ -67,6 +83,7 @@ export const projects = pgTable('projects', {
   hourlyRateOverride: numeric('hourly_rate_override'),
   archived: boolean('archived').notNull().default(false),
   ...timestamps,
+  ...syncColumns,
 })
 
 export const tasks = pgTable('tasks', {
@@ -82,6 +99,7 @@ export const tasks = pgTable('tasks', {
   billableDefault: boolean('billable_default').notNull().default(true),
   archived: boolean('archived').notNull().default(false),
   ...timestamps,
+  ...syncColumns,
 })
 
 export const tags = pgTable(
@@ -95,6 +113,12 @@ export const tags = pgTable(
     color: text('color'),
     archived: boolean('archived').notNull().default(false),
     ...timestamps,
+    ...syncColumns,
   },
-  t => [uniqueIndex('tags_workspace_name_uq').on(t.workspaceId, t.name)],
+  // Partial: a soft-deleted tag frees its name for reuse (sync tombstones live on).
+  t => [
+    uniqueIndex('tags_workspace_name_uq')
+      .on(t.workspaceId, t.name)
+      .where(sql`${t.deletedAt} is null`),
+  ],
 )

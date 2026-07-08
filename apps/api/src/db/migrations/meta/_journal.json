@@ -29,6 +29,20 @@
       "when": 1783492998490,
       "tag": "0003_gifted_baron_strucker",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783501893687,
+      "tag": "0004_nostalgic_thunderbolt_ross",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783502205506,
+      "tag": "0005_slippery_lorna_dane",
+      "breakpoints": true
     }
   ]
 }

@@ -34,3 +34,12 @@ export { aggregate } from './tracking/aggregation.js'
 // Deterministic cross-device sync core (REQ-006, ADR-0019).
 export type { SyncEntityType, SyncValue, EntityState, Resolution } from './sync/types.js'
 export { resolve } from './sync/resolve.js'
+export type {
+  ServerRecord,
+  SyncServer,
+  PushChange,
+  PushResult,
+  PushResponse,
+  PullResponse,
+} from './sync/engine.js'
+export { emptyServer, entityKey, applyPush, pull } from './sync/engine.js'

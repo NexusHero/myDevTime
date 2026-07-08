@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import type { Db } from '../../db/client.js'
 import { clients, projects, tags, tasks } from '../../db/schema.js'
 import { NotFoundError, ValidationError } from '../../errors.js'
@@ -10,6 +10,11 @@ import { canCreateChild, isValidName, normalizeName } from './validation.js'
  * to workspace A can never read or write workspace B's rows (isolation by
  * construction; proven by the negative integration tests). Archived parents keep
  * their history but block new children.
+ *
+ * Deletes are **soft** (REQ-006, ADR-0019): a delete stamps `deleted_at` so the
+ * row survives as a tombstone the sync engine can propagate. Every read filters
+ * `deleted_at IS NULL`, so a soft-deleted row is invisible to the API exactly as
+ * a hard-deleted one was.
  */
 
 export type Client = typeof clients.$inferSelect
@@ -47,9 +52,8 @@ export function listClients(
   workspaceId: string,
   includeArchived = false,
 ): Promise<Client[]> {
-  const where = includeArchived
-    ? eq(clients.workspaceId, workspaceId)
-    : and(eq(clients.workspaceId, workspaceId), eq(clients.archived, false))
+  const live = and(eq(clients.workspaceId, workspaceId), isNull(clients.deletedAt))
+  const where = includeArchived ? live : and(live, eq(clients.archived, false))
   return db.select().from(clients).where(where).orderBy(clients.name)
 }
 
@@ -57,7 +61,7 @@ export async function getClient(db: Db, workspaceId: string, id: string): Promis
   const rows = await db
     .select()
     .from(clients)
-    .where(and(eq(clients.workspaceId, workspaceId), eq(clients.id, id)))
+    .where(and(eq(clients.workspaceId, workspaceId), eq(clients.id, id), isNull(clients.deletedAt)))
   return one(rows, 'client')
 }
 
@@ -73,15 +77,16 @@ export async function updateClient(
   const rows = await db
     .update(clients)
     .set(values)
-    .where(and(eq(clients.workspaceId, workspaceId), eq(clients.id, id)))
+    .where(and(eq(clients.workspaceId, workspaceId), eq(clients.id, id), isNull(clients.deletedAt)))
     .returning()
   return one(rows, 'client')
 }
 
 export async function deleteClient(db: Db, workspaceId: string, id: string): Promise<void> {
   const rows = await db
-    .delete(clients)
-    .where(and(eq(clients.workspaceId, workspaceId), eq(clients.id, id)))
+    .update(clients)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(clients.workspaceId, workspaceId), eq(clients.id, id), isNull(clients.deletedAt)))
     .returning({ id: clients.id })
   one(rows, 'client')
 }
@@ -124,9 +129,8 @@ export function listProjects(
   workspaceId: string,
   includeArchived = false,
 ): Promise<Project[]> {
-  const where = includeArchived
-    ? eq(projects.workspaceId, workspaceId)
-    : and(eq(projects.workspaceId, workspaceId), eq(projects.archived, false))
+  const live = and(eq(projects.workspaceId, workspaceId), isNull(projects.deletedAt))
+  const where = includeArchived ? live : and(live, eq(projects.archived, false))
   return db.select().from(projects).where(where).orderBy(projects.name)
 }
 
@@ -134,7 +138,9 @@ export async function getProject(db: Db, workspaceId: string, id: string): Promi
   const rows = await db
     .select()
     .from(projects)
-    .where(and(eq(projects.workspaceId, workspaceId), eq(projects.id, id)))
+    .where(
+      and(eq(projects.workspaceId, workspaceId), eq(projects.id, id), isNull(projects.deletedAt)),
+    )
   return one(rows, 'project')
 }
 
@@ -162,15 +168,20 @@ export async function updateProject(
   const rows = await db
     .update(projects)
     .set(values)
-    .where(and(eq(projects.workspaceId, workspaceId), eq(projects.id, id)))
+    .where(
+      and(eq(projects.workspaceId, workspaceId), eq(projects.id, id), isNull(projects.deletedAt)),
+    )
     .returning()
   return one(rows, 'project')
 }
 
 export async function deleteProject(db: Db, workspaceId: string, id: string): Promise<void> {
   const rows = await db
-    .delete(projects)
-    .where(and(eq(projects.workspaceId, workspaceId), eq(projects.id, id)))
+    .update(projects)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(
+      and(eq(projects.workspaceId, workspaceId), eq(projects.id, id), isNull(projects.deletedAt)),
+    )
     .returning({ id: projects.id })
   one(rows, 'project')
 }
@@ -198,9 +209,8 @@ export async function createTask(
 }
 
 export function listTasks(db: Db, workspaceId: string, includeArchived = false): Promise<Task[]> {
-  const where = includeArchived
-    ? eq(tasks.workspaceId, workspaceId)
-    : and(eq(tasks.workspaceId, workspaceId), eq(tasks.archived, false))
+  const live = and(eq(tasks.workspaceId, workspaceId), isNull(tasks.deletedAt))
+  const where = includeArchived ? live : and(live, eq(tasks.archived, false))
   return db.select().from(tasks).where(where).orderBy(tasks.name)
 }
 
@@ -208,7 +218,7 @@ export async function getTask(db: Db, workspaceId: string, id: string): Promise<
   const rows = await db
     .select()
     .from(tasks)
-    .where(and(eq(tasks.workspaceId, workspaceId), eq(tasks.id, id)))
+    .where(and(eq(tasks.workspaceId, workspaceId), eq(tasks.id, id), isNull(tasks.deletedAt)))
   return one(rows, 'task')
 }
 
@@ -229,15 +239,16 @@ export async function updateTask(
   const rows = await db
     .update(tasks)
     .set(values)
-    .where(and(eq(tasks.workspaceId, workspaceId), eq(tasks.id, id)))
+    .where(and(eq(tasks.workspaceId, workspaceId), eq(tasks.id, id), isNull(tasks.deletedAt)))
     .returning()
   return one(rows, 'task')
 }
 
 export async function deleteTask(db: Db, workspaceId: string, id: string): Promise<void> {
   const rows = await db
-    .delete(tasks)
-    .where(and(eq(tasks.workspaceId, workspaceId), eq(tasks.id, id)))
+    .update(tasks)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(tasks.workspaceId, workspaceId), eq(tasks.id, id), isNull(tasks.deletedAt)))
     .returning({ id: tasks.id })
   one(rows, 'task')
 }
@@ -257,9 +268,8 @@ export async function createTag(
 }
 
 export function listTags(db: Db, workspaceId: string, includeArchived = false): Promise<Tag[]> {
-  const where = includeArchived
-    ? eq(tags.workspaceId, workspaceId)
-    : and(eq(tags.workspaceId, workspaceId), eq(tags.archived, false))
+  const live = and(eq(tags.workspaceId, workspaceId), isNull(tags.deletedAt))
+  const where = includeArchived ? live : and(live, eq(tags.archived, false))
   return db.select().from(tags).where(where).orderBy(tags.name)
 }
 
@@ -280,15 +290,16 @@ export async function updateTag(
   const rows = await db
     .update(tags)
     .set(values)
-    .where(and(eq(tags.workspaceId, workspaceId), eq(tags.id, id)))
+    .where(and(eq(tags.workspaceId, workspaceId), eq(tags.id, id), isNull(tags.deletedAt)))
     .returning()
   return one(rows, 'tag')
 }
 
 export async function deleteTag(db: Db, workspaceId: string, id: string): Promise<void> {
   const rows = await db
-    .delete(tags)
-    .where(and(eq(tags.workspaceId, workspaceId), eq(tags.id, id)))
+    .update(tags)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(tags.workspaceId, workspaceId), eq(tags.id, id), isNull(tags.deletedAt)))
     .returning({ id: tags.id })
   one(rows, 'tag')
 }
