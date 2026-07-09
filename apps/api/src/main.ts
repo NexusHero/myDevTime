@@ -2,6 +2,7 @@ import 'reflect-metadata'
 import { NestFactory } from '@nestjs/core'
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
+import { ZodValidationPipe } from 'nestjs-zod'
 import { loadConfig } from './config.js'
 import { createDb, type DbHandle } from './db/client.js'
 import { AppModule } from './app.module.js'
@@ -32,6 +33,7 @@ export async function bootstrap(): Promise<NestFastifyApplication> {
     },
   )
   app.useGlobalFilters(new ProblemDetailsFilter())
+  app.useGlobalPipes(new ZodValidationPipe())
 
   const openapi = new DocumentBuilder().setTitle('myDevTime API').setVersion('0.0.0').build()
   SwaggerModule.setup('docs', app, () => SwaggerModule.createDocument(app, openapi))
