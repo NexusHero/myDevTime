@@ -41,6 +41,7 @@ export {
   formatDuration,
   formatMoneyMinor,
   formatPercent,
+  formatSigned,
   budgetTone,
   barFraction,
   type ConsumptionTone,
