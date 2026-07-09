@@ -47,7 +47,7 @@ export function theme(mode: ThemeMode, accent: AccentTheme = DEFAULT_ACCENT): Th
 }
 
 /**
- * The default-accent (Sovereign) themes, pre-resolved — handy for a catalog
+ * The default-accent (Blueprint) themes, pre-resolved — handy for a catalog
  * rendering light and dark side by side. Use `theme(mode, accent)` for a specific
  * accent.
  */
