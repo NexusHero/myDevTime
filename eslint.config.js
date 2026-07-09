@@ -35,6 +35,15 @@ export default tseslint.config(
     },
   },
   {
+    // NestJS (apps/api, ADR-0025) is decorator-driven: `@Module`/`@Injectable`
+    // classes are legitimately member-light or static-only, so the extraneous-
+    // class rule (fine for the pure packages) does not apply to the backend.
+    files: ['apps/api/src/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-extraneous-class': 'off',
+    },
+  },
+  {
     // Tests may lean on non-null assertions for fixtures.
     files: ['**/*.test.ts'],
     rules: {
