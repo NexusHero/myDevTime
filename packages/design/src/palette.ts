@@ -84,9 +84,9 @@ const neutralDark: Neutrals = {
   good: '#57c785',
   crit: '#e5655e',
   warn: '#d9903f',
-  goodSoft: 'rgba(87, 199, 133, 0.14)',
-  critSoft: 'rgba(229, 101, 94, 0.14)',
-  warnSoft: 'rgba(217, 144, 63, 0.16)',
+  goodSoft: '#1a2c29',
+  critSoft: '#2e1e23',
+  warnSoft: '#302720',
 }
 
 const neutralLight: Neutrals = {
@@ -103,9 +103,9 @@ const neutralLight: Neutrals = {
   good: '#1e8f4d',
   crit: '#c2372f',
   warn: '#b45309',
-  goodSoft: 'rgba(30, 143, 77, 0.12)',
-  critSoft: 'rgba(194, 55, 47, 0.10)',
-  warnSoft: 'rgba(180, 83, 9, 0.12)',
+  goodSoft: '#e4f1e9',
+  critSoft: '#f9ebea',
+  warnSoft: '#f6eae1',
 }
 
 /**
@@ -120,13 +120,13 @@ const accents: Record<AccentTheme, { readonly dark: Accent; readonly light: Acce
       accent: '#3654e0',
       accentInk: '#ffffff',
       accentText: '#3654e0',
-      accentSoft: 'rgba(54, 84, 224, 0.10)',
+      accentSoft: '#ebedfb',
     },
     dark: {
       accent: '#3654e0',
       accentInk: '#ffffff',
       accentText: '#90a0ff',
-      accentSoft: 'rgba(144, 160, 255, 0.16)',
+      accentSoft: '#242a3f',
     },
   },
   ember: {
@@ -134,13 +134,13 @@ const accents: Record<AccentTheme, { readonly dark: Accent; readonly light: Acce
       accent: '#e8a33d',
       accentInk: '#201503',
       accentText: '#8f5e0d',
-      accentSoft: 'rgba(180, 121, 27, 0.13)',
+      accentSoft: '#f5ede1',
     },
     dark: {
       accent: '#e8a33d',
       accentInk: '#201503',
       accentText: '#e8a33d',
-      accentSoft: 'rgba(232, 163, 61, 0.14)',
+      accentSoft: '#2e271e',
     },
   },
   blueprint: {
@@ -148,13 +148,13 @@ const accents: Record<AccentTheme, { readonly dark: Accent; readonly light: Acce
       accent: '#2563eb',
       accentInk: '#ffffff',
       accentText: '#2563eb',
-      accentSoft: 'rgba(37, 99, 235, 0.10)',
+      accentSoft: '#e9effd',
     },
     dark: {
       accent: '#2563eb',
       accentInk: '#ffffff',
       accentText: '#60a5fa',
-      accentSoft: 'rgba(96, 165, 250, 0.16)',
+      accentSoft: '#1c2a3d',
     },
   },
 }
@@ -192,6 +192,32 @@ export const light: Palette = palettes[DEFAULT_ACCENT].light
  * accent theme flips). Assigned to projects deterministically (see `projectColor`).
  */
 export const projectColors: Record<'dark' | 'light', readonly string[]> = {
-  dark: ['#1fa894', '#8b7bf5', '#d8577c', '#3e97dd', '#7e9433'],
-  light: ['#00937c', '#6d5ae0', '#c23a62', '#2374bd', '#6e8523'],
+  dark: [
+    '#1fa894',
+    '#8b7bf5',
+    '#d8577c',
+    '#3e97dd',
+    '#7e9433',
+    '#d48a39',
+    '#cfa63a',
+    '#4aa46f',
+    '#b568b2',
+    '#449fa6',
+    '#88909e',
+    '#cc5e5e',
+  ],
+  light: [
+    '#00937c',
+    '#6d5ae0',
+    '#c23a62',
+    '#2374bd',
+    '#6e8523',
+    '#bd7122',
+    '#b58c21',
+    '#2f8754',
+    '#9e529b',
+    '#288188',
+    '#6f7887',
+    '#b54242',
+  ],
 }
