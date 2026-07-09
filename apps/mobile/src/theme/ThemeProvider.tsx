@@ -1,6 +1,12 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
 import { useColorScheme } from 'react-native'
-import { theme, DEFAULT_ACCENT, type AccentTheme, type Theme } from '@mydevtime/design'
+import {
+  theme,
+  DEFAULT_ACCENT,
+  type AccentTheme,
+  type Density,
+  type Theme,
+} from '@mydevtime/design'
 import { resolveMode, type ThemePref } from './resolveMode'
 
 /**
@@ -16,6 +22,8 @@ interface ThemeContextValue {
   readonly setPref: (pref: ThemePref) => void
   readonly accent: AccentTheme
   readonly setAccent: (accent: AccentTheme) => void
+  readonly density: Density
+  readonly setDensity: (density: Density) => void
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
@@ -24,21 +32,26 @@ const ThemeContext = createContext<ThemeContextValue>({
   setPref: () => undefined,
   accent: DEFAULT_ACCENT,
   setAccent: () => undefined,
+  density: 'regular',
+  setDensity: () => undefined,
 })
 
 export function ThemeProvider({ children }: { children: ReactNode }): React.JSX.Element {
   const osScheme = useColorScheme() ?? null
   const [pref, setPref] = useState<ThemePref>('system')
   const [accent, setAccent] = useState<AccentTheme>(DEFAULT_ACCENT)
+  const [density, setDensity] = useState<Density>('regular')
   const value = useMemo<ThemeContextValue>(
     () => ({
-      theme: theme(resolveMode(pref, osScheme), accent),
+      theme: theme(resolveMode(pref, osScheme), accent, density),
       pref,
       setPref,
       accent,
       setAccent,
+      density,
+      setDensity,
     }),
-    [pref, osScheme, accent],
+    [pref, osScheme, accent, density],
   )
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }
@@ -55,4 +68,9 @@ export function useThemePref(): { pref: ThemePref; setPref: (p: ThemePref) => vo
 export function useAccent(): { accent: AccentTheme; setAccent: (a: AccentTheme) => void } {
   const { accent, setAccent } = useContext(ThemeContext)
   return { accent, setAccent }
+}
+
+export function useDensity(): { density: Density; setDensity: (d: Density) => void } {
+  const { density, setDensity } = useContext(ThemeContext)
+  return { density, setDensity }
 }
