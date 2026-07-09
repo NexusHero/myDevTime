@@ -1,4 +1,5 @@
-import { Text, View } from 'react-native'
+import { View } from 'react-native'
+import { Text } from './Text'
 import type { Theme } from '@mydevtime/design'
 import { useTheme } from '../../theme/ThemeProvider'
 

@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
+import { Text } from '../components/core/Text'
 import type { Screen } from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
 import { TodayScreen } from '../screens/TodayScreen'
