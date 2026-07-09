@@ -1,107 +1,57 @@
-import Fastify, { type FastifyError, type FastifyInstance } from 'fastify'
-import fastifySwagger from '@fastify/swagger'
-import {
-  serializerCompiler,
-  validatorCompiler,
-  jsonSchemaTransform,
-  type ZodTypeProvider,
-} from 'fastify-type-provider-zod'
+import 'reflect-metadata'
+import { NestFactory } from '@nestjs/core'
+import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify'
+import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from '@nestjs/swagger'
+import { ZodValidationPipe } from 'nestjs-zod'
 import type { Config } from './config.js'
 import type { DbHandle } from './db/client.js'
-import { AppError, type ProblemDetails } from './errors.js'
-import { healthModule } from './modules/health/index.js'
-import { authModule } from './modules/auth/index.js'
-import { trackingModule } from './modules/tracking/index.js'
-import { syncModule } from './modules/sync/index.js'
-import { automationModule } from './modules/automation/index.js'
-import { aiModule } from './modules/ai/index.js'
-import { billingModule } from './modules/billing/index.js'
+import { AppModule } from './app.module.js'
+import { ProblemDetailsFilter } from './core/problem-filter.js'
 
 export interface AppDeps {
   config: Config
   db: DbHandle | null
 }
 
-const PROBLEM_CONTENT_TYPE = 'application/problem+json'
-
 /**
- * Build the modular-monolith app: one Fastify instance where each module is an
- * encapsulated plugin registered under `/api/<module>` (ADR-0003/0015). Returns
- * a ready instance that is NOT yet listening — the caller (server / tests)
- * decides that.
+ * Build the NestJS application on the Fastify adapter (ADR-0025): global RFC 7807
+ * filter, Zod validation pipe, raw-body capture (for the Stripe webhook), and the
+ * OpenAPI document at `/docs`. The app is initialized (modules wired, Better-Auth
+ * catch-all mounted) but NOT listening — the caller (`main.ts` / tests) decides
+ * that, so tests can drive it with `app.inject(...)`. `packages/domain` stays pure;
+ * Nest only wraps the HTTP edge.
  */
-export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
-  const app = Fastify({
+export async function buildApp(deps: AppDeps): Promise<NestFastifyApplication> {
+  const adapter = new FastifyAdapter({
     logger: {
       level: deps.config.LOG_LEVEL,
       // Never log secrets/PII (SKILL §4/§8).
       redact: ['req.headers.authorization', 'req.headers.cookie'],
     },
-  }).withTypeProvider<ZodTypeProvider>()
-
-  // Zod drives both request validation and response serialization + OpenAPI.
-  app.setValidatorCompiler(validatorCompiler)
-  app.setSerializerCompiler(serializerCompiler)
-
-  // One error handler maps typed domain errors → RFC 7807 problem+json.
-  app.setErrorHandler((err: FastifyError, req, reply) => {
-    if (err instanceof AppError) {
-      return reply.code(err.status).type(PROBLEM_CONTENT_TYPE).send(err.toProblem())
-    }
-    if (err.validation) {
-      const problem: ProblemDetails = {
-        type: 'about:blank',
-        title: 'Bad Request',
-        status: 400,
-        detail: err.message,
-      }
-      return reply.code(400).type(PROBLEM_CONTENT_TYPE).send(problem)
-    }
-    req.log.error({ err }, 'unhandled error')
-    const problem: ProblemDetails = {
-      type: 'about:blank',
-      title: 'Internal Server Error',
-      status: 500,
-    }
-    return reply.code(500).type(PROBLEM_CONTENT_TYPE).send(problem)
   })
 
-  app.setNotFoundHandler((req, reply) => {
-    const problem: ProblemDetails = {
-      type: 'about:blank',
-      title: 'Not Found',
-      status: 404,
-      detail: `Route ${req.method} ${req.url} not found`,
-    }
-    return reply.code(404).type(PROBLEM_CONTENT_TYPE).send(problem)
-  })
-
-  await app.register(fastifySwagger, {
-    openapi: {
-      info: { title: 'myDevTime API', version: '0.0.0' },
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule.forRoot({ config: deps.config, db: deps.db }),
+    adapter,
+    {
+      bufferLogs: false,
+      // The Stripe webhook verifies the raw request bytes against its signature.
+      rawBody: true,
+      // Mute Nest's own bootstrap logger (RouterExplorer, etc.) when the Fastify
+      // logger is silenced — keeps the test/CI output clean; prod keeps full logs.
+      ...(deps.config.LOG_LEVEL === 'silent' ? { logger: false as const } : {}),
     },
-    transform: jsonSchemaTransform,
-  })
+  )
+  app.useGlobalFilters(new ProblemDetailsFilter())
+  app.useGlobalPipes(new ZodValidationPipe())
+  SwaggerModule.setup('docs', app, () => createOpenApiDocument(app))
 
-  // Operational routes.
-  await app.register(healthModule({ db: deps.db }))
-
-  // Business modules — each encapsulated under its own prefix.
-  // The auth module decorates `requireAuth` at the root (fastify-plugin) and
-  // mounts its own routes under /api/auth, so it registers without a prefix here.
-  await app.register(authModule({ db: deps.db ? deps.db.db : null, config: deps.config }))
-  await app.register(trackingModule({ db: deps.db ? deps.db.db : null, config: deps.config }), {
-    prefix: '/api/tracking',
-  })
-  await app.register(syncModule({ db: deps.db ? deps.db.db : null, config: deps.config }), {
-    prefix: '/api/sync',
-  })
-  await app.register(automationModule, { prefix: '/api/automation' })
-  await app.register(aiModule, { prefix: '/api/ai' })
-  await app.register(billingModule({ db: deps.db ? deps.db.db : null, config: deps.config }), {
-    prefix: '/api/billing',
-  })
-
-  await app.ready()
+  await app.init()
   return app
+}
+
+/** The OpenAPI document generated from the controllers/DTOs (nestjs-zod + swagger). */
+export function createOpenApiDocument(app: NestFastifyApplication): OpenAPIObject {
+  const openapi = new DocumentBuilder().setTitle('myDevTime API').setVersion('0.0.0').build()
+  return SwaggerModule.createDocument(app, openapi)
 }

@@ -1,30 +1,6 @@
-import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
-import { z } from 'zod'
-
-/** The modular-monolith boundaries from ADR-0003. */
+/** The modular-monolith boundaries from ADR-0003 (carried into the NestJS
+ * structure, ADR-0025): each name is a feature module mounted under
+ * `/api/<name>`. The boundary test uses this list to enforce that a module
+ * imports only another module's public surface (`contract.ts` + `<name>.module.ts`). */
 export const MODULE_NAMES = ['auth', 'tracking', 'sync', 'automation', 'ai', 'billing'] as const
 export type ModuleName = (typeof MODULE_NAMES)[number]
-
-/**
- * Every business module registers a documented `/status` route — proof of the
- * plugin-per-module structure and a smoke target for the OpenAPI/boundary
- * checks. Real endpoints replace/extend this in the module's own issue.
- */
-export function moduleStatusRoute(name: ModuleName): FastifyPluginAsyncZod {
-  return app => {
-    app.get(
-      '/status',
-      {
-        schema: {
-          tags: [name],
-          summary: `${name} module status`,
-          response: {
-            200: z.object({ module: z.literal(name), status: z.literal('ok') }),
-          },
-        },
-      },
-      () => ({ module: name, status: 'ok' as const }),
-    )
-    return Promise.resolve()
-  }
-}
