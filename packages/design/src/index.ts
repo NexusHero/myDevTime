@@ -11,11 +11,14 @@ export {
   radius,
   motion,
   fontFamily,
+  fontFace,
+  FONT_FACES_TO_LOAD,
   touchTarget,
   gridUnit,
   type Spacing,
   type FontSize,
   type Radius,
+  type FontRole,
 } from './tokens.js'
 export {
   dark,

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { ScrollView, Text, View } from 'react-native'
+import { ScrollView, View } from 'react-native'
+import { Text } from '../components/core/Text'
 import { formatDuration, formatSigned } from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
 import { Badge, Card, ProgressBar, Row, Switch } from '../components/index'
@@ -81,7 +82,14 @@ export function ProfileScreen(): React.JSX.Element {
           </Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: t.fontSize.xl, fontWeight: '700', color: t.color.ink }}>
+          <Text
+            style={{
+              fontSize: t.fontSize.xl,
+              fontWeight: '700',
+              color: t.color.ink,
+              fontFamily: t.fontFamily.display,
+            }}
+          >
             Suhay Sevinç
           </Text>
           <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, marginTop: 2 }}>

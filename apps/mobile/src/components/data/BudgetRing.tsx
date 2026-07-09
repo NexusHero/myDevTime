@@ -1,4 +1,5 @@
-import { Text, View } from 'react-native'
+import { View } from 'react-native'
+import { Text } from '../core/Text'
 import Svg, { Circle } from 'react-native-svg'
 import { budgetTone, formatPercent, ringDashOffset, type ConsumptionTone } from '@mydevtime/design'
 import { useTheme } from '../../theme/ThemeProvider'

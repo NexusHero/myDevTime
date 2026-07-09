@@ -1,4 +1,5 @@
-import { ScrollView, Text, View, useWindowDimensions } from 'react-native'
+import { ScrollView, View, useWindowDimensions } from 'react-native'
+import { Text } from '../components/core/Text'
 import {
   budgetTone,
   formatDuration,
@@ -178,7 +179,14 @@ export function ProjectsScreen(): React.JSX.Element {
       contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s5 }}
     >
       <View>
-        <Text style={{ fontWeight: '700', fontSize: t.fontSize.xl, color: t.color.ink }}>
+        <Text
+          style={{
+            fontWeight: '700',
+            fontSize: t.fontSize.xl,
+            color: t.color.ink,
+            fontFamily: t.fontFamily.display,
+          }}
+        >
           Projects
         </Text>
         <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, marginTop: 2 }}>

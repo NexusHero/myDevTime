@@ -45,14 +45,66 @@ export const motion = {
 } as const
 
 /**
- * Font families. UI is the platform humanist sans; numerals are monospace so
- * "every duration and amount" aligns (ux-vision §4). On React Native the client
- * maps `ui` to the system font and `numeric` to a bundled/tabular mono.
+ * Font families — the Blueprint trio from ADR-0022, realized (the font-loading
+ * slice it deferred): **Inter** for UI (humanist sans), **Space Grotesk** for the
+ * display face (screen titles), **JetBrains Mono** for numerals so "every duration
+ * and amount" aligns (ux-vision §4). The values are role *markers*; the exact
+ * weighted family is resolved by `fontFace(role, weight)` and loaded by the client
+ * from `@expo-google-fonts/*`. A component sets `fontFamily: fontFamily.numeric`
+ * (or `.display`) to pick a role and its usual `fontWeight`; the client's themed
+ * text resolves both into a concrete face so weights are real, not synthesized.
  */
 export const fontFamily = {
-  ui: 'System',
-  numeric: 'ui-monospace',
+  ui: 'Inter_400Regular',
+  numeric: 'JetBrainsMono_500Medium',
+  display: 'SpaceGrotesk_600SemiBold',
 } as const
+
+export type FontRole = 'ui' | 'numeric' | 'display'
+
+/** The concrete weighted families per role — exactly the faces the client loads. */
+const FONT_FACES: Record<FontRole, Record<400 | 500 | 600 | 700, string>> = {
+  ui: {
+    400: 'Inter_400Regular',
+    500: 'Inter_500Medium',
+    600: 'Inter_600SemiBold',
+    700: 'Inter_700Bold',
+  },
+  numeric: {
+    400: 'JetBrainsMono_500Medium',
+    500: 'JetBrainsMono_500Medium',
+    600: 'JetBrainsMono_600SemiBold',
+    700: 'JetBrainsMono_700Bold',
+  },
+  display: {
+    400: 'SpaceGrotesk_500Medium',
+    500: 'SpaceGrotesk_500Medium',
+    600: 'SpaceGrotesk_600SemiBold',
+    700: 'SpaceGrotesk_700Bold',
+  },
+}
+
+/** The distinct font faces to load, once, at startup (client maps each to its `.ttf`). */
+export const FONT_FACES_TO_LOAD: readonly string[] = [
+  ...new Set(Object.values(FONT_FACES).flatMap(byWeight => Object.values(byWeight))),
+]
+
+/** Snap an arbitrary CSS weight to the nearest loaded step. */
+function snapWeight(weight: number): 400 | 500 | 600 | 700 {
+  if (weight >= 700) return 700
+  if (weight >= 600) return 600
+  if (weight >= 500) return 500
+  return 400
+}
+
+/**
+ * Resolve a role + weight to a concrete loaded font family — so a bold weight
+ * renders the real bold face (never a synthesized faux-bold). `weight` accepts the
+ * CSS numbers used in styles; unknown/absent → 400.
+ */
+export function fontFace(role: FontRole, weight = 400): string {
+  return FONT_FACES[role][snapWeight(weight)]
+}
 
 /** Minimum touch target (ux-vision §4: "44-pt minimum touch targets"). */
 export const touchTarget = 44

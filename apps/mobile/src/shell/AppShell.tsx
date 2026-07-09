@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native'
+import { Text } from '../components/core/Text'
 import { PHONE_TABS, SIDEBAR_ITEMS, chromeForWidth, type Screen } from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
 import { ScreenView, SCREEN_TITLES } from './screens'
