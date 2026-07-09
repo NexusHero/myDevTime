@@ -1,8 +1,8 @@
 /**
  * Color palettes (ux-vision §4) — dark-first, light a first-class sibling, now
- * across **three swappable accent themes** (ADR-0022): **Sovereign** (royal blue,
- * flagship default), **Ember** (the validated "now/live" amber from the binding UX
- * vision) and **Blueprint** (myJob's steel blue, ported for family resemblance).
+ * across **three swappable accent themes** (ADR-0022): **Blueprint** (royal blue
+ * "Königsblau" `#2563EB`, the default — ADR-0023), **Sovereign** (indigo royal
+ * blue) and **Ember** (the validated "now/live" amber from the binding UX vision).
  *
  * The design system separates two independent axes (mirroring the source design
  * project's `colors.css` × `modes.css` split): the **neutral** surfaces/inks and
@@ -19,14 +19,14 @@
  * contrast helper can parse.
  */
 
-/** The three accent themes. Sovereign is the flagship default (ADR-0022). */
+/** The three accent themes. Blueprint (Königsblau) is the default (ADR-0023). */
 export type AccentTheme = 'sovereign' | 'ember' | 'blueprint'
 
-/** All accent themes, in canonical order (Sovereign first — the default). */
+/** All accent themes, in historical order; the default is `DEFAULT_ACCENT`. */
 export const ACCENT_THEMES = ['sovereign', 'ember', 'blueprint'] as const
 
-/** The flagship default accent (ADR-0022). */
-export const DEFAULT_ACCENT: AccentTheme = 'sovereign'
+/** The default accent — Blueprint / "Königsblau" (ADR-0023, superseding ADR-0022). */
+export const DEFAULT_ACCENT: AccentTheme = 'blueprint'
 
 export interface Palette {
   /** Base canvas, below everything. */
@@ -182,9 +182,9 @@ export const palettes: Record<AccentTheme, { readonly dark: Palette; readonly li
   },
 }
 
-/** The default-accent (Sovereign) palettes, exported for convenience. */
-export const dark: Palette = palettes.sovereign.dark
-export const light: Palette = palettes.sovereign.light
+/** The default-accent (Blueprint) palettes, exported for convenience; track `DEFAULT_ACCENT`. */
+export const dark: Palette = palettes[DEFAULT_ACCENT].dark
+export const light: Palette = palettes[DEFAULT_ACCENT].light
 
 /**
  * The categorical project palette, per mode — CVD-checked, the only saturated

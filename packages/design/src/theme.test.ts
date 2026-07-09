@@ -17,11 +17,11 @@ describe('theme resolver', () => {
     expect(theme('light').color).toBe(light)
   })
 
-  it('DefaultsToSovereign_TheFlagshipAccent', () => {
-    // ADR-0022: no accent argument = Sovereign (the default flagship).
-    expect(DEFAULT_ACCENT).toBe('sovereign')
-    expect(theme('dark').accent).toBe('sovereign')
-    expect(theme('dark').color).toBe(palettes.sovereign.dark)
+  it('DefaultsToBlueprint_TheKönigsblauAccent', () => {
+    // ADR-0023 (supersedes ADR-0022): no accent argument = Blueprint (Königsblau).
+    expect(DEFAULT_ACCENT).toBe('blueprint')
+    expect(theme('dark').accent).toBe('blueprint')
+    expect(theme('dark').color).toBe(palettes.blueprint.dark)
   })
 
   it('Accent_SelectsThatAccentsPaletteForTheMode', () => {
@@ -40,7 +40,7 @@ describe('theme resolver', () => {
   it('Themes_ExposesBothPreResolvedAtDefaultAccent', () => {
     expect(themes.dark.mode).toBe('dark')
     expect(themes.light.mode).toBe('light')
-    expect(themes.dark.accent).toBe('sovereign')
+    expect(themes.dark.accent).toBe('blueprint')
   })
 
   it('TouchTarget_MeetsThe44ptFloor', () => {
