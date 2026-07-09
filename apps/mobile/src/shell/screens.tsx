@@ -9,6 +9,9 @@ import { ReportsScreen } from '../screens/ReportsScreen'
 import { PlannerScreen } from '../screens/PlannerScreen'
 import { MeetingsScreen } from '../screens/MeetingsScreen'
 import { AssistantScreen } from '../screens/AssistantScreen'
+import { AbsencesScreen } from '../screens/AbsencesScreen'
+import { CreditsScreen } from '../screens/CreditsScreen'
+import { SettingsScreen } from '../screens/SettingsScreen'
 
 /**
  * Human labels for every deep-linkable screen (ux-vision §3). The rendered
@@ -35,17 +38,29 @@ export const SCREEN_TITLES: Record<Screen, string> = {
 /**
  * Renders the real screen for a route, falling back to the scaffold placeholder
  * for screens not yet ported (later slices of #11). The five phone tabs (Today,
- * Planner, Projects, Reports, Profile) plus Meetings and the Assistant are live;
- * the detail/sub screens arrive screen-by-screen.
+ * Planner, Projects, Reports, Profile), Meetings, the Assistant, and the Profile
+ * drill-downs (Absences, Credits, Settings) are live; `onNavigate` lets a screen
+ * open another through the shell's active-screen model (the sub-screens use it to
+ * return to Profile). The remaining detail screens arrive screen-by-screen.
  */
-export function ScreenView({ screen }: { screen: Screen }): React.JSX.Element {
+export function ScreenView({
+  screen,
+  onNavigate,
+}: {
+  screen: Screen
+  onNavigate: (screen: Screen) => void
+}): React.JSX.Element {
+  const toProfile = (): void => onNavigate('profile')
   if (screen === 'today') return <TodayScreen />
   if (screen === 'planner') return <PlannerScreen />
   if (screen === 'projects') return <ProjectsScreen />
   if (screen === 'reports') return <ReportsScreen />
   if (screen === 'meetings') return <MeetingsScreen />
   if (screen === 'assistant') return <AssistantScreen />
-  if (screen === 'profile') return <ProfileScreen />
+  if (screen === 'profile') return <ProfileScreen onNavigate={onNavigate} />
+  if (screen === 'absences') return <AbsencesScreen onBack={toProfile} />
+  if (screen === 'credits') return <CreditsScreen onBack={toProfile} />
+  if (screen === 'settings') return <SettingsScreen onBack={toProfile} />
   return <PlaceholderScreen screen={screen} />
 }
 

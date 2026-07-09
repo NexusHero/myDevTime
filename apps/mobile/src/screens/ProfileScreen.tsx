@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ScrollView, View } from 'react-native'
 import { Text } from '../components/core/Text'
-import { formatDuration, formatSigned } from '@mydevtime/design'
+import { formatDuration, formatSigned, type Screen } from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
 import { Badge, Card, ProgressBar, Row, Switch } from '../components/index'
 
@@ -50,7 +50,11 @@ function SectionLabel({ children }: { children: string }): React.JSX.Element {
   )
 }
 
-export function ProfileScreen(): React.JSX.Element {
+export function ProfileScreen({
+  onNavigate,
+}: {
+  onNavigate: (screen: Screen) => void
+}): React.JSX.Element {
   const t = useTheme()
   const [reminders, setReminders] = useState(true)
   const [idleDetection, setIdleDetection] = useState(true)
@@ -58,6 +62,7 @@ export function ProfileScreen(): React.JSX.Element {
 
   const mono = { fontFamily: t.fontFamily.numeric, color: t.color.ink }
   const vacationRatio = VACATION_USED / VACATION_ALLOWANCE
+  const chevron = <Text style={{ color: t.color.ink3, fontSize: t.fontSize.lg }}>›</Text>
 
   return (
     <ScrollView
@@ -138,6 +143,11 @@ export function ProfileScreen(): React.JSX.Element {
                 }
               />
             ))}
+            <Row
+              title="View full ledger & usage"
+              trailing={chevron}
+              onPress={() => onNavigate('credits')}
+            />
           </View>
         </Card>
       </View>
@@ -185,8 +195,8 @@ export function ProfileScreen(): React.JSX.Element {
             <Row
               title="Open absence calendar"
               subtitle="Vacation, sick days, public holidays"
-              trailing={<Text style={{ color: t.color.ink3, fontSize: t.fontSize.lg }}>›</Text>}
-              onPress={() => undefined}
+              trailing={chevron}
+              onPress={() => onNavigate('absences')}
             />
           </View>
         </Card>
@@ -229,10 +239,10 @@ export function ProfileScreen(): React.JSX.Element {
             }
           />
           <Row
-            title="Manage subscription"
-            subtitle="Plan, payment method, invoices"
-            trailing={<Text style={{ color: t.color.ink3, fontSize: t.fontSize.lg }}>›</Text>}
-            onPress={() => undefined}
+            title="All settings"
+            subtitle="Preferences, subscription, data & privacy"
+            trailing={chevron}
+            onPress={() => onNavigate('settings')}
           />
         </Card>
       </View>
