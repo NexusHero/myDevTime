@@ -5,6 +5,7 @@
  * (ADR-0022). SVG-based instruments (BudgetRing, gauges, sparklines) land in a
  * later slice that adds react-native-svg.
  */
+export { Text } from './core/Text'
 export { Button } from './core/Button'
 export { IconButton } from './core/IconButton'
 export { Badge } from './core/Badge'
@@ -16,3 +17,6 @@ export { DayBlock } from './canvas/DayBlock'
 export { Island, type IslandAction } from './canvas/Island'
 export { ProgressBar } from './data/ProgressBar'
 export { Row } from './data/Row'
+export { BudgetRing } from './data/BudgetRing'
+export { Gauge } from './data/Gauge'
+export { Sparkline } from './data/Sparkline'

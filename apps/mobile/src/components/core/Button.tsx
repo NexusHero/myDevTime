@@ -1,4 +1,5 @@
-import { Pressable, Text, type ViewStyle } from 'react-native'
+import { Pressable, type ViewStyle } from 'react-native'
+import { Text } from './Text'
 import type { Theme } from '@mydevtime/design'
 import { useTheme } from '../../theme/ThemeProvider'
 

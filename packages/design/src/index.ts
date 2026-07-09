@@ -11,11 +11,14 @@ export {
   radius,
   motion,
   fontFamily,
+  fontFace,
+  FONT_FACES_TO_LOAD,
   touchTarget,
   gridUnit,
   type Spacing,
   type FontSize,
   type Radius,
+  type FontRole,
 } from './tokens.js'
 export {
   dark,
@@ -46,6 +49,7 @@ export {
   barFraction,
   type ConsumptionTone,
 } from './format.js'
+export { ringDashOffset, gaugeAngle, polarToCartesian, sparklinePoints } from './instruments.js'
 
 // App shell (#11): the navigation route map (deep-link build/parse for every
 // screen) and the responsive width→chrome model. Pure, platform-independent.
