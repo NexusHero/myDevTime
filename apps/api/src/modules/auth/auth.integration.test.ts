@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
-import type { FastifyInstance } from 'fastify'
+import type { NestFastifyApplication } from '@nestjs/platform-fastify'
 import { loadConfig } from '../../config.js'
 import { createDb } from '../../db/client.js'
 import { user } from '../../db/auth-schema.js'
@@ -20,7 +20,7 @@ const config = loadConfig({
 })
 
 async function post(
-  app: FastifyInstance,
+  app: NestFastifyApplication,
   url: string,
   payload: Record<string, unknown>,
   cookie?: string,

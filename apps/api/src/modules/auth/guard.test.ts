@@ -3,16 +3,21 @@ import { loadConfig } from '../../config.js'
 import { buildApp } from '../../app.js'
 
 /**
- * The shared guard must reach the root instance (fastify-plugin), so any module
- * can use `preHandler: [app.requireAuth]` and read `request.authUser`. Verifiable
- * without a database — only the decoration/propagation is under test here.
+ * The shared `AuthGuard` (ADR-0025) is the cross-module auth seam: any protected
+ * module uses `@UseGuards(AuthGuard)` by importing `AuthModule`, replacing the
+ * old Fastify `requireAuth` decorator. Verifiable without a database — an
+ * unauthenticated request to a protected route in another module must be refused
+ * (401 problem+json), proving the guard is wired app-wide.
  */
 describe('auth guard wiring', () => {
-  it('BuildApp_Always_DecoratesRequireAuthAndAuthUserAtRoot', async () => {
+  it('ProtectedRoutes_Unauthenticated_Return401ProblemJson', async () => {
     const app = await buildApp({ config: loadConfig({ LOG_LEVEL: 'silent' }), db: null })
 
-    expect(app.hasDecorator('requireAuth')).toBe(true)
-    expect(app.hasRequestDecorator('authUser')).toBe(true)
+    for (const url of ['/api/tracking/clients', '/api/sync/pull', '/api/billing/rates']) {
+      const res = await app.inject({ method: 'GET', url })
+      expect(res.statusCode).toBe(401)
+      expect(res.headers['content-type']).toContain('application/problem+json')
+    }
 
     await app.close()
   })

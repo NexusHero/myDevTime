@@ -3,6 +3,10 @@ import { CoreModule, type CoreDeps } from './core/core.module.js'
 import { HealthModule } from './modules/health/health.module.js'
 import { AutomationModule } from './modules/automation/automation.module.js'
 import { AiModule } from './modules/ai/ai.module.js'
+import { AuthModule } from './modules/auth/auth.module.js'
+import { TrackingModule } from './modules/tracking/tracking.module.js'
+import { SyncModule } from './modules/sync/sync.module.js'
+import { BillingModule } from './modules/billing/billing.module.js'
 
 /**
  * The composition root (ADR-0025): `forRoot` wires the shared providers
@@ -15,7 +19,16 @@ export class AppModule {
   static forRoot(deps: CoreDeps): DynamicModule {
     return {
       module: AppModule,
-      imports: [CoreModule.forRoot(deps), HealthModule, AutomationModule, AiModule],
+      imports: [
+        CoreModule.forRoot(deps),
+        HealthModule,
+        AutomationModule,
+        AiModule,
+        AuthModule,
+        TrackingModule,
+        SyncModule,
+        BillingModule,
+      ],
     }
   }
 }
