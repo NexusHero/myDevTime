@@ -6,6 +6,9 @@ import { TodayScreen } from '../screens/TodayScreen'
 import { ProjectsScreen } from '../screens/ProjectsScreen'
 import { ProfileScreen } from '../screens/ProfileScreen'
 import { ReportsScreen } from '../screens/ReportsScreen'
+import { PlannerScreen } from '../screens/PlannerScreen'
+import { MeetingsScreen } from '../screens/MeetingsScreen'
+import { AssistantScreen } from '../screens/AssistantScreen'
 
 /**
  * Human labels for every deep-linkable screen (ux-vision §3). The rendered
@@ -31,14 +34,18 @@ export const SCREEN_TITLES: Record<Screen, string> = {
 
 /**
  * Renders the real screen for a route, falling back to the scaffold placeholder
- * for screens not yet ported (later slices of #11). Today, Projects, Profile, and
- * Reports are live; the rest arrive screen-by-screen.
+ * for screens not yet ported (later slices of #11). The five phone tabs (Today,
+ * Planner, Projects, Reports, Profile) plus Meetings and the Assistant are live;
+ * the detail/sub screens arrive screen-by-screen.
  */
 export function ScreenView({ screen }: { screen: Screen }): React.JSX.Element {
   if (screen === 'today') return <TodayScreen />
+  if (screen === 'planner') return <PlannerScreen />
   if (screen === 'projects') return <ProjectsScreen />
-  if (screen === 'profile') return <ProfileScreen />
   if (screen === 'reports') return <ReportsScreen />
+  if (screen === 'meetings') return <MeetingsScreen />
+  if (screen === 'assistant') return <AssistantScreen />
+  if (screen === 'profile') return <ProfileScreen />
   return <PlaceholderScreen screen={screen} />
 }
 
