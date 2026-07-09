@@ -60,7 +60,10 @@ export class AuthModule implements OnApplicationBootstrap {
             ...(request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
           }),
         )
-        await reply.status(response.status)
+        // NB: never `await` the Fastify reply here — under the adapter the reply is
+        // thenable and only settles once the response is sent, so awaiting it before
+        // `send` deadlocks the request. `status`/`header` are synchronous & chainable.
+        reply.status(response.status)
         response.headers.forEach((value, key) => {
           void reply.header(key, value)
         })

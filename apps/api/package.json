@@ -5,13 +5,13 @@
   "type": "module",
   "description": "Node.js/TypeScript backend — NestJS on the Fastify adapter, module-per-domain (ADR-0025).",
   "scripts": {
-    "dev": "tsx watch src/main.ts",
+    "dev": "pnpm run build && (tsc -p tsconfig.build.json --watch --preserveWatchOutput & node --watch dist/main.js)",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
-    "openapi:emit": "tsx src/openapi.ts"
+    "openapi:emit": "pnpm run build && node dist/openapi.js"
   },
   "dependencies": {
     "@mydevtime/domain": "workspace:*",
