@@ -2,17 +2,15 @@
   <title>myDevTime</title>
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#1b222b"/>
-      <stop offset="1" stop-color="#0f1318"/>
+      <stop offset="0" stop-color="#171c27"></stop>
+      <stop offset="1" stop-color="#0a0c12"></stop>
     </linearGradient>
   </defs>
-  <rect x="3" y="3" width="90" height="90" rx="24" fill="url(#tile)" stroke="#ffffff" stroke-opacity="0.08"/>
-  <rect x="4.5" y="4.5" width="87" height="43" rx="22" fill="#ffffff" opacity="0.06"/>
-  <!-- Day Canvas: project time blocks -->
-  <rect x="24" y="30" width="44" height="9" rx="4.5" fill="#1fa894"/>
-  <rect x="24" y="47" width="34" height="9" rx="4.5" fill="#8b7bf5"/>
-  <rect x="24" y="64" width="40" height="9" rx="4.5" fill="#3e97dd"/>
-  <!-- the amber "now" playhead -->
-  <line x1="54" y1="23" x2="54" y2="75" stroke="#e8a33d" stroke-width="3" stroke-linecap="round"/>
-  <circle cx="54" cy="23" r="4.4" fill="#e8a33d"/>
+  <rect x="3" y="3" width="90" height="90" rx="22" fill="url(#tile)" stroke="#ffffff" stroke-opacity="0.08"></rect>
+  <rect x="4.5" y="4.5" width="87" height="40" rx="20" fill="#ffffff" opacity="0.05"></rect>
+  
+  <rect x="18" y="40" width="27" height="16" rx="8" fill="#4c68ff"></rect>
+  <rect x="53" y="40" width="25" height="16" rx="8" fill="none" stroke="#ffffff" stroke-opacity="0.5" stroke-width="2.4" stroke-dasharray="4.2 4"></rect>
+  <line x1="49.5" y1="23" x2="49.5" y2="73" stroke="#4c68ff" stroke-width="3.2" stroke-linecap="round"></line>
+  <circle cx="49.5" cy="23" r="4.8" fill="#4c68ff"></circle>
 </svg>

@@ -5,7 +5,15 @@ import {
   type AccentTheme,
   type Palette,
 } from './palette.js'
-import { fontFamily, fontSize, motion, radius, spacing, touchTarget } from './tokens.js'
+import {
+  blueprintFontFamily,
+  systemFontFamily,
+  fontSize,
+  motion,
+  radius,
+  spacing,
+  touchTarget,
+} from './tokens.js'
 
 /**
  * A resolved theme: the theme-dependent palette plus the theme-independent
@@ -27,7 +35,7 @@ export interface Theme {
   readonly fontSize: typeof fontSize
   readonly radius: typeof radius
   readonly motion: typeof motion
-  readonly fontFamily: typeof fontFamily
+  readonly fontFamily: typeof blueprintFontFamily | typeof systemFontFamily
   readonly touchTarget: typeof touchTarget
 }
 
@@ -41,7 +49,7 @@ export function theme(mode: ThemeMode, accent: AccentTheme = DEFAULT_ACCENT): Th
     fontSize,
     radius,
     motion,
-    fontFamily,
+    fontFamily: accent === 'blueprint' ? blueprintFontFamily : systemFontFamily,
     touchTarget,
   }
 }

@@ -1,8 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 232 48" width="232" height="48" role="img" aria-label="myDevTime">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 246 48" width="246" height="48" role="img" aria-label="myDevTime">
   <title>myDevTime — wordmark</title>
-  <text x="0" y="24" dominant-baseline="central"
-        font-family="ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace"
-        font-size="38" font-weight="600" letter-spacing="-1.5">
-    <tspan fill="#55606d">my</tspan><tspan fill="#b9761a">Dev</tspan><tspan fill="#1c232c">Time</tspan>
+  <text x="0" y="24" dominant-baseline="central" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="34" font-weight="700" letter-spacing="-0.5">
+    <tspan fill="#667085">my</tspan><tspan fill="#2941b8">Dev</tspan><tspan fill="#101828">Time</tspan>
   </text>
 </svg>

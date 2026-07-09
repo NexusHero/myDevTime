@@ -2,57 +2,50 @@
   <title>myDevTime — splash screen</title>
   <defs>
     <radialGradient id="bg" cx="50%" cy="34%" r="75%">
-      <stop offset="0" stop-color="#171d26"/>
-      <stop offset="55%" stop-color="#0f1318"/>
-      <stop offset="100%" stop-color="#0b0e12"/>
+      <stop offset="0" stop-color="#161b26"></stop>
+      <stop offset="55%" stop-color="#0d0f15"></stop>
+      <stop offset="100%" stop-color="#08090d"></stop>
     </radialGradient>
     <radialGradient id="glow" cx="50%" cy="50%" r="50%">
-      <stop offset="0" stop-color="#e8a33d" stop-opacity="0.24"/>
-      <stop offset="70%" stop-color="#e8a33d" stop-opacity="0"/>
+      <stop offset="0" stop-color="#4c68ff" stop-opacity="0.22"></stop>
+      <stop offset="70%" stop-color="#4c68ff" stop-opacity="0"></stop>
     </radialGradient>
     <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#1b222b"/>
-      <stop offset="1" stop-color="#0f1318"/>
+      <stop offset="0" stop-color="#171c27"></stop>
+      <stop offset="1" stop-color="#0a0c12"></stop>
     </linearGradient>
     <linearGradient id="bar" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#e8a33d" stop-opacity="0"/>
-      <stop offset="0.5" stop-color="#e8a33d"/>
-      <stop offset="1" stop-color="#e8a33d" stop-opacity="0"/>
+      <stop offset="0" stop-color="#4c68ff" stop-opacity="0"></stop>
+      <stop offset="0.5" stop-color="#4c68ff"></stop>
+      <stop offset="1" stop-color="#4c68ff" stop-opacity="0"></stop>
     </linearGradient>
   </defs>
 
-  <rect width="1080" height="2280" fill="url(#bg)"/>
-  <rect x="140" y="560" width="800" height="800" fill="url(#glow)"/>
+  <rect width="1080" height="2280" fill="url(#bg)"></rect>
+  <rect x="140" y="560" width="800" height="800" fill="url(#glow)"></rect>
 
-  <!-- icon (96-unit mark scaled ×3.125 → 300px, centred at x=390) -->
+  
   <g transform="translate(390 740) scale(3.125)">
-    <rect x="3" y="3" width="90" height="90" rx="24" fill="url(#tile)" stroke="#ffffff" stroke-opacity="0.08"/>
-    <rect x="4.5" y="4.5" width="87" height="43" rx="22" fill="#ffffff" opacity="0.06"/>
-    <rect x="24" y="30" width="44" height="9" rx="4.5" fill="#1fa894"/>
-    <rect x="24" y="47" width="34" height="9" rx="4.5" fill="#8b7bf5"/>
-    <rect x="24" y="64" width="40" height="9" rx="4.5" fill="#3e97dd"/>
-    <line x1="54" y1="23" x2="54" y2="75" stroke="#e8a33d" stroke-width="3" stroke-linecap="round"/>
-    <circle cx="54" cy="23" r="4.4" fill="#e8a33d"/>
+    <rect x="3" y="3" width="90" height="90" rx="22" fill="url(#tile)" stroke="#ffffff" stroke-opacity="0.08"></rect>
+    <rect x="4.5" y="4.5" width="87" height="40" rx="20" fill="#ffffff" opacity="0.05"></rect>
+    <rect x="18" y="40" width="27" height="16" rx="8" fill="#4c68ff"></rect>
+    <rect x="53" y="40" width="25" height="16" rx="8" fill="none" stroke="#ffffff" stroke-opacity="0.5" stroke-width="2.4" stroke-dasharray="4.2 4"></rect>
+    <line x1="49.5" y1="23" x2="49.5" y2="73" stroke="#4c68ff" stroke-width="3.2" stroke-linecap="round"></line>
+    <circle cx="49.5" cy="23" r="4.8" fill="#4c68ff"></circle>
   </g>
 
-  <!-- wordmark -->
-  <text x="540" y="1200" text-anchor="middle"
-        font-family="ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace"
-        font-size="86" font-weight="600" letter-spacing="-3">
-    <tspan fill="#9aa6b4">my</tspan><tspan fill="#e8a33d">Dev</tspan><tspan fill="#e9edf2">Time</tspan>
+  
+  <text x="540" y="1200" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="82" font-weight="700" letter-spacing="-1.5">
+    <tspan fill="#9aa6b4">my</tspan><tspan fill="#90a0ff">Dev</tspan><tspan fill="#f4f6f8">Time</tspan>
   </text>
 
-  <!-- tagline -->
-  <text x="540" y="1272" text-anchor="middle"
-        font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
-        font-size="34" fill="#9aa6b4" letter-spacing="0.3">Plan the day. Track the truth.</text>
+  
+  <text x="540" y="1272" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, Helvetica, Arial, sans-serif" font-size="32" fill="#8b96a6" letter-spacing="0.2">Plan the day. See the drift.</text>
 
-  <!-- hydration hairline -->
-  <rect x="430" y="2010" width="220" height="6" rx="3" fill="#ffffff" opacity="0.10"/>
-  <rect x="430" y="2010" width="220" height="6" rx="3" fill="url(#bar)"/>
+  
+  <rect x="430" y="2010" width="220" height="6" rx="3" fill="#ffffff" opacity="0.10"></rect>
+  <rect x="430" y="2010" width="220" height="6" rx="3" fill="url(#bar)"></rect>
 
-  <!-- footer -->
-  <text x="540" y="2100" text-anchor="middle"
-        font-family="ui-monospace, 'SF Mono', Menlo, monospace"
-        font-size="26" fill="#4b5561" letter-spacing="0.5">v1.0 · offline-first</text>
+  
+  <text x="540" y="2100" text-anchor="middle" font-family="ui-monospace, &#39;SF Mono&#39;, Menlo, monospace" font-size="24" fill="#4b5561" letter-spacing="0.5">v1.0 · offline-first</text>
 </svg>
