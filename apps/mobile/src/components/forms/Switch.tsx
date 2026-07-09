@@ -9,17 +9,25 @@ import { useTheme } from '../../theme/ThemeProvider'
 interface SwitchProps {
   readonly checked: boolean
   readonly onChange?: (next: boolean) => void
+  /** Visible trailing text. Omit when a sibling (e.g. a Row title) already names it. */
   readonly label?: string
+  /** Screen-reader label when there is no visible `label` (falls back to `label`). */
+  readonly accessibilityLabel?: string
 }
 
-export function Switch({ checked, onChange, label }: SwitchProps): React.JSX.Element {
+export function Switch({
+  checked,
+  onChange,
+  label,
+  accessibilityLabel,
+}: SwitchProps): React.JSX.Element {
   const t = useTheme()
   return (
     <Pressable
       onPress={() => onChange?.(!checked)}
       accessibilityRole="switch"
       accessibilityState={{ checked }}
-      accessibilityLabel={label ?? 'toggle'}
+      accessibilityLabel={accessibilityLabel ?? label ?? 'toggle'}
       style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s3 }}
     >
       <View
