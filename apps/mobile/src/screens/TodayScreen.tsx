@@ -92,6 +92,18 @@ export function TodayScreen(): React.JSX.Element {
           <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>+6m vs. plan</Text>
         </View>
       </Card>
+    </View>
+  )
+
+  const floatingIsland = (
+    <View
+      style={{
+        position: 'absolute',
+        bottom: t.spacing.s5,
+        alignSelf: 'center',
+        pointerEvents: 'box-none',
+      }}
+    >
       <Island
         running
         elapsed="00:42:11"
@@ -103,36 +115,47 @@ export function TodayScreen(): React.JSX.Element {
     </View>
   )
 
+  const SCROLL_BOTTOM_CLEARANCE = 120 // Space for the floating Island
+
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: t.color.bg }}
-      contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s5 }}
-    >
-      <View>
-        <Text
-          style={{
-            fontWeight: '700',
-            fontSize: t.fontSize.xl,
-            color: t.color.ink,
-            fontFamily: t.fontFamily.display,
-          }}
-        >
-          Today
-        </Text>
-        <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, marginTop: 2 }}>
-          Tuesday, July 8
-        </Text>
-      </View>
-      <View
-        style={{
-          flexDirection: stacked ? 'column' : 'row',
+    <View style={{ flex: 1, backgroundColor: t.color.bg }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          padding: t.spacing.s5,
+          paddingBottom: SCROLL_BOTTOM_CLEARANCE,
           gap: t.spacing.s5,
-          alignItems: 'flex-start',
         }}
       >
-        <View style={{ alignSelf: 'stretch', ...(stacked ? null : { flex: 1 }) }}>{briefing}</View>
-        {aside}
-      </View>
-    </ScrollView>
+        <View>
+          <Text
+            style={{
+              fontWeight: '700',
+              fontSize: t.fontSize.xl,
+              color: t.color.ink,
+              fontFamily: t.fontFamily.display,
+            }}
+          >
+            Today
+          </Text>
+          <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, marginTop: 2 }}>
+            Tuesday, July 8
+          </Text>
+        </View>
+        <View
+          style={{
+            flexDirection: stacked ? 'column' : 'row',
+            gap: t.spacing.s5,
+            alignItems: 'flex-start',
+          }}
+        >
+          <View style={{ alignSelf: 'stretch', ...(stacked ? null : { flex: 1 }) }}>
+            {briefing}
+          </View>
+          {aside}
+        </View>
+      </ScrollView>
+      {floatingIsland}
+    </View>
   )
 }
