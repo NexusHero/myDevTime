@@ -42,7 +42,8 @@ below in number order.
 | [0021](0021-task-effort-estimation.md) | Task effort estimation: deterministic category→hours-range baseline + user's own estimate + assist-only AI estimate review (never mutates the number) + estimate-vs-actual | Accepted — grows 1.0 (REQ-041, #90); no displacement, by explicit owner choice |
 | [0022](0022-three-accent-themable-design-system.md) | Themable design system: two-axis tokens (accent × mode), three swappable accents (Sovereign / Ember / Blueprint) on shared neutrals; a11y contract across all six combinations | Accepted — extends ADR-0011; realizes #11's token/component foundation; **default accent superseded by 0023** |
 | [0023](0023-blueprint-default-accent.md) | Default accent → **Blueprint** ("Königsblau" `#2563EB`); Sovereign/Ember stay first-class, user-selectable; token architecture & a11y contract unchanged | Accepted — supersedes the default-accent choice of ADR-0022 |
-| [0024](0024-backend-dependency-wiring.md) | Backend dependency wiring: manual constructor injection (factory modules over typed `deps`) + Fastify plugin/decorator composition; DIP via narrow ports, not a container | Accepted (current wiring) — DI-container adoption **Proposed, gated on spike [#104](https://github.com/NexusHero/myDevTime/issues/104)** ([brief](../spikes/0002-di-container.md)) |
+| [0024](0024-backend-dependency-wiring.md) | Backend dependency wiring: manual constructor injection (factory modules over typed `deps`) + Fastify plugin/decorator composition; DIP via narrow ports, not a container | Accepted — **superseded by 0025** (owner chose NestJS DI) |
+| [0025](0025-adopt-nestjs-on-fastify.md) | Adopt **NestJS 11 on `@nestjs/platform-fastify`**: modules/controllers/providers + container DI, `nestjs-zod` validation/OpenAPI, RFC-7807 exception filter, Better-Auth guard; Fastify kept as HTTP layer; `packages/domain` stays pure | Accepted (owner decision) — supersedes 0024 & the composition/DI half of 0003/0015; resolves spike [#104](https://github.com/NexusHero/myDevTime/issues/104) |
 
 ## Tech Radar
 
@@ -56,8 +57,10 @@ One line per technology so the stack's shape stays visible without re-reading th
 | Vitest (+ v8 coverage gate) | Adopt | ADR-0014 |
 | ESLint flat (type-checked) + Prettier | Adopt | ADR-0014 |
 | Fastify (backend HTTP framework) | Adopt | ADR-0015 |
-| Manual constructor injection (factory modules over typed `deps`) + Fastify plugin composition | Adopt | ADR-0024 |
-| DI container (Awilix / decorator-free candidate) | Assess (spike #104; decorator/`reflect-metadata` containers rejected) | ADR-0024 |
+| NestJS 11 (modules/controllers/providers + DI) on `@nestjs/platform-fastify` | Adopt | ADR-0025 |
+| nestjs-zod (Zod validation + OpenAPI DTOs) | Adopt | ADR-0025 |
+| reflect-metadata + emitDecoratorMetadata (`apps/api` only; SWC transform in Vitest) | Adopt (scoped to the backend) | ADR-0025 |
+| Manual constructor injection (factory modules over typed `deps`) | Superseded by NestJS DI | ADR-0024 → 0025 |
 | PostgreSQL | Adopt | ADR-0015 |
 | Drizzle ORM (+ drizzle-kit migrations) | Adopt | ADR-0015 |
 | React Native + Expo (+ react-native-web, EAS) | Adopt (provisional — spike #1 passed; on-device checklist pending) | ADR-0004 |

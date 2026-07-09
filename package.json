@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@swc/core": "^1.15.43",
     "@types/node": "^26.1.0",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^10.6.0",
@@ -32,6 +33,7 @@
     "prettier": "^3.4.2",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.18.1",
+    "unplugin-swc": "^1.5.9",
     "vitest": "^4.1.10"
   },
   "pnpm": {

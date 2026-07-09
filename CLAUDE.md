@@ -57,7 +57,7 @@ AI-credit ledger. See ADR-0002 as amended by ADR-0008 and extended by ADR-0010/0
 
 | Layer | Decision | Status |
 |-------|----------|--------|
-| Backend | Fastify modular monolith (plugin-per-module: `auth`, `tracking`, `sync`, `automation`, `ai`, `billing`); RFC 7807 errors; Zod-generated OpenAPI | ADR-0003/0015, Accepted (skeleton in #3) |
+| Backend | **NestJS 11 on `@nestjs/platform-fastify`** (module-per-domain: `auth`, `tracking`, `sync`, `automation`, `ai`, `billing`); container DI, `nestjs-zod` validation/OpenAPI, RFC 7807 exception filter, Better-Auth guard. Fastify kept as HTTP layer; `packages/domain` stays pure & framework-free. `apps/api` only: `reflect-metadata`/decorator metadata (SWC transform in Vitest) | ADR-0025 (supersedes 0003/0015/0024) |
 | Clients | React Native + Expo (+ react-native-web, EAS) — one codebase for iOS/Android/Web | ADR-0004, **Accepted (provisional)** — spike #1 passed (`spikes/client-rn-expo`, `docs/spikes/0001-client-rn-expo.md`); client code may proceed, residual on-device checklist (C1–C7) pending; Flutter fallback not triggered |
 | Meeting capture / ASR | Decision frame fixed, winner pending spike #31 | ADR-0009, Proposed |
 | Toolchain | pnpm workspaces · TS strict · Vitest (+v8 coverage ≥90% on `domain`) · ESLint flat + Prettier · `./test.sh` gate = CI · git hooks | ADR-0014, Accepted (issue #2) |
