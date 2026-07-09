@@ -2,6 +2,8 @@ import { StyleSheet, Text, View } from 'react-native'
 import type { Screen } from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
 import { TodayScreen } from '../screens/TodayScreen'
+import { ProjectsScreen } from '../screens/ProjectsScreen'
+import { ProfileScreen } from '../screens/ProfileScreen'
 
 /**
  * Human labels for every deep-linkable screen (ux-vision §3). The rendered
@@ -27,11 +29,13 @@ export const SCREEN_TITLES: Record<Screen, string> = {
 
 /**
  * Renders the real screen for a route, falling back to the scaffold placeholder
- * for screens not yet ported (later slices of #11). Today is live (Day Canvas +
- * briefing + Island); the rest arrive screen-by-screen.
+ * for screens not yet ported (later slices of #11). Today, Projects, and Profile
+ * are live; the rest arrive screen-by-screen.
  */
 export function ScreenView({ screen }: { screen: Screen }): React.JSX.Element {
   if (screen === 'today') return <TodayScreen />
+  if (screen === 'projects') return <ProjectsScreen />
+  if (screen === 'profile') return <ProfileScreen />
   return <PlaceholderScreen screen={screen} />
 }
 

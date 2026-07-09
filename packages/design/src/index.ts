@@ -37,6 +37,15 @@ export {
   AA_NORMAL,
   AA_LARGE,
 } from './contrast.js'
+export {
+  formatDuration,
+  formatMoneyMinor,
+  formatPercent,
+  formatSigned,
+  budgetTone,
+  barFraction,
+  type ConsumptionTone,
+} from './format.js'
 
 // App shell (#11): the navigation route map (deep-link build/parse for every
 // screen) and the responsive width→chrome model. Pure, platform-independent.
