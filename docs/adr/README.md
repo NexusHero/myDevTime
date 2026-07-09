@@ -61,6 +61,7 @@ One line per technology so the stack's shape stays visible without re-reading th
 | react-native-reanimated + Gesture Handler (Day Canvas 60fps) | Adopt | ADR-0004/0011 |
 | expo-sqlite (offline-first local store) | Adopt | ADR-0004/0019 |
 | Themable design tokens (`@mydevtime/design`: accent × mode, 3 accents; Blueprint/Königsblau default) | Adopt | ADR-0011/0022/0023 |
+| react-native-svg (instrument viz: budget rings, balance gauge, sparklines) | Adopt | ADR-0011/0022 (ux-vision §2.5) |
 | Flutter | Hold (named fallback; not triggered by the spike) | ADR-0004 |
 | Stripe (Checkout + Billing) | Adopt | ADR-0006 |
 | StoreKit 2 / Play Billing | Adopt | ADR-0006 |

@@ -46,6 +46,7 @@ export {
   barFraction,
   type ConsumptionTone,
 } from './format.js'
+export { ringDashOffset, gaugeAngle, polarToCartesian, sparklinePoints } from './instruments.js'
 
 // App shell (#11): the navigation route map (deep-link build/parse for every
 // screen) and the responsive width→chrome model. Pure, platform-independent.
