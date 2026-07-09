@@ -15,8 +15,12 @@ export default defineConfig({
   plugins: [
     swc.vite({
       jsc: {
-        parser: { syntax: 'typescript', decorators: true },
-        transform: { legacyDecorator: true, decoratorMetadata: true },
+        parser: { syntax: 'typescript', tsx: true, decorators: true },
+        transform: {
+          legacyDecorator: true,
+          decoratorMetadata: true,
+          react: { runtime: 'automatic' },
+        },
         target: 'es2022',
         keepClassNames: true,
       },
@@ -24,11 +28,24 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
+      // react-native → react-native-web for all test code *and* transitive deps
       'react-native': 'react-native-web',
+      // react-native-svg's commonjs entry does require('react-native') which
+      // bypasses Vite's alias and hits Flow syntax Node can't parse.  Alias to
+      // a lightweight test shim instead.
+      'react-native-svg': new URL('./test/__mocks__/react-native-svg.tsx', import.meta.url)
+        .pathname,
+      // Workspace packages → source so Vitest transforms them via SWC/Oxc
+      '@mydevtime/design': new URL('./packages/design/src/index.ts', import.meta.url).pathname,
+      '@mydevtime/domain': new URL('./packages/domain/src/index.ts', import.meta.url).pathname,
+      '@mydevtime/shared': new URL('./packages/shared/src/index.ts', import.meta.url).pathname,
     },
   },
   test: {
     include: ['{packages,apps}/*/src/**/*.test.{ts,tsx}'],
+    browser: {
+      instances: [],
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

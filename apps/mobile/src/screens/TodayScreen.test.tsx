@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import TestRenderer, { type ReactTestInstance } from 'react-test-renderer'
+import TestRenderer, { ReactTestInstance } from 'react-test-renderer'
 import { ScrollView, View } from 'react-native'
 import { TodayScreen } from './TodayScreen.js'
 import { ThemeProvider } from '../theme/ThemeProvider.js'
