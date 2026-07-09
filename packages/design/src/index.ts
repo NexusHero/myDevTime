@@ -50,6 +50,8 @@ export {
   type ConsumptionTone,
 } from './format.js'
 export { ringDashOffset, gaugeAngle, polarToCartesian, sparklinePoints } from './instruments.js'
+export { plannerBlockRect, plannerTotalHours, type BlockRect } from './planner.js'
+export { monthGrid, daysInMonth, weekdayHeaders, type DayCell } from './calendar.js'
 
 // App shell (#11): the navigation route map (deep-link build/parse for every
 // screen) and the responsive width→chrome model. Pure, platform-independent.
