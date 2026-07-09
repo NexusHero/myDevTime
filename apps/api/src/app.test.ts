@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { FastifyInstance } from 'fastify'
+import type { NestFastifyApplication } from '@nestjs/platform-fastify'
 import { loadConfig } from './config.js'
-import { buildApp } from './app.js'
+import { buildApp, createOpenApiDocument } from './app.js'
 import { MODULE_NAMES } from './core/module.js'
 
 describe('buildApp', () => {
-  let app: FastifyInstance
+  let app: NestFastifyApplication
 
   beforeAll(async () => {
     app = await buildApp({ config: loadConfig({ LOG_LEVEL: 'silent' }), db: null })
@@ -45,7 +45,7 @@ describe('buildApp', () => {
   })
 
   it('Swagger_AfterBuild_DocumentsEveryModuleStatusRoute', () => {
-    const spec = app.swagger()
+    const spec = createOpenApiDocument(app)
 
     for (const name of MODULE_NAMES) {
       expect(spec.paths).toHaveProperty(`/api/${name}/status`)

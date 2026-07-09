@@ -82,7 +82,7 @@ a Runtime-View sequence diagram (§6).
 | ID | Requirement | Delivered by | Status |
 |----|-------------|-------------|--------|
 | REQ-001 | Workspace & tracking data model: clients → projects → tasks, tags, archiving; every query workspace-scoped by construction (repository takes `workspaceId` non-optionally; negative isolation tests per entity) | [#6](https://github.com/NexusHero/myDevTime/issues/6) | Done (#6) |
-| REQ-002 | Authentication: email/password + verification, Sign in with Google, Apple & GitHub, opaque revocable sessions (logout-everywhere), rate limiting, account deletion — self-hosted on Better-Auth behind a `requireAuth` guard | ADR-0007/0017/0018, [#4](https://github.com/NexusHero/myDevTime/issues/4) [#5](https://github.com/NexusHero/myDevTime/issues/5) | Done (#4) |
+| REQ-002 | Authentication: email/password + verification, Sign in with Google, Apple & GitHub, opaque revocable sessions (logout-everywhere), rate limiting, account deletion — self-hosted on Better-Auth behind a shared `AuthGuard` | ADR-0007/0017/0018, [#4](https://github.com/NexusHero/myDevTime/issues/4) [#5](https://github.com/NexusHero/myDevTime/issues/5) | Done (#4) |
 | REQ-003 | Deterministic tracking core: timezone/DST-safe time math, overlap policy, rounding rules as data, aggregations — pure and dependency-free (`packages/domain/tracking`, purity-gated) | ADR-0005, [#7](https://github.com/NexusHero/myDevTime/issues/7) | Done (#7) |
 | REQ-004 | Timers & manual entries: one running timer (DB-enforced, per-workspace), reboot-safe (running = persisted start instant, clock derived), manual create/edit/split/delete validated by the tracking core, provenance `source` on every entry; offline-first local store follows the client | [#8](https://github.com/NexusHero/myDevTime/issues/8) | API done (#8); client offline-first store unblocked — spike [#1](https://github.com/NexusHero/myDevTime/issues/1) passed (ADR-0004 provisional), timer reboot-safety & the local store pattern validated in `spikes/client-rn-expo` |
 | REQ-005 | Budgets, effective-dated hourly rates (workspace→client→project→task precedence), deadlines, threshold alerts; integer money math (minor units, BigInt cost, no float) — pure core in `packages/domain/budgets`, persisted + served by the `billing` module | ADR-0005, [#10](https://github.com/NexusHero/myDevTime/issues/10) | Done (#10) |
@@ -154,7 +154,7 @@ The full milestone plan (M0–M5), dependency graph, and the Definition of 1.0 l
 
 | Constraint | Background |
 |-----------|------------|
-| Backend: single Node.js/TypeScript modular monolith | [ADR-0003](adr/0003-node-typescript-backend.md) |
+| Backend: single Node.js/TypeScript module-per-domain monolith (NestJS on Fastify) | [ADR-0003](adr/0003-node-typescript-backend.md), [ADR-0025](adr/0025-adopt-nestjs-on-fastify.md) |
 | Client: one React Native + Expo codebase for iOS/Android/Web | [ADR-0004](adr/0004-react-native-expo-client.md) — Proposed, gated on the spike ([#1](https://github.com/NexusHero/myDevTime/issues/1)) |
 | Offline-first is core architecture, not a feature | ADR-0002; forces the sync engine (REQ-006) into M1 |
 | LLMs never produce billing-relevant state | [ADR-0005](adr/0005-deterministic-core-llm-assist.md) |
@@ -218,26 +218,37 @@ _Fill in (deployment topology, protocols, webhook endpoints) once the backend sk
 
 # Building Block View {#section-building-block-view}
 
-The backend is a **Fastify modular monolith** (ADR-0003/0015): each module is an encapsulated
-plugin registered under its own prefix in `apps/api/src/app.ts`, and a boundary test forbids
-cross-module internal imports (modules may depend only on another module's `contract.ts`).
+The backend is a **NestJS module-per-domain monolith on the Fastify adapter** (ADR-0025, superseding
+the hand-wired Fastify structure of ADR-0003/0015): each domain is a NestJS `@Module` whose
+controllers are mounted under `/api/<name>`, composed at the root in `apps/api/src/app.module.ts`
+(`AppModule.forRoot({ config, db })`). Cross-cutting concerns are Nest primitives — a global
+`ProblemDetailsFilter` (RFC 7807), a global `nestjs-zod` `ZodValidationPipe`, and a shared
+`AuthGuard` — while `packages/domain` stays pure and framework-free (Nest wraps only the HTTP edge).
+A boundary test forbids cross-module internal imports: a module may reference only another module's
+public surface — its `contract.ts` (types + the re-exported `AuthGuard`/`CurrentUser`) and its
+`<name>.module.ts` (the DI entry point it lists in `imports:` to consume exported providers).
 
 ```
-apps/api  (Fastify modular monolith)
+apps/api  (NestJS on the Fastify adapter — module-per-domain, ADR-0025)
+  ├─ main.ts → app.ts (buildApp)        compose config → db → Nest app → listen
   ├─ /health, /health/ready            operational (liveness / readiness → DB ping)
-  ├─ /api/auth        auth             authN & sessions (REQ-002)
+  ├─ /api/auth        auth             authN & sessions (REQ-002); Better-Auth catch-all on raw Fastify
   ├─ /api/tracking    tracking         entries · projects · attendance · budgets (REQ-001/003–005)
   ├─ /api/sync        sync             offline-first cross-device sync (REQ-006)
   ├─ /api/automation  automation       calendar ingestion + deterministic rules (REQ-010/011)
   ├─ /api/ai          ai               LLM/ASR assist — proposals only (ADR-0005)
-  └─ /api/billing     billing          entitlements + credit ledger (ADR-0006/0008)
+  └─ /api/billing     billing          entitlements + credit ledger + Stripe rail (ADR-0006/0008)
 packages/domain   pure deterministic core (time math, budgets, rules) — no I/O, ≥90% coverage
 packages/shared   branded id types & schemas shared with the clients
 ```
 
-Persistence is **PostgreSQL via Drizzle** (ADR-0015); the driver is confined to the `db` module
-and never imported by `packages/domain` (ADR-0005). Request/response validation and the generated
-**OpenAPI** spec both come from Zod route schemas; errors are RFC 7807 `problem+json`.
+Shared config and the DB handle are provided through injection tokens (`CONFIG`, `DB`, `DB_HANDLE`)
+by a `@Global CoreModule.forRoot(deps)`, so controllers depend on interfaces, not construction order
+(DIP). Persistence is **PostgreSQL via Drizzle** (ADR-0015); the driver is confined to the `db`
+module and never imported by `packages/domain` (ADR-0005). Request validation and the generated
+**OpenAPI** spec (`/docs`) both come from the Zod schemas via `nestjs-zod` `createZodDto`; errors are
+RFC 7807 `problem+json`. The Stripe webhook verifies the raw request bytes against its signature, so
+the app is created with `rawBody: true`.
 
 _Bootstrap [#2](https://github.com/NexusHero/myDevTime/issues/2) and backend skeleton
 [#3](https://github.com/NexusHero/myDevTime/issues/3) landed; module internals fill in per their
@@ -266,7 +277,7 @@ sequenceDiagram
     participant S as entries-service
     participant DB as Postgres
     C->>API: POST /api/tracking/entries/timer/start
-    API->>API: requireAuth → resolve workspaceId
+    API->>API: AuthGuard → resolve workspaceId
     API->>S: startTimer(db, workspaceId, userId, input)
     S->>DB: BEGIN
     S->>DB: UPDATE time_entries SET ended_at = now WHERE workspace_id = ws AND ended_at IS NULL

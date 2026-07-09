@@ -5,10 +5,14 @@ import { describe, expect, it } from 'vitest'
 import { MODULE_NAMES } from '../core/module.js'
 
 /**
- * Module-boundary check (ADR-0003/0015 acceptance criterion): a business module
- * may NOT import another business module's internals — only its `contract.ts`
- * (interfaces). Wiring lives in app.ts. This deterministic scan fails the build
- * on any violation, so the seams can't quietly erode.
+ * Module-boundary check (ADR-0003/0015/0025 acceptance criterion): a business
+ * module may NOT import another business module's internals. It may reference two
+ * public surfaces only: the other module's `contract.ts` (interfaces + the
+ * re-exported guard/param-decorator) and its `<name>.module.ts` (the NestJS DI
+ * entry point it lists in `imports:` to consume exported providers). Everything
+ * else — services, controllers, tokens, adapters — stays private. This
+ * deterministic scan fails the build on any violation, so the seams can't quietly
+ * erode.
  */
 const modulesDir = fileURLToPath(new URL('.', import.meta.url))
 const others = new Set<string>(MODULE_NAMES)
@@ -37,7 +41,8 @@ describe('module boundaries', () => {
         const cross = /^\.\.\/([a-z]+)\//.exec(spec)
         const target = cross?.[1]
         if (!target || target === self || !others.has(target)) continue
-        if (!spec.endsWith('/contract.js')) {
+        const allowed = spec.endsWith('/contract.js') || spec.endsWith(`/${target}.module.js`)
+        if (!allowed) {
           violations.push(`${file} imports ${spec}`)
         }
       }
