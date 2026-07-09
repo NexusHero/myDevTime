@@ -70,6 +70,19 @@ export function formatPercent(ratio: number): string {
   return `${String(roundHalfUp(ratio * 100))}%`
 }
 
+/**
+ * A signed integer with an explicit sign for ledger deltas and balances that read
+ * as movement: `formatSigned(500) → "+500"`, `formatSigned(-12) → "−12"`,
+ * `formatSigned(0) → "0"`. Thousands are grouped; the minus matches the `−` used
+ * by the other formatters (credits ledger, overtime balance, plan-vs-actual drift).
+ */
+export function formatSigned(n: number): string {
+  const rounded = roundHalfUp(n)
+  if (rounded === 0) return '0'
+  const sign = rounded < 0 ? '−' : '+'
+  return `${sign}${groupThousands(rounded)}`
+}
+
 /** Badge/indicator tone for a consumption ratio: calm until 80%, then warn, then crit. */
 export type ConsumptionTone = 'good' | 'warn' | 'crit'
 

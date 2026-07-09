@@ -5,6 +5,7 @@ import {
   formatDuration,
   formatMoneyMinor,
   formatPercent,
+  formatSigned,
 } from './format.js'
 
 describe('formatDuration', () => {
@@ -77,6 +78,30 @@ describe('formatPercent', () => {
 
   it('formatPercent_Zero_IsZeroPercent', () => {
     expect(formatPercent(0)).toBe('0%')
+  })
+})
+
+describe('formatSigned', () => {
+  it('formatSigned_Positive_PrefixesPlus', () => {
+    expect(formatSigned(500)).toBe('+500')
+  })
+
+  it('formatSigned_Negative_PrefixesMinus', () => {
+    expect(formatSigned(-12)).toBe('−12')
+  })
+
+  it('formatSigned_Zero_HasNoSign', () => {
+    expect(formatSigned(0)).toBe('0')
+  })
+
+  it('formatSigned_Thousands_AreGrouped', () => {
+    expect(formatSigned(1500)).toBe('+1,500')
+    expect(formatSigned(-1_234_567)).toBe('−1,234,567')
+  })
+
+  it('formatSigned_RoundsToInteger', () => {
+    expect(formatSigned(12.4)).toBe('+12')
+    expect(formatSigned(-0.4)).toBe('0')
   })
 })
 
