@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { theme, themes } from './theme.js'
 import { dark, light, palettes, ACCENT_THEMES, DEFAULT_ACCENT } from './palette.js'
-import { spacing, touchTarget } from './tokens.js'
+import { spacing, densityScale } from './tokens.js'
 
 describe('theme resolver', () => {
   it('Dark_ResolvesDarkPaletteAndScales', () => {
@@ -9,8 +9,8 @@ describe('theme resolver', () => {
     expect(t.mode).toBe('dark')
     expect(t.color).toBe(dark)
     expect(t.spacing).toBe(spacing)
-    expect(t.touchTarget).toBe(touchTarget)
-    expect(t.projectColors).toHaveLength(5)
+    expect(t.touchTarget).toBe(densityScale.regular.touchTarget)
+    expect(t.projectColors).toHaveLength(12)
   })
 
   it('Light_ResolvesLightPalette', () => {
@@ -43,8 +43,10 @@ describe('theme resolver', () => {
     expect(themes.dark.accent).toBe('blueprint')
   })
 
-  it('TouchTarget_MeetsThe44ptFloor', () => {
-    expect(theme('dark').touchTarget).toBeGreaterThanOrEqual(44)
+  it('Density_AffectsSpacingTokens', () => {
+    expect(theme('dark', 'blueprint', 'compact').touchTarget).toBe(32)
+    expect(theme('dark', 'blueprint', 'regular').touchTarget).toBe(44)
+    expect(theme('dark').touchTarget).toBeGreaterThanOrEqual(44) // Default is regular
   })
 
   it('Spacing_IsAnEightPtGrid', () => {

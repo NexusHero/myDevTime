@@ -77,8 +77,8 @@ describe('palette composition (3 accents × 2 modes)', () => {
     }
   })
 
-  it('ProjectColors_AreFivePerMode', () => {
-    expect(projectColors.dark).toHaveLength(5)
-    expect(projectColors.light).toHaveLength(5)
+  it('ProjectColors_AreTwelvePerMode', () => {
+    expect(projectColors.dark).toHaveLength(12)
+    expect(projectColors.light).toHaveLength(12)
   })
 })
