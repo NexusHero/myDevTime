@@ -18,14 +18,19 @@ export function AppShell(): React.JSX.Element {
   const { width } = useWindowDimensions()
   const chrome = chromeForWidth(width)
   const items: readonly Screen[] = chrome.navMode === 'tabs' ? PHONE_TABS : SIDEBAR_ITEMS
-  const [active, setActive] = useState<Screen>('today')
+  const [route, setRoute] = useState<{ screen: Screen; params?: Record<string, string> }>({
+    screen: 'today',
+  })
+  const active = route.screen
+  const navigate = (screen: Screen, params?: Record<string, string>): void =>
+    setRoute(params ? { screen, params } : { screen })
 
   const nav = items.map(screen => {
     const on = screen === active
     return (
       <Pressable
         key={screen}
-        onPress={() => setActive(screen)}
+        onPress={() => navigate(screen)}
         accessibilityRole="tab"
         accessibilityState={{ selected: on }}
         accessibilityLabel={SCREEN_TITLES[screen]}
@@ -60,7 +65,7 @@ export function AppShell(): React.JSX.Element {
           {nav}
         </View>
         <View style={styles.fill}>
-          <ScreenView screen={active} onNavigate={setActive} />
+          <ScreenView screen={active} params={route.params ?? {}} onNavigate={navigate} />
         </View>
       </View>
     )
@@ -69,7 +74,7 @@ export function AppShell(): React.JSX.Element {
   return (
     <View style={[styles.fill, { backgroundColor: t.color.bg }]}>
       <View style={styles.fill}>
-        <ScreenView screen={active} onNavigate={setActive} />
+        <ScreenView screen={active} params={route.params ?? {}} onNavigate={navigate} />
       </View>
       <View
         style={[

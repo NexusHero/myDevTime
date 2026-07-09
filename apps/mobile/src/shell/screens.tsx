@@ -12,6 +12,8 @@ import { AssistantScreen } from '../screens/AssistantScreen'
 import { AbsencesScreen } from '../screens/AbsencesScreen'
 import { CreditsScreen } from '../screens/CreditsScreen'
 import { SettingsScreen } from '../screens/SettingsScreen'
+import { ProjectScreen } from '../screens/ProjectScreen'
+import { TaskScreen } from '../screens/TaskScreen'
 
 /**
  * Human labels for every deep-linkable screen (ux-vision §3). The rendered
@@ -45,15 +47,26 @@ export const SCREEN_TITLES: Record<Screen, string> = {
  */
 export function ScreenView({
   screen,
+  params = {},
   onNavigate,
 }: {
   screen: Screen
-  onNavigate: (screen: Screen) => void
+  params?: Record<string, string>
+  onNavigate: (screen: Screen, params?: Record<string, string>) => void
 }): React.JSX.Element {
   const toProfile = (): void => onNavigate('profile')
   if (screen === 'today') return <TodayScreen />
   if (screen === 'planner') return <PlannerScreen />
-  if (screen === 'projects') return <ProjectsScreen />
+  if (screen === 'projects') return <ProjectsScreen onNavigate={onNavigate} />
+  if (screen === 'project')
+    return (
+      <ProjectScreen
+        projectId={params.projectId ?? ''}
+        onNavigate={onNavigate}
+        onBack={() => onNavigate('projects')}
+      />
+    )
+  if (screen === 'task') return <TaskScreen taskId={params.taskId ?? ''} onNavigate={onNavigate} />
   if (screen === 'reports') return <ReportsScreen />
   if (screen === 'meetings') return <MeetingsScreen />
   if (screen === 'assistant') return <AssistantScreen />
