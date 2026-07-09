@@ -22,8 +22,13 @@ export default defineConfig({
       },
     }),
   ],
+  resolve: {
+    alias: {
+      'react-native': 'react-native-web',
+    },
+  },
   test: {
-    include: ['{packages,apps}/*/src/**/*.test.ts'],
+    include: ['{packages,apps}/*/src/**/*.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
