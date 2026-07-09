@@ -1,20 +1,18 @@
 import { Text as RNText, StyleSheet, type TextProps } from 'react-native'
-import { fontFace, type FontRole } from '@mydevtime/design'
+import { resolveFontFamily } from '@mydevtime/design'
 
 /**
  * Text — the themed text primitive (issue #11, ADR-0022 font-loading slice). It
- * reads the role marker a style already carries (`fontFamily: fontFamily.numeric`
- * → mono, `.display` → Space Grotesk, otherwise Inter) plus the usual `fontWeight`,
- * and resolves both to a concrete loaded face via the pure `fontFace`. So screens
- * keep writing plain `fontWeight: '700'` and get the *real* Inter Bold, never a
- * synthesized faux-bold. Every user-visible string in the app renders through here.
+ * reads the base font family a style already carries (`fontFamily: t.fontFamily.numeric`,
+ * etc) plus the usual `fontWeight`, and resolves both via `resolveFontFamily`.
+ *
+ * If the theme uses the Blueprint webfonts (Inter, Space Grotesk, JetBrains Mono),
+ * this maps to a concrete loaded face (e.g. `Inter_700Bold`) and nulls the CSS
+ * weight so we never get synthesized faux-bold. If the theme uses native system
+ * fonts (Sovereign, Ember), the family passes through and the native `fontWeight`
+ * is preserved so the OS renders the correct weight.
+ * Every user-visible string in the app renders through here.
  */
-function roleOf(family: unknown): FontRole {
-  if (typeof family !== 'string') return 'ui'
-  if (family.includes('Mono')) return 'numeric'
-  if (family.includes('Grotesk')) return 'display'
-  return 'ui'
-}
 
 function weightOf(fontWeight: unknown): number {
   if (fontWeight === 'bold') return 700
@@ -25,7 +23,19 @@ function weightOf(fontWeight: unknown): number {
 
 export function Text({ style, ...rest }: TextProps): React.JSX.Element {
   const flat = StyleSheet.flatten(style) ?? {}
-  const family = fontFace(roleOf(flat.fontFamily), weightOf(flat.fontWeight))
-  // Concrete weighted face is applied; null the CSS weight so no double/faux bold.
-  return <RNText {...rest} style={[style, { fontFamily: family, fontWeight: 'normal' }]} />
+  const rawFamily = typeof flat.fontFamily === 'string' ? flat.fontFamily : undefined
+  const weight = weightOf(flat.fontWeight)
+
+  const resolvedFamily = resolveFontFamily(rawFamily, weight)
+
+  // If `resolveFontFamily` returned a concrete face (like 'Inter_700Bold'), it means
+  // we are using the custom fonts. We must null the fontWeight so the OS doesn't apply
+  // faux-bolding on top of the already bold face. If it didn't change the family
+  // (or it's undefined for the default system font), we preserve the fontWeight.
+  const isCustomFace = resolvedFamily !== rawFamily
+  const finalWeight = isCustomFace ? 'normal' : flat.fontWeight
+
+  return (
+    <RNText {...rest} style={[style, { fontFamily: resolvedFamily, fontWeight: finalWeight }]} />
+  )
 }

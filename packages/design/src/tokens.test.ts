@@ -1,27 +1,33 @@
 import { describe, expect, it } from 'vitest'
-import { FONT_FACES_TO_LOAD, fontFace } from './tokens.js'
+import { FONT_FACES_TO_LOAD, resolveFontFamily } from './tokens.js'
 
-describe('fontFace', () => {
-  it('fontFace_UiWeights_MapToInterFaces', () => {
-    expect(fontFace('ui')).toBe('Inter_400Regular')
-    expect(fontFace('ui', 600)).toBe('Inter_600SemiBold')
-    expect(fontFace('ui', 700)).toBe('Inter_700Bold')
+describe('resolveFontFamily', () => {
+  it('resolveFontFamily_Inter_MapToInterFaces', () => {
+    expect(resolveFontFamily('Inter_400Regular')).toBe('Inter_400Regular')
+    expect(resolveFontFamily('Inter_400Regular', 600)).toBe('Inter_600SemiBold')
+    expect(resolveFontFamily('Inter_400Regular', 700)).toBe('Inter_700Bold')
   })
 
-  it('fontFace_NumericWeights_MapToJetBrainsMonoFaces', () => {
-    expect(fontFace('numeric')).toBe('JetBrainsMono_500Medium')
-    expect(fontFace('numeric', 700)).toBe('JetBrainsMono_700Bold')
+  it('resolveFontFamily_JetBrainsMono_MapToJetBrainsMonoFaces', () => {
+    expect(resolveFontFamily('JetBrainsMono_500Medium')).toBe('JetBrainsMono_500Medium')
+    expect(resolveFontFamily('JetBrainsMono_500Medium', 700)).toBe('JetBrainsMono_700Bold')
   })
 
-  it('fontFace_DisplayWeights_MapToSpaceGroteskFaces', () => {
-    expect(fontFace('display', 600)).toBe('SpaceGrotesk_600SemiBold')
-    expect(fontFace('display', 700)).toBe('SpaceGrotesk_700Bold')
+  it('resolveFontFamily_SpaceGrotesk_MapToSpaceGroteskFaces', () => {
+    expect(resolveFontFamily('SpaceGrotesk_600SemiBold', 600)).toBe('SpaceGrotesk_600SemiBold')
+    expect(resolveFontFamily('SpaceGrotesk_600SemiBold', 700)).toBe('SpaceGrotesk_700Bold')
   })
 
-  it('fontFace_SnapsArbitraryWeightsToNearestStep', () => {
-    expect(fontFace('ui', 550)).toBe('Inter_500Medium')
-    expect(fontFace('ui', 999)).toBe('Inter_700Bold')
-    expect(fontFace('ui', 100)).toBe('Inter_400Regular')
+  it('resolveFontFamily_SystemFonts_PassThrough', () => {
+    expect(resolveFontFamily(undefined)).toBeUndefined()
+    expect(resolveFontFamily('System')).toBeUndefined()
+    expect(resolveFontFamily('monospace')).toBe('monospace')
+  })
+
+  it('resolveFontFamily_SnapsArbitraryWeightsToNearestStep', () => {
+    expect(resolveFontFamily('Inter_400Regular', 550)).toBe('Inter_500Medium')
+    expect(resolveFontFamily('Inter_400Regular', 999)).toBe('Inter_700Bold')
+    expect(resolveFontFamily('Inter_400Regular', 100)).toBe('Inter_400Regular')
   })
 
   it('fontFacesToLoad_IsDeduped_AndCoversEveryRole', () => {
