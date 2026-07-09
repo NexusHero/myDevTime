@@ -60,7 +60,7 @@ export function AppShell(): React.JSX.Element {
           {nav}
         </View>
         <View style={styles.fill}>
-          <ScreenView screen={active} />
+          <ScreenView screen={active} onNavigate={setActive} />
         </View>
       </View>
     )
@@ -69,7 +69,7 @@ export function AppShell(): React.JSX.Element {
   return (
     <View style={[styles.fill, { backgroundColor: t.color.bg }]}>
       <View style={styles.fill}>
-        <ScreenView screen={active} />
+        <ScreenView screen={active} onNavigate={setActive} />
       </View>
       <View
         style={[
