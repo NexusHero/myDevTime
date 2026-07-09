@@ -45,22 +45,23 @@ export const motion = {
 } as const
 
 /**
- * Font families — the Blueprint trio from ADR-0022, realized (the font-loading
- * slice it deferred): **Inter** for UI (humanist sans), **Space Grotesk** for the
- * display face (screen titles), **JetBrains Mono** for numerals so "every duration
- * and amount" aligns (ux-vision §4). The values are role *markers*; the exact
- * weighted family is resolved by `fontFace(role, weight)` and loaded by the client
- * from `@expo-google-fonts/*`. A component sets `fontFamily: fontFamily.numeric`
- * (or `.display`) to pick a role and its usual `fontWeight`; the client's themed
- * text resolves both into a concrete face so weights are real, not synthesized.
+ * Font families — The design system specifies two stacks: Blueprint uses the custom trio
+ * (Inter, Space Grotesk, JetBrains Mono), while Sovereign and Ember use native system fonts.
+ * The `theme` resolver selects the correct object based on the active accent.
  */
-export const fontFamily = {
+export const blueprintFontFamily = {
   ui: 'Inter_400Regular',
   numeric: 'JetBrainsMono_500Medium',
   display: 'SpaceGrotesk_600SemiBold',
 } as const
 
-export type FontRole = 'ui' | 'numeric' | 'display'
+export const systemFontFamily = {
+  ui: 'System',
+  numeric: 'monospace',
+  display: 'System',
+} as const
+
+type FontRole = 'ui' | 'numeric' | 'display'
 
 /** The concrete weighted families per role — exactly the faces the client loads. */
 const FONT_FACES: Record<FontRole, Record<400 | 500 | 600 | 700, string>> = {
@@ -98,12 +99,16 @@ function snapWeight(weight: number): 400 | 500 | 600 | 700 {
 }
 
 /**
- * Resolve a role + weight to a concrete loaded font family — so a bold weight
- * renders the real bold face (never a synthesized faux-bold). `weight` accepts the
- * CSS numbers used in styles; unknown/absent → 400.
+ * Resolve a base family + weight to a concrete loaded font face — so a bold weight
+ * renders the real bold face (never a synthesized faux-bold). If the family is a
+ * system font marker ('System' or 'monospace'), it passes through unmodified.
  */
-export function fontFace(role: FontRole, weight = 400): string {
-  return FONT_FACES[role][snapWeight(weight)]
+export function resolveFontFamily(family: string | undefined, weight = 400): string | undefined {
+  if (!family || family === 'System') return undefined
+  if (family.startsWith('Inter')) return FONT_FACES.ui[snapWeight(weight)]
+  if (family.startsWith('JetBrainsMono')) return FONT_FACES.numeric[snapWeight(weight)]
+  if (family.startsWith('SpaceGrotesk')) return FONT_FACES.display[snapWeight(weight)]
+  return family
 }
 
 /** Minimum touch target (ux-vision §4: "44-pt minimum touch targets"). */
