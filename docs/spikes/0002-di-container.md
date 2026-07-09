@@ -2,13 +2,18 @@
 
 **Issue:** [#104](https://github.com/NexusHero/myDevTime/issues/104) · **Decides:**
 [ADR-0024](../adr/0024-backend-dependency-wiring.md) · **Milestone:** cross-cutting
-(backend architecture) · **Status: PLANNED — not yet executed**
+(backend architecture) · **Status: RESOLVED — closed by owner decision, not executed**
 
 > This is the spike **brief**. Findings + the GO/NO-GO verdict land here once the spike runs
 > (mirroring [spike #1](0001-client-rn-expo.md), whose brief was its issue and whose findings
 > filled its doc). ADR-0024 records the current wiring and gates the container question on this.
 
-## Verdict — _pending_
+## Verdict — RESOLVED BY OWNER DECISION → **NestJS** ([ADR-0025](../adr/0025-adopt-nestjs-on-fastify.md))
+
+The evaluation frame below is retained for the record, but the owner chose **NestJS** (a
+decorator/`reflect-metadata` container the frame had pre-rejected) directly, over the decorator-free
+candidates. The spike is therefore closed without execution; ADR-0025 supersedes ADR-0024 and adopts
+NestJS on the Fastify adapter.
 
 ## The question
 
