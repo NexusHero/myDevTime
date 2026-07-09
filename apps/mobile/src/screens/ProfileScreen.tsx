@@ -192,14 +192,22 @@ export function ProfileScreen(): React.JSX.Element {
             title="Focus reminders"
             subtitle="Nudge when a planned block starts"
             trailing={
-              <Switch checked={reminders} onChange={setReminders} label="Focus reminders" />
+              <Switch
+                checked={reminders}
+                onChange={setReminders}
+                accessibilityLabel="Focus reminders"
+              />
             }
           />
           <Row
             title="Idle detection"
             subtitle="Ask what to do with away time"
             trailing={
-              <Switch checked={idleDetection} onChange={setIdleDetection} label="Idle detection" />
+              <Switch
+                checked={idleDetection}
+                onChange={setIdleDetection}
+                accessibilityLabel="Idle detection"
+              />
             }
           />
           <Row
@@ -208,7 +216,7 @@ export function ProfileScreen(): React.JSX.Element {
               <Switch
                 checked={weekStartMonday}
                 onChange={setWeekStartMonday}
-                label="Week starts Monday"
+                accessibilityLabel="Week starts Monday"
               />
             }
           />
