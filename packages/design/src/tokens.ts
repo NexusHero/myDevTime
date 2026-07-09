@@ -111,8 +111,15 @@ export function resolveFontFamily(family: string | undefined, weight = 400): str
   return family
 }
 
-/** Minimum touch target (ux-vision §4: "44-pt minimum touch targets"). */
-export const touchTarget = 44
+export type Density = 'regular' | 'compact'
+
+export const densityScale: Record<
+  Density,
+  { touchTarget: number; padCard: number; gapList: number }
+> = {
+  regular: { touchTarget: 44, padCard: 20, gapList: 8 },
+  compact: { touchTarget: 32, padCard: 12, gapList: 4 },
+}
 
 /** The grid unit every spacing value is a multiple of. */
 export const gridUnit = 8

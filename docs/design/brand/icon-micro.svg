@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" role="img" aria-label="myDevTime Micro">
+  <title>myDevTime Micro</title>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#171c27"></stop>
+      <stop offset="1" stop-color="#0a0c12"></stop>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect x="0" y="0" width="16" height="16" rx="4" fill="url(#tile)" stroke="#ffffff" stroke-opacity="0.08" stroke-width="0.5"></rect>
+  
+  <!-- Solid Past Block -->
+  <rect x="2" y="6" width="4.5" height="4" rx="1" fill="#4c68ff"></rect>
+  
+  <!-- Ghost Future Blocks (replaces thin dashed stroke with 2 solid thick dashes) -->
+  <rect x="9" y="6" width="2" height="4" rx="0.5" fill="#ffffff" opacity="0.4"></rect>
+  <rect x="12" y="6" width="2" height="4" rx="0.5" fill="#ffffff" opacity="0.4"></rect>
+  
+  <!-- Now Line -->
+  <line x1="7.5" y1="3" x2="7.5" y2="13" stroke="#4c68ff" stroke-width="1" stroke-linecap="round"></line>
+  <circle cx="7.5" cy="3" r="1" fill="#4c68ff"></circle>
+</svg>
