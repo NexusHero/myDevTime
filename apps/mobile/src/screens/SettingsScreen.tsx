@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { ScrollView, View } from 'react-native'
 import { Text } from '../components/core/Text'
-import { Badge, Card, Row, Switch } from '../components/index'
-import { useTheme } from '../theme/ThemeProvider'
+import { Badge, Card, Row, Switch, SegmentedControl } from '../components/index'
+import { useTheme, useThemePref, useAccent, useDensity } from '../theme/ThemeProvider'
 import { SubScreenHeader } from './SubScreenHeader'
+import type { ThemePref } from '../theme/resolveMode'
+import type { AccentTheme, Density } from '@mydevtime/design'
 
 /**
  * Settings (ux-vision §3) — the preferences, subscription, and data controls the
@@ -34,6 +36,10 @@ function SectionLabel({ children }: { children: string }): React.JSX.Element {
 
 export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.Element {
   const t = useTheme()
+  const { pref, setPref } = useThemePref()
+  const { accent, setAccent } = useAccent()
+  const { density, setDensity } = useDensity()
+
   const [reminders, setReminders] = useState(true)
   const [idleDetection, setIdleDetection] = useState(true)
   const [weekStartMonday, setWeekStartMonday] = useState(true)
@@ -47,6 +53,67 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
       contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s5 }}
     >
       <SubScreenHeader title="Settings" subtitle="Preferences, plan & your data" onBack={onBack} />
+
+      <View>
+        <SectionLabel>Appearance</SectionLabel>
+        <Card>
+          <View
+            style={{
+              padding: t.spacing.s4,
+              gap: t.spacing.s3,
+              borderBottomWidth: 1,
+              borderBottomColor: t.color.border,
+            }}
+          >
+            <Text style={{ fontSize: t.fontSize.base, fontWeight: '500', color: t.color.ink }}>
+              Theme
+            </Text>
+            <SegmentedControl<ThemePref>
+              segments={[
+                { value: 'system', label: 'System' },
+                { value: 'light', label: 'Light' },
+                { value: 'dark', label: 'Dark' },
+              ]}
+              active={pref}
+              onChange={setPref}
+            />
+          </View>
+          <View
+            style={{
+              padding: t.spacing.s4,
+              gap: t.spacing.s3,
+              borderBottomWidth: 1,
+              borderBottomColor: t.color.border,
+            }}
+          >
+            <Text style={{ fontSize: t.fontSize.base, fontWeight: '500', color: t.color.ink }}>
+              Accent Color
+            </Text>
+            <SegmentedControl<AccentTheme>
+              segments={[
+                { value: 'blueprint', label: 'Blueprint' },
+                { value: 'sovereign', label: 'Sovereign' },
+                { value: 'ember', label: 'Ember' },
+              ]}
+              active={accent}
+              onChange={setAccent}
+            />
+          </View>
+          <View style={{ padding: t.spacing.s4, gap: t.spacing.s3 }}>
+            <Text style={{ fontSize: t.fontSize.base, fontWeight: '500', color: t.color.ink }}>
+              Density
+            </Text>
+            <SegmentedControl<Density>
+              segments={[
+                { value: 'regular', label: 'Regular' },
+                { value: 'compact', label: 'Compact' },
+              ]}
+              active={density}
+              onChange={setDensity}
+            />
+          </View>
+        </Card>
+      </View>
 
       <View>
         <SectionLabel>Preferences</SectionLabel>
