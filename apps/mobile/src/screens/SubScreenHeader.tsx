@@ -3,20 +3,22 @@ import { Text } from '../components/core/Text'
 import { useTheme } from '../theme/ThemeProvider'
 
 /**
- * The header for a Profile drill-down (ux-vision §3): a back affordance to the
- * hub plus the screen title. Sub-screens (absences/credits/settings) aren't in
- * the tab bar, so `onBack` returns to Profile through the shell's active-screen
- * model — no separate navigation stack yet (that lands with the split-view phase
- * of #11).
+ * The header for a drill-down screen (ux-vision §3): a back affordance to the
+ * parent surface plus the screen title. Drill-downs aren't in the tab bar, so
+ * `onBack` returns through the shell's active-screen model — no separate
+ * navigation stack yet (that lands with the split-view phase of #11). `backLabel`
+ * names the parent (defaults to the Profile hub).
  */
 export function SubScreenHeader({
   title,
   subtitle,
   onBack,
+  backLabel = 'Profile',
 }: {
   readonly title: string
   readonly subtitle?: string
   readonly onBack: () => void
+  readonly backLabel?: string
 }): React.JSX.Element {
   const t = useTheme()
   return (
@@ -24,11 +26,11 @@ export function SubScreenHeader({
       <Pressable
         onPress={onBack}
         accessibilityRole="button"
-        accessibilityLabel="Back to Profile"
+        accessibilityLabel={`Back to ${backLabel}`}
         style={{ flexDirection: 'row', alignItems: 'center', minHeight: t.touchTarget }}
       >
         <Text style={{ color: t.color.accentText, fontSize: t.fontSize.md, fontWeight: '600' }}>
-          ‹ Profile
+          {`‹ ${backLabel}`}
         </Text>
       </Pressable>
       <Text
