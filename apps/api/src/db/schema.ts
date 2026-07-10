@@ -43,3 +43,6 @@ export * from './attendance-schema.js'
 
 // Absences: leave ranges + per-workspace vacation policy (REQ-029).
 export * from './absences-schema.js'
+
+// Co-Planner: versioned day plans (proposed ghost blocks) (REQ-031).
+export * from './planner-schema.js'
