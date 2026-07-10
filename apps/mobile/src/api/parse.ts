@@ -22,6 +22,29 @@ export function nullableStr(o: Record<string, unknown>, key: string): string | n
   return v
 }
 
+export function num(o: Record<string, unknown>, key: string): number {
+  const v = o[key]
+  if (typeof v !== 'number' || !Number.isFinite(v))
+    throw new Error(`expected number field "${key}"`)
+  return v
+}
+
+export function numberArray(value: unknown): number[] {
+  if (!Array.isArray(value)) throw new Error('expected a number array')
+  return value.map(n => {
+    if (typeof n !== 'number' || !Number.isFinite(n)) throw new Error('expected a number')
+    return n
+  })
+}
+
+export function stringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) throw new Error('expected a string array')
+  return value.map(s => {
+    if (typeof s !== 'string') throw new Error('expected a string')
+    return s
+  })
+}
+
 export function parseArray<T>(value: unknown, one: (o: Record<string, unknown>) => T): T[] {
   if (!Array.isArray(value)) throw new Error('expected an array')
   return value.map(item => one(record(item)))
