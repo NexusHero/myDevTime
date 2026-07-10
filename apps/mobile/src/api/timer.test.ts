@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  entryDurationMs,
   formatStopwatch,
   getRunning,
+  listEntries,
+  parseEntries,
   parseEntry,
   parseRunning,
   provisionalEntry,
@@ -131,5 +134,56 @@ describe('provisionalEntry', () => {
     expect(e.projectId).toBeNull()
     expect(e.taskId).toBeNull()
     expect(e.note).toBeNull()
+  })
+})
+
+describe('parseEntries', () => {
+  it('ParsesAnArrayOfEntries', () => {
+    const rows = parseEntries([RUNNING, { ...RUNNING, id: 'e2' }])
+    expect(rows.map(e => e.id)).toEqual(['e1', 'e2'])
+  })
+  it('NonArray_Throws', () => {
+    expect(() => parseEntries({})).toThrow()
+  })
+})
+
+describe('listEntries', () => {
+  it('GetsEntriesAndPassesDateRange', async () => {
+    const stopped = { ...RUNNING, endedAt: '2026-07-10T10:00:00.000Z' }
+    const seen: string[] = []
+    const fetchImpl = ((url: string) => {
+      seen.push(url)
+      return Promise.resolve(new Response(JSON.stringify([stopped]), { status: 200 }))
+    }) as unknown as typeof fetch
+    const rows = await listEntries(
+      'http://api',
+      { from: '2026-07-01T00:00:00.000Z', to: '2026-07-31T00:00:00.000Z' },
+      fetchImpl,
+    )
+    expect(rows).toHaveLength(1)
+    expect(seen[0]).toContain('/api/tracking/entries?')
+    expect(seen[0]).toContain('from=')
+    expect(seen[0]).toContain('to=')
+  })
+  it('NoRange_HitsBarePath', async () => {
+    const fetchImpl = ((url: string) => {
+      expect(url).toBe('http://api/api/tracking/entries')
+      return Promise.resolve(new Response('[]', { status: 200 }))
+    }) as unknown as typeof fetch
+    expect(await listEntries('http://api', {}, fetchImpl)).toEqual([])
+  })
+})
+
+describe('entryDurationMs', () => {
+  it('ClosedEntry_IsEndMinusStart', () => {
+    const e = { ...RUNNING, endedAt: '2026-07-10T09:30:00.000Z' }
+    expect(entryDurationMs(e, new Date('2026-07-10T12:00:00.000Z'))).toBe(30 * 60_000)
+  })
+  it('RunningEntry_CountsUpToNow', () => {
+    expect(entryDurationMs(RUNNING, new Date('2026-07-10T09:05:00.000Z'))).toBe(5 * 60_000)
+  })
+  it('Inverted_ClampsToZero', () => {
+    const e = { ...RUNNING, endedAt: '2026-07-10T08:00:00.000Z' }
+    expect(entryDurationMs(e, new Date('2026-07-10T09:00:00.000Z'))).toBe(0)
   })
 })
