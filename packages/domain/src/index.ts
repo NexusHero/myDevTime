@@ -90,6 +90,11 @@ export {
   hasBreakViolation,
 } from './attendance/break-rule.js'
 
+// Absences (REQ-029, ADR-0010) — leave as inclusive calendar-date ranges +
+// vacation-allowance balance; deterministic, LLM-free (ADR-0005).
+export type { AbsenceKind, Absence, AbsencePolicy, VacationBalance } from './absences/absence.js'
+export { inclusiveDayCount, absenceDays, coversDate, vacationBalance } from './absences/absence.js'
+
 // Entitlements — the domain of monetization (REQ-016, ADR-0006/0008). Provider-
 // agnostic plan/state machine; payment providers are adapters layered on later.
 export type {

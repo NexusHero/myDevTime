@@ -4,69 +4,87 @@ import { Text } from '../components/core/Text'
 import { Badge, Card, ProgressBar, Row } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
 import { SubScreenHeader } from './SubScreenHeader'
+import { useAbsences } from '../hooks/useAbsences'
+import type { Absence, AbsenceKind } from '../api/absences'
 
 /**
- * Absences (#37, ux-vision §3) — the vacation / sick / public-holiday calendar
- * that the Profile hub links into. The month grid comes from the pure, tested
- * `monthGrid` helper (ADR-0005); day markers, the remaining-days balance, and the
- * upcoming list are illustrative until the absence domain feeds them, but the
- * grid math and tabular formatting are the real shared primitives.
+ * Absences (#37, REQ-029, ux-vision §3) — the vacation / sick / public-holiday
+ * calendar the Profile hub links into. The month grid comes from the pure, tested
+ * `monthGrid` helper; the day markers, the remaining-days balance, and the
+ * upcoming list are fed by the `absences` module (`useAbsences`) — the balance is
+ * the deterministic core's (ADR-0005) — with demo data as the offline fallback.
  */
-type AbsenceKind = 'vacation' | 'sick' | 'holiday'
-
-// July 2026, keyed by day-of-month.
-const MONTH = { year: 2026, month0: 6, label: 'July 2026', today: 10 }
-const MARKS: Readonly<Record<number, AbsenceKind>> = {
-  6: 'sick',
-  14: 'vacation',
-  15: 'vacation',
-  16: 'vacation',
-  17: 'vacation',
-  29: 'holiday',
-}
-
-const VACATION_USED = 18
-const VACATION_ALLOWANCE = 30
-
-interface Upcoming {
-  readonly id: string
-  readonly label: string
-  readonly when: string
-  readonly kind: AbsenceKind
-}
-const UPCOMING: readonly Upcoming[] = [
-  { id: 'u1', label: 'Summer vacation', when: 'Jul 14 – 17', kind: 'vacation' },
-  { id: 'u2', label: 'Public holiday', when: 'Jul 29', kind: 'holiday' },
-]
-
 function kindColor(kind: AbsenceKind, t: ReturnType<typeof useTheme>): string {
   if (kind === 'vacation') return t.color.good
   if (kind === 'sick') return t.color.warn
-  return t.color.accent
+  if (kind === 'holiday') return t.color.accent
+  return t.color.ink2
 }
 
 const KIND_LABEL: Record<AbsenceKind, string> = {
   vacation: 'Vacation',
   sick: 'Sick',
   holiday: 'Holiday',
+  other: 'Other',
+}
+
+/** A concise range label, e.g. `Jul 14 – 17` or `Jul 29`. */
+const MONTH_ABBR = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+]
+function rangeLabel(a: Absence): string {
+  const [, sm, sd] = a.startDate.split('-')
+  const [, em, ed] = a.endDate.split('-')
+  const start = `${MONTH_ABBR[Number(sm) - 1] ?? ''} ${Number(sd)}`
+  if (a.startDate === a.endDate) return start
+  const end = sm === em ? String(Number(ed)) : `${MONTH_ABBR[Number(em) - 1] ?? ''} ${Number(ed)}`
+  return `${start} – ${end}`
 }
 
 export function AbsencesScreen({ onBack }: { onBack: () => void }): React.JSX.Element {
   const t = useTheme()
-  const weeks = monthGrid(MONTH.year, MONTH.month0, true)
+  const { data, live } = useAbsences()
+  const month = data?.month ?? { year: 2026, month0: 6, label: 'July 2026', today: 1 }
+  const marks = data?.marks ?? {}
+  const balance = data?.balance ?? {
+    allowanceDays: 30,
+    carryOverDays: 0,
+    usedDays: 0,
+    remainingDays: 30,
+  }
+  const upcoming = data?.upcoming ?? []
+
+  const weeks = monthGrid(month.year, month.month0, true)
   const headers = weekdayHeaders(true)
-  const remaining = VACATION_ALLOWANCE - VACATION_USED
+  const allowanceTotal = balance.allowanceDays + balance.carryOverDays
+  const usedRatio = allowanceTotal > 0 ? balance.usedDays / allowanceTotal : 0
 
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: t.color.bg }}
       contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s5 }}
     >
-      <SubScreenHeader
-        title="Absences"
-        subtitle="Vacation, sick days & public holidays"
-        onBack={onBack}
-      />
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: t.spacing.s2 }}>
+        <View style={{ flex: 1 }}>
+          <SubScreenHeader
+            title="Absences"
+            subtitle="Vacation, sick days & public holidays"
+            onBack={onBack}
+          />
+        </View>
+        {!live && <Badge tone="neutral">Demo data</Badge>}
+      </View>
 
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: t.spacing.s2 }}>
@@ -78,7 +96,7 @@ export function AbsencesScreen({ onBack }: { onBack: () => void }): React.JSX.El
               color: t.color.ink,
             }}
           >
-            {String(remaining)}
+            {String(balance.remainingDays)}
           </Text>
           <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>vacation days left</Text>
           <Text
@@ -89,15 +107,15 @@ export function AbsencesScreen({ onBack }: { onBack: () => void }): React.JSX.El
               color: t.color.ink3,
             }}
           >
-            {String(VACATION_USED)}/{String(VACATION_ALLOWANCE)}
+            {String(balance.usedDays)}/{String(allowanceTotal)}
           </Text>
         </View>
         <View style={{ marginTop: t.spacing.s3 }}>
-          <ProgressBar ratio={VACATION_USED / VACATION_ALLOWANCE} label="Vacation days used" />
+          <ProgressBar ratio={usedRatio} label="Vacation days used" />
         </View>
       </Card>
 
-      <Card title={MONTH.label}>
+      <Card title={month.label}>
         <View style={{ flexDirection: 'row' }}>
           {headers.map(h => (
             <Text
@@ -119,8 +137,8 @@ export function AbsencesScreen({ onBack }: { onBack: () => void }): React.JSX.El
           {weeks.map((week, wi) => (
             <View key={`w${String(wi)}`} style={{ flexDirection: 'row', gap: 4 }}>
               {week.map((cell, ci) => {
-                const mark = cell.inMonth ? MARKS[cell.date] : undefined
-                const isToday = cell.inMonth && cell.date === MONTH.today
+                const mark = cell.inMonth ? marks[cell.date] : undefined
+                const isToday = cell.inMonth && cell.date === month.today
                 const bg = mark ? `${kindColor(mark, t)}2b` : 'transparent'
                 return (
                   <View
@@ -202,24 +220,28 @@ export function AbsencesScreen({ onBack }: { onBack: () => void }): React.JSX.El
           Upcoming
         </Text>
         <Card>
-          {UPCOMING.map(u => (
-            <Row
-              key={u.id}
-              title={u.label}
-              subtitle={u.when}
-              leading={
-                <View
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: kindColor(u.kind, t),
-                  }}
-                />
-              }
-              trailing={<Badge tone="neutral">{KIND_LABEL[u.kind]}</Badge>}
-            />
-          ))}
+          {upcoming.length === 0 ? (
+            <Text style={{ color: t.color.ink2 }}>No upcoming absences.</Text>
+          ) : (
+            upcoming.map(u => (
+              <Row
+                key={u.id}
+                title={KIND_LABEL[u.kind]}
+                subtitle={rangeLabel(u)}
+                leading={
+                  <View
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 5,
+                      backgroundColor: kindColor(u.kind, t),
+                    }}
+                  />
+                }
+                trailing={<Badge tone="neutral">{KIND_LABEL[u.kind]}</Badge>}
+              />
+            ))
+          )}
         </Card>
       </View>
     </ScrollView>

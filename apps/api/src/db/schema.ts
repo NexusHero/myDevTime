@@ -40,3 +40,6 @@ export * from './entitlements-schema.js'
 
 // Attendance: work-day shifts + effective-dated target-hour schedules (REQ-028).
 export * from './attendance-schema.js'
+
+// Absences: leave ranges + per-workspace vacation policy (REQ-029).
+export * from './absences-schema.js'
