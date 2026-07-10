@@ -11,17 +11,18 @@ import {
   toBudgetRings,
   type BudgetRingRow,
 } from '../api/budgets.js'
+import { fetchWorktimeSummary } from '../api/worktime.js'
 import { fetchCatalog } from '../api/tracking.js'
 import { useAsync, type AsyncResource } from './useAsync.js'
 
 /**
- * The Reports data source (REQ-005): when an API base URL is configured the hook
- * fetches, for the trailing week, the workspace time summary, the billable-money
- * summary, the project budgets (with per-budget status), and the catalog (for
- * project names), then joins them; otherwise — the default in local dev and the
- * test gate — it resolves illustrative demo figures. `live` lets the UI flag demo
- * data. The overtime gauge still comes from a demo constant in the screen until
- * the work-time read is wired.
+ * The Reports data source (REQ-005/028): when an API base URL is configured the
+ * hook fetches, for the trailing week, the workspace time summary, the
+ * billable-money summary, the project budgets (with per-budget status), the
+ * overtime balance, and the catalog (for project names), then joins them;
+ * otherwise — the default in local dev and the test gate — it resolves
+ * illustrative demo figures. `live` lets the UI flag demo data. Every figure on
+ * the Reports card is now API-backed.
  */
 const H = 3_600_000
 const M = 60_000
@@ -32,6 +33,8 @@ export interface ReportsData {
   readonly currencyCode: string
   readonly byProject: readonly ReportProject[]
   readonly budgets: readonly BudgetRingRow[]
+  /** Signed overtime balance (net worked − target) over the window. */
+  readonly overtimeMs: number
 }
 
 export interface ReportsResource extends AsyncResource<ReportsData> {
@@ -80,6 +83,7 @@ function demoReports(): ReportsData {
         currencyCode: 'EUR',
       },
     ],
+    overtimeMs: 9 * H + 30 * M,
   }
 }
 
@@ -99,11 +103,12 @@ export function useReports(): ReportsResource {
   const resource = useAsync<ReportsData>(
     async () => {
       if (base === null) return demoReports()
-      const [summary, billing, catalog, budgetList] = await Promise.all([
+      const [summary, billing, catalog, budgetList, overtime] = await Promise.all([
         fetchSummary(base, range),
         fetchBillingSummary(base, range),
         fetchCatalog(base),
         fetchBudgets(base),
+        fetchWorktimeSummary(base, range),
       ])
       const statuses = await Promise.all(budgetList.map(b => fetchBudgetStatus(base, b.id)))
       const nameById = new Map<string, string>()
@@ -115,6 +120,7 @@ export function useReports(): ReportsResource {
         currencyCode: billing.currencyCode,
         byProject: toReportProjects(summary, nameById),
         budgets: toBudgetRings(statuses, nameById),
+        overtimeMs: overtime.balanceMs,
       }
     },
     `${base ?? 'demo'}:${range.from}`,
