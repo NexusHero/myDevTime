@@ -2,7 +2,8 @@ import { ScrollView, View, useWindowDimensions } from 'react-native'
 import { Text } from '../components/core/Text'
 import { formatDuration, formatMoneyMinor, projectColor } from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
-import { BudgetRing, Card, Gauge, Sparkline } from '../components/index'
+import { Badge, BudgetRing, Card, Gauge, Sparkline } from '../components/index'
+import { useReports } from '../hooks/useReports'
 
 /**
  * Reports — "stats that read like instruments" (ux-vision §2.5): budget rings per
@@ -87,26 +88,35 @@ export function ReportsScreen(): React.JSX.Element {
   const t = useTheme()
   const { width } = useWindowDimensions()
   const wide = width >= 900
+  const reports = useReports()
+
+  // Tracked total + per-project sparklines come from the summary endpoint; budget
+  // rings, billable money and overtime stay demo until billing/work-time is wired.
+  const trackedMs = reports.data?.totalMs ?? WEEK_TOTAL_MS
+  const byProject = reports.data?.byProject ?? []
 
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: t.color.bg }}
       contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s5 }}
     >
-      <View>
-        <Text
-          style={{
-            fontWeight: '700',
-            fontSize: t.fontSize.xl,
-            color: t.color.ink,
-            fontFamily: t.fontFamily.display,
-          }}
-        >
-          Reports
-        </Text>
-        <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, marginTop: 2 }}>
-          This week · Jul 6–12
-        </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: t.spacing.s2 }}>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              fontWeight: '700',
+              fontSize: t.fontSize.xl,
+              color: t.color.ink,
+              fontFamily: t.fontFamily.display,
+            }}
+          >
+            Reports
+          </Text>
+          <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, marginTop: 2 }}>
+            This week
+          </Text>
+        </View>
+        {!reports.live && <Badge tone="neutral">Demo data</Badge>}
       </View>
 
       {/* Summary + overtime gauge */}
@@ -120,7 +130,7 @@ export function ReportsScreen(): React.JSX.Element {
             gap: t.spacing.s5,
           }}
         >
-          <Metric label="Tracked this week" value={`${formatDuration(WEEK_TOTAL_MS)} h`} />
+          <Metric label="Tracked this week" value={`${formatDuration(trackedMs)} h`} />
           <Metric label="Billable" value={formatMoneyMinor(BILLABLE_MINOR, 'EUR')} />
           <View style={{ alignItems: 'center' }}>
             <Gauge value={OVERTIME_MS / H} range={OVERTIME_RANGE_H} label="Overtime balance" />
@@ -167,62 +177,72 @@ export function ReportsScreen(): React.JSX.Element {
         </Card>
       </View>
 
-      {/* Week sparklines (small multiples) */}
+      {/* Week sparklines (small multiples) — driven by the summary endpoint. */}
       <View>
         <SectionLabel>This week by project</SectionLabel>
         <Card>
-          <View style={{ gap: t.spacing.s4 }}>
-            {PROJECTS.map(p => {
-              const todayH = p.week[p.week.length - 1] ?? 0
-              return (
-                <View
-                  key={p.id}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s4 }}
-                >
+          {reports.loading && reports.data === null ? (
+            <Text style={{ color: t.color.ink2 }}>Loading…</Text>
+          ) : reports.error ? (
+            <Text style={{ color: t.color.crit }}>
+              Couldn’t load reports — {reports.error.message}
+            </Text>
+          ) : byProject.length === 0 ? (
+            <Text style={{ color: t.color.ink2 }}>No time tracked this week yet.</Text>
+          ) : (
+            <View style={{ gap: t.spacing.s4 }}>
+              {byProject.map(p => {
+                const lastMs = p.daily[p.daily.length - 1] ?? 0
+                return (
                   <View
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: t.spacing.s2,
-                      width: wide ? 200 : 130,
-                    }}
+                    key={p.id}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s4 }}
                   >
                     <View
                       style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: 4,
-                        backgroundColor: projectColor(p.id, t.mode),
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: t.spacing.s2,
+                        width: wide ? 200 : 130,
                       }}
-                      accessibilityElementsHidden
+                    >
+                      <View
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: projectColor(p.id, t.mode),
+                        }}
+                        accessibilityElementsHidden
+                      />
+                      <Text
+                        style={{ flex: 1, fontSize: t.fontSize.sm, color: t.color.ink }}
+                        numberOfLines={1}
+                      >
+                        {p.name}
+                      </Text>
+                    </View>
+                    <Sparkline
+                      values={[...p.daily]}
+                      color={projectColor(p.id, t.mode)}
+                      label={`${p.name} this week`}
+                      width={wide ? 200 : 120}
                     />
                     <Text
-                      style={{ flex: 1, fontSize: t.fontSize.sm, color: t.color.ink }}
-                      numberOfLines={1}
+                      style={{
+                        marginLeft: 'auto',
+                        fontFamily: t.fontFamily.numeric,
+                        fontSize: t.fontSize.sm,
+                        color: t.color.ink2,
+                      }}
                     >
-                      {p.name}
+                      {formatDuration(lastMs)} h
                     </Text>
                   </View>
-                  <Sparkline
-                    values={p.week}
-                    color={projectColor(p.id, t.mode)}
-                    label={`${p.name} this week`}
-                    width={wide ? 200 : 120}
-                  />
-                  <Text
-                    style={{
-                      marginLeft: 'auto',
-                      fontFamily: t.fontFamily.numeric,
-                      fontSize: t.fontSize.sm,
-                      color: t.color.ink2,
-                    }}
-                  >
-                    {formatDuration(todayH * H)} h
-                  </Text>
-                </View>
-              )
-            })}
-          </View>
+                )
+              })}
+            </View>
+          )}
         </Card>
       </View>
     </ScrollView>
