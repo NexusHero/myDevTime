@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+// The NL quick-add renders a react-native-web TextInput, which needs a DOM.
 import { describe, expect, it } from 'vitest'
 import TestRenderer, { ReactTestInstance } from 'react-test-renderer'
 import { ScrollView, View } from 'react-native'

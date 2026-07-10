@@ -1,0 +1,97 @@
+import { HOUR_MS, MINUTE_MS, type DurationMs } from '../tracking/time.js'
+
+/**
+ * The deterministic natural-language pre-parser (REQ-013, ADR-0005). It turns a
+ * phrase like "2h on Finanzo API review yesterday" into a **draft** — duration,
+ * which day, a project hint, a note, billable — that the user confirms; it never
+ * persists. Pure and reproducible (de/en). What it cannot parse (no duration) is
+ * where the LLM fallback takes over (ADR-0029), and even then the result is a
+ * draft the core validates, never a written entry.
+ */
+
+export interface TimeEntryDraft {
+  readonly durationMs: DurationMs
+  /** The local day as an offset from today: 0 = today, −1 = yesterday. */
+  readonly dayOffset: number
+  /** A raw project/task hint (e.g. `Finanzo`) to resolve against the catalog, or null. */
+  readonly projectHint: string | null
+  readonly note: string | null
+  readonly billable: boolean
+  /** Heuristic 0..1: higher when the project and the day are explicit. */
+  readonly confidence: number
+}
+
+const CLOCK_RE = /\b(\d{1,2}):(\d{2})\b/g
+const HOURS_RE = /(\d+(?:[.,]\d+)?)\s*(?:stunden|stunde|hours|hour|hrs|hr|std|h)\b/gi
+const MINUTES_RE = /(\d+)\s*(?:minuten|minute|minutes|mins|min|m)\b/gi
+
+/** Parse a phrase into a draft time entry, or null when no duration is present. */
+export function parseTimeEntry(text: string): TimeEntryDraft | null {
+  let rest = ` ${text} `
+  let durationMs = 0
+
+  rest = rest.replace(CLOCK_RE, (_m, h: string, min: string) => {
+    durationMs += Number(h) * HOUR_MS + Number(min) * MINUTE_MS
+    return ' '
+  })
+  rest = rest.replace(HOURS_RE, (_m, h: string) => {
+    durationMs += Number(h.replace(',', '.')) * HOUR_MS
+    return ' '
+  })
+  rest = rest.replace(MINUTES_RE, (_m, min: string) => {
+    durationMs += Number(min) * MINUTE_MS
+    return ' '
+  })
+
+  if (durationMs <= 0) return null
+
+  // Day. `dayExplicit` is read from a direct test (not a callback-mutated flag) so
+  // control-flow analysis keeps it a real boolean.
+  const dayExplicit = /\b(today|heute|yesterday|gestern)\b/i.test(text)
+  let dayOffset = 0
+  rest = rest.replace(/\b(yesterday|gestern)\b/i, () => {
+    dayOffset = -1
+    return ' '
+  })
+  rest = rest.replace(/\b(today|heute)\b/i, () => ' ')
+
+  // Billable.
+  let billable = true
+  rest = rest.replace(
+    /\b(?:non-?billable|unbillable|nicht abrechenbar|nicht berechenbar)\b/i,
+    () => {
+      billable = false
+      return ' '
+    },
+  )
+
+  // Project hint: a @sigil / #tag, or a keyword ("on"/"for"/"für"/"auf") + one word.
+  let projectHint: string | null = null
+  const sigil = /[@#]([\p{L}\d][\p{L}\d-]*)/u.exec(rest)
+  if (sigil?.[1]) {
+    projectHint = sigil[1]
+    rest = rest.replace(sigil[0], ' ')
+  } else {
+    const keyword = /\b(?:on|for|für|auf)\s+([\p{L}][\p{L}\d-]*)/iu.exec(rest)
+    if (keyword?.[1]) {
+      projectHint = keyword[1]
+      rest = rest.replace(keyword[0], ' ')
+    }
+  }
+
+  const note = rest.replace(/\s+/g, ' ').trim()
+
+  let confidence = 0.4
+  if (projectHint) confidence += 0.2
+  if (dayExplicit) confidence += 0.2
+  if (note.length > 0) confidence += 0.2
+
+  return {
+    durationMs,
+    dayOffset,
+    projectHint,
+    note: note.length > 0 ? note : null,
+    billable,
+    confidence: Math.min(1, confidence),
+  }
+}
