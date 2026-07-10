@@ -74,6 +74,8 @@ export type {
   Timesheet,
 } from './reporting/timesheet.js'
 export { buildTimesheet } from './reporting/timesheet.js'
+export type { ProjectSummary, WorkspaceSummary, SummaryOptions } from './reporting/summary.js'
+export { summarizeEntries } from './reporting/summary.js'
 
 // Entitlements — the domain of monetization (REQ-016, ADR-0006/0008). Provider-
 // agnostic plan/state machine; payment providers are adapters layered on later.
