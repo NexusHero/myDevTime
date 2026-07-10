@@ -1,12 +1,17 @@
-import { Body, Controller, Get, HttpCode, Post, Put, Query, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, HttpCode, Post, Put, Query, Res, UseGuards } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
+import type { FastifyReply } from 'fastify'
 import { AuthGuard, CurrentUser, type AuthenticatedUser } from '../auth/contract.js'
 import * as svc from './service.js'
 import { WorktimeContext } from './worktime.context.js'
+import { loadWorktimeReport } from './report/source.js'
+import { worktimeReportToPdf } from './report/pdf.js'
+import { worktimeReportToXlsx } from './report/xlsx.js'
 import {
   ClockInDto,
   ClockOutDto,
   CreateShiftDto,
+  ReportQueryDto,
   SetScheduleDto,
   ShiftsQueryDto,
   WorktimeSummaryQueryDto,
@@ -34,6 +39,35 @@ export class WorktimeController {
       tz: query.tz,
       asOf: query.asOf,
     })
+  }
+
+  // ── Signable work-time report (PDF / XLSX) ───────────────────────────────
+  @Get('report')
+  async report(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ReportQueryDto,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    const { report, meta } = await loadWorktimeReport(db, workspaceId, {
+      year: query.year,
+      month: query.month,
+      tz: query.tz,
+    })
+    const base = `worktime-${meta.monthLabel}`.replace(/[^\w.-]+/g, '_')
+    if (query.format === 'xlsx') {
+      const buffer = await worktimeReportToXlsx(report, meta)
+      await reply
+        .header('content-disposition', `attachment; filename="${base}.xlsx"`)
+        .type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        .send(buffer)
+      return
+    }
+    const buffer = await worktimeReportToPdf(report, meta, query.locale)
+    await reply
+      .header('content-disposition', `attachment; filename="${base}.pdf"`)
+      .type('application/pdf')
+      .send(buffer)
   }
 
   @Get('shifts')
