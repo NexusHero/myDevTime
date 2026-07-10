@@ -46,6 +46,7 @@ below in number order.
 | [0025](0025-adopt-nestjs-on-fastify.md) | Adopt **NestJS 11 on `@nestjs/platform-fastify`**: modules/controllers/providers + container DI, `nestjs-zod` validation/OpenAPI, RFC-7807 exception filter, Better-Auth guard; Fastify kept as HTTP layer; `packages/domain` stays pure | Accepted (owner decision) — supersedes 0024 & the composition/DI half of 0003/0015; resolves spike [#104](https://github.com/NexusHero/myDevTime/issues/104) |
 | [0026](0026-design-system-pro-tier-adjustments.md) | Design system pro-tier adjustments: density tokens (regular/compact) on `Theme`, 12-color categorical project palette, absolute (non-`rgba`) soft semantic colors for deterministic WCAG contrast across surfaces, a micro logo variant | Accepted — extends ADR-0011/0022/0023 |
 | [0027](0027-mobile-ui-testing-strategy.md) | Mobile UI testing strategy: `@testing-library/react-native` + `react-test-renderer` component tests for `apps/mobile`, run by the same Vitest runner (ADR-0014) via a JSDOM environment and native-module mocks at the app boundary | Accepted — extends ADR-0014 |
+| [0028](0028-rest-over-graphql-api-style.md) | Client↔server API style: RESTful resource endpoints (not GraphQL/tRPC); composed reads get purpose-built aggregate endpoints; a read-only GraphQL/BFF facade stays available additively if ever needed | Accepted — makes explicit the API-style dimension of ADR-0003/0015/0025 |
 
 ## Tech Radar
 
@@ -61,6 +62,9 @@ One line per technology so the stack's shape stays visible without re-reading th
 | Fastify (backend HTTP framework) | Adopt | ADR-0015 |
 | NestJS 11 (modules/controllers/providers + DI) on `@nestjs/platform-fastify` | Adopt | ADR-0025 |
 | nestjs-zod (Zod validation + OpenAPI DTOs) | Adopt | ADR-0025 |
+| REST resource endpoints (client↔server API style) | Adopt | ADR-0028 |
+| GraphQL (client↔server API) | Hold (declined; read-only BFF facade re-assessable if a need appears) | ADR-0028 |
+| tRPC (client↔server API) | Hold (declined — couples RN client to backend TS types) | ADR-0028 |
 | reflect-metadata + emitDecoratorMetadata (`apps/api` only; SWC transform in Vitest) | Adopt (scoped to the backend) | ADR-0025 |
 | Manual constructor injection (factory modules over typed `deps`) | Superseded by NestJS DI | ADR-0024 → 0025 |
 | PostgreSQL | Adopt | ADR-0015 |
