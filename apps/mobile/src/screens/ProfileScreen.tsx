@@ -1,7 +1,13 @@
 import { useState } from 'react'
 import { ScrollView, View } from 'react-native'
 import { Text } from '../components/core/Text'
-import { formatDuration, formatSigned, type Screen } from '@mydevtime/design'
+import {
+  PROFILE_HUB_LINKS,
+  formatDuration,
+  formatSigned,
+  type ProfileHubLink,
+  type Screen,
+} from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
 import { Badge, Card, ProgressBar, Row, Switch } from '../components/index'
 
@@ -26,6 +32,12 @@ const LEDGER: readonly LedgerEntry[] = [
   { id: 'l2', label: 'Meeting summary — Nordwind', when: 'Jul 7', delta: -8 },
   { id: 'l3', label: 'NL time entry', when: 'Jul 8', delta: -4 },
 ]
+
+/** Row copy for the surfaces the Profile hub links into (ux-vision §3). */
+const HUB_META: Record<ProfileHubLink, { title: string; subtitle: string }> = {
+  meetings: { title: 'Meetings', subtitle: 'Transcripts & AI insights' },
+  assistant: { title: 'Assistant', subtitle: 'Ask about your times · read-only' },
+}
 
 const VACATION_USED = 18
 const VACATION_ALLOWANCE = 30
@@ -244,6 +256,24 @@ export function ProfileScreen({
             trailing={chevron}
             onPress={() => onNavigate('settings')}
           />
+        </Card>
+      </View>
+
+      {/* More — the top-level surfaces kept off the phone's five-tab bar (ux-vision §3).
+          On phone this is their only entry point; on wide layouts the sidebar promotes
+          them too. */}
+      <View>
+        <SectionLabel>More</SectionLabel>
+        <Card>
+          {PROFILE_HUB_LINKS.map(link => (
+            <Row
+              key={link}
+              title={HUB_META[link].title}
+              subtitle={HUB_META[link].subtitle}
+              trailing={chevron}
+              onPress={() => onNavigate(link)}
+            />
+          ))}
         </Card>
       </View>
     </ScrollView>

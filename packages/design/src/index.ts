@@ -60,11 +60,13 @@ export {
   ROUTES,
   PHONE_TABS,
   SIDEBAR_ITEMS,
+  PROFILE_HUB_LINKS,
   buildPath,
   parsePath,
   type Screen,
   type RouteDef,
   type Match,
+  type ProfileHubLink,
 } from './nav.js'
 export {
   BREAKPOINTS,
