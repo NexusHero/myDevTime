@@ -46,3 +46,6 @@ export * from './absences-schema.js'
 
 // Co-Planner: versioned day plans (proposed ghost blocks) (REQ-031).
 export * from './planner-schema.js'
+
+// AI-credit ledger: append-only signed credit deltas (REQ-027).
+export * from './credits-schema.js'
