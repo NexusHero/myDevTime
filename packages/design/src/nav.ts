@@ -17,6 +17,7 @@ export type Screen =
   | 'meetings'
   | 'meeting' // { meetingId }
   | 'profile'
+  | 'worktime'
   | 'absences'
   | 'settings'
   | 'credits'
@@ -49,6 +50,7 @@ export const ROUTES: readonly RouteDef[] = [
   def('meetings', '/meetings'),
   def('meeting', '/meetings/:meetingId'),
   def('profile', '/profile'),
+  def('worktime', '/profile/worktime'),
   def('absences', '/profile/absences'),
   def('settings', '/profile/settings'),
   def('credits', '/profile/credits'),
