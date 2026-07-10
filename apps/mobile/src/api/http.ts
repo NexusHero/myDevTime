@@ -1,0 +1,65 @@
+/**
+ * The client HTTP seam (issue #11, ADR-0025 server): a thin credentialed JSON GET
+ * plus the RFC 7807 → `ApiError` mapping the NestJS API speaks (`problem+json`).
+ * `problemToError` is pure and tested; `getJson` is the only place the app talks
+ * to `fetch`, so feature modules depend on typed results, not the network.
+ */
+
+/** A failed API call, carrying the server's problem title/detail and HTTP status. */
+export class ApiError extends Error {
+  readonly status: number
+  readonly title: string
+  readonly detail: string | undefined
+
+  constructor(status: number, title: string, detail?: string) {
+    super(detail ?? title)
+    this.name = 'ApiError'
+    this.status = status
+    this.title = title
+    this.detail = detail
+  }
+}
+
+/** Map a non-2xx response body (problem+json, or anything) to an `ApiError`. Pure. */
+export function problemToError(status: number, body: unknown): ApiError {
+  if (body !== null && typeof body === 'object') {
+    const record = body as Record<string, unknown>
+    const title = typeof record.title === 'string' ? record.title : `HTTP ${String(status)}`
+    const detail = typeof record.detail === 'string' ? record.detail : undefined
+    return new ApiError(status, title, detail)
+  }
+  return new ApiError(status, `HTTP ${String(status)}`)
+}
+
+/**
+ * GET `path` from `baseUrl` as JSON, sending credentials (the Better-Auth session
+ * cookie). Throws `ApiError` on a non-2xx or unparseable response. `fetchImpl` is
+ * injectable so the logic can be exercised without a real network.
+ */
+export async function getJson(
+  baseUrl: string,
+  path: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<unknown> {
+  let res: Response
+  try {
+    res = await fetchImpl(`${baseUrl}${path}`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { accept: 'application/json' },
+    })
+  } catch (cause) {
+    throw new ApiError(0, 'Network error', cause instanceof Error ? cause.message : undefined)
+  }
+  const text = await res.text()
+  let body: unknown = null
+  if (text.length > 0) {
+    try {
+      body = JSON.parse(text)
+    } catch {
+      if (res.ok) throw new ApiError(res.status, 'Malformed response')
+    }
+  }
+  if (!res.ok) throw problemToError(res.status, body)
+  return body
+}

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { PHONE_TABS, ROUTES, SIDEBAR_ITEMS, buildPath, parsePath, type Screen } from './nav.js'
+import {
+  PHONE_TABS,
+  PROFILE_HUB_LINKS,
+  ROUTES,
+  SIDEBAR_ITEMS,
+  buildPath,
+  parsePath,
+  type Screen,
+} from './nav.js'
 
 describe('navigation route map', () => {
   it('BuildPath_StaticAndParameterized', () => {
@@ -44,9 +52,31 @@ describe('navigation route map', () => {
 
   it('NavSets_AreValidScreensWithRoutes', () => {
     const screens = new Set<Screen>(ROUTES.map(r => r.screen))
-    for (const s of [...PHONE_TABS, ...SIDEBAR_ITEMS]) expect(screens.has(s)).toBe(true)
+    for (const s of [...PHONE_TABS, ...SIDEBAR_ITEMS, ...PROFILE_HUB_LINKS])
+      expect(screens.has(s)).toBe(true)
     expect(PHONE_TABS).toHaveLength(5) // ux-vision §3: five bottom tabs
     expect(SIDEBAR_ITEMS).toContain('meetings') // promoted to top level on wide layouts
     expect(PHONE_TABS).not.toContain('meetings')
+  })
+
+  it('SecondarySurfaces_ReachableFromSomeNav', () => {
+    // Regression: the Assistant screen shipped built but wired into no nav at all —
+    // unreachable except by typing its URL. Every surface must have an entry point.
+    const reachable = new Set<Screen>([...PHONE_TABS, ...SIDEBAR_ITEMS, ...PROFILE_HUB_LINKS])
+    expect(reachable.has('assistant')).toBe(true)
+    expect(reachable.has('meetings')).toBe(true)
+  })
+
+  it('ProfileHubLinks_GivePhoneAPathToOffTabSurfaces', () => {
+    // ux-vision §3 fixes the phone to five tabs, so Meetings and the Assistant reach
+    // the phone through the Profile hub rather than a sixth tab.
+    expect(PROFILE_HUB_LINKS).toEqual(['meetings', 'assistant'])
+    for (const s of PROFILE_HUB_LINKS) expect(PHONE_TABS).not.toContain(s)
+  })
+
+  it('Sidebar_PromotesBothSecondarySurfaces', () => {
+    // Wide layouts have room: both Meetings and the Assistant are first-class there.
+    expect(SIDEBAR_ITEMS).toContain('meetings')
+    expect(SIDEBAR_ITEMS).toContain('assistant')
   })
 })

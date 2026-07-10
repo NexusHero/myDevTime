@@ -80,10 +80,13 @@ intensity. Every figure clickable → drills to the exact entries (auditability 
 | **Projects** | Clients → projects → tasks, budget rings, rates | All |
 | **Reports** | Instruments (2.5), report builder, exports (#14/#38) | Desktop-first |
 | **Meetings** | Transcript list, AI insights, custom prompts (#32/#33) | Desktop/tablet |
-| **Profile** | Absences calendar (#37), schedules, credits balance (#34), settings | All |
+| **Assistant** | Grounded, read-only chat over your own data (#20) | All |
+| **Profile** | Absences calendar (#37), schedules, credits balance (#34), settings, hub to secondary surfaces | All |
 
 Bottom tabs (phone): Today · Planner · Projects · Reports · Profile. Sidebar (tablet/desktop)
-with the same five + Meetings promoted to top level.
+with the same five + Meetings + Assistant promoted to top level. The phone keeps exactly five
+tabs; the secondary surfaces (Meetings, Assistant) are reached there from the **Profile hub**,
+never a sixth tab.
 
 ## 4. Visual & motion language
 
