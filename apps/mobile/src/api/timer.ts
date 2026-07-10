@@ -1,5 +1,5 @@
 import { getJson, postJson } from './http.js'
-import { nullableStr, record, str } from './parse.js'
+import { nullableStr, parseArray, record, str } from './parse.js'
 
 /**
  * The timer client (REQ-004): the write/read seam for the live timer against the
@@ -110,4 +110,44 @@ export async function getRunning(
 ): Promise<TimeEntry | null> {
   const body = await getJson(baseUrl, '/api/tracking/entries/running', fetchImpl)
   return parseRunning(body)
+}
+
+/** Parse a list of time entries (the `/entries` collection), throwing on the wrong shape. */
+export function parseEntries(value: unknown): TimeEntry[] {
+  return parseArray(value, parseEntry)
+}
+
+export interface ListEntriesQuery {
+  readonly from?: string
+  readonly to?: string
+}
+
+/** List the workspace's time entries, optionally within an ISO date range. */
+export async function listEntries(
+  baseUrl: string,
+  query: ListEntriesQuery = {},
+  fetchImpl: typeof fetch = fetch,
+): Promise<TimeEntry[]> {
+  const params = new URLSearchParams()
+  if (query.from !== undefined) params.set('from', query.from)
+  if (query.to !== undefined) params.set('to', query.to)
+  const qs = params.toString()
+  const body = await getJson(
+    baseUrl,
+    `/api/tracking/entries${qs.length > 0 ? `?${qs}` : ''}`,
+    fetchImpl,
+  )
+  return parseEntries(body)
+}
+
+/**
+ * The tracked duration of an entry in ms: end − start for a closed entry, or
+ * now − start for a still-running one. Clamped at 0 (never negative). Pure, so the
+ * math stays out of the view (ADR-0005).
+ */
+export function entryDurationMs(entry: TimeEntry, now: Date): number {
+  const start = Date.parse(entry.startedAt)
+  const end = entry.endedAt === null ? now.getTime() : Date.parse(entry.endedAt)
+  const ms = end - start
+  return Number.isFinite(ms) && ms > 0 ? ms : 0
 }

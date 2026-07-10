@@ -5,35 +5,31 @@ import { Badge, Card, Row } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
 import { SubScreenHeader } from './SubScreenHeader'
 import { findTask } from './projectsData'
+import { useTaskEntries } from '../hooks/useTaskEntries'
+import { entryDurationMs } from '../api/timer'
 
 /**
  * Task detail (REQ-004, ux-vision §3) — the drill-down from a project's task
  * list: the task's status, its share of tracked time, and the recent entries that
  * make it up, each carrying its provenance (timer / manual / calendar) per the
- * ADR-0005 rule. Entries are illustrative until the tracking API feeds them; the
- * durations render through the design `formatDuration` helper.
+ * ADR-0005 rule. Entries come from the tracking API (`useTaskEntries`) with a demo
+ * fallback; durations are computed by the pure `entryDurationMs` and rendered
+ * through the design `formatDuration` helper.
  */
-interface Entry {
-  readonly id: string
-  readonly when: string
-  readonly durationMs: number
-  readonly source: 'timer' | 'manual' | 'calendar'
-}
-
-const H = 3_600_000
-const M = 60_000
-
-const ENTRIES: readonly Entry[] = [
-  { id: 'e1', when: 'Today · 09:30', durationMs: 90 * M, source: 'timer' },
-  { id: 'e2', when: 'Yesterday · 14:10', durationMs: 2 * H + 15 * M, source: 'timer' },
-  { id: 'e3', when: 'Yesterday · 11:00', durationMs: 45 * M, source: 'calendar' },
-  { id: 'e4', when: 'Jul 7 · 16:20', durationMs: 30 * M, source: 'manual' },
-]
-
-const SOURCE_LABEL: Record<Entry['source'], string> = {
+const SOURCE_LABEL: Record<string, string> = {
   timer: 'Timer',
   manual: 'Manual',
   calendar: 'Calendar',
+}
+
+/** A human label for an entry's provenance, falling back to the raw source. */
+function sourceLabel(source: string): string {
+  return SOURCE_LABEL[source] ?? source
+}
+
+/** Compact `YYYY-MM-DD HH:MM` label from an entry's ISO start (no locale drift). */
+function whenLabel(startedAt: string): string {
+  return startedAt.slice(0, 16).replace('T', ' ')
 }
 
 export function TaskScreen({
@@ -45,6 +41,8 @@ export function TaskScreen({
 }): React.JSX.Element {
   const t = useTheme()
   const found = findTask(taskId)
+  const entries = useTaskEntries(taskId)
+  const now = new Date()
 
   if (!found) {
     return (
@@ -119,31 +117,54 @@ export function TaskScreen({
       </Card>
 
       <View>
-        <Text
+        <View
           style={{
-            fontSize: t.fontSize.xs,
-            fontWeight: '700',
-            letterSpacing: 0.6,
-            textTransform: 'uppercase',
-            color: t.color.ink3,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: t.spacing.s2,
             marginBottom: t.spacing.s2,
           }}
         >
-          Recent entries
-        </Text>
+          <Text
+            style={{
+              fontSize: t.fontSize.xs,
+              fontWeight: '700',
+              letterSpacing: 0.6,
+              textTransform: 'uppercase',
+              color: t.color.ink3,
+            }}
+          >
+            Recent entries
+          </Text>
+          {!entries.live && (
+            <Badge tone="neutral" size="sm">
+              Demo data
+            </Badge>
+          )}
+        </View>
         <Card>
-          {ENTRIES.map(entry => (
-            <Row
-              key={entry.id}
-              title={formatDuration(entry.durationMs)}
-              subtitle={entry.when}
-              trailing={
-                <Badge tone="neutral" size="sm">
-                  {SOURCE_LABEL[entry.source]}
-                </Badge>
-              }
-            />
-          ))}
+          {entries.loading && !entries.data ? (
+            <Text style={{ color: t.color.ink2 }}>Loading entries…</Text>
+          ) : entries.error ? (
+            <Text style={{ color: t.color.crit }}>
+              Couldn’t load entries — {entries.error.message}
+            </Text>
+          ) : (entries.data?.length ?? 0) === 0 ? (
+            <Text style={{ color: t.color.ink2 }}>No time entries for this task yet.</Text>
+          ) : (
+            entries.data?.map(entry => (
+              <Row
+                key={entry.id}
+                title={`${formatDuration(entryDurationMs(entry, now))} h`}
+                subtitle={whenLabel(entry.startedAt)}
+                trailing={
+                  <Badge tone="neutral" size="sm">
+                    {sourceLabel(entry.source)}
+                  </Badge>
+                }
+              />
+            ))
+          )}
         </Card>
       </View>
     </ScrollView>
