@@ -15,6 +15,29 @@ export class BillingSummaryQueryDto extends createZodDto(
   z.object({ from: wireDate, to: wireDate, asOf: wireDate.optional() }),
 ) {}
 
+// ── Credit ledger (REQ-027) ─────────────────────────────────────────────────
+export class LedgerQueryDto extends createZodDto(
+  z.object({ limit: z.coerce.number().int().min(1).max(200).default(50) }),
+) {}
+export class UsageQueryDto extends createZodDto(z.object({ from: wireDate, to: wireDate })) {}
+export class DebitDto extends createZodDto(
+  z.object({
+    amount: z.number().int().positive(),
+    category: z.string().min(1),
+    reason: z.string().min(1).nullish(),
+    operationId: z.string().min(1).optional(),
+  }),
+) {}
+export class GrantDto extends createZodDto(
+  z.object({
+    amount: z.number().int().positive(),
+    kind: z.enum(['grant', 'topup']).optional(),
+    category: z.string().min(1),
+    reason: z.string().min(1).nullish(),
+    operationId: z.string().min(1).optional(),
+  }),
+) {}
+
 // ── Rates ─────────────────────────────────────────────────────────────────
 export class CreateRateDto extends createZodDto(
   z.object({

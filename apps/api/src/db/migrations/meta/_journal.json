@@ -85,6 +85,13 @@
       "when": 1783705016432,
       "tag": "0011_red_exiles",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1783705899360,
+      "tag": "0012_unique_sugar_man",
+      "breakpoints": true
     }
   ]
 }

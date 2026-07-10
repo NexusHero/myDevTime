@@ -111,6 +111,11 @@ export type {
 } from './planner/plan.js'
 export { buildDayPlan, reviewDayPlan } from './planner/plan.js'
 
+// AI-credit ledger (REQ-027, ADR-0008) — append-only signed deltas; balance +
+// usage derived from the log; deterministic, LLM-free (ADR-0005).
+export type { CreditEntryKind, CreditEntry, UsageBucket } from './credits/ledger.js'
+export { creditBalance, usageByCategory, canDebit } from './credits/ledger.js'
+
 // Entitlements — the domain of monetization (REQ-016, ADR-0006/0008). Provider-
 // agnostic plan/state machine; payment providers are adapters layered on later.
 export type {
