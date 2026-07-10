@@ -1,4 +1,4 @@
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, gte, isNull, lt } from 'drizzle-orm'
 import {
   budgetStatus,
   costOf,
@@ -177,6 +177,94 @@ export async function projectCost(
   })
 
   return { costMinor: sumMoney(costs), currencyCode: currency, entryCount: entries.length }
+}
+
+export interface ProjectBillable {
+  projectId: string
+  costMinor: number
+}
+export interface BillingSummary {
+  billableMinor: number
+  currencyCode: string
+  byProject: ProjectBillable[]
+}
+
+/**
+ * Billable revenue over a window (REQ-005): each **billable** entry that started
+ * in `[from, to)` is priced with the rate in effect at its start (task → project
+ * → client → workspace precedence) and summed per project and overall. The
+ * windowed counterpart of `projectCost` that the Reports screen reads; running
+ * entries are measured to `asOf`, unassigned/non-billable entries earn nothing.
+ */
+export async function billingSummary(
+  db: Db,
+  workspaceId: string,
+  range: { from: Date; to: Date; asOf: Date },
+): Promise<BillingSummary> {
+  const currency = one(
+    await db.select().from(workspaces).where(eq(workspaces.id, workspaceId)),
+    'workspace',
+  ).currencyCode
+
+  const clientByProject = new Map<string, string | null>()
+  for (const p of await db
+    .select({ id: projects.id, clientId: projects.clientId })
+    .from(projects)
+    .where(and(eq(projects.workspaceId, workspaceId), isNull(projects.deletedAt)))) {
+    clientByProject.set(p.id, p.clientId)
+  }
+
+  const allRules = (await listRates(db, workspaceId)).map(toRule)
+  const entries = await db
+    .select()
+    .from(timeEntries)
+    .where(
+      and(
+        eq(timeEntries.workspaceId, workspaceId),
+        isNull(timeEntries.deletedAt),
+        gte(timeEntries.startedAt, range.from),
+        lt(timeEntries.startedAt, range.to),
+      ),
+    )
+
+  const asOfMs = range.asOf.getTime()
+  const costsByProject = new Map<string, number[]>()
+  for (const e of entries) {
+    if (!e.billable || e.projectId === null) continue
+    const clientId = clientByProject.get(e.projectId) ?? null
+    const applicable = allRules.filter(
+      r =>
+        (r.level === 'workspace' && r.scopeId === null) ||
+        (r.level === 'client' && r.scopeId === clientId) ||
+        (r.level === 'project' && r.scopeId === e.projectId) ||
+        (r.level === 'task' && r.scopeId === e.taskId),
+    )
+    const rate = resolveRate(applicable, e.startedAt.getTime())
+    if (!rate) continue
+    const duration = entryDuration(
+      {
+        id: e.id,
+        start: e.startedAt.getTime(),
+        end: e.endedAt ? e.endedAt.getTime() : null,
+        billable: e.billable,
+        source: e.source,
+      },
+      asOfMs,
+    )
+    const list = costsByProject.get(e.projectId) ?? []
+    list.push(costOf(rate.amountMinorPerHour, duration))
+    costsByProject.set(e.projectId, list)
+  }
+
+  const byProject = [...costsByProject.entries()]
+    .map(([projectId, costs]) => ({ projectId, costMinor: sumMoney(costs) }))
+    .sort((a, b) => b.costMinor - a.costMinor || a.projectId.localeCompare(b.projectId))
+
+  return {
+    billableMinor: sumMoney(byProject.map(p => p.costMinor)),
+    currencyCode: currency,
+    byProject,
+  }
 }
 
 // ── Budgets ──────────────────────────────────────────────────────────────────
