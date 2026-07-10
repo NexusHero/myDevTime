@@ -37,3 +37,6 @@ export * from './billing-schema.js'
 
 // Entitlements: provider-agnostic event log; plan derived on read (REQ-016).
 export * from './entitlements-schema.js'
+
+// Attendance: work-day shifts + effective-dated target-hour schedules (REQ-028).
+export * from './attendance-schema.js'
