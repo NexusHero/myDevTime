@@ -52,6 +52,17 @@ describe('getSession', () => {
     const { fetchImpl } = fetchSeq([() => ({ status: 500, body: { title: 'Boom' } })])
     await expect(getSession('http://api', fetchImpl)).rejects.toMatchObject({ status: 500 })
   })
+  it('HangingRequest_TimesOutAndRejects', async () => {
+    // A request that never settles must abort so the gate falls through to login
+    // instead of blocking on the splash forever.
+    const hanging = ((_url: string, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new Error('aborted'))
+        })
+      })) as unknown as typeof fetch
+    await expect(getSession('http://api', hanging, 10)).rejects.toBeInstanceOf(Error)
+  })
 })
 
 describe('signIn', () => {

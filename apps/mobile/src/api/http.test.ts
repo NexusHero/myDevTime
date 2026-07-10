@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ApiError, postJson, problemToError } from './http.js'
+import { ApiError, postJson, problemToError, withTimeout } from './http.js'
 
 /**
  * The problem→error mapping is the client's read of the API's RFC 7807 contract,
@@ -79,5 +79,28 @@ describe('postJson', () => {
       status: 0,
       title: 'Network error',
     })
+  })
+})
+
+/**
+ * `withTimeout` guards a `fetch` that would otherwise hang forever (no default
+ * timeout): a stalled request aborts, a prompt one passes straight through.
+ */
+describe('withTimeout', () => {
+  it('StalledRequest_IsAborted', async () => {
+    const hanging = ((_url: string, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new Error('aborted'))
+        })
+      })) as unknown as typeof fetch
+    await expect(withTimeout(hanging, 10)('http://x')).rejects.toThrow(/abort/i)
+  })
+
+  it('PromptResponse_PassesThrough', async () => {
+    const fast = (() =>
+      Promise.resolve(new Response('ok', { status: 200 }))) as unknown as typeof fetch
+    const res = await withTimeout(fast, 1000)('http://x')
+    expect(res.status).toBe(200)
   })
 })
