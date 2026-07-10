@@ -2,5 +2,13 @@
  * structure, ADR-0025): each name is a feature module mounted under
  * `/api/<name>`. The boundary test uses this list to enforce that a module
  * imports only another module's public surface (`contract.ts` + `<name>.module.ts`). */
-export const MODULE_NAMES = ['auth', 'tracking', 'sync', 'automation', 'ai', 'billing'] as const
+export const MODULE_NAMES = [
+  'auth',
+  'tracking',
+  'sync',
+  'automation',
+  'ai',
+  'billing',
+  'worktime',
+] as const
 export type ModuleName = (typeof MODULE_NAMES)[number]
