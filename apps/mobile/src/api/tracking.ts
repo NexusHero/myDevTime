@@ -1,4 +1,5 @@
 import { getJson } from './http.js'
+import { nullableStr, parseArray, str } from './parse.js'
 import type { Client, Project, Task } from '../screens/projectsData'
 
 /**
@@ -24,26 +25,6 @@ export interface TaskDTO {
   readonly name: string
   readonly projectId: string
   readonly archived: boolean
-}
-
-function record(value: unknown): Record<string, unknown> {
-  if (value === null || typeof value !== 'object') throw new Error('expected an object')
-  return value as Record<string, unknown>
-}
-function str(o: Record<string, unknown>, key: string): string {
-  const v = o[key]
-  if (typeof v !== 'string') throw new Error(`expected string field "${key}"`)
-  return v
-}
-function nullableStr(o: Record<string, unknown>, key: string): string | null {
-  const v = o[key]
-  if (v === null || v === undefined) return null
-  if (typeof v !== 'string') throw new Error(`expected string|null field "${key}"`)
-  return v
-}
-function parseArray<T>(value: unknown, one: (o: Record<string, unknown>) => T): T[] {
-  if (!Array.isArray(value)) throw new Error('expected an array')
-  return value.map(item => one(record(item)))
 }
 
 export function parseClients(value: unknown): ClientDTO[] {

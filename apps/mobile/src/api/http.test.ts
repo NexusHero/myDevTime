@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ApiError, problemToError } from './http.js'
+import { ApiError, postJson, problemToError } from './http.js'
 
 /**
  * The problem→error mapping is the client's read of the API's RFC 7807 contract,
@@ -26,5 +26,58 @@ describe('problemToError', () => {
   it('NonObjectBody_FallsBackToStatusMessage', () => {
     expect(problemToError(500, null).title).toBe('HTTP 500')
     expect(problemToError(503, 'oops').title).toBe('HTTP 503')
+  })
+})
+
+/**
+ * `postJson` is the write counterpart of `getJson`: it sends a JSON body with the
+ * session cookie and maps a non-2xx problem+json body to `ApiError`, exactly like
+ * the read path, so the two seams behave identically on failure.
+ */
+describe('postJson', () => {
+  function fetchReturning(
+    status: number,
+    body: unknown,
+  ): {
+    fetchImpl: typeof fetch
+    seen: { url: string; init: RequestInit }[]
+  } {
+    const seen: { url: string; init: RequestInit }[] = []
+    const fetchImpl = ((url: string, init?: RequestInit) => {
+      seen.push({ url, init: init ?? {} })
+      const text = body === undefined ? '' : JSON.stringify(body)
+      return Promise.resolve(new Response(text, { status }))
+    }) as unknown as typeof fetch
+    return { fetchImpl, seen }
+  }
+
+  it('SendsJsonBodyWithCredentials_AndParsesResponse', async () => {
+    const { fetchImpl, seen } = fetchReturning(201, { id: 'e1' })
+    const body = await postJson('http://api', '/x', { a: 1 }, fetchImpl)
+    expect(body).toEqual({ id: 'e1' })
+    expect(seen[0]?.url).toBe('http://api/x')
+    expect(seen[0]?.init.method).toBe('POST')
+    expect(seen[0]?.init.credentials).toBe('include')
+    expect(seen[0]?.init.body).toBe(JSON.stringify({ a: 1 }))
+    expect((seen[0]?.init.headers as Record<string, string>)['content-type']).toBe(
+      'application/json',
+    )
+  })
+
+  it('Non2xx_ThrowsApiErrorFromProblem', async () => {
+    const { fetchImpl } = fetchReturning(409, { title: 'Conflict', detail: 'already running' })
+    await expect(postJson('http://api', '/x', {}, fetchImpl)).rejects.toMatchObject({
+      status: 409,
+      title: 'Conflict',
+      detail: 'already running',
+    })
+  })
+
+  it('NetworkFailure_ThrowsStatusZero', async () => {
+    const fetchImpl = (() => Promise.reject(new Error('offline'))) as unknown as typeof fetch
+    await expect(postJson('http://api', '/x', {}, fetchImpl)).rejects.toMatchObject({
+      status: 0,
+      title: 'Network error',
+    })
   })
 })
