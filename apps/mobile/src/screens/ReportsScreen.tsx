@@ -10,9 +10,9 @@ import { useReports } from '../hooks/useReports'
  * project, the overtime balance gauge, and small-multiple week sparklines. Every
  * figure renders in tabular numerals and every instrument is driven by the pure
  * geometry in `@mydevtime/design` (ADR-0005), so the SVG matches the numbers.
- * Tracked time, per-project sparklines, billable money and budget rings are fed by
- * the API (`useReports`); the overtime gauge stays illustrative until the work-time
- * read is wired, and the calendar heatmap is a follow-up slice.
+ * Every figure — tracked time, per-project sparklines, billable money, budget
+ * rings and the overtime balance — is fed by the API (`useReports`), with demo
+ * constants as the offline fallback; the calendar heatmap is a follow-up slice.
  */
 const H = 3_600_000
 
@@ -65,14 +65,15 @@ export function ReportsScreen(): React.JSX.Element {
   const wide = width >= 900
   const reports = useReports()
 
-  // Tracked total, per-project sparklines, billable money and budget rings come
-  // from the API; only the overtime gauge stays demo until the work-time read is
-  // wired.
+  // Every figure on the card is API-backed now (tracked time, sparklines,
+  // billable money, budget rings and the overtime balance); the demo constants
+  // are just the offline fallback.
   const trackedMs = reports.data?.totalMs ?? WEEK_TOTAL_MS
   const billableMinor = reports.data?.billableMinor ?? BILLABLE_MINOR
   const currencyCode = reports.data?.currencyCode ?? 'EUR'
   const byProject = reports.data?.byProject ?? []
   const budgets = reports.data?.budgets ?? []
+  const overtimeMs = reports.data?.overtimeMs ?? OVERTIME_MS
 
   return (
     <ScrollView
@@ -112,9 +113,9 @@ export function ReportsScreen(): React.JSX.Element {
           <Metric label="Tracked this week" value={`${formatDuration(trackedMs)} h`} />
           <Metric label="Billable" value={formatMoneyMinor(billableMinor, currencyCode)} />
           <View style={{ alignItems: 'center' }}>
-            <Gauge value={OVERTIME_MS / H} range={OVERTIME_RANGE_H} label="Overtime balance" />
+            <Gauge value={overtimeMs / H} range={OVERTIME_RANGE_H} label="Overtime balance" />
             <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2, marginTop: 2 }}>
-              Overtime {formatDuration(OVERTIME_MS)} h
+              Overtime {formatDuration(overtimeMs)} h
             </Text>
           </View>
         </View>
