@@ -2,6 +2,7 @@ import { ActivityIndicator, View } from 'react-native'
 import { useTheme } from '../theme/ThemeProvider'
 import { useSession } from '../hooks/useSession'
 import { LoginScreen } from '../screens/LoginScreen'
+import { SessionProvider } from './SessionContext'
 
 /**
  * AuthGate (REQ-002) — the session boundary around the app. While the session
@@ -32,5 +33,5 @@ export function AuthGate({ children }: { children: React.ReactNode }): React.JSX
     return <LoginScreen onSignIn={session.signIn} busy={session.busy} error={session.error} />
   }
 
-  return <>{children}</>
+  return <SessionProvider value={session}>{children}</SessionProvider>
 }
