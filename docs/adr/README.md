@@ -44,6 +44,8 @@ below in number order.
 | [0023](0023-blueprint-default-accent.md) | Default accent → **Blueprint** ("Königsblau" `#2563EB`); Sovereign/Ember stay first-class, user-selectable; token architecture & a11y contract unchanged | Accepted — supersedes the default-accent choice of ADR-0022 |
 | [0024](0024-backend-dependency-wiring.md) | Backend dependency wiring: manual constructor injection (factory modules over typed `deps`) + Fastify plugin/decorator composition; DIP via narrow ports, not a container | Accepted — **superseded by 0025** (owner chose NestJS DI) |
 | [0025](0025-adopt-nestjs-on-fastify.md) | Adopt **NestJS 11 on `@nestjs/platform-fastify`**: modules/controllers/providers + container DI, `nestjs-zod` validation/OpenAPI, RFC-7807 exception filter, Better-Auth guard; Fastify kept as HTTP layer; `packages/domain` stays pure | Accepted (owner decision) — supersedes 0024 & the composition/DI half of 0003/0015; resolves spike [#104](https://github.com/NexusHero/myDevTime/issues/104) |
+| [0026](0026-design-system-pro-tier-adjustments.md) | Design system pro-tier adjustments: density tokens (regular/compact) on `Theme`, 12-color categorical project palette, absolute (non-`rgba`) soft semantic colors for deterministic WCAG contrast across surfaces, a micro logo variant | Accepted — extends ADR-0011/0022/0023 |
+| [0027](0027-mobile-ui-testing-strategy.md) | Mobile UI testing strategy: `@testing-library/react-native` + `react-test-renderer` component tests for `apps/mobile`, run by the same Vitest runner (ADR-0014) via a JSDOM environment and native-module mocks at the app boundary | Accepted — extends ADR-0014 |
 
 ## Tech Radar
 
@@ -66,7 +68,8 @@ One line per technology so the stack's shape stays visible without re-reading th
 | React Native + Expo (+ react-native-web, EAS) | Adopt (provisional — spike #1 passed; on-device checklist pending) | ADR-0004 |
 | react-native-reanimated + Gesture Handler (Day Canvas 60fps) | Adopt | ADR-0004/0011 |
 | expo-sqlite (offline-first local store) | Adopt | ADR-0004/0019 |
-| Themable design tokens (`@mydevtime/design`: accent × mode, 3 accents; Blueprint/Königsblau default) | Adopt | ADR-0011/0022/0023 |
+| Themable design tokens (`@mydevtime/design`: accent × mode, 3 accents; Blueprint/Königsblau default; density regular/compact, 12-color project palette, absolute soft colors) | Adopt | ADR-0011/0022/0023/0026 |
+| `@testing-library/react-native` + `react-test-renderer` (mobile component tests, run by Vitest) | Adopt | ADR-0027 |
 | react-native-svg (instrument viz: budget rings, balance gauge, sparklines) | Adopt | ADR-0011/0022 (ux-vision §2.5) |
 | Inter · Space Grotesk · JetBrains Mono via expo-font / @expo-google-fonts (Blueprint trio) | Adopt | ADR-0022 (font-loading slice) |
 | Flutter | Hold (named fallback; not triggered by the spike) | ADR-0004 |
