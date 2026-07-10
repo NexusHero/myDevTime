@@ -77,6 +77,9 @@ export class CreateEntryDto extends createZodDto(
 export class ListEntriesQueryDto extends createZodDto(
   z.object({ from: wireDate.optional(), to: wireDate.optional() }),
 ) {}
+export class SummaryQueryDto extends createZodDto(
+  z.object({ from: wireDate, to: wireDate, tz: z.string().min(1).default('UTC') }),
+) {}
 export class UpdateEntryDto extends createZodDto(
   z.object({
     startedAt: wireDate.optional(),
