@@ -5,16 +5,23 @@ import {
   toReportProjects,
   type ReportProject,
 } from '../api/reports.js'
+import {
+  fetchBudgetStatus,
+  fetchBudgets,
+  toBudgetRings,
+  type BudgetRingRow,
+} from '../api/budgets.js'
 import { fetchCatalog } from '../api/tracking.js'
 import { useAsync, type AsyncResource } from './useAsync.js'
 
 /**
  * The Reports data source (REQ-005): when an API base URL is configured the hook
  * fetches, for the trailing week, the workspace time summary, the billable-money
- * summary, and the catalog (for project names), then joins them; otherwise — the
- * default in local dev and the test gate — it resolves illustrative demo figures.
- * `live` lets the UI flag demo data. Budget rings and overtime still come from
- * demo constants in the screen until the budget and work-time reads are wired.
+ * summary, the project budgets (with per-budget status), and the catalog (for
+ * project names), then joins them; otherwise — the default in local dev and the
+ * test gate — it resolves illustrative demo figures. `live` lets the UI flag demo
+ * data. The overtime gauge still comes from a demo constant in the screen until
+ * the work-time read is wired.
  */
 const H = 3_600_000
 const M = 60_000
@@ -24,6 +31,7 @@ export interface ReportsData {
   readonly billableMinor: number
   readonly currencyCode: string
   readonly byProject: readonly ReportProject[]
+  readonly budgets: readonly BudgetRingRow[]
 }
 
 export interface ReportsResource extends AsyncResource<ReportsData> {
@@ -46,6 +54,32 @@ function demoReports(): ReportsData {
         daily: day(3, 4, 2, 5, 6, 4, 2),
       },
     ],
+    budgets: [
+      {
+        id: 'finanzo',
+        name: 'Finanzo',
+        ratio: 0.65,
+        consumed: 78 * H,
+        basis: 'hours',
+        currencyCode: 'EUR',
+      },
+      {
+        id: 'sync-engine',
+        name: 'Sync engine',
+        ratio: 0.97,
+        consumed: 58 * H,
+        basis: 'hours',
+        currencyCode: 'EUR',
+      },
+      {
+        id: 'nordwind',
+        name: 'Website relaunch',
+        ratio: 1.1,
+        consumed: 44 * H,
+        basis: 'hours',
+        currencyCode: 'EUR',
+      },
+    ],
   }
 }
 
@@ -65,11 +99,13 @@ export function useReports(): ReportsResource {
   const resource = useAsync<ReportsData>(
     async () => {
       if (base === null) return demoReports()
-      const [summary, billing, catalog] = await Promise.all([
+      const [summary, billing, catalog, budgetList] = await Promise.all([
         fetchSummary(base, range),
         fetchBillingSummary(base, range),
         fetchCatalog(base),
+        fetchBudgets(base),
       ])
+      const statuses = await Promise.all(budgetList.map(b => fetchBudgetStatus(base, b.id)))
       const nameById = new Map<string, string>()
       for (const client of catalog)
         for (const project of client.projects) nameById.set(project.id, project.name)
@@ -78,6 +114,7 @@ export function useReports(): ReportsResource {
         billableMinor: billing.billableMinor,
         currencyCode: billing.currencyCode,
         byProject: toReportProjects(summary, nameById),
+        budgets: toBudgetRings(statuses, nameById),
       }
     },
     `${base ?? 'demo'}:${range.from}`,
