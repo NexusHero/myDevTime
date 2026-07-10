@@ -108,7 +108,7 @@ a Runtime-View sequence diagram (§6).
 | REQ-025 | Meeting transcription pipeline: consent-first capture, `TranscriptionPort` ASR adapter, transcript linked to the time entry, DSGVO-grade lifecycle | ADR-0008/0009, [#32](https://github.com/NexusHero/myDevTime/issues/32) | Proposed — blocked on the capture spike [#31](https://github.com/NexusHero/myDevTime/issues/31) |
 | REQ-026 | AI meeting insights: summaries, action items, Tactiq-style reusable custom prompts over transcripts; confirmed-only task creation | ADR-0008, [#33](https://github.com/NexusHero/myDevTime/issues/33) | Proposed |
 | REQ-027 | AI-credit ledger: append-only, idempotent debits, monthly plan allowances, top-up packs on all three payment rails, visible balance | ADR-0008, [#34](https://github.com/NexusHero/myDevTime/issues/34) | Proposed |
-| REQ-028 | Attendance: clock-in/out, breaks, effective-dated target-hour schedules, overtime balance, project-coverage reconciliation, configurable break-rule check (ArbZG §4 preset) | ADR-0010, [#36](https://github.com/NexusHero/myDevTime/issues/36) | Proposed |
+| REQ-028 | Attendance: clock-in/out, breaks, effective-dated target-hour schedules, overtime balance, project-coverage reconciliation, configurable break-rule check (ArbZG §4 preset) | ADR-0010, [#36](https://github.com/NexusHero/myDevTime/issues/36) | In progress — deterministic work-day core (`packages/domain/attendance`) + the `worktime` module persist it: `attendance_shifts` + effective-dated `work_schedules` (migration 0009), `POST /api/worktime/shifts`, `PUT /api/worktime/schedule`, `GET /api/worktime/summary` (overtime balance over a window, workspace-isolated), and the Reports overtime gauge reads it live. Break-rule (ArbZG §4) check, project-coverage reconciliation, absences interplay, and the signable report still to come |
 | REQ-029 | Absences: vacation/sick/holiday/custom types, half-days, regional holiday calendars, allowance & carry-over math, target-hour interplay | ADR-0010, [#37](https://github.com/NexusHero/myDevTime/issues/37) | Proposed |
 | REQ-030 | Signable work-time report: monthly Arbeitszeitnachweis as PDF with signature blocks + structured XLSX, rendered exclusively from domain-computed values | ADR-0010, [#38](https://github.com/NexusHero/myDevTime/issues/38) | Proposed |
 | REQ-031 | AI Co-Planner: versioned plan entity, deterministic planning algorithm with LLM garnish (ADR-0005 discipline), ghost-block proposals on the Day Canvas, plan-vs-actual + evening review | ADR-0011, [#40](https://github.com/NexusHero/myDevTime/issues/40) | Proposed |
@@ -233,7 +233,8 @@ apps/api  (NestJS on the Fastify adapter — module-per-domain, ADR-0025)
   ├─ main.ts → app.ts (buildApp)        compose config → db → Nest app → listen
   ├─ /health, /health/ready            operational (liveness / readiness → DB ping)
   ├─ /api/auth        auth             authN & sessions (REQ-002); Better-Auth catch-all on raw Fastify
-  ├─ /api/tracking    tracking         entries · projects · attendance · budgets (REQ-001/003–005)
+  ├─ /api/tracking    tracking         entries · projects · summary (REQ-001/003–005)
+  ├─ /api/worktime    worktime         attendance shifts · schedules · overtime balance (REQ-028)
   ├─ /api/sync        sync             offline-first cross-device sync (REQ-006)
   ├─ /api/automation  automation       calendar ingestion + deterministic rules (REQ-010/011)
   ├─ /api/ai          ai               LLM/ASR assist — proposals only (ADR-0005)

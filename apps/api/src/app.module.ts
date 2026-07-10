@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth/auth.module.js'
 import { TrackingModule } from './modules/tracking/tracking.module.js'
 import { SyncModule } from './modules/sync/sync.module.js'
 import { BillingModule } from './modules/billing/billing.module.js'
+import { WorktimeModule } from './modules/worktime/worktime.module.js'
 
 /**
  * The composition root (ADR-0025): `forRoot` wires the shared providers
@@ -28,6 +29,7 @@ export class AppModule {
         TrackingModule,
         SyncModule,
         BillingModule,
+        WorktimeModule,
       ],
     }
   }

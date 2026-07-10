@@ -77,6 +77,11 @@ export { buildTimesheet } from './reporting/timesheet.js'
 export type { ProjectSummary, WorkspaceSummary, SummaryOptions } from './reporting/summary.js'
 export { summarizeEntries } from './reporting/summary.js'
 
+// Attendance work-day core (REQ-028, ADR-0010) — punch-pair math + overtime
+// balance against a weekly target; deterministic, LLM-free (ADR-0005).
+export type { Shift, WeeklyTarget, OvertimeRange, OvertimeBalance } from './attendance/worktime.js'
+export { isValidShift, shiftNetMs, targetForDay, computeOvertime } from './attendance/worktime.js'
+
 // Entitlements — the domain of monetization (REQ-016, ADR-0006/0008). Provider-
 // agnostic plan/state machine; payment providers are adapters layered on later.
 export type {
