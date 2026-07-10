@@ -23,6 +23,7 @@ import { timesheetToPdf } from './export/pdf.js'
 import { BillingContext } from './billing.context.js'
 import {
   AsOfQueryDto,
+  BillingSummaryQueryDto,
   CreateBudgetDto,
   CreateRateDto,
   ExportQueryDto,
@@ -121,6 +122,16 @@ export class BillingController {
   ) {
     const { db, workspaceId } = await this.ctx.workspaceOf(user)
     return svc.projectCost(db, workspaceId, params.id, query.asOf ?? new Date())
+  }
+
+  @Get('summary')
+  async summary(@CurrentUser() user: AuthenticatedUser, @Query() query: BillingSummaryQueryDto) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    return svc.billingSummary(db, workspaceId, {
+      from: query.from,
+      to: query.to,
+      asOf: query.asOf ?? new Date(),
+    })
   }
 
   // ── Timesheet export (CSV / XLSX / PDF) ──────────────────────────────────
