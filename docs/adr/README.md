@@ -74,6 +74,7 @@ One line per technology so the stack's shape stays visible without re-reading th
 | expo-sqlite (offline-first local store) | Adopt | ADR-0004/0019 |
 | Themable design tokens (`@mydevtime/design`: accent × mode, 3 accents; Blueprint/Königsblau default; density regular/compact, 12-color project palette, absolute soft colors) | Adopt | ADR-0011/0022/0023/0026 |
 | `@testing-library/react-native` + `react-test-renderer` (mobile component tests, run by Vitest) | Adopt | ADR-0027 |
+| jsdom (DOM env for component tests that mount react-native-web `TextInput` etc., per-file `@vitest-environment`) | Adopt | ADR-0027 |
 | react-native-svg (instrument viz: budget rings, balance gauge, sparklines) | Adopt | ADR-0011/0022 (ux-vision §2.5) |
 | Inter · Space Grotesk · JetBrains Mono via expo-font / @expo-google-fonts (Blueprint trio) | Adopt | ADR-0022 (font-loading slice) |
 | Flutter | Hold (named fallback; not triggered by the spike) | ADR-0004 |
