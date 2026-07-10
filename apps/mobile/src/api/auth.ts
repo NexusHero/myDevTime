@@ -1,5 +1,8 @@
-import { ApiError, getJson, postJson } from './http.js'
+import { ApiError, getJson, postJson, withTimeout } from './http.js'
 import { record, str } from './parse.js'
+
+/** Default budget for the session probe before it falls through to the login gate. */
+const SESSION_TIMEOUT_MS = 8000
 
 /**
  * The client auth seam (REQ-002, ADR-0007/0017/0018). The rest of the app talks to
@@ -36,9 +39,10 @@ export function parseUser(value: unknown): AuthUser {
 export async function getSession(
   baseUrl: string,
   fetchImpl: typeof fetch = fetch,
+  timeoutMs: number = SESSION_TIMEOUT_MS,
 ): Promise<AuthUser | null> {
   try {
-    return parseUser(await getJson(baseUrl, '/api/auth/me', fetchImpl))
+    return parseUser(await getJson(baseUrl, '/api/auth/me', withTimeout(fetchImpl, timeoutMs)))
   } catch (cause) {
     if (cause instanceof ApiError && cause.status === 401) return null
     throw cause

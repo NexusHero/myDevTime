@@ -10,6 +10,7 @@ import {
 } from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
 import { Badge, Card, ProgressBar, Row, Switch } from '../components/index'
+import { initialsOf, useSessionContext } from '../shell/SessionContext'
 
 /**
  * Profile — the personal hub (ux-vision §3): identity + plan, the AI-credit
@@ -68,10 +69,13 @@ export function ProfileScreen({
   onNavigate: (screen: Screen) => void
 }): React.JSX.Element {
   const t = useTheme()
+  const session = useSessionContext()
   const [reminders, setReminders] = useState(true)
   const [idleDetection, setIdleDetection] = useState(true)
   const [weekStartMonday, setWeekStartMonday] = useState(true)
 
+  const user = session.user ?? { name: '', email: '', id: '', emailVerified: false }
+  const displayName = user.name.trim() || user.email || 'You'
   const mono = { fontFamily: t.fontFamily.numeric, color: t.color.ink }
   const vacationRatio = VACATION_USED / VACATION_ALLOWANCE
   const chevron = <Text style={{ color: t.color.ink3, fontSize: t.fontSize.lg }}>›</Text>
@@ -95,7 +99,7 @@ export function ProfileScreen({
           accessibilityElementsHidden
         >
           <Text style={{ fontSize: t.fontSize.lg, fontWeight: '700', color: t.color.accentText }}>
-            SS
+            {initialsOf(user)}
           </Text>
         </View>
         <View style={{ flex: 1 }}>
@@ -107,10 +111,10 @@ export function ProfileScreen({
               fontFamily: t.fontFamily.display,
             }}
           >
-            Suhay Sevinç
+            {displayName}
           </Text>
           <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, marginTop: 2 }}>
-            NexusHero workspace
+            {user.email || 'NexusHero workspace'}
           </Text>
         </View>
         <Badge tone="accent">Pro</Badge>
@@ -274,6 +278,25 @@ export function ProfileScreen({
               onPress={() => onNavigate(link)}
             />
           ))}
+        </Card>
+      </View>
+
+      {/* Sign out — ends the session; in demo mode it returns to the login gate,
+          from which the demo bypass signs straight back in. */}
+      <View>
+        <Card>
+          <Row
+            title="Sign out"
+            subtitle={session.live ? user.email : 'Demo session'}
+            trailing={
+              <Text style={{ color: t.color.crit, fontSize: t.fontSize.sm, fontWeight: '600' }}>
+                {session.busy ? '…' : 'Sign out'}
+              </Text>
+            }
+            onPress={() => {
+              void session.signOut()
+            }}
+          />
         </Card>
       </View>
     </ScrollView>

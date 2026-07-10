@@ -88,3 +88,21 @@ export async function postJson(
     fetchImpl,
   )
 }
+
+/**
+ * Wrap a `fetch` so a request that stalls longer than `ms` is aborted (`fetch`
+ * has no default timeout — a black-holed connection hangs forever otherwise). The
+ * abort surfaces through `send` as a network `ApiError`, so callers on the critical
+ * path (e.g. the session probe) fall through instead of blocking the UI.
+ */
+export function withTimeout(fetchImpl: typeof fetch, ms: number): typeof fetch {
+  return ((url: string, init?: RequestInit) => {
+    const controller = new AbortController()
+    const timer = setTimeout(() => {
+      controller.abort()
+    }, ms)
+    return fetchImpl(url, { ...init, signal: controller.signal }).finally(() => {
+      clearTimeout(timer)
+    })
+  }) as typeof fetch
+}

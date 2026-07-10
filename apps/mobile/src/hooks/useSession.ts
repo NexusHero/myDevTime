@@ -51,8 +51,14 @@ export function useSession(): SessionResource {
           setError(null)
         }
       })
-      .catch((cause: unknown) => {
-        if (alive) setError(cause instanceof Error ? cause : new Error(String(cause)))
+      .catch(() => {
+        // A failed session probe (server unreachable / timed out / not signed in)
+        // simply means "show the login screen" — it is not a user-facing error, so
+        // the form stays clean until an actual sign-in attempt fails.
+        if (alive) {
+          setUser(null)
+          setError(null)
+        }
       })
       .finally(() => {
         if (alive) setLoading(false)
