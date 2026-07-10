@@ -4,6 +4,7 @@ import { Text } from '../components/core/Text'
 import { projectColor } from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
 import { Badge, Button, Card, DayBlock, Island } from '../components/index'
+import { useTimer } from '../hooks/useTimer'
 
 /**
  * Today — the Day Canvas home (ux-vision §2.1, §3): the morning briefing with the
@@ -29,6 +30,8 @@ export function TodayScreen(): React.JSX.Element {
   const stacked = width < 720
   const [ghosts, setGhosts] = useState<readonly Ghost[]>(INITIAL_GHOSTS)
   const [expanded, setExpanded] = useState(false)
+  const timer = useTimer()
+  const isRunning = timer.running !== null
 
   const dismiss = (id: string): void => setGhosts(gs => gs.filter(g => g.id !== id))
 
@@ -105,12 +108,18 @@ export function TodayScreen(): React.JSX.Element {
       }}
     >
       <Island
-        running
-        elapsed="00:42:11"
-        punched
+        running={isRunning}
+        elapsed={timer.elapsed}
+        // `punched` (attendance clock-in) tracks the timer for now; a dedicated
+        // punch-clock lands with the work-time slice (REQ-010).
+        punched={isRunning}
         expanded={expanded}
         onToggle={() => setExpanded(e => !e)}
-        actions={[{ label: 'Pause' }, { label: 'Punch out' }]}
+        actions={[
+          isRunning
+            ? { label: timer.busy ? '…' : 'Stop', onPress: timer.punchOut }
+            : { label: timer.busy ? '…' : 'Start', onPress: () => timer.punchIn() },
+        ]}
       />
     </View>
   )

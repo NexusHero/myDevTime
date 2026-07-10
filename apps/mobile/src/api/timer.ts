@@ -49,6 +49,35 @@ export interface StartTimerInput {
   readonly startedAt?: string
 }
 
+/**
+ * The optimistic/demo running entry to show the instant a timer starts, before
+ * (or without) a server round-trip. Same shape the server returns, with a
+ * placeholder id and `endedAt: null`; the live path replaces it with the real
+ * entry, the demo path keeps it.
+ */
+export function provisionalEntry(input: StartTimerInput, startedAt: Date): TimeEntry {
+  return {
+    id: 'pending',
+    projectId: input.projectId ?? null,
+    taskId: input.taskId ?? null,
+    startedAt: startedAt.toISOString(),
+    endedAt: null,
+    billable: input.billable ?? true,
+    source: 'timer',
+    note: input.note ?? null,
+  }
+}
+
+/** Format an elapsed duration in ms as a `HH:MM:SS` stopwatch label (clamped at 0). */
+export function formatStopwatch(ms: number): string {
+  const total = Number.isFinite(ms) && ms > 0 ? Math.floor(ms / 1000) : 0
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const seconds = total % 60
+  const pad = (n: number): string => String(n).padStart(2, '0')
+  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
+}
+
 /** Start the live timer; returns the created running entry. */
 export async function startTimer(
   baseUrl: string,
