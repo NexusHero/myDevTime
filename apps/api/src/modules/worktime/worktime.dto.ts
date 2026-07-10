@@ -35,6 +35,16 @@ export class ClockOutDto extends createZodDto(
 
 export class ShiftsQueryDto extends createZodDto(z.object({ from: wireDate, to: wireDate })) {}
 
+export class ReportQueryDto extends createZodDto(
+  z.object({
+    year: z.coerce.number().int().min(1970).max(9999),
+    month: z.coerce.number().int().min(1).max(12),
+    format: z.enum(['pdf', 'xlsx']).default('pdf'),
+    tz: z.string().min(1).default('UTC'),
+    locale: z.enum(['en', 'de']).default('en'),
+  }),
+) {}
+
 export class SetScheduleDto extends createZodDto(
   z.object({
     effectiveFrom: wireDate,
