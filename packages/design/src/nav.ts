@@ -60,15 +60,29 @@ const BY_SCREEN: ReadonlyMap<Screen, RouteDef> = new Map(ROUTES.map(r => [r.scre
 /** Bottom tabs on phone (ux-vision §3): Today · Planner · Projects · Reports · Profile. */
 export const PHONE_TABS: readonly Screen[] = ['today', 'planner', 'projects', 'reports', 'profile']
 
-/** Sidebar items on tablet/desktop: the five tabs + Meetings promoted to top level. */
+/**
+ * Sidebar items on tablet/desktop (ux-vision §3): the five phone tabs plus the
+ * secondary surfaces (Meetings, Assistant) promoted to top level — wide layouts
+ * have the room, phones do not.
+ */
 export const SIDEBAR_ITEMS: readonly Screen[] = [
   'today',
   'planner',
   'projects',
   'reports',
   'meetings',
+  'assistant',
   'profile',
 ]
+
+/**
+ * Surfaces the Profile hub links into so the phone can reach them (ux-vision §3):
+ * the top-level screens that are deliberately kept off the five-tab bar. Without
+ * this the Assistant is orphaned and Meetings is desktop-only. The desktop sidebar
+ * also promotes these, so the hub is the phone's path, not the only one.
+ */
+export const PROFILE_HUB_LINKS = ['meetings', 'assistant'] as const satisfies readonly Screen[]
+export type ProfileHubLink = (typeof PROFILE_HUB_LINKS)[number]
 
 /** Build a path for a screen. Throws if a required param is missing. */
 export function buildPath(screen: Screen, params: Readonly<Record<string, string>> = {}): string {
