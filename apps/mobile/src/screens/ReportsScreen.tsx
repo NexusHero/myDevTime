@@ -90,9 +90,11 @@ export function ReportsScreen(): React.JSX.Element {
   const wide = width >= 900
   const reports = useReports()
 
-  // Tracked total + per-project sparklines come from the summary endpoint; budget
-  // rings, billable money and overtime stay demo until billing/work-time is wired.
+  // Tracked total, per-project sparklines and billable money come from the API;
+  // budget rings and overtime stay demo until the budget/work-time reads are wired.
   const trackedMs = reports.data?.totalMs ?? WEEK_TOTAL_MS
+  const billableMinor = reports.data?.billableMinor ?? BILLABLE_MINOR
+  const currencyCode = reports.data?.currencyCode ?? 'EUR'
   const byProject = reports.data?.byProject ?? []
 
   return (
@@ -131,7 +133,7 @@ export function ReportsScreen(): React.JSX.Element {
           }}
         >
           <Metric label="Tracked this week" value={`${formatDuration(trackedMs)} h`} />
-          <Metric label="Billable" value={formatMoneyMinor(BILLABLE_MINOR, 'EUR')} />
+          <Metric label="Billable" value={formatMoneyMinor(billableMinor, currencyCode)} />
           <View style={{ alignItems: 'center' }}>
             <Gauge value={OVERTIME_MS / H} range={OVERTIME_RANGE_H} label="Overtime balance" />
             <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2, marginTop: 2 }}>

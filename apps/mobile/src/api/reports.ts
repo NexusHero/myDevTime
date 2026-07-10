@@ -52,6 +52,49 @@ export async function fetchSummary(
   return parseSummary(await getJson(baseUrl, `/api/tracking/summary?${qs}`, fetchImpl))
 }
 
+/**
+ * The billable-money read model (REQ-005): the `billing` module prices only
+ * *billable* entries inside the window (at the rate in effect at each entry's
+ * start) and returns the total and a per-project breakdown in minor units. The
+ * numbers are the deterministic core's (ADR-0005); the client only parses them.
+ */
+export interface ProjectCostDTO {
+  readonly projectId: string
+  readonly costMinor: number
+}
+export interface BillingSummary {
+  readonly billableMinor: number
+  readonly currencyCode: string
+  readonly byProject: ProjectCostDTO[]
+}
+
+export function parseBillingSummary(value: unknown): BillingSummary {
+  const o = record(value)
+  return {
+    billableMinor: num(o, 'billableMinor'),
+    currencyCode: str(o, 'currencyCode'),
+    byProject: parseArray(o.byProject, p => ({
+      projectId: str(p, 'projectId'),
+      costMinor: num(p, 'costMinor'),
+    })),
+  }
+}
+
+export interface MoneyRange {
+  readonly from: string
+  readonly to: string
+}
+
+/** Fetch the windowed billable-money summary for a time window. */
+export async function fetchBillingSummary(
+  baseUrl: string,
+  range: MoneyRange,
+  fetchImpl: typeof fetch = fetch,
+): Promise<BillingSummary> {
+  const qs = new URLSearchParams({ from: range.from, to: range.to }).toString()
+  return parseBillingSummary(await getJson(baseUrl, `/api/billing/summary?${qs}`, fetchImpl))
+}
+
 const NO_PROJECT = '(none)'
 
 export interface ReportProject {
