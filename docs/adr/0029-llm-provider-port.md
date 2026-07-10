@@ -8,6 +8,10 @@ rule of the process skill (§2.2) and the deterministic-core discipline of
 supersede anything; it fixes the seam every AI feature builds on. The ASR/meeting-capture port is a
 separate decision ([ADR-0009](0009-meeting-capture-asr-approach.md)).
 
+**Amended 2026-07-10** (see *Amendment* below): the four providers are realized through **one
+library-backed adapter over the Vercel AI SDK**, not four hand-written per-vendor adapters. The port
+— the contract in this ADR — is unchanged; only the *how* behind it is refined.
+
 ## Context
 
 The 1.0 scope commits to an own AI layer — natural-language time entry (REQ-013), AI categorization
@@ -67,3 +71,43 @@ the features that need them (REQ-013/014/015/026).
   vendor's native tool-use protocol) are reached only by widening the port deliberately (a new ADR-worthy
   method), never by leaking a vendor type — we accept slightly less provider-specific polish for zero
   lock-in, consistent with ADR-0005 §2.2.
+
+## Amendment (2026-07-10): one library-backed adapter, not four hand-written ones
+
+The original **Decision** called for "four launch adapters, one file each" — a hand-written `openai`,
+`anthropic`, `gemini` and `ollama` adapter under `ai/llm/adapters/`. On review that reinvents a
+commodity: **provider-agnostic dispatch is exactly what a maintained library already does.** Writing
+four SDK adapters ourselves would re-implement, and then have to maintain, the multi-provider glue that
+the [Vercel AI SDK](https://sdk.vercel.ai) (`ai` + `@ai-sdk/openai` / `@ai-sdk/anthropic` /
+`@ai-sdk/google`) ships and keeps current.
+
+**What changes:** the four providers are now served by a **single library-backed adapter**,
+`ai/llm/vercel-llm.ts`, which implements `LlmPort` over one `generateText` call and selects the vendor
+from config. Ollama is reached through its OpenAI-compatible endpoint (a base URL on the OpenAI
+factory), so it needs no separate adapter. This bullet supersedes the "four adapters, one file each"
+bullet of the Decision.
+
+**What does *not* change — and is the whole point:**
+
+- **The port is still the contract.** `LlmPort` (this ADR's Decision) is untouched. Features depend on
+  it, never on the library. The library is an *implementation detail behind* the port, not a
+  replacement for it — which is precisely the distinction between an agnostic **library** and an
+  architectural **seam**. We keep the seam; we let the library do the plumbing.
+- **Vendor confinement holds (skill §2.2).** The SDK's types and every `@ai-sdk/*` import live *only*
+  in `vercel-llm.ts`. Nothing upstream — services, controllers, the domain core — imports a vendor or
+  a library type. `check:domain-purity` still guards the domain.
+- **Provider is still configuration.** `LLM_PROVIDER` + `LLM_MODEL` + `LLM_API_KEY` / `LLM_BASE_URL`
+  select the vendor at composition time (`readLlmConfig` → `VercelLlm`, else `NullLlm`). Keys are read
+  from the environment, never from source.
+- **Graceful degradation still default.** No/unknown provider, or a missing hosted key, resolves the
+  `NullLlm`; any provider error inside `complete` is normalized to `LlmUnavailableError` so every
+  feature's non-AI path (ADR-0005) fires uniformly.
+- **The LLM still only proposes.** REQ-013's `NlEntryService` re-parses the completion through the
+  deterministic core; a result never bypasses validation.
+
+**New trade-off:** we take on the Vercel AI SDK as a dependency — its abstractions and version churn —
+in exchange for not maintaining four adapters. Because the port is unchanged, that bet is reversible by
+one file: swapping the library (LiteLLM, a raw-SDK adapter, a self-hosted gateway) or adding a
+provider it doesn't cover is a change to `vercel-llm.ts` alone, invisible to every feature. Streaming,
+tool/function calling and embeddings/RAG remain out of scope (own follow-ups) and would widen the port
+deliberately, never leak a library type.

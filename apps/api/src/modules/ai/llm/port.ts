@@ -1,9 +1,10 @@
 /**
  * The one narrow LLM interface the app sees (ADR-0029, skill §2.2). Every provider
- * — OpenAI, Anthropic (Claude), Google Gemini, Ollama — is a single adapter under
- * `./adapters/` that confines its SDK/HTTP types and auth to that file and
- * translates to/from these provider-agnostic types. **Nothing upstream imports a
- * vendor type.** The LLM only *proposes* (ADR-0005): an `LlmResult` is a
+ * — OpenAI, Anthropic (Claude), Google Gemini, Ollama — is reached through a single
+ * library-backed adapter (`./vercel-llm.ts`, ADR-0029 amended) that confines the SDK
+ * types and auth to that file and translates to/from these provider-agnostic types.
+ * **Nothing upstream imports a vendor type.** The LLM only *proposes* (ADR-0005): an
+ * `LlmResult` is a
  * proposal/parse/explanation the deterministic core validates, never a value the
  * port itself writes anywhere. Token `usage` is uniform so the credit ledger
  * (REQ-027) prices every provider the same way.
