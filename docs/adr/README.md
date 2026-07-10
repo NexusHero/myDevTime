@@ -47,6 +47,7 @@ below in number order.
 | [0026](0026-design-system-pro-tier-adjustments.md) | Design system pro-tier adjustments: density tokens (regular/compact) on `Theme`, 12-color categorical project palette, absolute (non-`rgba`) soft semantic colors for deterministic WCAG contrast across surfaces, a micro logo variant | Accepted — extends ADR-0011/0022/0023 |
 | [0027](0027-mobile-ui-testing-strategy.md) | Mobile UI testing strategy: `@testing-library/react-native` + `react-test-renderer` component tests for `apps/mobile`, run by the same Vitest runner (ADR-0014) via a JSDOM environment and native-module mocks at the app boundary | Accepted — extends ADR-0014 |
 | [0028](0028-rest-over-graphql-api-style.md) | Client↔server API style: RESTful resource endpoints (not GraphQL/tRPC); composed reads get purpose-built aggregate endpoints; a read-only GraphQL/BFF facade stays available additively if ever needed | Accepted — makes explicit the API-style dimension of ADR-0003/0015/0025 |
+| [0029](0029-llm-provider-port.md) | Provider-agnostic **`LlmPort`**: one narrow interface (`complete`/`available`, structured output + token usage), vendor SDK types confined to per-provider adapters (`openai`/`anthropic`/`gemini`/`ollama`); provider chosen by config; a `NullLlm` default so AI degrades gracefully — LLM proposes only (ADR-0005) | Accepted (owner decision) — the port that unblocks the AI layer (REQ-013/014/015/026); real adapters land with the features |
 
 ## Tech Radar
 
@@ -101,3 +102,8 @@ One line per technology so the stack's shape stays visible without re-reading th
 | CodeQL (javascript-typescript, security-and-quality) | Adopt | ADR-0016 |
 | Dependabot (npm + github-actions, grouped) | Adopt | ADR-0016 |
 | GitHub Pages OpenAPI mirror (self-hosted Swagger UI) | Adopt | ADR-0016 |
+| Provider-agnostic `LlmPort` (ports & adapters for the LLM) | Adopt | ADR-0029 |
+| Anthropic (Claude) LLM adapter | Trial (launch rail, behind the port) | ADR-0029 |
+| OpenAI LLM adapter | Trial (launch rail, behind the port) | ADR-0029 |
+| Google Gemini LLM adapter | Trial (hosted hedge, behind the port) | ADR-0029 |
+| Ollama LLM adapter (local/self-hosted) | Trial (privacy + free test rail, behind the port) | ADR-0029 |
