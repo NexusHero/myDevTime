@@ -5,6 +5,7 @@ import { projectColor } from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
 import { Badge, Button, Card, DayBlock, Island } from '../components/index'
 import { useTimer } from '../hooks/useTimer'
+import { NlQuickAdd } from './NlQuickAdd'
 
 /**
  * Today — the Day Canvas home (ux-vision §2.1, §3): the morning briefing with the
@@ -151,6 +152,7 @@ export function TodayScreen(): React.JSX.Element {
             Tuesday, July 8
           </Text>
         </View>
+        <NlQuickAdd />
         <View
           style={{
             flexDirection: stacked ? 'column' : 'row',

@@ -116,6 +116,11 @@ export { buildDayPlan, reviewDayPlan } from './planner/plan.js'
 export type { CreditEntryKind, CreditEntry, UsageBucket } from './credits/ledger.js'
 export { creditBalance, usageByCategory, canDebit } from './credits/ledger.js'
 
+// Natural-language time entry (REQ-013, ADR-0005) — deterministic pre-parser that
+// turns a phrase into a draft the user confirms; LLM only for what it can't parse.
+export type { TimeEntryDraft } from './nlentry/parse.js'
+export { parseTimeEntry } from './nlentry/parse.js'
+
 // Entitlements — the domain of monetization (REQ-016, ADR-0006/0008). Provider-
 // agnostic plan/state machine; payment providers are adapters layered on later.
 export type {
