@@ -30,9 +30,12 @@ export function Text({ style, ...rest }: TextProps): React.JSX.Element {
 
   // If `resolveFontFamily` returned a concrete face (like 'Inter_700Bold'), it means
   // we are using the custom fonts. We must null the fontWeight so the OS doesn't apply
-  // faux-bolding on top of the already bold face. If it didn't change the family
-  // (or it's undefined for the default system font), we preserve the fontWeight.
-  const isCustomFace = resolvedFamily !== rawFamily
+  // faux-bolding on top of the already bold face. If it returned `undefined` (a system
+  // font marker, e.g. 'System') or passed the family through unchanged (e.g.
+  // 'monospace'), we are on a system font and must preserve the fontWeight so the OS
+  // renders the correct weight — comparing only against `rawFamily` would also treat
+  // the `undefined` system-font case as "custom" and wrongly null the weight.
+  const isCustomFace = resolvedFamily !== undefined && resolvedFamily !== rawFamily
   const finalWeight = isCustomFace ? 'normal' : flat.fontWeight
 
   return (
