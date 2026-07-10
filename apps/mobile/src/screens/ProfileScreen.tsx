@@ -186,6 +186,14 @@ export function ProfileScreen({
               </Text>
             </View>
           </View>
+          <View style={{ marginTop: t.spacing.s2 }}>
+            <Row
+              title="Open work time"
+              subtitle="Clock in/out, breaks & overtime"
+              trailing={chevron}
+              onPress={() => onNavigate('worktime')}
+            />
+          </View>
         </Card>
       </View>
 

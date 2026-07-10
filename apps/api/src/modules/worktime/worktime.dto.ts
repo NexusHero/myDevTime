@@ -25,6 +25,16 @@ export class CreateShiftDto extends createZodDto(
   }),
 ) {}
 
+export class ClockInDto extends createZodDto(
+  z.object({ startedAt: wireDate.optional(), source: z.string().min(1).optional() }),
+) {}
+
+export class ClockOutDto extends createZodDto(
+  z.object({ endedAt: wireDate.optional(), breakMs: z.number().int().nonnegative().optional() }),
+) {}
+
+export class ShiftsQueryDto extends createZodDto(z.object({ from: wireDate, to: wireDate })) {}
+
 export class SetScheduleDto extends createZodDto(
   z.object({
     effectiveFrom: wireDate,

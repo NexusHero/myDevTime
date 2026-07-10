@@ -1,5 +1,5 @@
-import { getJson } from './http.js'
-import { num, record } from './parse.js'
+import { getJson, postJson } from './http.js'
+import { num, nullableStr, parseArray, record, str } from './parse.js'
 
 /**
  * The worktime read model for the client (REQ-028): parse the overtime balance the
@@ -37,4 +37,83 @@ export async function fetchWorktimeSummary(
 ): Promise<Overtime> {
   const qs = new URLSearchParams({ from: range.from, to: range.to, tz: range.tz }).toString()
   return parseOvertime(await getJson(baseUrl, `/api/worktime/summary?${qs}`, fetchImpl))
+}
+
+/**
+ * The punch-clock read/write seam (REQ-028): a shift is a work-day punch pair; a
+ * *running* one has `endedAt: null`. `breakShortfallMs` is the server-computed
+ * ArbZG §4 warning (0 while open or compliant). Timestamps stay ISO strings on the
+ * wire — the deterministic core owns all duration math (ADR-0005).
+ */
+export interface Shift {
+  readonly id: string
+  readonly startedAt: string
+  readonly endedAt: string | null
+  readonly breakMs: number
+  readonly source: string
+  readonly breakShortfallMs: number
+}
+
+export function parseShift(value: unknown): Shift {
+  const o = record(value)
+  return {
+    id: str(o, 'id'),
+    startedAt: str(o, 'startedAt'),
+    endedAt: nullableStr(o, 'endedAt'),
+    breakMs: num(o, 'breakMs'),
+    source: str(o, 'source'),
+    breakShortfallMs: typeof o.breakShortfallMs === 'number' ? o.breakShortfallMs : 0,
+  }
+}
+
+/** Parse the running-shift response: a shift, or `null` when clocked out. */
+export function parseRunning(value: unknown): Shift | null {
+  if (value === null || value === undefined) return null
+  const o = record(value)
+  return {
+    id: str(o, 'id'),
+    startedAt: str(o, 'startedAt'),
+    endedAt: nullableStr(o, 'endedAt'),
+    breakMs: num(o, 'breakMs'),
+    source: str(o, 'source'),
+    breakShortfallMs: 0,
+  }
+}
+
+export interface ShiftWindow {
+  readonly from: string
+  readonly to: string
+}
+
+/** The workspace's currently open shift, or `null` when clocked out. */
+export async function getRunningShift(
+  baseUrl: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Shift | null> {
+  return parseRunning(await getJson(baseUrl, '/api/worktime/running', fetchImpl))
+}
+
+/** List shifts whose start falls in the window (newest first). */
+export async function listShifts(
+  baseUrl: string,
+  window: ShiftWindow,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Shift[]> {
+  const qs = new URLSearchParams({ from: window.from, to: window.to }).toString()
+  return parseArray(await getJson(baseUrl, `/api/worktime/shifts?${qs}`, fetchImpl), parseShift)
+}
+
+/** Clock in (open a shift). */
+export async function clockIn(baseUrl: string, fetchImpl: typeof fetch = fetch): Promise<Shift> {
+  return parseShift(await postJson(baseUrl, '/api/worktime/clock-in', {}, fetchImpl))
+}
+
+/** Clock out (close the open shift), optionally recording total break minutes. */
+export async function clockOut(
+  baseUrl: string,
+  breakMs?: number,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Shift> {
+  const body = breakMs === undefined ? {} : { breakMs }
+  return parseShift(await postJson(baseUrl, '/api/worktime/clock-out', body, fetchImpl))
 }

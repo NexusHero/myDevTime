@@ -1,5 +1,7 @@
-import { and, desc, eq, gte, isNotNull, lt, lte } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, isNotNull, isNull, lt, lte } from 'drizzle-orm'
 import {
+  ARBZG_PRESET,
+  breakShortfallMs,
   computeOvertime,
   type OvertimeBalance,
   type Shift as CoreShift,
@@ -7,6 +9,7 @@ import {
 } from '@mydevtime/domain'
 import type { Db } from '../../db/client.js'
 import { attendanceShifts, workSchedules } from '../../db/schema.js'
+import { NotFoundError, ValidationError } from '../../errors.js'
 
 /**
  * Attendance persistence (REQ-028, ADR-0010): shifts (clock-in/out with breaks)
@@ -58,6 +61,117 @@ export async function createShift(
     })
     .returning()
   return first(rows)
+}
+
+/** The workspace's currently open shift (clocked in, not out), or `null`. */
+export async function getRunningShift(db: Db, workspaceId: string): Promise<ShiftRow | null> {
+  const rows = await db
+    .select()
+    .from(attendanceShifts)
+    .where(and(eq(attendanceShifts.workspaceId, workspaceId), isNull(attendanceShifts.endedAt)))
+    .limit(1)
+  return rows[0] ?? null
+}
+
+export interface ClockInInput {
+  startedAt?: Date | undefined
+  source?: string | undefined
+}
+
+/**
+ * Clock in: open a shift. At most one open shift per workspace (enforced by a
+ * partial unique index); we reject a second clock-in with a clear error rather
+ * than let the constraint surface as a 500.
+ */
+export async function clockIn(
+  db: Db,
+  workspaceId: string,
+  userId: string,
+  input: ClockInInput = {},
+): Promise<ShiftRow> {
+  if (await getRunningShift(db, workspaceId)) {
+    throw new ValidationError('already clocked in')
+  }
+  const rows = await db
+    .insert(attendanceShifts)
+    .values({
+      workspaceId,
+      userId,
+      startedAt: input.startedAt ?? new Date(),
+      endedAt: null,
+      breakMs: 0,
+      source: input.source ?? 'clock',
+    })
+    .returning()
+  return first(rows)
+}
+
+export interface ClockOutInput {
+  endedAt?: Date | undefined
+  breakMs?: number | undefined
+}
+
+/** Clock out: close the open shift at `endedAt` (default now), recording breaks. */
+export async function clockOut(
+  db: Db,
+  workspaceId: string,
+  input: ClockOutInput = {},
+): Promise<ShiftRow> {
+  const running = await getRunningShift(db, workspaceId)
+  if (!running) throw new NotFoundError('no open shift')
+  const endedAt = input.endedAt ?? new Date()
+  if (endedAt.getTime() <= running.startedAt.getTime()) {
+    throw new ValidationError('clock-out precedes clock-in')
+  }
+  const rows = await db
+    .update(attendanceShifts)
+    .set({ endedAt, breakMs: input.breakMs ?? running.breakMs, updatedAt: new Date() })
+    .where(eq(attendanceShifts.id, running.id))
+    .returning()
+  return first(rows)
+}
+
+export interface ShiftView {
+  id: string
+  startedAt: Date
+  endedAt: Date | null
+  breakMs: number
+  source: string
+  /** Minutes the break falls short of the ArbZG §4 rule (0 while open/compliant). */
+  breakShortfallMs: number
+}
+
+/** List the workspace's shifts whose start falls in `[from, to)`, newest first. */
+export async function listShifts(
+  db: Db,
+  workspaceId: string,
+  range: { from: Date; to: Date },
+): Promise<ShiftView[]> {
+  const rows = await db
+    .select()
+    .from(attendanceShifts)
+    .where(
+      and(
+        eq(attendanceShifts.workspaceId, workspaceId),
+        gte(attendanceShifts.startedAt, range.from),
+        lt(attendanceShifts.startedAt, range.to),
+      ),
+    )
+    .orderBy(desc(attendanceShifts.startedAt), asc(attendanceShifts.id))
+  return rows.map(r => ({
+    id: r.id,
+    startedAt: r.startedAt,
+    endedAt: r.endedAt,
+    breakMs: r.breakMs,
+    source: r.source,
+    breakShortfallMs:
+      r.endedAt === null
+        ? 0
+        : breakShortfallMs(
+            { start: r.startedAt.getTime(), end: r.endedAt.getTime(), breakMs: r.breakMs },
+            ARBZG_PRESET,
+          ),
+  }))
 }
 
 export interface SetScheduleInput {
