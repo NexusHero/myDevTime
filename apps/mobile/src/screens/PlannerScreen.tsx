@@ -1,8 +1,15 @@
 import { ScrollView, View } from 'react-native'
-import { plannerBlockRect, plannerTotalHours, projectColor } from '@mydevtime/design'
+import {
+  formatDuration,
+  plannerBlockRect,
+  plannerTotalHours,
+  projectColor,
+} from '@mydevtime/design'
 import { Text } from '../components/core/Text'
-import { Badge } from '../components/index'
+import { Badge, Button, Card } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
+import { usePlanner } from '../hooks/usePlanner'
+import type { PlanBlock } from '../api/planner'
 
 /**
  * Planner — the week view of day canvases (ux-vision §2.1/§3, issue #11). Plan
@@ -58,6 +65,102 @@ function dayTotalHours(day: number): number {
   return plannerTotalHours(BLOCKS.filter(b => b.day === day && !b.ghost).map(b => b.len))
 }
 
+const PROPOSAL_HEIGHT = 320
+
+/** Today's Co-Planner proposal (REQ-031): the deterministic core's ghost blocks. */
+function CoPlannerProposal(): React.JSX.Element {
+  const t = useTheme()
+  const planner = usePlanner()
+  const plan = planner.plan
+  const span = planner.dayEndMin - planner.dayStartMin
+
+  const blockColor = (b: PlanBlock): string => {
+    if (b.kind === 'meeting') return t.color.ink2
+    if (b.kind === 'break') return t.color.ink3
+    return projectColor(b.taskId ?? b.label, t.mode)
+  }
+
+  return (
+    <Card>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: t.spacing.s3,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
+          <Text style={{ fontSize: t.fontSize.md, fontWeight: '700', color: t.color.ink }}>
+            Co-Planner — today
+          </Text>
+          {!planner.live && <Badge tone="neutral">Demo data</Badge>}
+        </View>
+        <Button variant="secondary" size="sm" disabled={planner.busy} onPress={planner.repropose}>
+          Re-propose
+        </Button>
+      </View>
+
+      {planner.loading && plan === null ? (
+        <Text style={{ color: t.color.ink2 }}>Planning your day…</Text>
+      ) : planner.error ? (
+        <Text style={{ color: t.color.crit }}>Couldn’t plan — {planner.error.message}</Text>
+      ) : plan === null || plan.blocks.length === 0 ? (
+        <Text style={{ color: t.color.ink2 }}>No proposal yet.</Text>
+      ) : (
+        <>
+          <View style={{ height: PROPOSAL_HEIGHT, position: 'relative' }}>
+            {plan.blocks.map((b, i) => {
+              const rect = plannerBlockRect(b.startMin - planner.dayStartMin, b.lenMin, span)
+              const color = blockColor(b)
+              const ghost = b.kind !== 'meeting'
+              return (
+                <View
+                  key={`${b.label}-${String(i)}`}
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    top: rect.top * PROPOSAL_HEIGHT,
+                    height: Math.max(rect.height * PROPOSAL_HEIGHT, 16),
+                    borderRadius: t.radius.chip,
+                    paddingHorizontal: t.spacing.s2,
+                    justifyContent: 'center',
+                    borderLeftWidth: ghost ? 0 : 3,
+                    borderLeftColor: color,
+                    borderWidth: ghost ? 1 : 0,
+                    borderColor: color,
+                    borderStyle: ghost ? 'dashed' : 'solid',
+                    backgroundColor: ghost ? `${color}14` : `${color}26`,
+                  }}
+                >
+                  <Text
+                    numberOfLines={1}
+                    style={{
+                      fontSize: t.fontSize.xs,
+                      color: t.color.ink,
+                      fontWeight: ghost ? '500' : '600',
+                      fontStyle: ghost ? 'italic' : 'normal',
+                    }}
+                  >
+                    {b.kind === 'break' ? '☕ Break' : ghost ? `◇ ${b.label}` : b.label}
+                  </Text>
+                </View>
+              )
+            })}
+          </View>
+          <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, marginTop: t.spacing.s2 }}>
+            {formatDuration(plan.plannedFocusMin * 60_000)} h focus planned
+            {plan.unplacedMin > 0
+              ? ` · ${formatDuration(plan.unplacedMin * 60_000)} h didn’t fit`
+              : ''}
+          </Text>
+        </>
+      )}
+    </Card>
+  )
+}
+
 export function PlannerScreen(): React.JSX.Element {
   const t = useTheme()
 
@@ -81,6 +184,8 @@ export function PlannerScreen(): React.JSX.Element {
           Week 28 · plan (dashed) and actuals on one surface
         </Text>
       </View>
+
+      <CoPlannerProposal />
 
       <ScrollView
         horizontal
