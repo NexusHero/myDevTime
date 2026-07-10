@@ -62,7 +62,7 @@ AI-credit ledger. See ADR-0002 as amended by ADR-0008 and extended by ADR-0010/0
 | Meeting capture / ASR | Decision frame fixed, winner pending spike #31 | ADR-0009, Proposed |
 | Toolchain | pnpm workspaces · TS strict · Vitest (+v8 coverage ≥90% on `domain`) · ESLint flat + Prettier · `./test.sh` gate = CI · git hooks | ADR-0014, Accepted (issue #2) |
 | Persistence | PostgreSQL + Drizzle (drizzle-kit migrations); driver confined to the `db` module, never imported by `packages/domain` | ADR-0015, Accepted (#3) |
-| Monorepo layout | `apps/api` (Fastify skeleton, #3), `apps/mobile` (Expo/RN app — ThemeProvider + responsive nav shell over `@mydevtime/design`, #11; RN render tests out of the vitest gate), `packages/domain` (pure logic), `packages/shared` (types/schemas), `packages/design` (design tokens + theme + app-shell nav/responsive model, #11 — held to the coverage bar); `spikes/*` outside the workspace | Bootstrapped (#2) |
+| Monorepo layout | `apps/api` (Fastify skeleton, #3), `apps/mobile` (Expo/RN app — ThemeProvider + responsive nav shell over `@mydevtime/design`, #11; component render tests run under Vitest via `@testing-library/react-native`/`react-test-renderer`, ADR-0027 — outside the coverage bar), `packages/domain` (pure logic), `packages/shared` (types/schemas), `packages/design` (design tokens + theme + app-shell nav/responsive model, #11 — held to the coverage bar); `spikes/*` outside the workspace | Bootstrapped (#2) |
 
 Run `pnpm install` once (wires git hooks), then `./test.sh` is the local gate.
 

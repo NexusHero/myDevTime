@@ -1,4 +1,4 @@
-# ADR 0023: Mobile UI Testing Strategy
+# ADR 0027: Mobile UI Testing Strategy
 
 ## Status
 
