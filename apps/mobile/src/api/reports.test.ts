@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { fetchSummary, parseSummary, toReportProjects } from './reports.js'
+import {
+  fetchBillingSummary,
+  fetchSummary,
+  parseBillingSummary,
+  parseSummary,
+  toReportProjects,
+} from './reports.js'
 
 /**
  * The reports client reads the `/api/tracking/summary` response and joins the
@@ -45,6 +51,50 @@ describe('fetchSummary', () => {
     expect(s.totalMs).toBe(9_000_000)
     expect(seen[0]).toContain('/api/tracking/summary?')
     expect(seen[0]).toContain('tz=UTC')
+  })
+})
+
+const BILLING_SUMMARY = {
+  billableMinor: 486_000,
+  currencyCode: 'EUR',
+  byProject: [
+    { projectId: 'p1', costMinor: 300_000 },
+    { projectId: 'p2', costMinor: 186_000 },
+  ],
+}
+
+describe('parseBillingSummary', () => {
+  it('ReadsTotalCurrencyAndPerProjectCost', () => {
+    const s = parseBillingSummary(BILLING_SUMMARY)
+    expect(s.billableMinor).toBe(486_000)
+    expect(s.currencyCode).toBe('EUR')
+    expect(s.byProject).toEqual([
+      { projectId: 'p1', costMinor: 300_000 },
+      { projectId: 'p2', costMinor: 186_000 },
+    ])
+  })
+  it('MalformedPayload_Throws', () => {
+    expect(() => parseBillingSummary({ billableMinor: 'x' })).toThrow()
+    expect(() => parseBillingSummary(null)).toThrow()
+  })
+})
+
+describe('fetchBillingSummary', () => {
+  it('GetsBillingSummaryWithWindowQuery', async () => {
+    const seen: string[] = []
+    const fetchImpl = ((url: string) => {
+      seen.push(url)
+      return Promise.resolve(new Response(JSON.stringify(BILLING_SUMMARY), { status: 200 }))
+    }) as unknown as typeof fetch
+    const s = await fetchBillingSummary(
+      'http://api',
+      { from: '2026-07-06T00:00:00.000Z', to: '2026-07-13T00:00:00.000Z' },
+      fetchImpl,
+    )
+    expect(s.billableMinor).toBe(486_000)
+    expect(seen[0]).toContain('/api/billing/summary?')
+    expect(seen[0]).toContain('from=2026-07-06')
+    expect(seen[0]).toContain('to=2026-07-13')
   })
 })
 
