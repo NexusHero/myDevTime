@@ -11,6 +11,9 @@ import { wireDate } from '../../core/wire-schemas.js'
 
 export class IdParamDto extends createZodDto(z.object({ id: z.uuid() })) {}
 export class AsOfQueryDto extends createZodDto(z.object({ asOf: wireDate.optional() })) {}
+export class BillingSummaryQueryDto extends createZodDto(
+  z.object({ from: wireDate, to: wireDate, asOf: wireDate.optional() }),
+) {}
 
 // ── Rates ─────────────────────────────────────────────────────────────────
 export class CreateRateDto extends createZodDto(

@@ -10,36 +10,11 @@ import { useReports } from '../hooks/useReports'
  * project, the overtime balance gauge, and small-multiple week sparklines. Every
  * figure renders in tabular numerals and every instrument is driven by the pure
  * geometry in `@mydevtime/design` (ADR-0005), so the SVG matches the numbers.
- * Data is illustrative until the reporting API feeds it; the calendar heatmap is a
- * follow-up slice.
+ * Tracked time, per-project sparklines, billable money and budget rings are fed by
+ * the API (`useReports`); the overtime gauge stays illustrative until the work-time
+ * read is wired, and the calendar heatmap is a follow-up slice.
  */
 const H = 3_600_000
-
-interface ProjectReport {
-  readonly id: string
-  readonly name: string
-  readonly ratio: number
-  readonly spentMs: number
-  readonly week: readonly number[]
-}
-
-const PROJECTS: readonly ProjectReport[] = [
-  { id: 'finanzo', name: 'Finanzo', ratio: 0.65, spentMs: 78 * H, week: [6, 5, 7, 8, 6, 2, 0] },
-  {
-    id: 'sync-engine',
-    name: 'Sync engine',
-    ratio: 0.97,
-    spentMs: 58 * H,
-    week: [4, 6, 5, 9, 7, 3, 1],
-  },
-  {
-    id: 'nordwind',
-    name: 'Website relaunch',
-    ratio: 1.1,
-    spentMs: 44 * H,
-    week: [3, 4, 2, 5, 6, 4, 2],
-  },
-]
 
 const WEEK_TOTAL_MS = 41 * H + 15 * 60_000
 const BILLABLE_MINOR = 486_000
@@ -90,10 +65,14 @@ export function ReportsScreen(): React.JSX.Element {
   const wide = width >= 900
   const reports = useReports()
 
-  // Tracked total + per-project sparklines come from the summary endpoint; budget
-  // rings, billable money and overtime stay demo until billing/work-time is wired.
+  // Tracked total, per-project sparklines, billable money and budget rings come
+  // from the API; only the overtime gauge stays demo until the work-time read is
+  // wired.
   const trackedMs = reports.data?.totalMs ?? WEEK_TOTAL_MS
+  const billableMinor = reports.data?.billableMinor ?? BILLABLE_MINOR
+  const currencyCode = reports.data?.currencyCode ?? 'EUR'
   const byProject = reports.data?.byProject ?? []
+  const budgets = reports.data?.budgets ?? []
 
   return (
     <ScrollView
@@ -131,7 +110,7 @@ export function ReportsScreen(): React.JSX.Element {
           }}
         >
           <Metric label="Tracked this week" value={`${formatDuration(trackedMs)} h`} />
-          <Metric label="Billable" value={formatMoneyMinor(BILLABLE_MINOR, 'EUR')} />
+          <Metric label="Billable" value={formatMoneyMinor(billableMinor, currencyCode)} />
           <View style={{ alignItems: 'center' }}>
             <Gauge value={OVERTIME_MS / H} range={OVERTIME_RANGE_H} label="Overtime balance" />
             <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2, marginTop: 2 }}>
@@ -141,39 +120,45 @@ export function ReportsScreen(): React.JSX.Element {
         </View>
       </Card>
 
-      {/* Budget rings */}
+      {/* Budget rings — driven by the budgets + status endpoints. */}
       <View>
         <SectionLabel>Budgets</SectionLabel>
         <Card>
-          <View
-            style={{
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              gap: t.spacing.s5,
-              justifyContent: 'space-around',
-            }}
-          >
-            {PROJECTS.map(p => (
-              <View key={p.id} style={{ alignItems: 'center', gap: t.spacing.s2, width: 96 }}>
-                <BudgetRing ratio={p.ratio} label={p.name} />
-                <Text
-                  style={{ fontSize: t.fontSize.sm, color: t.color.ink, fontWeight: '600' }}
-                  numberOfLines={1}
-                >
-                  {p.name}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: t.fontFamily.numeric,
-                    fontSize: t.fontSize.xs,
-                    color: t.color.ink2,
-                  }}
-                >
-                  {formatDuration(p.spentMs)} h
-                </Text>
-              </View>
-            ))}
-          </View>
+          {budgets.length === 0 ? (
+            <Text style={{ color: t.color.ink2 }}>No project budgets set yet.</Text>
+          ) : (
+            <View
+              style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                gap: t.spacing.s5,
+                justifyContent: 'space-around',
+              }}
+            >
+              {budgets.map(b => (
+                <View key={b.id} style={{ alignItems: 'center', gap: t.spacing.s2, width: 96 }}>
+                  <BudgetRing ratio={b.ratio} label={b.name} />
+                  <Text
+                    style={{ fontSize: t.fontSize.sm, color: t.color.ink, fontWeight: '600' }}
+                    numberOfLines={1}
+                  >
+                    {b.name}
+                  </Text>
+                  <Text
+                    style={{
+                      fontFamily: t.fontFamily.numeric,
+                      fontSize: t.fontSize.xs,
+                      color: t.color.ink2,
+                    }}
+                  >
+                    {b.basis === 'money'
+                      ? formatMoneyMinor(b.consumed, b.currencyCode)
+                      : `${formatDuration(b.consumed)} h`}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
         </Card>
       </View>
 
