@@ -16,6 +16,7 @@ import type { RoundingIncrementMinutes } from '@mydevtime/domain'
 import { AuthGuard, CurrentUser, type AuthenticatedUser } from '../auth/contract.js'
 import * as svc from './service.js'
 import * as entitlements from './entitlements-service.js'
+import * as credits from './credits-service.js'
 import { loadTimesheet } from './export/timesheet-source.js'
 import { timesheetToCsv } from './export/csv.js'
 import { timesheetToXlsx } from './export/xlsx.js'
@@ -26,9 +27,13 @@ import {
   BillingSummaryQueryDto,
   CreateBudgetDto,
   CreateRateDto,
+  DebitDto,
   ExportQueryDto,
+  GrantDto,
   IdParamDto,
+  LedgerQueryDto,
   RecordEntitlementEventDto,
+  UsageQueryDto,
 } from './billing.dto.js'
 
 /**
@@ -131,6 +136,50 @@ export class BillingController {
       from: query.from,
       to: query.to,
       asOf: query.asOf ?? new Date(),
+    })
+  }
+
+  // ── AI-credit ledger (REQ-027, ADR-0008) ─────────────────────────────────
+  @Get('credits')
+  async creditBalance(@CurrentUser() user: AuthenticatedUser) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    return { balance: await credits.balanceFor(db, workspaceId) }
+  }
+
+  @Get('credits/ledger')
+  async creditLedger(@CurrentUser() user: AuthenticatedUser, @Query() query: LedgerQueryDto) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    return credits.listLedger(db, workspaceId, query.limit)
+  }
+
+  @Get('credits/usage')
+  async creditUsage(@CurrentUser() user: AuthenticatedUser, @Query() query: UsageQueryDto) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    return credits.usageFor(db, workspaceId, { from: query.from, to: query.to })
+  }
+
+  @Post('credits/debit')
+  @HttpCode(201)
+  async creditDebit(@CurrentUser() user: AuthenticatedUser, @Body() body: DebitDto) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    return credits.debit(db, workspaceId, {
+      amount: body.amount,
+      category: body.category,
+      reason: body.reason,
+      operationId: body.operationId,
+    })
+  }
+
+  @Post('credits/grant')
+  @HttpCode(201)
+  async creditGrant(@CurrentUser() user: AuthenticatedUser, @Body() body: GrantDto) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    return credits.grant(db, workspaceId, {
+      amount: body.amount,
+      kind: body.kind,
+      category: body.category,
+      reason: body.reason,
+      operationId: body.operationId,
     })
   }
 
