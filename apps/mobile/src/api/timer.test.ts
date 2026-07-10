@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { getRunning, parseEntry, parseRunning, startTimer, stopTimer } from './timer.js'
+import {
+  formatStopwatch,
+  getRunning,
+  parseEntry,
+  parseRunning,
+  provisionalEntry,
+  startTimer,
+  stopTimer,
+} from './timer.js'
 
 /**
  * The timer client is the write/read seam for the live timer (REQ-004): it posts
@@ -90,5 +98,38 @@ describe('getRunning', () => {
   it('EmptyBody_MeansNoTimer', async () => {
     const { fetchImpl } = jsonFetch(200, undefined)
     expect(await getRunning('http://api', fetchImpl)).toBeNull()
+  })
+})
+
+describe('formatStopwatch', () => {
+  it('ZeroMs_IsAllZeros', () => {
+    expect(formatStopwatch(0)).toBe('00:00:00')
+  })
+  it('MinutesAndSeconds_ZeroPad', () => {
+    expect(formatStopwatch(42 * 60_000 + 11_000)).toBe('00:42:11')
+  })
+  it('BeyondAnHour_HoursGrow', () => {
+    expect(formatStopwatch(25 * 3_600_000 + 3_000)).toBe('25:00:03')
+  })
+  it('NegativeOrNaN_ClampToZero', () => {
+    expect(formatStopwatch(-5000)).toBe('00:00:00')
+    expect(formatStopwatch(Number.NaN)).toBe('00:00:00')
+  })
+})
+
+describe('provisionalEntry', () => {
+  it('BuildsRunningEntryFromInputAndStart', () => {
+    const e = provisionalEntry({ projectId: 'p1' }, new Date('2026-07-10T09:00:00.000Z'))
+    expect(e.endedAt).toBeNull()
+    expect(e.source).toBe('timer')
+    expect(e.projectId).toBe('p1')
+    expect(e.startedAt).toBe('2026-07-10T09:00:00.000Z')
+    expect(e.billable).toBe(true) // default
+  })
+  it('DefaultsAreNullAndBillable', () => {
+    const e = provisionalEntry({}, new Date('2026-07-10T09:00:00.000Z'))
+    expect(e.projectId).toBeNull()
+    expect(e.taskId).toBeNull()
+    expect(e.note).toBeNull()
   })
 })
