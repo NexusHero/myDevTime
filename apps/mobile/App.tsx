@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar'
 import { useFonts } from 'expo-font'
 import { ThemeProvider } from './src/theme/ThemeProvider'
 import { AppShell } from './src/shell/AppShell'
+import { AuthGate } from './src/shell/AuthGate'
 
 /**
  * App root (issue #11): loads the Blueprint font trio (Inter · Space Grotesk ·
@@ -34,7 +35,9 @@ export default function App(): React.JSX.Element | null {
     <SafeAreaProvider>
       <ThemeProvider>
         <StatusBar style="auto" />
-        <AppShell />
+        <AuthGate>
+          <AppShell />
+        </AuthGate>
       </ThemeProvider>
     </SafeAreaProvider>
   )
