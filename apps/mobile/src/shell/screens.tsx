@@ -10,6 +10,7 @@ import { PlannerScreen } from '../screens/PlannerScreen'
 import { MeetingsScreen } from '../screens/MeetingsScreen'
 import { AssistantScreen } from '../screens/AssistantScreen'
 import { AbsencesScreen } from '../screens/AbsencesScreen'
+import { WorkTimeScreen } from '../screens/WorkTimeScreen'
 import { CreditsScreen } from '../screens/CreditsScreen'
 import { SettingsScreen } from '../screens/SettingsScreen'
 import { ProjectScreen } from '../screens/ProjectScreen'
@@ -31,6 +32,7 @@ export const SCREEN_TITLES: Record<Screen, string> = {
   meetings: 'Meetings',
   meeting: 'Meeting',
   profile: 'Profile',
+  worktime: 'Work time',
   absences: 'Absences',
   settings: 'Settings',
   credits: 'Credits',
@@ -71,6 +73,7 @@ export function ScreenView({
   if (screen === 'meetings') return <MeetingsScreen />
   if (screen === 'assistant') return <AssistantScreen />
   if (screen === 'profile') return <ProfileScreen onNavigate={onNavigate} />
+  if (screen === 'worktime') return <WorkTimeScreen onBack={toProfile} />
   if (screen === 'absences') return <AbsencesScreen onBack={toProfile} />
   if (screen === 'credits') return <CreditsScreen onBack={toProfile} />
   if (screen === 'settings') return <SettingsScreen onBack={toProfile} />
