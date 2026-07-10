@@ -97,6 +97,20 @@ export { buildWorktimeReport } from './attendance/report.js'
 export type { AbsenceKind, Absence, AbsencePolicy, VacationBalance } from './absences/absence.js'
 export { inclusiveDayCount, absenceDays, coversDate, vacationBalance } from './absences/absence.js'
 
+// Co-Planner (REQ-031, ADR-0011) — deterministic day-plan algorithm (meetings
+// anchor, focus fills gaps by priority, breaks satisfy the rules); the LLM only
+// ranks/labels within these code-enforced blocks (ADR-0005).
+export type {
+  PlanBlockKind,
+  PlanBlock,
+  PlanAnchor,
+  PlanCandidate,
+  PlanInput,
+  DayPlan,
+  PlanReview,
+} from './planner/plan.js'
+export { buildDayPlan, reviewDayPlan } from './planner/plan.js'
+
 // Entitlements — the domain of monetization (REQ-016, ADR-0006/0008). Provider-
 // agnostic plan/state machine; payment providers are adapters layered on later.
 export type {
