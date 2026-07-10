@@ -10,5 +10,6 @@ export const MODULE_NAMES = [
   'ai',
   'billing',
   'worktime',
+  'absences',
 ] as const
 export type ModuleName = (typeof MODULE_NAMES)[number]
