@@ -31,4 +31,17 @@ describe('TodayScreen Layout', () => {
 
     expect(absoluteViews.length).toBeGreaterThanOrEqual(1)
   })
+
+  it('drives the Island from the timer hook (idle in demo mode, not a hardcoded time)', () => {
+    const renderer = TestRenderer.create(
+      <ThemeProvider>
+        <TodayScreen />
+      </ThemeProvider>,
+    )
+    const tree = JSON.stringify(renderer.toJSON())
+    // Demo mode (no EXPO_PUBLIC_API_URL) starts with no running timer → 00:00:00,
+    // proving the Island reads the hook rather than the old static "00:42:11".
+    expect(tree).toContain('00:00:00')
+    expect(tree).not.toContain('00:42:11')
+  })
 })

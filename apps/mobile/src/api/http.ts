@@ -32,22 +32,15 @@ export function problemToError(status: number, body: unknown): ApiError {
 }
 
 /**
- * GET `path` from `baseUrl` as JSON, sending credentials (the Better-Auth session
- * cookie). Throws `ApiError` on a non-2xx or unparseable response. `fetchImpl` is
- * injectable so the logic can be exercised without a real network.
+ * Send a request and read its JSON body, sending credentials (the Better-Auth
+ * session cookie). Throws `ApiError` on a network failure, a non-2xx (mapped from
+ * problem+json), or an unparseable 2xx. The single seam both `getJson` and
+ * `postJson` build on; `fetchImpl` is injectable so it runs without a network.
  */
-export async function getJson(
-  baseUrl: string,
-  path: string,
-  fetchImpl: typeof fetch = fetch,
-): Promise<unknown> {
+async function send(url: string, init: RequestInit, fetchImpl: typeof fetch): Promise<unknown> {
   let res: Response
   try {
-    res = await fetchImpl(`${baseUrl}${path}`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: { accept: 'application/json' },
-    })
+    res = await fetchImpl(url, init)
   } catch (cause) {
     throw new ApiError(0, 'Network error', cause instanceof Error ? cause.message : undefined)
   }
@@ -62,4 +55,36 @@ export async function getJson(
   }
   if (!res.ok) throw problemToError(res.status, body)
   return body
+}
+
+/** GET `path` from `baseUrl` as JSON. See `send`. */
+export async function getJson(
+  baseUrl: string,
+  path: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<unknown> {
+  return send(
+    `${baseUrl}${path}`,
+    { method: 'GET', credentials: 'include', headers: { accept: 'application/json' } },
+    fetchImpl,
+  )
+}
+
+/** POST `body` as JSON to `path` on `baseUrl` and read the JSON response. See `send`. */
+export async function postJson(
+  baseUrl: string,
+  path: string,
+  body: unknown,
+  fetchImpl: typeof fetch = fetch,
+): Promise<unknown> {
+  return send(
+    `${baseUrl}${path}`,
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers: { accept: 'application/json', 'content-type': 'application/json' },
+      body: JSON.stringify(body ?? {}),
+    },
+    fetchImpl,
+  )
 }
