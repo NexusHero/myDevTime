@@ -39,6 +39,7 @@ export {
   light,
   palettes,
   projectColors,
+  AI_GRADIENT,
   ACCENT_THEMES,
   DEFAULT_ACCENT,
   type Palette,

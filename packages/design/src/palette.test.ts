@@ -26,6 +26,8 @@ const NEUTRAL_KEYS: readonly (keyof Palette)[] = [
   'goodSoft',
   'critSoft',
   'warnSoft',
+  'aiSoft',
+  'aiInk',
 ]
 
 const ACCENT_KEYS: readonly (keyof Palette)[] = ['accent', 'accentInk', 'accentText', 'accentSoft']

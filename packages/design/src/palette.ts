@@ -2,7 +2,8 @@
  * Color palettes (ux-vision §4) — dark-first, light a first-class sibling, now
  * across **three swappable accent themes** (ADR-0022): **Blueprint** (royal blue
  * "Königsblau" `#2563EB`, the default — ADR-0023), **Sovereign** (indigo royal
- * blue) and **Ember** (the validated "now/live" amber from the binding UX vision).
+ * blue) and **Ember** (vivid signal orange `#FF5320` — an evolution of the
+ * validated "now/live" amber, pushed to full signal energy after the user tests).
  *
  * The design system separates two independent axes (mirroring the source design
  * project's `colors.css` × `modes.css` split): the **neutral** surfaces/inks and
@@ -74,6 +75,16 @@ export interface Palette {
   readonly liveSoft: string
   /** `live` tuned to clear WCAG AA-Large as text on a normal surface. */
   readonly liveStrong: string
+  /**
+   * Soft background wash behind AI-proposal surfaces (AICallout). Pre-blended
+   * over the mode's bg (ADR-0026 §3), theme-independent like `live`.
+   */
+  readonly aiSoft: string
+  /**
+   * AI-signature ink — the violet used for AI-proposal titles/marks on `aiSoft`.
+   * Part of the "this came from AI, you decide" visual contract (ADR-0005/0034).
+   */
+  readonly aiInk: string
 }
 
 /** The mode-dependent, accent-independent half of a palette. */
@@ -93,15 +104,17 @@ const neutralDark: Neutrals = {
   ink: '#eef1f6',
   ink2: '#9aa6b4',
   ink3: '#66707d',
-  good: '#57c785',
+  good: '#4ade80',
   crit: '#e5655e',
   warn: '#d9903f',
   goodSoft: '#1a2c29',
   critSoft: '#2e1e23',
   warnSoft: '#302720',
-  live: '#ff5a2e',
-  liveSoft: '#2c1811',
-  liveStrong: '#ff7a52',
+  live: '#ff6b3d',
+  liveSoft: '#362120',
+  liveStrong: '#ff5320',
+  aiSoft: '#1f1a35',
+  aiInk: '#a9a2ff',
 }
 
 const neutralLight: Neutrals = {
@@ -115,15 +128,17 @@ const neutralLight: Neutrals = {
   ink: '#101828',
   ink2: '#475467',
   ink3: '#98a2b3',
-  good: '#1e8f4d',
+  good: '#16a34a',
   crit: '#c2372f',
   warn: '#b45309',
   goodSoft: '#e4f1e9',
   critSoft: '#f9ebea',
   warnSoft: '#f6eae1',
-  live: '#e5431c',
-  liveSoft: '#fdece3',
-  liveStrong: '#c2410c',
+  live: '#ff5320',
+  liveSoft: '#ffeae4',
+  liveStrong: '#e33e0f',
+  aiSoft: '#f3f2fd',
+  aiInk: '#4a3fd6',
 }
 
 /**
@@ -148,17 +163,20 @@ const accents: Record<AccentTheme, { readonly dark: Accent; readonly light: Acce
     },
   },
   ember: {
+    // Vivid signal orange (`#ff5320`) after the user tests — was warm amber.
+    // The fill carries white ink; light `accentText` darkens to the 700 shade
+    // (`#b33009`) to clear AA as text on a normal surface.
     light: {
-      accent: '#e8a33d',
-      accentInk: '#201503',
-      accentText: '#8f5e0d',
-      accentSoft: '#f5ede1',
+      accent: '#ff5320',
+      accentInk: '#ffffff',
+      accentText: '#b33009',
+      accentSoft: '#ffede6',
     },
     dark: {
-      accent: '#e8a33d',
-      accentInk: '#201503',
-      accentText: '#e8a33d',
-      accentSoft: '#2e271e',
+      accent: '#ff5320',
+      accentInk: '#ffffff',
+      accentText: '#ff7a52',
+      accentSoft: '#33201a',
     },
   },
   blueprint: {
@@ -203,6 +221,14 @@ export const palettes: Record<AccentTheme, { readonly dark: Palette; readonly li
 /** The default-accent (Blueprint) palettes, exported for convenience; track `DEFAULT_ACCENT`. */
 export const dark: Palette = palettes[DEFAULT_ACCENT].dark
 export const light: Palette = palettes[DEFAULT_ACCENT].light
+
+/**
+ * The AI-signature gradient (theme-independent, like `live`) — blue→violet→orange,
+ * "plan meets now". Every AI proposal (Co-Planner, Assistant, insights, briefings)
+ * wears it — as a tri-stop rail or a ✦ chip; deterministic UI never does. It is the
+ * "this came from AI, you decide" marker (ADR-0005: proposals, never actions; 0034).
+ */
+export const AI_GRADIENT = ['#3654e0', '#7a44d8', '#ff5320'] as const
 
 /**
  * The categorical project palette, per mode — CVD-checked, the only saturated
