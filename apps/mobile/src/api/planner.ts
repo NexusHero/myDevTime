@@ -139,3 +139,31 @@ export async function getPlanReview(
 ): Promise<PlanReview> {
   return parsePlanReview(await getJson(baseUrl, `/api/planner/plans/${planId}/review`, fetchImpl))
 }
+
+/** The AI day-briefing for a plan: a short coaching text, or a deterministic summary. */
+export interface PlanBriefing {
+  readonly source: 'deterministic' | 'ai-proposal'
+  readonly charged: boolean
+  readonly text: string
+}
+
+export function parsePlanBriefing(value: unknown): PlanBriefing {
+  const o = record(value)
+  const source = str(o, 'source')
+  return {
+    source: source === 'ai-proposal' ? 'ai-proposal' : 'deterministic',
+    charged: o.charged === true,
+    text: str(o, 'text'),
+  }
+}
+
+/** Request the AI day-briefing (costs one credit only when the AI actually writes it). */
+export async function getPlanBriefing(
+  baseUrl: string,
+  planId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<PlanBriefing> {
+  return parsePlanBriefing(
+    await postJson(baseUrl, `/api/planner/plans/${planId}/briefing`, {}, fetchImpl),
+  )
+}
