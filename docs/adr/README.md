@@ -50,6 +50,8 @@ below in number order.
 | [0029](0029-llm-provider-port.md) | Provider-agnostic **`LlmPort`**: one narrow interface (`complete`/`available`, structured output + token usage), vendor SDK types confined to per-provider adapters (`openai`/`anthropic`/`gemini`/`ollama`); provider chosen by config; a `NullLlm` default so AI degrades gracefully — LLM proposes only (ADR-0005) | Accepted (owner decision) — the port that unblocks the AI layer (REQ-013/014/015/026); real adapters land with the features |
 | [0030](0030-comprehensive-design-system.md) | Comprehensive, production-grade design system: expanded token scale (spacing s0–s8, typography 2xs–3xl, motion timing + easing, borders, app-shell geometry), integrated branding assets (logos, splash, favicon), font loading (Blueprint: Inter/JetBrains/Space Grotesk, Sovereign/Ember: system), deterministic project colors via FNV-1a hash, all components token-driven, WCAG AA verified across six theme combinations | Accepted — realizes & extends ADR-0011/0022/0023/0026; closes design-system spike, unblocks full-fidelity UI implementation across all platforms |
 | [0031](0031-coplanner-llm-labeling-port.md) | Co-Planner **LLM garnish** behind a narrow `PlanLabeler` port owned by the planner: the LLM only ranks/labels the code-enforced blocks (never places time), sharing the `PlanLabel` shape with the pure deterministic fallback so it degrades gracefully; one credit debited only when the AI actually ran, idempotent per plan, priced at the controller/composition layer | Accepted — realizes the deferred ADR-0011 garnish clause (REQ-031/#151) over `LlmPort` (0029) + credit ledger (0008) |
+| [0032](0032-connector-token-vault.md) | **Connector token vault**: per-user/workspace OAuth access+refresh tokens for dev/chat/calendar integrations stored **encrypted at rest** (envelope encryption + AEAD, KMS-sealed in prod), behind a narrow `TokenVault` port; refresh + rotate + revoke; workspace-isolated; keys never in source, tokens never logged; crypto backend confined to one adapter | Accepted (owner decision) — secret-storage foundation for the connectors layer; KMS backend a Trial detail |
+| [0033](0033-connector-scopes-and-consent.md) | **Connector scopes & consent**: least-privilege scopes per capability (read-only by default, write only on opt-in), consent stored **per connector and per capability** (inbound/outbound/capture), preview-before-write, revocation+erasure into the DSGVO flows, per-provider data-processing matrix, audit trail — generalises consent-first (REQ-025) to all integrations | Accepted (owner decision) — permission foundation for the connectors layer; per-provider scope sets filled as adapters land |
 
 ## Tech Radar
 
@@ -85,6 +87,9 @@ One line per technology so the stack's shape stays visible without re-reading th
 | StoreKit 2 / Play Billing | Adopt | ADR-0006 |
 | RevenueCat | Assess (re-evaluate when IAP work starts) | ADR-0006 |
 | LLM providers (multi-provider via config) | Adopt (behind one adapter interface) | ADR-0005 |
+| OAuth 2.0 connectors (GitHub App, Jira/Atlassian, Slack, Google, GitLab, Linear, MS/Teams, Zoom …) behind a `Connector` port | Adopt (the model; per-connector adapters land incrementally) | ADR-0032/0033 |
+| Envelope encryption + AEAD token vault (`TokenVault` port; KMS-sealed in prod) | Adopt (backend a Trial: cloud KMS vs self-hosted AEAD key) | ADR-0032 |
+| GitHub App vs OAuth App (connector auth shape) | Assess (open decision) | ADR-0032 |
 | ASR providers (Whisper/Deepgram/AssemblyAI/…) | Assess (spike #31, behind `TranscriptionPort`) | ADR-0009 |
 | Meeting-bot capture service (Recall.ai-style) | Assess (first candidate in the capture spike) | ADR-0009 |
 | Auth SaaS (Auth0/Clerk/…) | Hold | ADR-0007 |
