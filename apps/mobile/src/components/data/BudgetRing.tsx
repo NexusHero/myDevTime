@@ -5,10 +5,10 @@ import { budgetTone, formatPercent, ringDashOffset, type ConsumptionTone } from 
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
- * BudgetRing (data) — a project's budget consumption as a ring (ux-vision §2.5).
- * The painted arc length and tone come from the pure `ringDashOffset` / `budgetTone`
- * helpers (ADR-0005); an over-budget ratio fills the ring and turns it `crit`. The
- * center reads the exact percentage in tabular numerals.
+ * BudgetRing (data) — SVG ring gauge for budget consumption (project view).
+ * Stroke color: good/warn/crit via budgetTone(). Arc length via ringDashOffset().
+ * Center text: percentage in numeric monospace. Size/stroke customizable.
+ * Animation: 220ms spring on ratio change (deferred to M1).
  */
 interface BudgetRingProps {
   readonly ratio: number

@@ -3,8 +3,9 @@ import { Text } from '../core/Text'
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
- * Tabs (navigation) — an underline tab strip for in-screen section switching
- * (stays boring on purpose — ux-vision §5). Ported from the design `Tabs`.
+ * Tabs (navigation) — underline tab strip for in-screen section switching
+ * (stays boring on purpose — ux-vision §5). Active tab shows accent underline,
+ * inactive tabs show no border. Padding: s4 horizontal, s3 vertical.
  */
 export interface TabItem {
   readonly value: string
@@ -38,7 +39,8 @@ export function Tabs({ items, active, onChange }: TabsProps): React.JSX.Element 
             accessibilityState={{ selected: on }}
             accessibilityLabel={it.label}
             style={{
-              paddingVertical: t.spacing.s3 - 2,
+              paddingHorizontal: t.spacing.s4,
+              paddingVertical: t.spacing.s3,
               borderBottomWidth: 2,
               borderBottomColor: on ? t.color.accent : 'transparent',
             }}

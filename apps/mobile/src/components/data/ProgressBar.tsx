@@ -3,11 +3,9 @@ import { barFraction, budgetTone, type ConsumptionTone } from '@mydevtime/design
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
- * ProgressBar (data) — a flat consumption bar for budget rings' humble sibling
- * (the SVG ring instrument lands with the Reports slice; this bar is the calm
- * inline form used in lists). The fill fraction and tone are computed by the pure
- * `barFraction`/`budgetTone` helpers (ux-vision §2.5, ADR-0005): the ratio is
- * clamped to the track, but an over-budget ratio still colors the bar `crit`.
+ * ProgressBar (data) — linear consumption bar for inline budget visualization.
+ * Height: s2 (8pt), Radius: chip (6pt), fill animated on ratio change.
+ * Fill color: good/warn/crit based on budgetTone() helper (deterministic per ratio).
  */
 interface ProgressBarProps {
   /** Consumption ratio (consumed / limit); may exceed 1 when over budget. */
@@ -23,20 +21,21 @@ const TONE_FILL: Record<ConsumptionTone, (t: ReturnType<typeof useTheme>) => str
   crit: t => t.color.crit,
 }
 
-export function ProgressBar({ ratio, label, height = 6 }: ProgressBarProps): React.JSX.Element {
+export function ProgressBar({ ratio, label, height }: ProgressBarProps): React.JSX.Element {
   const t = useTheme()
   const fraction = barFraction(ratio)
   const percent = fraction * 100
   const fill = TONE_FILL[budgetTone(ratio)](t)
+  const barHeight = height ?? t.spacing.s2
   return (
     <View
       accessibilityRole="progressbar"
       accessibilityLabel={label}
       accessibilityValue={{ min: 0, max: 100, now: Math.round(fraction * 100) }}
       style={{
-        height,
-        borderRadius: t.radius.pill,
-        backgroundColor: t.color.sunk,
+        height: barHeight,
+        borderRadius: t.radius.chip,
+        backgroundColor: t.color.overlay,
         overflow: 'hidden',
       }}
     >
@@ -44,7 +43,7 @@ export function ProgressBar({ ratio, label, height = 6 }: ProgressBarProps): Rea
         style={{
           width: `${percent}%`,
           height: '100%',
-          borderRadius: t.radius.pill,
+          borderRadius: t.radius.chip,
           backgroundColor: fill,
         }}
       />

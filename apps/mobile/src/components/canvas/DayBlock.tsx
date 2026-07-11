@@ -3,11 +3,11 @@ import { Text } from '../core/Text'
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
- * DayBlock (canvas) — one block on the Day Canvas. `actual` is solid and
- * project-colored (reality); `ghost` is the Co-Planner's **dashed** proposal —
- * never a solid fill, always visually distinct with accept/dismiss affordances
- * (the calm-AI provenance rule, ux-vision §2.2/§4/§5); `meeting` pins a fixed
- * calendar event. Ported from the design system's `DayBlock`.
+ * DayBlock (canvas) — one block on the Day Canvas.
+ * Actual: solid fill with project color (reality).
+ * Ghost: dashed border (Co-Planner proposal), with accept/dismiss buttons.
+ * Meeting: raised surface with colored left border (calendar event).
+ * Padding: s3 (12pt), Radius: block (10pt).
  */
 type Kind = 'actual' | 'ghost' | 'meeting'
 

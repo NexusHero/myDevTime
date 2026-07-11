@@ -3,11 +3,10 @@ import { Text } from '../core/Text'
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
- * Row (data) — the list-row primitive (issue #11 core set): an optional leading
- * element, a title + optional subtitle, and an optional trailing element (value,
- * badge, switch, or chevron). Tappable rows honor the 44-pt touch floor and carry
- * a button role; static rows render without one. Used across Profile/settings and
- * any entity list.
+ * Row (data) — list row primitive with optional leading/trailing elements.
+ * Touch target: 44pt (or 32pt compact). Padding: s4 (16pt) horizontal, s3 (12pt) vertical.
+ * Divider: optional border-bottom on non-last rows (parent responsibility).
+ * Tappable rows carry button role; static rows are text.
  */
 interface RowProps {
   readonly title: string
@@ -22,7 +21,7 @@ export function Row({ title, subtitle, leading, trailing, onPress }: RowProps): 
 
   const body = (
     <>
-      {leading !== undefined && <View style={{ marginRight: t.spacing.s3 }}>{leading}</View>}
+      {leading !== undefined && <View>{leading}</View>}
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink }} numberOfLines={1}>
           {title}
@@ -33,7 +32,7 @@ export function Row({ title, subtitle, leading, trailing, onPress }: RowProps): 
           </Text>
         )}
       </View>
-      {trailing !== undefined && <View style={{ marginLeft: t.spacing.s3 }}>{trailing}</View>}
+      {trailing !== undefined && <View>{trailing}</View>}
     </>
   )
 
@@ -41,7 +40,9 @@ export function Row({ title, subtitle, leading, trailing, onPress }: RowProps): 
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: t.touchTarget,
-    paddingVertical: t.spacing.s2,
+    paddingVertical: t.spacing.s3,
+    paddingHorizontal: t.spacing.s4,
+    gap: t.spacing.s3,
   }
 
   if (onPress === undefined) {

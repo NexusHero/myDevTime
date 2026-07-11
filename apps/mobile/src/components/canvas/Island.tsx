@@ -3,11 +3,11 @@ import { Text } from '../core/Text'
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
- * Island (canvas) — the one persistent, glanceable pill carrying live state
- * (running timer + punch status), collapsed by default and expanding to quick
- * actions (ux-vision §2.3). It is a floating **dark** pill in every theme/mode
- * (it never sits over other content), so its surface is fixed dark, not
- * theme-flipped. Ported from the design system's `Island`.
+ * Island (canvas) — persistent pill showing live state (running timer, punch status).
+ * Collapsed (default): s4 padding, pill radius, compact layout.
+ * Expanded: card radius, s3 padding, shows quick action buttons.
+ * Always dark background (#12151c) over any theme, never theme-flipped.
+ * Timer display: numeric monospace, running indicator (colored dot).
  */
 export interface IslandAction {
   readonly label: string
@@ -43,8 +43,8 @@ export function Island({
         alignSelf: 'flex-start',
         backgroundColor: ISLAND_BG,
         borderRadius: expanded ? t.radius.card : t.radius.pill,
-        paddingVertical: expanded ? t.spacing.s3 : 10,
-        paddingHorizontal: expanded ? t.spacing.s3 : t.spacing.s4,
+        paddingVertical: expanded ? t.spacing.s3 : t.spacing.s3,
+        paddingHorizontal: expanded ? t.spacing.s4 : t.spacing.s4,
         gap: expanded ? t.spacing.s3 : 0,
         ...(expanded ? { minWidth: 220 } : null),
       }}
