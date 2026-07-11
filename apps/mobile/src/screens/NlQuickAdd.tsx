@@ -7,6 +7,7 @@ import { useTheme } from '../theme/ThemeProvider'
 import { apiBaseUrl } from '../config'
 import { useCatalog } from './useCatalog'
 import {
+  catalogVocabulary,
   createEntry,
   draftToEntryTimes,
   fetchNlDraft,
@@ -42,7 +43,7 @@ export function NlQuickAdd(): React.JSX.Element {
     if (base === null || text.trim().length === 0) return
     setBusy(true)
     setError(null)
-    fetchNlDraft(base, text.trim())
+    fetchNlDraft(base, text.trim(), catalogVocabulary(catalog.data ?? []))
       .then(result => {
         if (result.draft === null) {
           setError('Couldn’t read that — try e.g. “2h Finanzo review”.')

@@ -23,6 +23,6 @@ export class AiController {
   @Post('nl-entry')
   @UseGuards(AuthGuard)
   async parseNlEntry(@Body() body: NlEntryDto) {
-    return this.nlEntry.draft(body.text)
+    return this.nlEntry.draft(body.text, body.knownProjects ?? [])
   }
 }

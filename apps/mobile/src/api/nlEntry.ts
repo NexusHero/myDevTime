@@ -44,13 +44,20 @@ export function parseDraftResult(value: unknown): NlDraftResult {
   }
 }
 
-/** Parse a phrase into a draft (never persists). */
+/** The project/ticket vocabulary the server matches a bare name/key against (REQ-013, M6). */
+export function catalogVocabulary(catalog: readonly Client[]): string[] {
+  return catalog.flatMap(c => c.projects.map(p => p.name))
+}
+
+/** Parse a phrase into a draft (never persists). `knownProjects` resolves bare names/keys. */
 export async function fetchNlDraft(
   baseUrl: string,
   text: string,
+  knownProjects: readonly string[] = [],
   fetchImpl: typeof fetch = fetch,
 ): Promise<NlDraftResult> {
-  return parseDraftResult(await postJson(baseUrl, '/api/ai/nl-entry', { text }, fetchImpl))
+  const body = knownProjects.length > 0 ? { text, knownProjects } : { text }
+  return parseDraftResult(await postJson(baseUrl, '/api/ai/nl-entry', body, fetchImpl))
 }
 
 /** Resolve a project hint against the catalog by case-insensitive name (exact, then prefix). */

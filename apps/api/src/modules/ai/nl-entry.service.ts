@@ -21,8 +21,8 @@ export interface DraftResult {
 export class NlEntryService {
   constructor(@Inject(LLM) private readonly llm: LlmPort) {}
 
-  async draft(text: string): Promise<DraftResult> {
-    const deterministic = parseTimeEntry(text)
+  async draft(text: string, knownProjects: readonly string[] = []): Promise<DraftResult> {
+    const deterministic = parseTimeEntry(text, { knownProjects })
     if (deterministic) return { draft: deterministic, source: 'deterministic' }
 
     // The deterministic parser found no duration — the LLM may still read it. The
@@ -43,7 +43,7 @@ export class NlEntryService {
         maxOutputTokens: 60,
         temperature: 0,
       })
-      const reparsed = parseTimeEntry(result.text)
+      const reparsed = parseTimeEntry(result.text, { knownProjects })
       return reparsed ? { draft: reparsed, source: 'ai-proposal' } : { draft: null, source: 'none' }
     } catch (err) {
       if (err instanceof LlmUnavailableError) return { draft: null, source: 'none' }
