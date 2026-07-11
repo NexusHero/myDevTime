@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { generatePlan, getPlan, getPlanReview, parseBlock, parsePlan } from './planner.js'
+import {
+  generatePlan,
+  getPlan,
+  getPlanBriefing,
+  getPlanReview,
+  parseBlock,
+  parsePlan,
+  parsePlanBriefing,
+} from './planner.js'
 
 /**
  * The planner client parses the versioned plan entity (proposed ghost blocks the
@@ -67,5 +75,24 @@ describe('requests', () => {
     )
     expect(review).toEqual({ plannedFocusMin: 180, trackedFocusMin: 135, driftMin: -45 })
     expect(seen[0]).toContain('/api/planner/plans/p1/review')
+  })
+
+  it('PostsForTheAiBriefingAndParsesTheResult', async () => {
+    const seen: string[] = []
+    const briefing = await getPlanBriefing(
+      'http://api',
+      'p1',
+      jsonFetch({ source: 'ai-proposal', charged: true, text: 'Dichter Tag.' }, seen),
+    )
+    expect(briefing).toEqual({ source: 'ai-proposal', charged: true, text: 'Dichter Tag.' })
+    expect(seen[0]).toContain('/api/planner/plans/p1/briefing')
+  })
+})
+
+describe('parsePlanBriefing', () => {
+  it('DefaultsToDeterministicForAnUnknownSource', () => {
+    expect(parsePlanBriefing({ source: 'weird', charged: false, text: 'x' }).source).toBe(
+      'deterministic',
+    )
   })
 })

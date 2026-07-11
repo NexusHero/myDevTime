@@ -15,10 +15,13 @@ import { balanceFor, debit } from '../billing/contract.js'
 import * as svc from './service.js'
 import { PlannerContext } from './planner.context.js'
 import { PLAN_LABELER, type PlanLabeler } from './labeler.js'
+import { PLAN_BRIEFER, type PlanBriefer } from './briefer.js'
 import { GeneratePlanDto, IdParamDto, PlanDateQueryDto, PlanStatusDto } from './planner.dto.js'
 
 /** One AI Co-Planner briefing costs one credit (ADR-0008). */
 const LABEL_CREDIT_COST = 1
+/** One AI day-briefing costs one credit (ADR-0008). */
+const BRIEFING_CREDIT_COST = 1
 
 /**
  * The Co-Planner surface (REQ-031, ADR-0011): generate a proposed day plan from
@@ -34,6 +37,7 @@ export class PlannerController {
   constructor(
     private readonly ctx: PlannerContext,
     @Inject(PLAN_LABELER) private readonly labeler: PlanLabeler,
+    @Inject(PLAN_BRIEFER) private readonly briefer: PlanBriefer,
   ) {}
 
   @Get('plans')
@@ -104,5 +108,30 @@ export class PlannerController {
       charged = true
     }
     return { source, charged, labels }
+  }
+
+  /**
+   * The AI day-briefing (M8): a short coaching text over the placed plan. Grounded
+   * in the plan's facts (ADR-0005) and degrades to a factual deterministic summary
+   * when the provider is down or the workspace has no credits. A credit is debited
+   * only when the AI actually wrote the briefing, idempotently per plan.
+   */
+  @Post('plans/:id/briefing')
+  async briefing(@CurrentUser() user: AuthenticatedUser, @Param() params: IdParamDto) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    const plan = svc.planRowToDayPlan(await svc.getPlanById(db, workspaceId, params.id))
+    const allowAi = (await balanceFor(db, workspaceId)) >= BRIEFING_CREDIT_COST
+    const { source, text } = await this.briefer.brief(plan, { allowAi })
+    let charged = false
+    if (source === 'ai-proposal') {
+      await debit(db, workspaceId, {
+        amount: BRIEFING_CREDIT_COST,
+        category: 'co-planner',
+        reason: 'AI day-briefing',
+        operationId: `plan-briefing:${params.id}`,
+      })
+      charged = true
+    }
+    return { source, charged, text }
   }
 }
