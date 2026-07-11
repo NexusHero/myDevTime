@@ -1,5 +1,8 @@
 import { z } from 'zod'
 import { createZodDto } from 'nestjs-zod'
+import { HOLIDAY_REGIONS } from '@mydevtime/domain'
+
+const holidayRegion = z.enum(HOLIDAY_REGIONS as unknown as [string, ...string[]])
 
 /**
  * Wire DTOs for the `absences` module (REQ-029, ADR-0025). Zod is the single
@@ -29,9 +32,17 @@ export class SetPolicyDto extends createZodDto(
   z.object({
     annualAllowanceDays: z.number().int().nonnegative(),
     carryOverDays: z.number().int().nonnegative(),
+    region: holidayRegion.nullish(),
   }),
 ) {}
 
 export class BalanceQueryDto extends createZodDto(
   z.object({ year: z.coerce.number().int().min(1970).max(9999) }),
+) {}
+
+export class HolidaysQueryDto extends createZodDto(
+  z.object({
+    region: holidayRegion,
+    year: z.coerce.number().int().min(1970).max(9999),
+  }),
 ) {}

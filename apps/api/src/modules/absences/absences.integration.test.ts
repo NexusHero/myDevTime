@@ -82,6 +82,16 @@ describe.skipIf(!databaseUrl)('absences (integration)', () => {
     expect(policy.carryOverDays).toBe(3)
   })
 
+  it('PolicyPersistsAndClearsTheHolidayRegion', async () => {
+    await svc.setPolicy(db, wsA, { annualAllowanceDays: 30, carryOverDays: 0, region: 'DE-BW' })
+    const withRegion = await svc.getPolicy(db, wsA)
+    expect('region' in withRegion ? withRegion.region : null).toBe('DE-BW')
+    // Omitting the region on the next upsert clears it (no sticky region).
+    await svc.setPolicy(db, wsA, { annualAllowanceDays: 30, carryOverDays: 0 })
+    const cleared = await svc.getPolicy(db, wsA)
+    expect('region' in cleared ? cleared.region : null).toBeNull()
+  })
+
   it('ListIsScopedToTheWorkspace', async () => {
     await svc.createAbsence(db, wsA, idA, {
       kind: 'vacation',
@@ -113,6 +123,19 @@ describe.skipIf(!databaseUrl)('absences (integration)', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/api/absences?from=2026-01-01&to=2026-12-31',
+    })
+    expect(res.statusCode).toBe(401)
+    await app.close()
+  })
+
+  it('GetHolidays_Unauthenticated_Returns401', async () => {
+    const app = await buildApp({
+      config: loadConfig({ LOG_LEVEL: 'silent', AUTH_SECRET: 'x'.repeat(32) }),
+      db: handle,
+    })
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/absences/holidays?region=DE-BW&year=2026',
     })
     expect(res.statusCode).toBe(401)
     await app.close()

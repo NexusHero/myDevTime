@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
+import { holidaysForRegion, type HolidayRegion } from '@mydevtime/domain'
 import { AuthGuard, CurrentUser, type AuthenticatedUser } from '../auth/contract.js'
 import * as svc from './service.js'
 import { AbsencesContext } from './absences.context.js'
@@ -18,6 +19,7 @@ import {
   AbsenceRangeQueryDto,
   BalanceQueryDto,
   CreateAbsenceDto,
+  HolidaysQueryDto,
   IdParamDto,
   SetPolicyDto,
 } from './absences.dto.js'
@@ -79,6 +81,18 @@ export class AbsencesController {
     return svc.setPolicy(db, workspaceId, {
       annualAllowanceDays: body.annualAllowanceDays,
       carryOverDays: body.carryOverDays,
+      region: body.region ?? null,
     })
+  }
+
+  /**
+   * The public holidays for a region + year (REQ-029 follow-up, #150), computed by
+   * the deterministic domain calendar. Region-only, workspace-independent — so it
+   * takes no workspace context; it stays behind the guard for parity.
+   */
+  @Get('holidays')
+  holidays(@Query() query: HolidaysQueryDto) {
+    const dates = holidaysForRegion(query.region as HolidayRegion, query.year)
+    return { region: query.region, year: query.year, dates }
   }
 }
