@@ -1,9 +1,24 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Inject,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { AuthGuard, CurrentUser, type AuthenticatedUser } from '../auth/contract.js'
+import { balanceFor, debit } from '../billing/contract.js'
 import * as svc from './service.js'
 import { PlannerContext } from './planner.context.js'
+import { PLAN_LABELER, type PlanLabeler } from './labeler.js'
 import { GeneratePlanDto, IdParamDto, PlanDateQueryDto, PlanStatusDto } from './planner.dto.js'
+
+/** One AI Co-Planner briefing costs one credit (ADR-0008). */
+const LABEL_CREDIT_COST = 1
 
 /**
  * The Co-Planner surface (REQ-031, ADR-0011): generate a proposed day plan from
@@ -16,7 +31,10 @@ import { GeneratePlanDto, IdParamDto, PlanDateQueryDto, PlanStatusDto } from './
 @Controller('api/planner')
 @UseGuards(AuthGuard)
 export class PlannerController {
-  constructor(private readonly ctx: PlannerContext) {}
+  constructor(
+    private readonly ctx: PlannerContext,
+    @Inject(PLAN_LABELER) private readonly labeler: PlanLabeler,
+  ) {}
 
   @Get('plans')
   async latest(@CurrentUser() user: AuthenticatedUser, @Query() query: PlanDateQueryDto) {
@@ -50,5 +68,31 @@ export class PlannerController {
   ) {
     const { db, workspaceId } = await this.ctx.workspaceOf(user)
     return svc.setPlanStatus(db, workspaceId, params.id, body.status)
+  }
+
+  /**
+   * The AI Co-Planner *garnish* (REQ-031, #151): rank/label a stored plan's blocks.
+   * The LLM only labels the code-enforced blocks (ADR-0005); it degrades to the
+   * deterministic labels when the provider is down or the workspace has no credits.
+   * A credit is debited only when the AI actually produced the labels, idempotently
+   * per plan, so re-labeling the same plan never double-charges (ADR-0008).
+   */
+  @Post('plans/:id/label')
+  async label(@CurrentUser() user: AuthenticatedUser, @Param() params: IdParamDto) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    const plan = svc.planRowToDayPlan(await svc.getPlanById(db, workspaceId, params.id))
+    const allowAi = (await balanceFor(db, workspaceId)) >= LABEL_CREDIT_COST
+    const { source, labels } = await this.labeler.label(plan, { allowAi })
+    let charged = false
+    if (source === 'ai-proposal') {
+      await debit(db, workspaceId, {
+        amount: LABEL_CREDIT_COST,
+        category: 'co-planner',
+        reason: 'AI Co-Planner briefing',
+        operationId: `plan-label:${params.id}`,
+      })
+      charged = true
+    }
+    return { source, charged, labels }
   }
 }
