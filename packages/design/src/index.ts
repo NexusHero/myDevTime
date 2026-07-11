@@ -46,6 +46,7 @@ export {
   type AccentTheme,
 } from './palette.js'
 export { theme, themes, type Theme, type ThemeMode } from './theme.js'
+export { boundedList, type Bounded } from './bounded.js'
 export { projectColor, projectColorIndex } from './projects.js'
 export {
   contrastRatio,
