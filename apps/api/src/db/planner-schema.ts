@@ -1,5 +1,5 @@
 import { date, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
-import type { PlanBlock } from '@mydevtime/domain'
+import type { PlanAnchor, PlanBlock } from '@mydevtime/domain'
 import { workspaces } from './schema.js'
 import { user } from './auth-schema.js'
 
@@ -25,5 +25,8 @@ export const plans = pgTable('plans', {
   blocks: jsonb('blocks').$type<PlanBlock[]>().notNull(),
   plannedFocusMin: integer('planned_focus_min').notNull().default(0),
   unplacedMin: integer('unplaced_min').notNull().default(0),
+  // Anchors that overlapped a kept meeting or fell outside the window (M4): kept so
+  // the client can warn an overbooked user instead of silently swallowing them.
+  droppedAnchors: jsonb('dropped_anchors').$type<PlanAnchor[]>().notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })

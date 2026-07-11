@@ -14,6 +14,7 @@ const plan: DayPlan = {
   dayEndMin: 1020,
   plannedFocusMin: 150,
   unplacedMin: 0,
+  droppedAnchors: [],
   blocks: [
     { startMin: 480, lenMin: 30, kind: 'meeting', label: 'Standup' },
     { startMin: 510, lenMin: 90, kind: 'focus', label: 'Sync engine' },

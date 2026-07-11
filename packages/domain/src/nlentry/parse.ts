@@ -24,9 +24,26 @@ export interface TimeEntryDraft {
 const CLOCK_RE = /\b(\d{1,2}):(\d{2})\b/g
 const HOURS_RE = /(\d+(?:[.,]\d+)?)\s*(?:stunden|stunde|hours|hour|hrs|hr|std|h)\b/gi
 const MINUTES_RE = /(\d+)\s*(?:minuten|minute|minutes|mins|min|m)\b/gi
+/** An issue-tracker key like `PROJ-142`, `AUTH-7` (Jira/Linear/GitHub/Azure style). */
+const TICKET_RE = /\b([A-Z][A-Z0-9]+-\d+)\b/
+
+export interface ParseOptions {
+  /**
+   * Project/ticket names the caller knows from the workspace catalog. A phrase
+   * token matching one (case-insensitively) becomes the project hint in the
+   * catalog's canonical casing — this is how a bare name like "logo" resolves
+   * without a keyword. The parser stays pure; the caller supplies the vocabulary.
+   */
+  readonly knownProjects?: readonly string[]
+}
+
+/** Escape a string for safe embedding in a `RegExp`. */
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
 
 /** Parse a phrase into a draft time entry, or null when no duration is present. */
-export function parseTimeEntry(text: string): TimeEntryDraft | null {
+export function parseTimeEntry(text: string, opts: ParseOptions = {}): TimeEntryDraft | null {
   let rest = ` ${text} `
   let durationMs = 0
 
@@ -65,17 +82,34 @@ export function parseTimeEntry(text: string): TimeEntryDraft | null {
     },
   )
 
-  // Project hint: a @sigil / #tag, or a keyword ("on"/"for"/"für"/"auf") + one word.
+  // Project hint, most-explicit first: a @sigil / #tag, then an issue-tracker key
+  // (PROJ-142), then a known catalog name ("logo"), then a keyword + word.
   let projectHint: string | null = null
   const sigil = /[@#]([\p{L}\d][\p{L}\d-]*)/u.exec(rest)
+  const ticket = TICKET_RE.exec(rest)
   if (sigil?.[1]) {
     projectHint = sigil[1]
     rest = rest.replace(sigil[0], ' ')
+  } else if (ticket?.[1]) {
+    projectHint = ticket[1]
+    rest = rest.replace(ticket[0], ' ')
   } else {
-    const keyword = /\b(?:on|for|für|auf)\s+([\p{L}][\p{L}\d-]*)/iu.exec(rest)
-    if (keyword?.[1]) {
-      projectHint = keyword[1]
-      rest = rest.replace(keyword[0], ' ')
+    for (const name of opts.knownProjects ?? []) {
+      if (name.length === 0) continue
+      const re = new RegExp(`\\b${escapeRegExp(name)}\\b`, 'iu')
+      const hit = re.exec(rest)
+      if (hit) {
+        projectHint = name // canonical catalog casing, not the phrase's casing
+        rest = rest.replace(hit[0], ' ')
+        break
+      }
+    }
+    if (projectHint === null) {
+      const keyword = /\b(?:on|for|für|auf)\s+([\p{L}][\p{L}\d-]*)/iu.exec(rest)
+      if (keyword?.[1]) {
+        projectHint = keyword[1]
+        rest = rest.replace(keyword[0], ' ')
+      }
     }
   }
 

@@ -54,6 +54,30 @@ describe('parseTimeEntry — project & note', () => {
   })
 })
 
+describe('parseTimeEntry — ticket keys & known projects', () => {
+  it('RecognisesAJiraStyleTicketKeyAsTheProjectHint', () => {
+    const draft = parseTimeEntry('1,5h PROJ-142 auth bug gestern')
+    expect(draft?.projectHint).toBe('PROJ-142')
+    expect(draft?.dayOffset).toBe(-1)
+    expect(draft?.note).toBe('auth bug')
+  })
+  it('DoesNotMistakePlainNumbersForTicketKeys', () => {
+    expect(parseTimeEntry('2h room 142 cleanup')?.projectHint).toBeNull()
+  })
+  it('MatchesAKnownProjectNameCaseInsensitivelyAndReturnsCanonicalCasing', () => {
+    const draft = parseTimeEntry('2h logo feinschliff', { knownProjects: ['Logo', 'Finanzo'] })
+    expect(draft?.projectHint).toBe('Logo')
+    expect(draft?.note).toBe('feinschliff')
+  })
+  it('PrefersAnExplicitSigilOverAKnownProjectName', () => {
+    const draft = parseTimeEntry('2h @finanzo logo work', { knownProjects: ['Logo'] })
+    expect(draft?.projectHint).toBe('finanzo')
+  })
+  it('LeavesHintNullWhenNoKnownProjectMatches', () => {
+    expect(parseTimeEntry('2h random work', { knownProjects: ['Logo'] })?.projectHint).toBeNull()
+  })
+})
+
 describe('parseTimeEntry — billable & confidence', () => {
   it('MarksNonBillableOnKeyword', () => {
     expect(parseTimeEntry('1h internal meeting non-billable')?.billable).toBe(false)

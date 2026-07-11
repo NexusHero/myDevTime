@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  catalogVocabulary,
   draftToEntryTimes,
   fetchNlDraft,
   parseDraftResult,
@@ -38,17 +39,48 @@ describe('parseDraftResult', () => {
 })
 
 describe('fetchNlDraft', () => {
-  it('PostsTheTextToTheAiRoute', async () => {
-    const seen: string[] = []
-    const fetchImpl = ((url: string) => {
-      seen.push(url)
+  it('PostsTheTextAndKnownProjectsToTheAiRoute', async () => {
+    const seen: { url: string; body: unknown }[] = []
+    const fetchImpl = ((url: string, init?: RequestInit) => {
+      seen.push({ url, body: JSON.parse((init?.body as string | undefined) ?? '{}') })
       return Promise.resolve(
         new Response(JSON.stringify({ draft: DRAFT, source: 'deterministic' }), { status: 200 }),
       )
     }) as unknown as typeof fetch
-    const r = await fetchNlDraft('http://api', '2h Finanzo review yesterday', fetchImpl)
+    const r = await fetchNlDraft(
+      'http://api',
+      '2h Finanzo review yesterday',
+      ['Finanzo'],
+      fetchImpl,
+    )
     expect(r.draft?.durationMs).toBe(7_200_000)
-    expect(seen[0]).toContain('/api/ai/nl-entry')
+    expect(seen[0]?.url).toContain('/api/ai/nl-entry')
+    expect(seen[0]?.body).toEqual({
+      text: '2h Finanzo review yesterday',
+      knownProjects: ['Finanzo'],
+    })
+  })
+
+  it('OmitsKnownProjectsWhenTheCatalogIsEmpty', async () => {
+    let sentBody: unknown
+    const fetchImpl = ((_url: string, init?: RequestInit) => {
+      sentBody = JSON.parse((init?.body as string | undefined) ?? '{}')
+      return Promise.resolve(
+        new Response(JSON.stringify({ draft: null, source: 'none' }), { status: 200 }),
+      )
+    }) as unknown as typeof fetch
+    await fetchNlDraft('http://api', 'kaffee', [], fetchImpl)
+    expect(sentBody).toEqual({ text: 'kaffee' })
+  })
+})
+
+describe('catalogVocabulary', () => {
+  it('FlattensProjectNamesAcrossClients', () => {
+    const catalog = [
+      { id: 'c1', name: 'Acme', projects: [{ id: 'p1', name: 'Logo', tasks: [] }] },
+      { id: 'c2', name: 'Beta', projects: [{ id: 'p2', name: 'Finanzo', tasks: [] }] },
+    ] as unknown as Client[]
+    expect(catalogVocabulary(catalog)).toEqual(['Logo', 'Finanzo'])
   })
 })
 

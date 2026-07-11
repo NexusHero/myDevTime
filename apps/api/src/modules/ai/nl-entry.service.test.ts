@@ -19,6 +19,14 @@ describe('NlEntryService', () => {
     expect(draft?.dayOffset).toBe(-1)
   })
 
+  it('ResolvesABareKnownProjectNameToTheProjectHint', async () => {
+    const svc = new NlEntryService(new NullLlm())
+    const { draft, source } = await svc.draft('2h logo feinschliff', ['Logo', 'Finanzo'])
+    expect(source).toBe('deterministic')
+    expect(draft?.projectHint).toBe('Logo')
+    expect(draft?.note).toBe('feinschliff')
+  })
+
   it('DegradesToNoneWhenUnparseableAndNoLlm', async () => {
     const svc = new NlEntryService(new NullLlm())
     const result = await svc.draft('did some finanzo work')

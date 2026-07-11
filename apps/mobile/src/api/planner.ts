@@ -18,6 +18,12 @@ export interface PlanBlock {
   readonly taskId: string | null
 }
 
+export interface PlanAnchorRef {
+  readonly startMin: number
+  readonly lenMin: number
+  readonly label: string
+}
+
 export interface DayPlan {
   readonly id: string
   readonly date: string
@@ -26,6 +32,8 @@ export interface DayPlan {
   readonly blocks: PlanBlock[]
   readonly plannedFocusMin: number
   readonly unplacedMin: number
+  /** Meetings the planner could not place (overlap / out of window) — surfaced as a warning. */
+  readonly droppedAnchors: PlanAnchorRef[]
 }
 
 const KINDS: readonly PlanBlockKind[] = ['meeting', 'focus', 'break']
@@ -42,6 +50,11 @@ export function parseBlock(value: unknown): PlanBlock {
   }
 }
 
+export function parseAnchorRef(value: unknown): PlanAnchorRef {
+  const o = record(value)
+  return { startMin: num(o, 'startMin'), lenMin: num(o, 'lenMin'), label: str(o, 'label') }
+}
+
 /** Parse a plan row (must be present). */
 export function parsePlanRow(value: unknown): DayPlan {
   const o = record(value)
@@ -53,6 +66,8 @@ export function parsePlanRow(value: unknown): DayPlan {
     blocks: parseArray(o.blocks, parseBlock),
     plannedFocusMin: num(o, 'plannedFocusMin'),
     unplacedMin: num(o, 'unplacedMin'),
+    droppedAnchors:
+      o.droppedAnchors === undefined ? [] : parseArray(o.droppedAnchors, parseAnchorRef),
   }
 }
 

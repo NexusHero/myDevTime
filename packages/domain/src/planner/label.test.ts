@@ -3,7 +3,14 @@ import { deterministicLabels } from './label.js'
 import type { DayPlan, PlanBlock } from './plan.js'
 
 function plan(blocks: PlanBlock[]): DayPlan {
-  return { dayStartMin: 0, dayEndMin: 600, blocks, plannedFocusMin: 0, unplacedMin: 0 }
+  return {
+    dayStartMin: 0,
+    dayEndMin: 600,
+    blocks,
+    plannedFocusMin: 0,
+    unplacedMin: 0,
+    droppedAnchors: [],
+  }
 }
 
 describe('deterministicLabels', () => {
