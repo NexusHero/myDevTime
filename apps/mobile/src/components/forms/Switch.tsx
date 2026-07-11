@@ -52,7 +52,7 @@ export function Switch({
         />
       </View>
       {label !== undefined && (
-        <Text style={{ fontSize: t.fontSize.base, color: t.color.ink }}>{label}</Text>
+        <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink }}>{label}</Text>
       )}
     </Pressable>
   )

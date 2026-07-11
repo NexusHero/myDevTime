@@ -24,7 +24,7 @@ export function Row({ title, subtitle, leading, trailing, onPress }: RowProps): 
     <>
       {leading !== undefined && <View style={{ marginRight: t.spacing.s3 }}>{leading}</View>}
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: t.fontSize.base, color: t.color.ink }} numberOfLines={1}>
+        <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink }} numberOfLines={1}>
           {title}
         </Text>
         {subtitle !== undefined && (

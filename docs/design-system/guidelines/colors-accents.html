@@ -1,0 +1,69 @@
+<!-- @dsCard group="Colors" viewport="700x230" name="Accent themes" subtitle="Sovereign (default) · Ember · Blueprint" -->
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body {
+    margin: 0;
+    padding: 20px;
+    font-family: var(--font-ui);
+    background: var(--surface);
+  }
+  .row {
+    display: flex;
+    gap: 16px;
+  }
+  .theme {
+    flex: 1;
+    border-radius: var(--radius-card);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .swatch {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-contrast);
+    font-weight: 700;
+    font-size: 13px;
+    background: var(--accent);
+  }
+  .meta {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .name {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .hex {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-2);
+  }
+</style>
+<div class="row">
+  <div class="theme" data-theme="sovereign">
+    <div class="swatch">Sovereign</div>
+    <div class="meta">
+      <span class="name">Royal blue + white</span
+      ><span class="hex">#3654E0 · flagship default</span>
+    </div>
+  </div>
+  <div class="theme" data-theme="ember">
+    <div class="swatch">Ember</div>
+    <div class="meta">
+      <span class="name">Vivid signal orange</span
+      ><span class="hex">#FF5320 · the live color as full theme</span>
+    </div>
+  </div>
+  <div class="theme" data-theme="blueprint">
+    <div class="swatch">Blueprint</div>
+    <div class="meta">
+      <span class="name">myjob steel blue, 1:1</span
+      ><span class="hex">#2563EB · family resemblance</span>
+    </div>
+  </div>
+</div>

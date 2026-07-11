@@ -1,0 +1,29 @@
+<!-- @dsCard group="Spacing" viewport="700x140" name="Corner radii" subtitle="chip · block · card · pill" -->
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body {
+    margin: 0;
+    padding: 20px;
+    font-family: var(--font-ui);
+    background: var(--surface);
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+  .b {
+    background: var(--accent-soft);
+    border: 1.5px solid var(--accent-border);
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent-strong);
+  }
+</style>
+<div class="b" style="width: 64px; border-radius: var(--radius-chip)">6</div>
+<div class="b" style="width: 64px; border-radius: var(--radius-block)">10</div>
+<div class="b" style="width: 64px; border-radius: var(--radius-card)">14</div>
+<div class="b" style="width: 64px; border-radius: var(--radius-xl)">20</div>
+<div class="b" style="width: 120px; border-radius: var(--radius-pill)">pill 999</div>

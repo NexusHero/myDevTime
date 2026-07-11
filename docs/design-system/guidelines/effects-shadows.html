@@ -1,0 +1,28 @@
+<!-- @dsCard group="Spacing" viewport="700x160" name="Elevation" subtitle="xs · sm · md · lg" -->
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body {
+    margin: 0;
+    padding: 24px;
+    font-family: var(--font-ui);
+    background: var(--bg);
+    display: flex;
+    gap: 20px;
+  }
+  .c {
+    flex: 1;
+    height: 80px;
+    background: var(--surface-raised);
+    border-radius: var(--radius-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-2);
+  }
+</style>
+<div class="c" style="box-shadow: var(--shadow-xs)">xs</div>
+<div class="c" style="box-shadow: var(--shadow-sm)">sm</div>
+<div class="c" style="box-shadow: var(--shadow-md)">md</div>
+<div class="c" style="box-shadow: var(--shadow-lg)">lg</div>

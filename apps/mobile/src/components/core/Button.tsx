@@ -42,7 +42,7 @@ export function Button({
   const c = variantColors(t)[variant]
   const padV = size === 'sm' ? 6 : size === 'lg' ? 12 : 9
   const padH = size === 'sm' ? 14 : size === 'lg' ? 22 : 18
-  const fontSize = size === 'sm' ? t.fontSize.sm : t.fontSize.base
+  const fontSize = size === 'sm' ? t.fontSize.xs : size === 'lg' ? t.fontSize.md : t.fontSize.sm
 
   const style = ({ pressed }: { pressed: boolean }): ViewStyle => ({
     flexDirection: 'row',

@@ -1,0 +1,38 @@
+/* ============================================================
+   THEME VARIANTS — accent + typeface swaps, for side-by-side
+   comparison per the brief (Sovereign default / Ember / Blueprint).
+   Apply on any wrapper:  <div data-theme="ember"> … </div>
+   The default (no attribute, or data-theme="sovereign") is set in
+   colors.css / typography.css.
+   ============================================================ */
+
+[data-theme='sovereign'] {
+  --accent: var(--sovereign-500);
+  --accent-strong: var(--sovereign-600);
+  --accent-on-dark: var(--sovereign-on-dark);
+  --accent-soft: var(--sovereign-soft);
+  --accent-border: var(--sovereign-border);
+  --accent-contrast: #ffffff;
+}
+
+[data-theme='ember'] {
+  --accent: var(--ember-500);
+  --accent-strong: var(--ember-600);
+  --accent-on-dark: var(--ember-on-dark);
+  --accent-soft: var(--ember-soft);
+  --accent-border: var(--ember-border);
+  --accent-contrast: #ffffff;
+}
+
+/* BLUEPRINT — "Königsblau", the DEFAULT accent (ADR-0023) and myjob's
+   steel blue. The nav rail follows the global light/dark rail tokens —
+   the old fixed dark ink shell was retired as dated (owner call,
+   July 2026); myjob kinship now carries through accent + type only. */
+[data-theme='blueprint'] {
+  --accent: var(--blueprint-500);
+  --accent-strong: var(--blueprint-600);
+  --accent-on-dark: var(--blueprint-on-dark);
+  --accent-soft: var(--blueprint-soft);
+  --accent-border: var(--blueprint-border);
+  --accent-contrast: #ffffff;
+}

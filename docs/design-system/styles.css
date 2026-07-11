@@ -1,0 +1,16 @@
+/* ============================================================
+   myDevTime Design System — global entry point.
+   Consumers link THIS file only. It is a manifest of @imports.
+   The webfont @import must remain first (self-hosted — no
+   request to Google; Space Grotesk + JetBrains Mono are used in
+   all themes, Inter is the Blueprint body font).
+   ============================================================ */
+@import url('fonts/fonts.css');
+
+@import url('tokens/colors.css');
+@import url('tokens/typography.css');
+@import url('tokens/spacing.css');
+@import url('tokens/effects.css');
+@import url('tokens/themes.css');
+@import url('tokens/modes.css');
+@import url('tokens/base.css');
