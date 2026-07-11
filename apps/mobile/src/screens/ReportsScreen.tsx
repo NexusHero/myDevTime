@@ -428,10 +428,16 @@ export function ReportsScreen(): React.JSX.Element {
   const rangeError =
     reports.error !== null && isWeek && reports.data === null ? reports.error : null
 
+  // Honest labelling (M7): cards with no live source yet carry a "Vorschau" badge so
+  // demo figures never masquerade as the user's real data. The week summary/billable/
+  // budget cards are live; the strain, heatmap, box-plot and Monat/Jahr tiles are not.
+  const previewBadge = <Badge tone="neutral">Vorschau</Badge>
+
   const balanceCard = (
     <Card
       title="Balance"
       subtitle={`${demo.label} · Belastung aus deinen eigenen Daten — keine Diagnose`}
+      action={previewBadge}
     >
       <View
         style={{
@@ -537,6 +543,7 @@ export function ReportsScreen(): React.JSX.Element {
     <Card
       title="Wohin ging die Zeit?"
       subtitle={`${demo.label} · nach Projekt`}
+      action={isWeek ? undefined : previewBadge}
       style={{ flex: 1 }}
     >
       {isWeek && reports.loading && reports.data === null ? (
@@ -557,7 +564,12 @@ export function ReportsScreen(): React.JSX.Element {
     <Card
       title="Budget burn-down"
       subtitle="Nordwind GmbH · 80h fixed"
-      action={<NumPill tone="warn">erschöpft ~21.7.</NumPill>}
+      action={
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
+          {previewBadge}
+          <NumPill tone="warn">erschöpft ~21.7.</NumPill>
+        </View>
+      }
       style={{ flex: 1 }}
     >
       <Sparkline
@@ -663,7 +675,12 @@ export function ReportsScreen(): React.JSX.Element {
     <Card
       title="Tagesarbeitszeit"
       subtitle={`${demo.label} · Verteilung vs. Soll 8:20h`}
-      action={<NumPill tone={overtimeTone}>{`Saldo ${overtimeLabel(overtimeMs)}`}</NumPill>}
+      action={
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
+          {previewBadge}
+          <NumPill tone={overtimeTone}>{`Saldo ${overtimeLabel(overtimeMs)}`}</NumPill>
+        </View>
+      }
       style={{ flex: 1 }}
     >
       <BoxPlot label="Stunden pro Tag" {...DEMO_BOXPLOT[range]} />
@@ -675,13 +692,18 @@ export function ReportsScreen(): React.JSX.Element {
   )
 
   const focusCard = (
-    <Card title="Fokus-Stunden" subtitle="Täglich, diese Woche" style={{ flex: 1 }}>
+    <Card
+      title="Fokus-Stunden"
+      subtitle="Täglich, diese Woche"
+      action={previewBadge}
+      style={{ flex: 1 }}
+    >
       <WeekSparkline label="Fokus pro Tag" data={DEMO_FOCUS_WEEK} />
     </Card>
   )
 
   const heatmapCard = (
-    <Card title="Intensität" subtitle="Letzte 12 Monate" style={{ flex: 1 }}>
+    <Card title="Intensität" subtitle="Letzte 12 Monate" action={previewBadge} style={{ flex: 1 }}>
       <Heatmap label="Aktivität pro Woche" data={DEMO_HEATMAP} />
     </Card>
   )
@@ -775,6 +797,7 @@ export function ReportsScreen(): React.JSX.Element {
       <Card
         title="Monatsübersicht"
         subtitle="Juli 2026 · Tag antippen für Einträge"
+        action={previewBadge}
         style={{ flex: 1 }}
       >
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, maxWidth: 266 }}>
@@ -891,6 +914,10 @@ export function ReportsScreen(): React.JSX.Element {
           onSubmit={submitAsk}
           placeholder="Frag deine Reports — Projekte, Umsatz, Saldo"
         />
+        <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
+          Vorschau: Beispiel-Antworten auf die Chips oben — der Assistent auf deinen echten Daten
+          wird angebunden.
+        </Text>
         {aiAnswer !== null && <AICallout title="✦ Antwort">{aiAnswer}</AICallout>}
       </View>
 

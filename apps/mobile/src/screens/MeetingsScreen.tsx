@@ -77,7 +77,11 @@ export function MeetingsScreen(): React.JSX.Element {
   const sel = MEETINGS.find(m => m.id === selId) ?? MEETINGS[0]!
 
   const list = (
-    <Card title="This week" {...(stacked ? {} : { style: { width: 280 } })}>
+    <Card
+      title="This week"
+      action={<Badge tone="neutral">Beispiel</Badge>}
+      {...(stacked ? {} : { style: { width: 280 } })}
+    >
       <View style={{ gap: t.spacing.s1 }}>
         {MEETINGS.map(m => {
           const active = m.id === selId
