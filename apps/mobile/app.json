@@ -7,8 +7,23 @@
     "scheme": "mydevtime",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "ios": { "supportsTablet": true },
-    "android": { "edgeToEdgeEnabled": true },
+    "icon": "../../../packages/design/assets/logo/icon.svg",
+    "splash": {
+      "image": "../../../packages/design/assets/logo/splash.svg",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "icon": "../../../packages/design/assets/logo/icon.svg"
+    },
+    "android": {
+      "edgeToEdgeEnabled": true,
+      "adaptiveIcon": {
+        "foregroundImage": "../../../packages/design/assets/logo/icon.svg",
+        "backgroundColor": "#ffffff"
+      }
+    },
     "web": { "bundler": "metro", "output": "single" }
   }
 }
