@@ -54,6 +54,12 @@ export interface DayPlan {
   readonly plannedFocusMin: number
   /** Backlog estimate that did not fit the day. */
   readonly unplacedMin: number
+  /**
+   * Anchors the plan could not place — they overlap a kept meeting or fall fully
+   * outside the day window. Reported (not silently swallowed) so an overbooked
+   * user sees which meetings were dropped rather than being misled (M4).
+   */
+  readonly droppedAnchors: readonly PlanAnchor[]
 }
 
 interface Gap {
@@ -62,24 +68,36 @@ interface Gap {
 }
 
 /** Clip anchors to the window, drop invalid/overlapping, sort by start. */
-function normalizeAnchors(input: PlanInput): PlanBlock[] {
+function normalizeAnchors(input: PlanInput): { meetings: PlanBlock[]; dropped: PlanAnchor[] } {
   const clipped = input.anchors
     .map(a => {
       const start = Math.max(a.startMin, input.dayStartMin)
       const end = Math.min(a.startMin + a.lenMin, input.dayEndMin)
-      return { start, end, label: a.label }
+      return { start, end, original: a }
     })
     .filter(a => a.end > a.start)
     .sort((a, b) => a.start - b.start)
 
+  // Anchors with no positive overlap with the window (clipped away entirely).
+  const kept = new Set(clipped.map(a => a.original))
+  const dropped: PlanAnchor[] = input.anchors.filter(a => !kept.has(a))
+
   const meetings: PlanBlock[] = []
   let lastEnd = input.dayStartMin
   for (const a of clipped) {
-    if (a.start < lastEnd) continue // overlaps a kept anchor → skip
-    meetings.push({ startMin: a.start, lenMin: a.end - a.start, kind: 'meeting', label: a.label })
+    if (a.start < lastEnd) {
+      dropped.push(a.original) // overlaps a kept anchor → not placed
+      continue
+    }
+    meetings.push({
+      startMin: a.start,
+      lenMin: a.end - a.start,
+      kind: 'meeting',
+      label: a.original.label,
+    })
     lastEnd = a.end
   }
-  return meetings
+  return { meetings, dropped }
 }
 
 /** The free gaps between/around the meetings, within the day window. */
@@ -99,7 +117,7 @@ export function buildDayPlan(input: PlanInput): DayPlan {
   const breakLenMin = input.breakLenMin ?? 15
   const minBlockMin = input.minBlockMin ?? 15
 
-  const meetings = normalizeAnchors(input)
+  const { meetings, dropped } = normalizeAnchors(input)
   const gaps = freeGaps(meetings, input)
 
   // Remaining minutes per candidate, ordered by priority then estimate then id.
@@ -163,6 +181,7 @@ export function buildDayPlan(input: PlanInput): DayPlan {
     blocks,
     plannedFocusMin,
     unplacedMin,
+    droppedAnchors: dropped,
   }
 }
 

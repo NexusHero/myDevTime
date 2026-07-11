@@ -46,6 +46,7 @@ export function planRowToDayPlan(row: PlanRow): DayPlan {
     blocks: row.blocks,
     plannedFocusMin: row.plannedFocusMin,
     unplacedMin: row.unplacedMin,
+    droppedAnchors: row.droppedAnchors,
   }
 }
 
@@ -115,6 +116,7 @@ export async function generatePlan(
       blocks: [...dayPlan.blocks],
       plannedFocusMin: dayPlan.plannedFocusMin,
       unplacedMin: dayPlan.unplacedMin,
+      droppedAnchors: [...dayPlan.droppedAnchors],
     })
     .returning()
   return first(rows)

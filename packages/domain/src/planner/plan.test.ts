@@ -123,6 +123,41 @@ describe('buildDayPlan — edge cases', () => {
     expect(meetings.map(m => m.label)).toEqual(['Kept'])
   })
 
+  it('ReportsOverlappingAnchorsAsDroppedInsteadOfSwallowingThem', () => {
+    // Three meetings in the same slot: only the first is placed; the two that
+    // overlap it must be reported so an overbooked user is warned, not misled.
+    const plan = buildDayPlan(
+      base({
+        anchors: [
+          { startMin: 9 * 60, lenMin: 60, label: 'Kept' },
+          { startMin: 9 * 60 + 15, lenMin: 30, label: 'Clash A' },
+          { startMin: 9 * 60 + 30, lenMin: 60, label: 'Clash B' },
+        ],
+      }),
+    )
+    expect(plan.blocks.filter(b => b.kind === 'meeting').map(m => m.label)).toEqual(['Kept'])
+    expect(plan.droppedAnchors.map(a => a.label)).toEqual(['Clash A', 'Clash B'])
+  })
+
+  it('ReportsAnchorsFullyOutsideTheWindowAsDropped', () => {
+    const plan = buildDayPlan(
+      base({ anchors: [{ startMin: 20 * 60, lenMin: 60, label: 'Evening' }] }),
+    )
+    expect(plan.droppedAnchors.map(a => a.label)).toEqual(['Evening'])
+  })
+
+  it('DropsNoAnchorsWhenNoneOverlap', () => {
+    const plan = buildDayPlan(
+      base({
+        anchors: [
+          { startMin: 9 * 60, lenMin: 30, label: 'A' },
+          { startMin: 11 * 60, lenMin: 30, label: 'B' },
+        ],
+      }),
+    )
+    expect(plan.droppedAnchors).toEqual([])
+  })
+
   it('ClipsAnchorsToTheDayWindow', () => {
     const plan = buildDayPlan(
       base({

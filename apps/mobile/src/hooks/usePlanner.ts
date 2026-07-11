@@ -54,6 +54,7 @@ function demoPlan(date: string): DayPlan {
       { startMin: 855, lenMin: 15, kind: 'break', label: 'Break', taskId: null },
       { startMin: 870, lenMin: 75, kind: 'focus', label: 'Website relaunch', taskId: 'nordwind' },
     ],
+    droppedAnchors: [{ startMin: 540, lenMin: 30, label: 'Vendor sync (overlaps standup)' }],
   }
 }
 
