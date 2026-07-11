@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
+import { Pressable, View, useWindowDimensions } from 'react-native'
 import { Text } from '../components/core/Text'
 import {
   boundedList,
@@ -10,7 +10,7 @@ import {
   type Screen,
 } from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
-import { Badge, BudgetRing, Button, Card, Sparkline } from '../components/index'
+import { Badge, BudgetRing, Button, Card, ScreenScaffold, Sparkline } from '../components/index'
 import type { Client, Project } from './projectsData'
 import { useCatalog } from './useCatalog'
 
@@ -242,49 +242,48 @@ export function ProjectsScreen({
       ? 'Could not load'
       : 'nach Budget-Risiko'
 
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: t.color.bg }}
-      contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s4 }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
-        <Text
+  const header = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
+      <Text
+        style={{
+          fontWeight: '700',
+          fontSize: t.fontSize.xl,
+          color: t.color.ink,
+          fontFamily: t.fontFamily.display,
+        }}
+      >
+        Projects
+      </Text>
+      {sorted.length > 0 && (
+        <View
           style={{
-            fontWeight: '700',
-            fontSize: t.fontSize.xl,
-            color: t.color.ink,
-            fontFamily: t.fontFamily.display,
+            paddingVertical: 2,
+            paddingHorizontal: t.spacing.s2,
+            borderRadius: t.radius.pill,
+            backgroundColor: t.color.sunk,
           }}
         >
-          Projects
-        </Text>
-        {sorted.length > 0 && (
-          <View
+          <Text
             style={{
-              paddingVertical: 2,
-              paddingHorizontal: t.spacing.s2,
-              borderRadius: t.radius.pill,
-              backgroundColor: t.color.sunk,
+              fontFamily: t.fontFamily.numeric,
+              fontSize: t.fontSize['2xs'],
+              fontWeight: '700',
+              color: t.color.ink2,
             }}
           >
-            <Text
-              style={{
-                fontFamily: t.fontFamily.numeric,
-                fontSize: t.fontSize['2xs'],
-                fontWeight: '700',
-                color: t.color.ink2,
-              }}
-            >
-              {sorted.length}
-            </Text>
-          </View>
-        )}
-        <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, marginLeft: 'auto' }}>
-          {subtitle}
-        </Text>
-        {!catalog.live && <Badge tone="neutral">Demo data</Badge>}
-      </View>
+            {sorted.length}
+          </Text>
+        </View>
+      )}
+      <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, marginLeft: 'auto' }}>
+        {subtitle}
+      </Text>
+      {!catalog.live && <Badge tone="neutral">Demo data</Badge>}
+    </View>
+  )
 
+  return (
+    <ScreenScaffold header={header}>
       {catalog.loading && catalog.data === null && <Notice title="Loading projects…" />}
 
       {catalog.error && (
@@ -333,6 +332,6 @@ export function ProjectsScreen({
           </Button>
         </View>
       )}
-    </ScrollView>
+    </ScreenScaffold>
   )
 }
