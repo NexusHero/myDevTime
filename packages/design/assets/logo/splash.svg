@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844">
+  <defs>
+    <radialGradient id="glow" cx="0.5" cy="0.32" r="0.9">
+      <stop offset="0" stop-color="#16255c"></stop>
+      <stop offset="0.55" stop-color="#0d1330"></stop>
+      <stop offset="1" stop-color="#0a0c11"></stop>
+    </radialGradient>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3D5CF5"></stop>
+      <stop offset="1" stop-color="#2941B8"></stop>
+    </linearGradient>
+  </defs>
+  <rect width="390" height="844" fill="url(#glow)"></rect>
+  <g transform="translate(131, 290)">
+    <rect width="128" height="128" rx="30" fill="url(#tile)"></rect>
+    <rect x="25" y="48" width="30" height="36" rx="9" fill="#ffffff"></rect>
+    <rect x="73" y="48" width="30" height="36" rx="9" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="3.5" stroke-dasharray="7.5 6.5" stroke-linecap="round"></rect>
+    <rect x="61.5" y="40" width="5" height="52" rx="2.5" fill="#FF5320"></rect>
+    <circle cx="64" cy="31" r="6.5" fill="#FF5320"></circle>
+  </g>
+  <text x="195" y="490" text-anchor="middle" font-family="&#39;Space Grotesk&#39;, -apple-system, &#39;Segoe UI&#39;, sans-serif" font-size="30" font-weight="700" letter-spacing="-0.6">
+    <tspan fill="#ffffff">my</tspan><tspan fill="#FF5320">Dev</tspan><tspan fill="#ffffff">Time</tspan>
+  </text>
+  <text x="195" y="520" text-anchor="middle" font-family="-apple-system, &#39;Segoe UI&#39;, sans-serif" font-size="13.5" fill="rgba(255,255,255,0.55)">Dein Tag, geplant.</text>
+</svg>

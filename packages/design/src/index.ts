@@ -89,3 +89,6 @@ export {
   type NavMode,
   type Chrome,
 } from './responsive.js'
+
+// Brand assets and guidelines
+export { logo, brandGuide } from './branding.js'
