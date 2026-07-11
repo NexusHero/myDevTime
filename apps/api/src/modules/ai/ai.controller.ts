@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { Body, Controller, Get, Inject, Post, UseGuards } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { AuthGuard, CurrentUser, type AuthenticatedUser } from '../auth/contract.js'
@@ -54,7 +55,7 @@ export class AiController {
         amount: ASSISTANT_CREDIT_COST,
         category: 'assistant',
         reason: 'Grounded assistant answer',
-        operationId: `assistant:${workspaceId}:${simpleHash(body.question)}`,
+        operationId: `assistant:${workspaceId}:${questionKey(body.question)}`,
       })
       charged = true
     }
@@ -62,12 +63,7 @@ export class AiController {
   }
 }
 
-/** A small stable hash of a question for idempotent credit debits (not security). */
-function simpleHash(text: string): string {
-  let h = 2166136261
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i)
-    h = Math.imul(h, 16777619)
-  }
-  return (h >>> 0).toString(36)
+/** A stable short key for a question, for idempotent credit debits (not security). */
+function questionKey(text: string): string {
+  return createHash('sha256').update(text).digest('hex').slice(0, 16)
 }
