@@ -1,24 +1,29 @@
 import { useState } from 'react'
-import { ScrollView, View } from 'react-native'
+import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import { Text } from '../components/core/Text'
 import {
   PROFILE_HUB_LINKS,
   formatDuration,
   formatSigned,
+  palettes,
+  type AccentTheme,
   type ProfileHubLink,
   type Screen,
 } from '@mydevtime/design'
-import { useTheme } from '../theme/ThemeProvider'
-import { Badge, Card, ProgressBar, Row, Switch } from '../components/index'
+import { useAccent, useTheme, useThemePref } from '../theme/ThemeProvider'
+import type { ThemePref } from '../theme/resolveMode'
+import { Badge, Button, Card, ProgressBar, Row, Switch } from '../components/index'
 import { initialsOf, useSessionContext } from '../shell/SessionContext'
 
 /**
- * Profile — the personal hub (ux-vision §3): identity + plan, the AI-credit
- * balance and ledger preview (#34), the work-time story (overtime balance,
- * weekly target, absences #37), and settings. Numbers render via the design
- * `format*` helpers; the credit balance and absences are illustrative until the
- * ledger (#34) and absence (#37) domains feed them, but the tabular formatting
- * and the vacation consumption bar are the real, shared primitives.
+ * Profil & Einstellungen — the personal hub (ux-vision §3), ported 1:1 from the
+ * design system's `ProfileScreen`: a two-column responsive layout (two columns on
+ * wide, stacked on phone). Left: identity, the **Darstellung** appearance controls
+ * (accent theme + light/dark mode, wired to the live `ThemeProvider`), the
+ * work-time summary and the settings toggles. Right: **Integrationen**, the
+ * AI-credit balance + ledger preview (#34) and the absences summary (#37). Every
+ * number renders through the shared `format*` helpers; the AI never mutates state
+ * (ADR-0005). The identity and Sign-out seam read the shared session (REQ-002).
  */
 interface LedgerEntry {
   readonly id: string
@@ -29,37 +34,126 @@ interface LedgerEntry {
 
 const CREDIT_BALANCE = 488
 const LEDGER: readonly LedgerEntry[] = [
-  { id: 'l1', label: 'Monthly Pro grant', when: 'Jul 1', delta: 500 },
-  { id: 'l2', label: 'Meeting summary — Nordwind', when: 'Jul 7', delta: -8 },
-  { id: 'l3', label: 'NL time entry', when: 'Jul 8', delta: -4 },
+  { id: 'l1', label: 'Monatliches Pro-Guthaben', when: '1. Jul', delta: 500 },
+  { id: 'l2', label: 'Meeting-Zusammenfassung — Nordwind', when: '7. Jul', delta: -8 },
+  { id: 'l3', label: 'NL-Zeiteintrag', when: '8. Jul', delta: -4 },
 ]
 
 /** Row copy for the surfaces the Profile hub links into (ux-vision §3). */
 const HUB_META: Record<ProfileHubLink, { title: string; subtitle: string }> = {
-  meetings: { title: 'Meetings', subtitle: 'Transcripts & AI insights' },
-  assistant: { title: 'Assistant', subtitle: 'Ask about your times · read-only' },
+  meetings: { title: 'Meetings', subtitle: 'Transkripte & AI-Insights' },
+  assistant: { title: 'Assistent', subtitle: 'Frag nach deinen Zeiten · schreibgeschützt' },
 }
 
 const VACATION_USED = 18
 const VACATION_ALLOWANCE = 30
+const DAILY_TARGET_MS = 8 * 3_600_000
 const OVERTIME_MS = 9 * 3_600_000 + 30 * 60_000
 const WEEKLY_TARGET_MS = 40 * 3_600_000
+const WEEK_DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] as const
 
-function SectionLabel({ children }: { children: string }): React.JSX.Element {
+/** Appearance controls, wired to the live ThemeProvider (Darstellung). */
+const ACCENT_OPTIONS: readonly { readonly key: AccentTheme; readonly label: string }[] = [
+  { key: 'blueprint', label: 'Königsblau' },
+  { key: 'sovereign', label: 'Sovereign' },
+  { key: 'ember', label: 'Ember' },
+]
+const MODE_OPTIONS: readonly { readonly key: ThemePref; readonly label: string }[] = [
+  { key: 'system', label: 'System' },
+  { key: 'light', label: 'Hell' },
+  { key: 'dark', label: 'Dunkel' },
+]
+
+/** Integrations shown in the hub; the connected flag is local demo state only. */
+const INTEGRATIONS: readonly { readonly name: string; readonly desc: string }[] = [
+  { name: 'GitHub', desc: 'Action Items → Issues · Commits als Zeitvorschlag' },
+  { name: 'Jira', desc: 'Action Items → Tickets' },
+  { name: 'Linear', desc: 'Action Items → Issues' },
+  { name: 'Slack', desc: 'Insights → Channel' },
+]
+const INITIAL_CONNECTED: Readonly<Record<string, boolean>> = {
+  GitHub: true,
+  Jira: true,
+  Linear: false,
+  Slack: true,
+}
+
+/** The small uppercase sub-heading used inside the Darstellung card. */
+function MicroLabel({ children }: { children: string }): React.JSX.Element {
   const t = useTheme()
   return (
     <Text
       style={{
-        fontSize: t.fontSize.xs,
+        fontSize: t.fontSize['2xs'],
         fontWeight: '700',
-        letterSpacing: 0.6,
+        color: t.color.ink2,
         textTransform: 'uppercase',
-        color: t.color.ink3,
+        letterSpacing: t.fontSize['2xs'] * t.letterSpacing.wide,
         marginBottom: t.spacing.s2,
       }}
     >
       {children}
     </Text>
+  )
+}
+
+/** A selectable option button (accent swatch / mode) — selected reads as accent. */
+function OptionButton({
+  label,
+  selected,
+  onPress,
+  swatch,
+}: {
+  readonly label: string
+  readonly selected: boolean
+  readonly onPress: () => void
+  readonly swatch?: string
+}): React.JSX.Element {
+  const t = useTheme()
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
+      style={{
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 7,
+        paddingVertical: 9,
+        paddingHorizontal: 10,
+        borderRadius: t.radius.card,
+        borderWidth: 1.5,
+        borderColor: selected ? t.color.accent : t.color.border,
+        backgroundColor: selected ? t.color.accentSoft : t.color.surface,
+      }}
+    >
+      {swatch !== undefined && (
+        <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: swatch }} />
+      )}
+      <Text style={{ fontSize: t.fontSize.xs, fontWeight: '600', color: t.color.ink }}>
+        {label}
+      </Text>
+    </Pressable>
+  )
+}
+
+/** A label/value line inside the work-time summary. */
+function MetaRow({
+  label,
+  children,
+}: {
+  readonly label: string
+  readonly children: React.ReactNode
+}): React.JSX.Element {
+  const t = useTheme()
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+      <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>{label}</Text>
+      {children}
+    </View>
   )
 }
 
@@ -69,10 +163,16 @@ export function ProfileScreen({
   onNavigate: (screen: Screen) => void
 }): React.JSX.Element {
   const t = useTheme()
+  const { width } = useWindowDimensions()
+  const wide = width >= 900
   const session = useSessionContext()
+  const { accent, setAccent } = useAccent()
+  const { pref, setPref } = useThemePref()
+
   const [reminders, setReminders] = useState(true)
-  const [idleDetection, setIdleDetection] = useState(true)
-  const [weekStartMonday, setWeekStartMonday] = useState(true)
+  const [calendarCapture, setCalendarCapture] = useState(true)
+  const [autoTracker, setAutoTracker] = useState(true)
+  const [connected, setConnected] = useState<Record<string, boolean>>({ ...INITIAL_CONNECTED })
 
   const user = session.user ?? { name: '', email: '', id: '', emailVerified: false }
   const displayName = user.name.trim() || user.email || 'You'
@@ -80,32 +180,35 @@ export function ProfileScreen({
   const vacationRatio = VACATION_USED / VACATION_ALLOWANCE
   const chevron = <Text style={{ color: t.color.ink3, fontSize: t.fontSize.lg }}>›</Text>
 
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: t.color.bg }}
-      contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s5 }}
-    >
-      {/* Identity */}
+  const identity = (
+    <Card>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s4 }}>
         <View
           style={{
-            width: 56,
-            height: 56,
-            borderRadius: 28,
+            width: 52,
+            height: 52,
+            borderRadius: 16,
             backgroundColor: t.color.accentSoft,
             alignItems: 'center',
             justifyContent: 'center',
           }}
           accessibilityElementsHidden
         >
-          <Text style={{ fontSize: t.fontSize.lg, fontWeight: '700', color: t.color.accentText }}>
+          <Text
+            style={{
+              fontSize: t.fontSize.md,
+              fontWeight: '700',
+              color: t.color.accentText,
+              fontFamily: t.fontFamily.display,
+            }}
+          >
             {initialsOf(user)}
           </Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text
             style={{
-              fontSize: t.fontSize.xl,
+              fontSize: t.fontSize.md,
               fontWeight: '700',
               color: t.color.ink,
               fontFamily: t.fontFamily.display,
@@ -113,200 +216,338 @@ export function ProfileScreen({
           >
             {displayName}
           </Text>
-          <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, marginTop: 2 }}>
+          <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2, marginTop: 2 }}>
             {user.email || 'NexusHero workspace'}
           </Text>
         </View>
         <Badge tone="accent">Pro</Badge>
       </View>
+    </Card>
+  )
 
-      {/* AI credits */}
-      <View>
-        <SectionLabel>AI Credits</SectionLabel>
-        <Card>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: t.spacing.s2 }}>
-            <Text style={{ ...mono, fontSize: t.fontSize.xl, fontWeight: '700' }}>
-              {String(CREDIT_BALANCE)}
-            </Text>
-            <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>credits left</Text>
-            <Text style={{ marginLeft: 'auto', fontSize: t.fontSize.xs, color: t.color.ink3 }}>
-              renews Aug 1
-            </Text>
-          </View>
-          <View
-            style={{
-              marginTop: t.spacing.s3,
-              paddingTop: t.spacing.s3,
-              borderTopWidth: 1,
-              borderTopColor: t.color.border,
-            }}
-          >
-            {LEDGER.map(entry => (
-              <Row
-                key={entry.id}
-                title={entry.label}
-                subtitle={entry.when}
-                trailing={
-                  <Text
-                    style={{
-                      fontFamily: t.fontFamily.numeric,
-                      fontSize: t.fontSize.sm,
-                      color: entry.delta < 0 ? t.color.ink2 : t.color.good,
-                    }}
-                  >
-                    {formatSigned(entry.delta)}
-                  </Text>
-                }
+  const darstellung = (
+    <Card title="Darstellung">
+      <View style={{ gap: t.spacing.s4 }}>
+        <View>
+          <MicroLabel>Accent</MicroLabel>
+          <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
+            {ACCENT_OPTIONS.map(o => (
+              <OptionButton
+                key={o.key}
+                label={o.label}
+                selected={accent === o.key}
+                onPress={() => setAccent(o.key)}
+                swatch={palettes[o.key][t.mode].accent}
               />
             ))}
-            <Row
-              title="View full ledger & usage"
-              trailing={chevron}
-              onPress={() => onNavigate('credits')}
-            />
           </View>
-        </Card>
+        </View>
+        <View>
+          <MicroLabel>Modus</MicroLabel>
+          <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
+            {MODE_OPTIONS.map(o => (
+              <OptionButton
+                key={o.key}
+                label={o.label}
+                selected={pref === o.key}
+                onPress={() => setPref(o.key)}
+              />
+            ))}
+          </View>
+        </View>
       </View>
+    </Card>
+  )
 
-      {/* Work time */}
-      <View>
-        <SectionLabel>Work time</SectionLabel>
-        <Card>
-          <View style={{ flexDirection: 'row', gap: t.spacing.s5 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>Overtime balance</Text>
-              <Text style={{ ...mono, fontSize: t.fontSize.lg, fontWeight: '700', marginTop: 2 }}>
-                {formatDuration(OVERTIME_MS)} h
+  const arbeitszeit = (
+    <Card title="Arbeitszeit" subtitle="REQ-028 · ArbZG §4">
+      <View style={{ gap: t.spacing.s4 }}>
+        <MetaRow label="Soll pro Tag">
+          <Text style={{ ...mono, fontSize: t.fontSize.sm, fontWeight: '600' }}>
+            {formatDuration(DAILY_TARGET_MS)} h
+          </Text>
+        </MetaRow>
+        <MetaRow label="Wochen-Soll">
+          <Text style={{ ...mono, fontSize: t.fontSize.sm, fontWeight: '600' }}>
+            {formatDuration(WEEKLY_TARGET_MS)} h
+          </Text>
+        </MetaRow>
+        <MetaRow label="Wochenmodell">
+          <View style={{ flexDirection: 'row', gap: 4 }}>
+            {WEEK_DAYS.map((d, i) => {
+              const workday = i < 5
+              return (
+                <View
+                  key={d}
+                  style={{
+                    width: 26,
+                    height: 26,
+                    borderRadius: 8,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: workday ? t.color.accentSoft : t.color.sunk,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: t.fontSize['2xs'],
+                      fontWeight: '700',
+                      color: workday ? t.color.accentText : t.color.ink3,
+                    }}
+                  >
+                    {d}
+                  </Text>
+                </View>
+              )
+            })}
+          </View>
+        </MetaRow>
+        <MetaRow label="Überstunden-Saldo">
+          <Text
+            style={{ ...mono, fontSize: t.fontSize.md, fontWeight: '700', color: t.color.good }}
+          >
+            +{formatDuration(OVERTIME_MS)} h
+          </Text>
+        </MetaRow>
+        <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
+          Pausenwarnungen folgen dem ArbZG-§4-Preset — ein Hinweis, keine Rechtsberatung.
+        </Text>
+        <Row
+          title="Arbeitszeit öffnen"
+          subtitle="Kommen/Gehen, Pausen & Überstunden"
+          trailing={chevron}
+          onPress={() => onNavigate('worktime')}
+        />
+      </View>
+    </Card>
+  )
+
+  const einstellungen = (
+    <Card title="Einstellungen">
+      <Row
+        title="Pausen-Erinnerungen (ArbZG)"
+        trailing={
+          <Switch
+            checked={reminders}
+            onChange={setReminders}
+            accessibilityLabel="Pausen-Erinnerungen (ArbZG)"
+          />
+        }
+      />
+      <Row
+        title="Kalender-Auto-Erfassung"
+        trailing={
+          <Switch
+            checked={calendarCapture}
+            onChange={setCalendarCapture}
+            accessibilityLabel="Kalender-Auto-Erfassung"
+          />
+        }
+      />
+      <Row
+        title="Auto-Tracker (App-Nutzung aufzeichnen)"
+        trailing={
+          <Switch
+            checked={autoTracker}
+            onChange={setAutoTracker}
+            accessibilityLabel="Auto-Tracker (App-Nutzung aufzeichnen)"
+          />
+        }
+      />
+      <Row
+        title="Alle Einstellungen"
+        subtitle="Präferenzen, Abo, Daten & Datenschutz"
+        trailing={chevron}
+        onPress={() => onNavigate('settings')}
+      />
+    </Card>
+  )
+
+  const integrationen = (
+    <Card title="Integrationen" subtitle="Export nur nach Bestätigung — nie automatisch">
+      {INTEGRATIONS.map(item => {
+        const on = connected[item.name] ?? false
+        return (
+          <Row
+            key={item.name}
+            title={item.name}
+            subtitle={item.desc}
+            leading={
+              <View
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 8,
+                  backgroundColor: t.color.ink,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: t.fontSize.xs,
+                    fontWeight: '700',
+                    color: t.color.surface,
+                    fontFamily: t.fontFamily.display,
+                  }}
+                >
+                  {item.name[0]}
+                </Text>
+              </View>
+            }
+            trailing={
+              <Badge tone={on ? 'good' : 'neutral'}>{on ? 'Verbunden' : 'Verbinden'}</Badge>
+            }
+            onPress={() => setConnected(c => ({ ...c, [item.name]: !on }))}
+          />
+        )
+      })}
+    </Card>
+  )
+
+  const aiCredits = (
+    <Card
+      title="AI-Credits"
+      action={
+        <Button size="sm" variant="secondary" onPress={() => onNavigate('credits')}>
+          Aufladen
+        </Button>
+      }
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: t.spacing.s2 }}>
+        <Text style={{ ...mono, fontSize: t.fontSize.xl, fontWeight: '700' }}>
+          {String(CREDIT_BALANCE)}
+        </Text>
+        <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>Credits übrig</Text>
+        <Text style={{ marginLeft: 'auto', fontSize: t.fontSize.xs, color: t.color.ink3 }}>
+          erneuert am 1. Aug
+        </Text>
+      </View>
+      <View
+        style={{
+          marginTop: t.spacing.s3,
+          paddingTop: t.spacing.s3,
+          borderTopWidth: 1,
+          borderTopColor: t.color.border,
+        }}
+      >
+        {LEDGER.map(entry => (
+          <Row
+            key={entry.id}
+            title={entry.label}
+            subtitle={entry.when}
+            trailing={
+              <Text
+                style={{
+                  fontFamily: t.fontFamily.numeric,
+                  fontSize: t.fontSize.sm,
+                  color: entry.delta < 0 ? t.color.ink2 : t.color.good,
+                }}
+              >
+                {formatSigned(entry.delta)}
               </Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>Weekly target</Text>
-              <Text style={{ ...mono, fontSize: t.fontSize.lg, fontWeight: '700', marginTop: 2 }}>
-                {formatDuration(WEEKLY_TARGET_MS)} h
-              </Text>
-            </View>
-          </View>
-          <View style={{ marginTop: t.spacing.s2 }}>
-            <Row
-              title="Open work time"
-              subtitle="Clock in/out, breaks & overtime"
-              trailing={chevron}
-              onPress={() => onNavigate('worktime')}
-            />
-          </View>
-        </Card>
+            }
+          />
+        ))}
+        <Row
+          title="Ledger & Nutzung ansehen"
+          trailing={chevron}
+          onPress={() => onNavigate('credits')}
+        />
+      </View>
+    </Card>
+  )
+
+  const abwesenheiten = (
+    <Card title="Abwesenheiten">
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: t.spacing.s2 }}>
+        <Text style={{ ...mono, fontSize: t.fontSize.md, fontWeight: '700' }}>
+          {String(VACATION_ALLOWANCE - VACATION_USED)}
+        </Text>
+        <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>Urlaubstage übrig</Text>
+        <Text style={{ marginLeft: 'auto', ...mono, fontSize: t.fontSize.xs, color: t.color.ink3 }}>
+          {String(VACATION_USED)}/{String(VACATION_ALLOWANCE)} Tage
+        </Text>
+      </View>
+      <View style={{ marginTop: t.spacing.s3 }}>
+        <ProgressBar ratio={vacationRatio} label="Urlaubstage genutzt" />
+      </View>
+      <View style={{ marginTop: t.spacing.s2 }}>
+        <Row
+          title="Abwesenheitskalender öffnen"
+          subtitle="Urlaub, Krankheit, Feiertage"
+          trailing={chevron}
+          onPress={() => onNavigate('absences')}
+        />
+      </View>
+    </Card>
+  )
+
+  return (
+    <ScrollView
+      style={{ flex: 1, backgroundColor: t.color.bg }}
+      contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s5 }}
+    >
+      <Text
+        style={{
+          fontWeight: '700',
+          fontSize: t.fontSize.xl,
+          color: t.color.ink,
+          fontFamily: t.fontFamily.display,
+          letterSpacing: t.fontSize.xl * t.letterSpacing.tight,
+        }}
+      >
+        Profil & Einstellungen
+      </Text>
+
+      <View
+        style={{
+          flexDirection: wide ? 'row' : 'column',
+          gap: t.spacing.s4,
+          alignItems: 'flex-start',
+        }}
+      >
+        <View style={{ alignSelf: 'stretch', gap: t.spacing.s4, ...(wide ? { flex: 1 } : null) }}>
+          {identity}
+          {darstellung}
+          {arbeitszeit}
+          {einstellungen}
+        </View>
+        <View style={{ alignSelf: 'stretch', gap: t.spacing.s4, ...(wide ? { flex: 1 } : null) }}>
+          {integrationen}
+          {aiCredits}
+          {abwesenheiten}
+        </View>
       </View>
 
-      {/* Absences */}
-      <View>
-        <SectionLabel>Absences</SectionLabel>
-        <Card>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: t.spacing.s2 }}>
-            <Text style={{ ...mono, fontSize: t.fontSize.md, fontWeight: '700' }}>
-              {String(VACATION_ALLOWANCE - VACATION_USED)}
-            </Text>
-            <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>vacation days left</Text>
-            <Text
-              style={{ marginLeft: 'auto', ...mono, fontSize: t.fontSize.xs, color: t.color.ink3 }}
-            >
-              {String(VACATION_USED)}/{String(VACATION_ALLOWANCE)}
-            </Text>
-          </View>
-          <View style={{ marginTop: t.spacing.s3 }}>
-            <ProgressBar ratio={vacationRatio} label="Vacation days used" />
-          </View>
-          <View style={{ marginTop: t.spacing.s2 }}>
-            <Row
-              title="Open absence calendar"
-              subtitle="Vacation, sick days, public holidays"
-              trailing={chevron}
-              onPress={() => onNavigate('absences')}
-            />
-          </View>
-        </Card>
-      </View>
-
-      {/* Settings */}
-      <View>
-        <SectionLabel>Settings</SectionLabel>
-        <Card>
+      {/* More — the top-level surfaces kept off the phone's five-tab bar (ux-vision §3). */}
+      <Card title="Mehr">
+        {PROFILE_HUB_LINKS.map(link => (
           <Row
-            title="Focus reminders"
-            subtitle="Nudge when a planned block starts"
-            trailing={
-              <Switch
-                checked={reminders}
-                onChange={setReminders}
-                accessibilityLabel="Focus reminders"
-              />
-            }
-          />
-          <Row
-            title="Idle detection"
-            subtitle="Ask what to do with away time"
-            trailing={
-              <Switch
-                checked={idleDetection}
-                onChange={setIdleDetection}
-                accessibilityLabel="Idle detection"
-              />
-            }
-          />
-          <Row
-            title="Week starts Monday"
-            trailing={
-              <Switch
-                checked={weekStartMonday}
-                onChange={setWeekStartMonday}
-                accessibilityLabel="Week starts Monday"
-              />
-            }
-          />
-          <Row
-            title="All settings"
-            subtitle="Preferences, subscription, data & privacy"
+            key={link}
+            title={HUB_META[link].title}
+            subtitle={HUB_META[link].subtitle}
             trailing={chevron}
-            onPress={() => onNavigate('settings')}
+            onPress={() => onNavigate(link)}
           />
-        </Card>
-      </View>
+        ))}
+      </Card>
 
-      {/* More — the top-level surfaces kept off the phone's five-tab bar (ux-vision §3).
-          On phone this is their only entry point; on wide layouts the sidebar promotes
-          them too. */}
-      <View>
-        <SectionLabel>More</SectionLabel>
-        <Card>
-          {PROFILE_HUB_LINKS.map(link => (
-            <Row
-              key={link}
-              title={HUB_META[link].title}
-              subtitle={HUB_META[link].subtitle}
-              trailing={chevron}
-              onPress={() => onNavigate(link)}
-            />
-          ))}
-        </Card>
-      </View>
-
-      {/* Sign out — ends the session; in demo mode it returns to the login gate,
-          from which the demo bypass signs straight back in. */}
-      <View>
-        <Card>
-          <Row
-            title="Sign out"
-            subtitle={session.live ? user.email : 'Demo session'}
-            trailing={
-              <Text style={{ color: t.color.crit, fontSize: t.fontSize.sm, fontWeight: '600' }}>
-                {session.busy ? '…' : 'Sign out'}
-              </Text>
-            }
-            onPress={() => {
-              void session.signOut()
-            }}
-          />
-        </Card>
-      </View>
+      {/* Sign out — ends the session; in demo mode it returns to the login gate. */}
+      <Card>
+        <Row
+          title="Sign out"
+          subtitle={session.live ? user.email : 'Demo-Sitzung'}
+          trailing={
+            <Text style={{ color: t.color.crit, fontSize: t.fontSize.sm, fontWeight: '600' }}>
+              {session.busy ? '…' : 'Sign out'}
+            </Text>
+          }
+          onPress={() => {
+            void session.signOut()
+          }}
+        />
+      </Card>
     </ScrollView>
   )
 }
