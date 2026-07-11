@@ -7,9 +7,15 @@
  */
 export {
   spacing,
+  semanticSpacing,
+  appShell,
   fontSize,
   radius,
+  borderWidth,
+  lineHeight,
+  letterSpacing,
   motion,
+  easing,
   blueprintFontFamily,
   systemFontFamily,
   resolveFontFamily,
@@ -18,8 +24,15 @@ export {
   gridUnit,
   type Density,
   type Spacing,
+  type SemanticSpacing,
+  type AppShell,
   type FontSize,
   type Radius,
+  type BorderWidth,
+  type LineHeight,
+  type LetterSpacing,
+  type Motion,
+  type Easing,
 } from './tokens.js'
 export {
   dark,

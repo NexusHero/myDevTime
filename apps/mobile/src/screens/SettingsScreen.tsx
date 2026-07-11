@@ -65,7 +65,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
               borderBottomColor: t.color.border,
             }}
           >
-            <Text style={{ fontSize: t.fontSize.base, fontWeight: '500', color: t.color.ink }}>
+            <Text style={{ fontSize: t.fontSize.sm, fontWeight: '500', color: t.color.ink }}>
               Theme
             </Text>
             <SegmentedControl<ThemePref>
@@ -86,7 +86,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
               borderBottomColor: t.color.border,
             }}
           >
-            <Text style={{ fontSize: t.fontSize.base, fontWeight: '500', color: t.color.ink }}>
+            <Text style={{ fontSize: t.fontSize.sm, fontWeight: '500', color: t.color.ink }}>
               Accent Color
             </Text>
             <SegmentedControl<AccentTheme>
@@ -100,7 +100,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
             />
           </View>
           <View style={{ padding: t.spacing.s4, gap: t.spacing.s3 }}>
-            <Text style={{ fontSize: t.fontSize.base, fontWeight: '500', color: t.color.ink }}>
+            <Text style={{ fontSize: t.fontSize.sm, fontWeight: '500', color: t.color.ink }}>
               Density
             </Text>
             <SegmentedControl<Density>

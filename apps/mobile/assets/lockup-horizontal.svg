@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 80">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3D5CF5"></stop>
+      <stop offset="1" stop-color="#2941B8"></stop>
+    </linearGradient>
+  </defs>
+  <g>
+    <rect width="80" height="80" rx="19" fill="url(#tile)"></rect>
+    <rect x="15.6" y="30" width="18.75" height="22.5" rx="5.3" fill="#ffffff"></rect>
+    <rect x="45.6" y="30" width="18.75" height="22.5" rx="5.3" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2.2" stroke-dasharray="4.7 4" stroke-linecap="round"></rect>
+    <rect x="38.4" y="25" width="3.1" height="32.5" rx="1.5" fill="#FF5320"></rect>
+    <circle cx="40" cy="19.4" r="4" fill="#FF5320"></circle>
+  </g>
+  <text x="100" y="54" font-family="&#39;Space Grotesk&#39;, -apple-system, &#39;Segoe UI&#39;, sans-serif" font-size="38" font-weight="700" letter-spacing="-0.8">
+    <tspan fill="#ffffff">my</tspan><tspan fill="#FF5320">Dev</tspan><tspan fill="#ffffff">Time</tspan>
+  </text>
+</svg>

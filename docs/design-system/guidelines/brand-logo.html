@@ -1,0 +1,63 @@
+<!-- @dsCard group="Brand" viewport="700x260" name="Logo — The Now-Split" subtitle="Solid = actual, dashed = planned, divided by the live now-marker" -->
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body {
+    margin: 0;
+    padding: 20px;
+    font-family: var(--font-ui);
+    background: var(--surface);
+  }
+  .row {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+  .tile {
+    width: 72px;
+    height: 72px;
+    flex: none;
+  }
+  .light {
+    background: var(--surface-sunk);
+    border-radius: var(--radius-card);
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .dark {
+    background: #0a0c11;
+    border-radius: var(--radius-card);
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  img {
+    display: block;
+  }
+  .lockup {
+    height: 48px;
+  }
+  .cap {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    margin-top: 6px;
+  }
+</style>
+<div class="row">
+  <div class="dark">
+    <img class="tile" src="../assets/logo/icon.svg" /><img
+      class="lockup"
+      src="../assets/logo/lockup-horizontal.svg"
+      style="filter: none"
+    />
+  </div>
+  <div class="light">
+    <img class="tile" src="../assets/logo/icon-light.svg" /><img
+      src="../assets/logo/wordmark.svg"
+      style="height: 34px"
+    />
+  </div>
+</div>

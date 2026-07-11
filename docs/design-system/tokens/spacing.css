@@ -1,0 +1,31 @@
+/* ============================================================
+   SPACING TOKENS — 8-pt grid (ux-vision §4: "8-pt grid",
+   "44-pt minimum touch targets"). Values lifted from
+   @mydevtime/design's tokens.ts, extended for larger web layouts.
+   ============================================================ */
+:root {
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Semantic layout rhythm */
+  --gap-chip: 6px;
+  --gap-list: 8px;
+  --gap-section: 40px;
+  --pad-card: 20px;
+  --pad-app: 24px;
+
+  /* App-shell geometry */
+  --app-rail-width: 76px; /* icon-only rail, desktop */
+  --app-sidebar-width: 248px; /* expanded sidebar, tablet/desktop */
+  --app-topbar-h: 64px;
+  --app-tabbar-h: 64px; /* phone bottom tabs */
+
+  --touch-target: 44px;
+}

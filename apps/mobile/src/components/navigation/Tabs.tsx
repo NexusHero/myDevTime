@@ -45,7 +45,7 @@ export function Tabs({ items, active, onChange }: TabsProps): React.JSX.Element 
           >
             <Text
               style={{
-                fontSize: t.fontSize.base,
+                fontSize: t.fontSize.sm,
                 fontWeight: '600',
                 color: on ? t.color.ink : t.color.ink2,
               }}
