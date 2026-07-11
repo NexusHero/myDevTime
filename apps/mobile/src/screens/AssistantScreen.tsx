@@ -3,45 +3,98 @@ import { ScrollView, View } from 'react-native'
 import { Text } from '../components/core/Text'
 import { Badge, Button, EmptyState, Icon, Input } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
+import { apiBaseUrl } from '../config'
+import { useReports } from '../hooks/useReports'
+import { askAssistant, factsFromReports, type AssistantResult } from '../api/assistant'
 
 /**
- * Assistant — the grounded, read-only helper (ux-vision §2.4, #20). It answers
- * only from the workspace's own data through deterministic query tools; every
- * figure it shows comes from the aggregation, never the model (ADR-0005). It
- * proposes and deep-links, it never mutates state, and it refuses cleanly when a
- * question falls outside the data. One credit per question.
+ * Assistant — the grounded, read-only helper (ux-vision §2.4, #20, M2). It answers
+ * only from the workspace's own data: the client derives factual sentences from the
+ * loaded Reports deterministically and sends them with the question; the LLM phrases
+ * them, never invents a number, and refuses cleanly when the answer is not in the
+ * facts (ADR-0005/0029). It proposes and never mutates state. One credit per AI
+ * answer. Without a backend it falls back to a deterministic best-matching fact.
  */
 interface ChatMsg {
   readonly role: 'user' | 'assistant'
   readonly text: string
   readonly refusal?: boolean
+  readonly source?: 'deterministic' | 'ai-proposal'
 }
 
-/**
- * Scripted example answers for the preview. In the product these come from the
- * deterministic query tools — the assistant only reads, never writes (ADR-0005).
- */
-const SCRIPTED: Readonly<Record<string, string>> = {
-  'Wo bin ich über Budget?':
-    'Finanzo liegt bei 92% des 40h-Monatsbudgets (36,8h gebucht) — das einzige Projekt über 80%. Huber CMS steht bei 54%, alles andere unter der Hälfte.',
-  'Entwirf mein Standup':
-    'Gestern: 6,4h auf Finanzo-Auth (2,5h), Konflikt-Tests (1,5h) und Reviews. Heute: Sprint-Review um 14:00 und die Tombstone-Story. Keine Blocker gemeldet.',
-}
+const EXAMPLES: readonly string[] = [
+  'Was ist mein Top-Projekt diese Woche?',
+  'Wie ist mein Überstundensaldo?',
+  'Wie viel habe ich diese Woche abgerechnet?',
+]
 
-const EXAMPLES: readonly string[] = Object.keys(SCRIPTED)
+/** Deterministic offline answer: pick the fact with the most word-overlap. */
+function offlineAnswer(question: string, facts: readonly string[]): AssistantResult {
+  const qWords = new Set(
+    question
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter(w => w.length >= 3),
+  )
+  let best = ''
+  let bestScore = 0
+  for (const f of facts) {
+    const score = f
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter(w => qWords.has(w)).length
+    if (score > bestScore) {
+      bestScore = score
+      best = f
+    }
+  }
+  return bestScore > 0
+    ? { source: 'deterministic', refused: false, charged: false, text: best }
+    : {
+        source: 'deterministic',
+        refused: true,
+        charged: false,
+        text: 'Das steht nicht in deinen aktuellen Daten — frag konkreter.',
+      }
+}
 
 export function AssistantScreen(): React.JSX.Element {
   const t = useTheme()
+  const base = apiBaseUrl
+  const reports = useReports()
   const [msgs, setMsgs] = useState<readonly ChatMsg[]>([])
   const [input, setInput] = useState('')
+  const [busy, setBusy] = useState(false)
 
   const send = (text: string): void => {
-    if (!text.trim()) return
-    const answer =
-      SCRIPTED[text] ??
-      'In dieser Preview beantworte ich die Beispielfragen. Im Produkt beantwortet der Assistant jede Frage zu deinen Zeiten, Projekten, Budgets und Meetings über deterministische Query-Tools — 1 Credit pro Frage.'
-    setMsgs(m => [...m, { role: 'user', text }, { role: 'assistant', text: answer }])
+    if (!text.trim() || busy) return
+    const facts = reports.data ? factsFromReports(reports.data) : []
+    setMsgs(m => [...m, { role: 'user', text }])
     setInput('')
+    const finish = (r: AssistantResult): void => {
+      setMsgs(m => [
+        ...m,
+        { role: 'assistant', text: r.text, refusal: r.refused, source: r.source },
+      ])
+    }
+    if (base === null) {
+      finish(offlineAnswer(text, facts))
+      return
+    }
+    setBusy(true)
+    askAssistant(base, text, facts)
+      .then(finish)
+      .catch((cause: unknown) => {
+        finish({
+          source: 'deterministic',
+          refused: true,
+          charged: false,
+          text: `Konnte nicht antworten — ${cause instanceof Error ? cause.message : String(cause)}`,
+        })
+      })
+      .finally(() => {
+        setBusy(false)
+      })
   }
 
   return (
@@ -162,7 +215,9 @@ function Bubble({ msg }: { msg: ChatMsg }): React.JSX.Element {
       </Text>
       {!isUser && !msg.refusal && (
         <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>
-          Zahlen aus der deterministischen Aggregation · nie aus dem Modell
+          {msg.source === 'ai-proposal'
+            ? 'KI-Formulierung · Zahlen aus deinen Daten, nie aus dem Modell'
+            : 'Aus deinen Daten · deterministisch'}
         </Text>
       )}
     </View>
