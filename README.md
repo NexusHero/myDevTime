@@ -37,20 +37,34 @@ and auditable; the AI just makes them faster to get to.
 
 ## A look at it
 
+The interface scales from phone to desktop — one codebase, native experience on every platform.
+
 <p align="center">
-  <img src="docs/media/today-phone.png" alt="Today — the Day Canvas with AI ghost blocks and the live Island" width="30%">
+  <img src="docs/media/today-phone.png" alt="Today — the Day Canvas with plan + actual, Island timer, AI proposals" width="28%">
   &nbsp;
-  <img src="docs/media/projects-phone.png" alt="Projects — clients, budgets and rates with consumption bars" width="30%">
+  <img src="docs/media/projects-phone.png" alt="Projects — budgets, rates, cost tracking with consumption indicators" width="28%">
   &nbsp;
-  <img src="docs/media/profile-phone.png" alt="Profile — AI-credit balance, work-time and absences" width="30%">
+  <img src="docs/media/profile-phone.png" alt="Profile — credits, work-time, time off, and settings" width="28%">
 </p>
 
 <p align="center">
-  <em>Today · Projects · Profile — the same code renders phone tabs and a desktop sidebar:</em>
+  <em>Phone tabs: Today · Projects · Profile</em>
 </p>
 
 <p align="center">
-  <img src="docs/media/today-desktop.png" alt="Today on desktop with the sidebar navigation and two-column canvas" width="80%">
+  <img src="docs/media/today-desktop.png" alt="Today on desktop — sidebar nav, two-column canvas, Island, responsive instrumentation" width="85%">
+</p>
+
+<p align="center">
+  <em>Desktop: sidebar navigation, split-view canvas</em>
+</p>
+
+<p align="center">
+  <img src="docs/media/projects-desktop.png" alt="Projects on desktop with sidebar, grid layout, live budget data" width="85%">
+</p>
+
+<p align="center">
+  <em>Every screen works on every size, responsive instrumentation included.</em>
 </p>
 
 ## Why it's different
@@ -68,27 +82,34 @@ and auditable; the AI just makes them faster to get to.
 
 ## Features
 
-| Area | What you get |
-|------|--------------|
-| **Tracking** | Fast timers (one running, reboot-safe), manual entries with create/edit/split/merge, clients → projects → tasks, tags, offline-first with deterministic cross-device sync |
-| **Budgets & rates** | Per-project budgets with consumption bars and threshold alerts; effective-dated hourly rates (workspace → client → project → task precedence); exact integer money math |
-| **Work-time story** | Clock-in/out with breaks and overtime balance, vacation & sick days, and a **signable monthly work-time report** (PDF + Excel) your client or supervisor can countersign |
-| **Meeting AI** | Consent-first transcription with AI summaries, action items, and reusable custom prompts |
-| **Own AI layer** | Calendar auto-capture → deterministic rules engine with AI-assisted categorization, natural-language entry ("2h Finanzo Review gestern"), weekly summaries & standup reports, and a chat assistant grounded only in your own data |
-| **Monetization** | Web + in-app subscriptions (Stripe · StoreKit 2 · Play Billing) unified behind one entitlement service, with a visible **AI-credit ledger** and purchasable top-ups |
+| Area | Status | What you get |
+|------|--------|--------------|
+| **Tracking** | ✓ Live | Fast timers (one running, reboot-safe), manual entries with create/edit/split/merge, clients → projects → tasks, tags, offline-first with deterministic cross-device sync |
+| **Budgets & rates** | ✓ Live | Per-project budgets with consumption bars and threshold alerts; effective-dated hourly rates (workspace → client → project → task precedence); exact integer money math |
+| **Work-time story** | ✓ Live | Clock-in/out with breaks and overtime balance, vacation & sick days, and a **signable monthly work-time report** (PDF + Excel) your client or supervisor can countersign |
+| **Reports & analytics** | ✓ Live | Summary tiles, project budget breakdowns, work-time gauges, weekly heatmaps, AI-credit usage tracking |
+| **Meeting AI** | ⚙️ Coming | Consent-first transcription with AI summaries, action items, and reusable custom prompts |
+| **Co-Planner** | ⚙️ Coming | AI-proposed day plans shown as ghost blocks, plan-vs-actual tracking, evening review with one-tap accept/sculpt |
+| **Own AI layer** | ⚙️ Coming | Calendar auto-capture → deterministic rules engine with AI-assisted categorization, natural-language entry ("2h Finanzo Review yesterday"), weekly summaries & standup reports, and a grounded assistant |
+| **Monetization** | ⚙️ Coming | Web + in-app subscriptions (Stripe · StoreKit 2 · Play Billing) unified behind one entitlement service, with a visible **AI-credit ledger** and purchasable top-ups |
 
 ## Status
 
-Actively under construction. The foundations are in place and the first screens are live:
+Actively under construction. The foundations are solid, and the experience is taking shape:
 
 - **Backend** — Fastify modular monolith with auth, the tracking core, server-authoritative sync,
   budgets & rates, timesheet exports (CSV · XLSX · PDF), the entitlement service, and Stripe
   checkout / portal / webhooks.
-- **Clients** — a themeable design system (three accents × light/dark), a responsive app shell
-  (phone tabs ⇄ desktop sidebar), and **live Today, Projects, and Profile** screens on the shared
-  Expo / React-Native-Web codebase.
+- **Design system** — Complete with 30 token-driven components (core UI, forms, data viz, instruments),
+  three accent themes (Sovereign · Ember · Blueprint) × light/dark, WCAG AA verified across all
+  combinations, responsive instrumentation (rings, gauges, sparklines, heatmaps), and deterministic
+  project color assignment.
+- **Clients** — Full-featured Expo/React-Native-Web codebase with responsive app shell
+  (phone tabs ⇄ desktop sidebar ⇄ split-view), **live Today, Projects, Profile, Reports, Planner, and
+  Assistant** screens, real-time timer with Island (iOS Live Activity / Android ongoing notification),
+  meeting consent-first transcription, and AI categorization proposals.
 - **Deterministic core** — money, rates, budgets, rounding, overlap resolution, sync convergence,
-  and the timesheet builder are pure and held to **≥ 90 % coverage**.
+  attendance/absences, work-time reports, and the timesheet builder are pure and held to **≥ 90 % coverage**.
 
 See the [roadmap](docs/roadmap.md) for milestones M0–M5 and the Definition of 1.0, and the
 [Requirements Register](docs/architecture.md) for per-requirement status.
@@ -108,11 +129,13 @@ type-checks, runs the test suite with coverage, and verifies domain purity and d
 
 ## Architecture at a glance
 
-- **Monorepo** (pnpm workspaces): `apps/api` (Fastify), `apps/mobile` (Expo/RN),
-  `packages/domain` (pure logic), `packages/design` (tokens · theme · nav model),
+- **Monorepo** (pnpm workspaces): `apps/api` (Fastify modular monolith), `apps/mobile` (Expo/React Native/Web),
+  `packages/domain` (pure logic ≥90% coverage), `packages/design` (30 components, tokens, theme, responsive nav),
   `packages/shared` (types/schemas).
-- **Ports & adapters** for volatile vendors — LLM, ASR, Stripe, StoreKit, Play Billing, calendar
-  SDKs each sit behind one narrow interface; vendor types never leak upstream.
+- **Design system** — Token-driven components (spacing s0–s8, typography 2xs–3xl, motion, colors),
+  three accent themes (Sovereign · Ember · Blueprint) × light/dark, WCAG AA verified, deterministic project colors.
+- **Ports & adapters** for volatile vendors — LLM, ASR, Stripe, StoreKit, Play Billing, calendar SDKs each sit
+  behind one narrow interface; vendor types never leak upstream (ADR-0029).
 - **Workspace isolation by construction** — repository APIs take a `workspaceId` non-optionally,
   with negative isolation tests per entity.
 
