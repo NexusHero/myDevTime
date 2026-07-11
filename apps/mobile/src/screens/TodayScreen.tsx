@@ -349,7 +349,7 @@ export function TodayScreen(): React.JSX.Element {
   const autoTracker = (
     <Card
       title="Auto-Tracker"
-      subtitle="Vorschau · Beispiel-App-Nutzung"
+      subtitle="Beispiel-App-Nutzung"
       action={
         recording ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -534,12 +534,6 @@ export function TodayScreen(): React.JSX.Element {
               marginLeft: 'auto',
             }}
           >
-            <StatusPill
-              dot={t.color.ink3}
-              soft={t.color.raised}
-              fg={t.color.ink3}
-              label="Vorschau"
-            />
             <StatusPill
               dot={t.color.good}
               soft={t.color.goodSoft}
