@@ -93,6 +93,8 @@ export type { WorktimeReportDay, WorktimeReport, WorktimeReportInput } from './a
 export { buildWorktimeReport } from './attendance/report.js'
 export type { BookedInterval, CoverageReport } from './attendance/coverage.js'
 export { reconcileCoverage } from './attendance/coverage.js'
+export type { HolidayRegion } from './absences/holidays.js'
+export { easterSunday, holidaysForRegion, HOLIDAY_REGIONS } from './absences/holidays.js'
 
 // Absences (REQ-029, ADR-0010) — leave as inclusive calendar-date ranges +
 // vacation-allowance balance; deterministic, LLM-free (ADR-0005).

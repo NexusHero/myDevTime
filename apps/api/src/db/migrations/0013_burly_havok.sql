@@ -1,0 +1,1 @@
+ALTER TABLE "absence_policies" ADD COLUMN "region" text;
