@@ -89,6 +89,25 @@ export async function postJson(
   )
 }
 
+/** PUT a JSON body and read the JSON response (same credentialed transport as POST). */
+export async function putJson(
+  baseUrl: string,
+  path: string,
+  body: unknown,
+  fetchImpl: typeof fetch = fetch,
+): Promise<unknown> {
+  return send(
+    `${baseUrl}${path}`,
+    {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { accept: 'application/json', 'content-type': 'application/json' },
+      body: JSON.stringify(body ?? {}),
+    },
+    fetchImpl,
+  )
+}
+
 /**
  * Wrap a `fetch` so a request that stalls longer than `ms` is aborted (`fetch`
  * has no default timeout — a black-holed connection hangs forever otherwise). The

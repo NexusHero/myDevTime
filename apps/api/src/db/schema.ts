@@ -49,3 +49,6 @@ export * from './planner-schema.js'
 
 // AI-credit ledger: append-only signed credit deltas (REQ-027).
 export * from './credits-schema.js'
+
+// Per-user preference toggles (M10): one jsonb blob per workspace+user.
+export * from './preferences-schema.js'
