@@ -13,6 +13,7 @@ import {
 import { useAccent, useTheme, useThemePref } from '../theme/ThemeProvider'
 import type { ThemePref } from '../theme/resolveMode'
 import { Badge, Button, Card, ProgressBar, Row, Switch } from '../components/index'
+import { useConnectors } from '../hooks/useConnectors'
 import { initialsOf, useSessionContext } from '../shell/SessionContext'
 
 /**
@@ -63,20 +64,6 @@ const MODE_OPTIONS: readonly { readonly key: ThemePref; readonly label: string }
   { key: 'light', label: 'Hell' },
   { key: 'dark', label: 'Dunkel' },
 ]
-
-/** Integrations shown in the hub; the connected flag is local demo state only. */
-const INTEGRATIONS: readonly { readonly name: string; readonly desc: string }[] = [
-  { name: 'GitHub', desc: 'Action Items → Issues · Commits als Zeitvorschlag' },
-  { name: 'Jira', desc: 'Action Items → Tickets' },
-  { name: 'Linear', desc: 'Action Items → Issues' },
-  { name: 'Slack', desc: 'Insights → Channel' },
-]
-const INITIAL_CONNECTED: Readonly<Record<string, boolean>> = {
-  GitHub: true,
-  Jira: true,
-  Linear: false,
-  Slack: true,
-}
 
 /** The small uppercase sub-heading used inside the Darstellung card. */
 function MicroLabel({ children }: { children: string }): React.JSX.Element {
@@ -172,7 +159,7 @@ export function ProfileScreen({
   const [reminders, setReminders] = useState(true)
   const [calendarCapture, setCalendarCapture] = useState(true)
   const [autoTracker, setAutoTracker] = useState(true)
-  const [connected, setConnected] = useState<Record<string, boolean>>({ ...INITIAL_CONNECTED })
+  const connectors = useConnectors()
 
   const user = session.user ?? { name: '', email: '', id: '', emailVerified: false }
   const displayName = user.name.trim() || user.email || 'You'
@@ -364,14 +351,31 @@ export function ProfileScreen({
   )
 
   const integrationen = (
-    <Card title="Integrationen" subtitle="Export nur nach Bestätigung — nie automatisch">
-      {INTEGRATIONS.map(item => {
-        const on = connected[item.name] ?? false
+    <Card
+      title="Integrationen"
+      subtitle="OAuth · Export nur nach Bestätigung — nie automatisch"
+      action={connectors.live ? undefined : <Badge tone="neutral">Vorschau</Badge>}
+    >
+      {connectors.connectors.map(item => {
+        // Honest state (M3): connected (sealed token) → good; configured but not yet
+        // connected → "Verbinden"; not configured in this deployment → "geplant".
+        const tone: 'good' | 'accent' | 'neutral' = item.connected
+          ? 'good'
+          : item.configured
+            ? 'accent'
+            : 'neutral'
+        const label = item.connected ? 'Verbunden' : item.configured ? 'Verbinden' : 'Geplant'
         return (
           <Row
-            key={item.name}
-            title={item.name}
-            subtitle={item.desc}
+            key={item.id}
+            title={item.label}
+            subtitle={
+              item.connected
+                ? 'Verbunden · zum Trennen tippen'
+                : item.configured
+                  ? 'Bereit zum Verbinden (OAuth)'
+                  : 'Für diese Instanz noch nicht konfiguriert'
+            }
             leading={
               <View
                 style={{
@@ -391,14 +395,12 @@ export function ProfileScreen({
                     fontFamily: t.fontFamily.display,
                   }}
                 >
-                  {item.name[0]}
+                  {item.label[0]}
                 </Text>
               </View>
             }
-            trailing={
-              <Badge tone={on ? 'good' : 'neutral'}>{on ? 'Verbunden' : 'Verbinden'}</Badge>
-            }
-            onPress={() => setConnected(c => ({ ...c, [item.name]: !on }))}
+            trailing={<Badge tone={tone}>{label}</Badge>}
+            {...(item.connected ? { onPress: () => connectors.disconnect(item.id) } : {})}
           />
         )
       })}
