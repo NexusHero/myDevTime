@@ -480,6 +480,14 @@ function CoPlannerProposal(): React.JSX.Element {
       action={
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
           {!planner.live && <Badge tone="neutral">Demo-Daten</Badge>}
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={planner.briefingBusy || plan === null}
+            onPress={() => planner.requestBriefing()}
+          >
+            {planner.briefingBusy ? '…' : 'KI-Briefing'}
+          </Button>
           <Button variant="secondary" size="sm" disabled={planner.busy} onPress={repropose}>
             Neu vorschlagen
           </Button>
@@ -613,6 +621,32 @@ function CoPlannerProposal(): React.JSX.Element {
                   Aufgaben, verschiebe Termine oder plane einen weiteren Tag ein.
                 </Text>
               )}
+            </View>
+          )}
+          {planner.briefing !== null && (
+            <View
+              style={{
+                marginTop: t.spacing.s3,
+                padding: t.spacing.s3,
+                borderRadius: t.radius.block,
+                backgroundColor: t.color.raised,
+                borderWidth: 1,
+                borderColor: t.color.border,
+                gap: t.spacing.s1,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
+                <Icon name="assistant" size={14} color={t.color.accent} />
+                <Text style={{ fontSize: t.fontSize.sm, fontWeight: '700', color: t.color.ink }}>
+                  KI-Briefing
+                </Text>
+                <Badge tone={planner.briefing.source === 'ai-proposal' ? 'accent' : 'neutral'}>
+                  {planner.briefing.source === 'ai-proposal' ? 'KI' : 'Zusammenfassung'}
+                </Badge>
+              </View>
+              <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, lineHeight: 20 }}>
+                {planner.briefing.text}
+              </Text>
             </View>
           )}
           <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, marginTop: t.spacing.s2 }}>

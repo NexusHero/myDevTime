@@ -3,9 +3,12 @@ import { apiBaseUrl } from '../config.js'
 import {
   generatePlan,
   getPlan,
+  getPlanBriefing,
   getPlanReview,
+  setPlanStatus,
   type DayPlan,
   type GeneratePlanInput,
+  type PlanBriefing,
   type PlanCandidate,
   type PlanReview,
 } from '../api/planner.js'
@@ -78,6 +81,12 @@ export interface PlannerResource {
   readonly dayStartMin: number
   readonly dayEndMin: number
   readonly repropose: () => void
+  /** Accept the current proposal — persists status = accepted (M5). */
+  readonly accept: () => void
+  /** The AI day-briefing, once requested (M8). */
+  readonly briefing: PlanBriefing | null
+  readonly briefingBusy: boolean
+  readonly requestBriefing: () => void
 }
 
 export function usePlanner(): PlannerResource {
@@ -89,6 +98,8 @@ export function usePlanner(): PlannerResource {
   const [busy, setBusy] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [review, setReview] = useState<PlanReview | null>(null)
+  const [briefing, setBriefing] = useState<PlanBriefing | null>(null)
+  const [briefingBusy, setBriefingBusy] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -144,7 +155,55 @@ export function usePlanner(): PlannerResource {
     }
   }, [base, plan])
 
+  const requestBriefing = useCallback(() => {
+    if (plan === null) return
+    if (base === null) {
+      // Demo: an illustrative deterministic summary (the AI text needs the backend).
+      const meetings = plan.blocks.filter(b => b.kind === 'meeting').length
+      const parts = [
+        `Heute ${String(Math.round(plan.plannedFocusMin / 60))} h Fokus, ${String(meetings)} Termine.`,
+      ]
+      if (plan.unplacedMin > 0)
+        parts.push('Backlog ohne Platz — priorisiere die wichtigsten Aufgaben.')
+      setBriefing({ source: 'deterministic', charged: false, text: parts.join(' ') })
+      return
+    }
+    setBriefingBusy(true)
+    getPlanBriefing(base, plan.id)
+      .then(b => {
+        setBriefing(b)
+        setError(null)
+      })
+      .catch((cause: unknown) => {
+        setError(cause instanceof Error ? cause : new Error(String(cause)))
+      })
+      .finally(() => {
+        setBriefingBusy(false)
+      })
+  }, [base, plan])
+
+  const accept = useCallback(() => {
+    if (plan === null || base === null) {
+      // Demo/no plan: reflect acceptance locally so the UI still confirms.
+      if (plan !== null) setPlan({ ...plan, status: 'accepted' })
+      return
+    }
+    setBusy(true)
+    setPlanStatus(base, plan.id, 'accepted')
+      .then(p => {
+        setPlan(p)
+        setError(null)
+      })
+      .catch((cause: unknown) => {
+        setError(cause instanceof Error ? cause : new Error(String(cause)))
+      })
+      .finally(() => {
+        setBusy(false)
+      })
+  }, [base, plan])
+
   const repropose = useCallback(() => {
+    setBriefing(null)
     if (base === null) {
       setReloadKey(k => k + 1) // demo: re-resolve the demo plan
       return
@@ -173,5 +232,9 @@ export function usePlanner(): PlannerResource {
     dayStartMin: DAY_START,
     dayEndMin: DAY_END,
     repropose,
+    accept,
+    briefing,
+    briefingBusy,
+    requestBriefing,
   }
 }

@@ -5,6 +5,7 @@ import { PlannerController } from './planner.controller.js'
 import { PlannerStatusController } from './planner.status.controller.js'
 import { PlannerContext } from './planner.context.js'
 import { planLabelerProvider } from './labeler.js'
+import { planBrieferProvider } from './briefer.js'
 
 /**
  * The `planner` module (REQ-031, ADR-0011/0025): the Co-Planner's versioned plan
@@ -16,6 +17,6 @@ import { planLabelerProvider } from './labeler.js'
 @Module({
   imports: [AuthModule],
   controllers: [PlannerStatusController, PlannerController],
-  providers: [PlannerContext, llmProvider, planLabelerProvider],
+  providers: [PlannerContext, llmProvider, planLabelerProvider, planBrieferProvider],
 })
 export class PlannerModule {}
