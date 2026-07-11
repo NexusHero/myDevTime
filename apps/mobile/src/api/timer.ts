@@ -151,3 +151,28 @@ export function entryDurationMs(entry: TimeEntry, now: Date): number {
   const ms = end - start
   return Number.isFinite(ms) && ms > 0 ? ms : 0
 }
+
+/**
+ * Cumulative session time in ms for a real (segment-based) pause: the sum of
+ * completed segments (`accumulatedMs`) plus the running one, if any. Pausing stops
+ * the running entry — persisting that segment — so paused time is not counted;
+ * resuming starts a fresh segment and the total keeps climbing from where it was.
+ */
+export function sessionElapsedMs(
+  accumulatedMs: number,
+  running: TimeEntry | null,
+  now: Date,
+): number {
+  const acc = Number.isFinite(accumulatedMs) && accumulatedMs > 0 ? accumulatedMs : 0
+  return acc + (running === null ? 0 : entryDurationMs(running, now))
+}
+
+/** The start-input that resumes a paused entry as a new segment (same project/task/note). */
+export function resumeInput(entry: TimeEntry): StartTimerInput {
+  return {
+    projectId: entry.projectId,
+    taskId: entry.taskId,
+    billable: entry.billable,
+    note: entry.note,
+  }
+}

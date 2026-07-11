@@ -103,11 +103,13 @@ export function TodayScreen(): React.JSX.Element {
   const [driftEvent, setDriftEvent] = useState(true)
   const [task, setTask] = useState('Sync engine: conflict resolution')
   const [idleHint, setIdleHint] = useState(true)
-  const [paused, setPaused] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const timer = useTimer()
   const isRunning = timer.running !== null
-  const recording = isRunning && !paused
+  const paused = timer.paused
+  // The session is "active" (has time on it) whether the segment is running or paused.
+  const active = isRunning || paused
+  const recording = isRunning
 
   const acceptGhost = (id: string): void => setAccepted(a => (a.includes(id) ? a : [...a, id]))
   const dismissGhost = (id: string): void => setGhosts(gs => gs.filter(g => g.id !== id))
@@ -138,7 +140,7 @@ export function TodayScreen(): React.JSX.Element {
         paddingHorizontal: t.spacing.s5,
         backgroundColor: t.color.surface,
         borderWidth: 1,
-        borderColor: isRunning ? t.color.live : t.color.border,
+        borderColor: active ? (isRunning ? t.color.live : t.color.warn) : t.color.border,
         borderRadius: t.radius.xl,
       }}
     >
@@ -188,15 +190,16 @@ export function TodayScreen(): React.JSX.Element {
           fontFamily: t.fontFamily.numeric,
           fontSize: t.fontSize.xl,
           fontWeight: '600',
-          color: isRunning ? (paused ? t.color.warn : t.color.live) : t.color.ink3,
+          color: isRunning ? t.color.live : paused ? t.color.warn : t.color.ink3,
           textAlign: 'right',
         }}
       >
         {timer.elapsed}
       </Text>
-      {isRunning && (
+      {active && (
         <Pressable
-          onPress={() => setPaused(p => !p)}
+          onPress={() => (paused ? timer.resume() : timer.pause())}
+          disabled={timer.busy}
           accessibilityRole="button"
           accessibilityLabel={paused ? 'Weiter' : 'Pause'}
           style={{
@@ -239,19 +242,20 @@ export function TodayScreen(): React.JSX.Element {
         </Pressable>
       )}
       <Pressable
-        onPress={() => (isRunning ? (setPaused(false), timer.punchOut()) : timer.punchIn())}
+        onPress={() => (active ? timer.punchOut() : timer.punchIn())}
+        disabled={timer.busy}
         accessibilityRole="button"
-        accessibilityLabel={isRunning ? 'Stop' : 'Start'}
+        accessibilityLabel={active ? 'Stop' : 'Start'}
         style={{
           width: 64,
           height: 64,
           borderRadius: 32,
-          backgroundColor: isRunning ? t.color.live : t.color.accent,
+          backgroundColor: active ? t.color.live : t.color.accent,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        {isRunning ? (
+        {active ? (
           <View style={{ width: 20, height: 20, borderRadius: 5, backgroundColor: '#fff' }} />
         ) : (
           <View
@@ -491,14 +495,19 @@ export function TodayScreen(): React.JSX.Element {
       <Island
         running={isRunning}
         elapsed={timer.elapsed}
-        punched={isRunning}
+        punched={active}
         expanded={expanded}
         onToggle={() => setExpanded(e => !e)}
-        actions={[
-          isRunning
-            ? { label: timer.busy ? '…' : 'Stop', onPress: timer.punchOut }
-            : { label: timer.busy ? '…' : 'Start', onPress: () => timer.punchIn() },
-        ]}
+        actions={
+          active
+            ? [
+                paused
+                  ? { label: timer.busy ? '…' : 'Weiter', onPress: timer.resume }
+                  : { label: 'Pause', onPress: timer.pause },
+                { label: timer.busy ? '…' : 'Stop', onPress: timer.punchOut },
+              ]
+            : [{ label: timer.busy ? '…' : 'Start', onPress: () => timer.punchIn() }]
+        }
       />
     </View>
   )

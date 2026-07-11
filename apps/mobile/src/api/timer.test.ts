@@ -8,6 +8,8 @@ import {
   parseEntry,
   parseRunning,
   provisionalEntry,
+  resumeInput,
+  sessionElapsedMs,
   startTimer,
   stopTimer,
 } from './timer.js'
@@ -185,5 +187,35 @@ describe('entryDurationMs', () => {
   it('Inverted_ClampsToZero', () => {
     const e = { ...RUNNING, endedAt: '2026-07-10T08:00:00.000Z' }
     expect(entryDurationMs(e, new Date('2026-07-10T09:00:00.000Z'))).toBe(0)
+  })
+})
+
+describe('sessionElapsedMs — real pause', () => {
+  it('AddsTheRunningSegmentToTheAccumulatedTotal', () => {
+    // 10 min already banked from a prior segment + 5 min of the running one.
+    const total = sessionElapsedMs(10 * 60_000, RUNNING, new Date('2026-07-10T09:05:00.000Z'))
+    expect(total).toBe(15 * 60_000)
+  })
+  it('WhenPausedIsJustTheAccumulatedTotal', () => {
+    // running === null → paused: the total freezes at what was banked.
+    expect(sessionElapsedMs(15 * 60_000, null, new Date('2026-07-10T10:00:00.000Z'))).toBe(
+      15 * 60_000,
+    )
+  })
+  it('TreatsNegativeOrNaNAccumulatedAsZero', () => {
+    expect(sessionElapsedMs(-1, null, new Date())).toBe(0)
+    expect(sessionElapsedMs(Number.NaN, null, new Date())).toBe(0)
+  })
+})
+
+describe('resumeInput', () => {
+  it('CarriesTheProjectTaskBillableAndNoteToTheNextSegment', () => {
+    const e = { ...RUNNING, projectId: 'p9', taskId: 't3', billable: false, note: 'auth bug' }
+    expect(resumeInput(e)).toEqual({
+      projectId: 'p9',
+      taskId: 't3',
+      billable: false,
+      note: 'auth bug',
+    })
   })
 })

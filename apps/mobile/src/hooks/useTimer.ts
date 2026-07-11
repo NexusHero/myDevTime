@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { apiBaseUrl } from '../config.js'
 import {
+  entryDurationMs,
   formatStopwatch,
   getRunning,
   provisionalEntry,
+  resumeInput,
+  sessionElapsedMs,
   startTimer,
   stopTimer,
   type StartTimerInput,
@@ -26,8 +29,14 @@ export interface TimerResource {
   readonly error: Error | null
   readonly live: boolean
   readonly busy: boolean
+  /** True while the session is paused (no running segment, but time is banked to resume). */
+  readonly paused: boolean
   readonly punchIn: (input?: StartTimerInput) => void
   readonly punchOut: () => void
+  /** Stop the running segment (persisting it) and hold the context to resume. */
+  readonly pause: () => void
+  /** Start a fresh segment from the paused context; the total keeps climbing. */
+  readonly resume: () => void
 }
 
 export function useTimer(): TimerResource {
@@ -38,6 +47,10 @@ export function useTimer(): TimerResource {
   const [error, setError] = useState<Error | null>(null)
   const [busy, setBusy] = useState(false)
   const [nowMs, setNowMs] = useState(() => Date.now())
+  // Real pause is segment-based: `accumulatedMs` banks completed segments; while
+  // `pausedInput` is set the session is paused (no running segment) and can resume.
+  const [accumulatedMs, setAccumulatedMs] = useState(0)
+  const [pausedInput, setPausedInput] = useState<StartTimerInput | null>(null)
 
   // Load the running entry once (demo mode starts idle).
   useEffect(() => {
@@ -74,9 +87,11 @@ export function useTimer(): TimerResource {
     }
   }, [running])
 
-  const punchIn = useCallback(
-    (input: StartTimerInput = {}) => {
-      setRunning(provisionalEntry(input, new Date())) // optimistic / demo
+  // Start a segment (optimistic/demo, then reconcile with the server). Shared by a
+  // fresh start and a resume; the caller decides whether to reset the accumulator.
+  const beginEntry = useCallback(
+    (input: StartTimerInput) => {
+      setRunning(provisionalEntry(input, new Date()))
       setError(null)
       if (base === null) return
       setBusy(true)
@@ -95,10 +110,53 @@ export function useTimer(): TimerResource {
     [base],
   )
 
-  const punchOut = useCallback(() => {
+  const punchIn = useCallback(
+    (input: StartTimerInput = {}) => {
+      setAccumulatedMs(0) // a fresh session starts the total at zero
+      setPausedInput(null)
+      beginEntry(input)
+    },
+    [beginEntry],
+  )
+
+  const pause = useCallback(() => {
     setRunning(previous => {
-      if (base === null) return null // demo: local stop
       if (previous === null) return null
+      const segMs = entryDurationMs(previous, new Date())
+      setAccumulatedMs(a => a + segMs) // bank the worked segment
+      setPausedInput(resumeInput(previous))
+      if (base !== null) {
+        setBusy(true)
+        stopTimer(base)
+          .then(() => {
+            setError(null)
+          })
+          .catch((cause: unknown) => {
+            // Roll the pause back so UI and server agree the timer is still running.
+            setRunning(previous)
+            setAccumulatedMs(a => a - segMs)
+            setPausedInput(null)
+            setError(cause instanceof Error ? cause : new Error(String(cause)))
+          })
+          .finally(() => {
+            setBusy(false)
+          })
+      }
+      return null // optimistic pause: no running segment
+    })
+  }, [base])
+
+  const resume = useCallback(() => {
+    if (pausedInput === null) return
+    beginEntry(pausedInput) // new segment; accumulatedMs is preserved
+    setPausedInput(null)
+  }, [pausedInput, beginEntry])
+
+  const punchOut = useCallback(() => {
+    setAccumulatedMs(0)
+    setPausedInput(null)
+    setRunning(previous => {
+      if (previous === null || base === null) return null // demo/paused: local stop
       setBusy(true)
       stopTimer(base)
         .then(() => {
@@ -115,8 +173,8 @@ export function useTimer(): TimerResource {
     })
   }, [base])
 
-  const elapsed =
-    running === null ? '00:00:00' : formatStopwatch(nowMs - Date.parse(running.startedAt))
+  const elapsed = formatStopwatch(sessionElapsedMs(accumulatedMs, running, new Date(nowMs)))
+  const paused = pausedInput !== null
 
-  return { running, elapsed, loading, error, live, busy, punchIn, punchOut }
+  return { running, elapsed, loading, error, live, busy, paused, punchIn, punchOut, pause, resume }
 }
