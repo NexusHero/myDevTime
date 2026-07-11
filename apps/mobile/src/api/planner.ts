@@ -114,6 +114,20 @@ export async function generatePlan(
   return parsePlanRow(await postJson(baseUrl, '/api/planner/plans', input, fetchImpl))
 }
 
+export type PlanStatus = 'proposed' | 'accepted' | 'dismissed'
+
+/** Record the user's response to a proposal (accept / dismiss); persists the status. */
+export async function setPlanStatus(
+  baseUrl: string,
+  planId: string,
+  status: PlanStatus,
+  fetchImpl: typeof fetch = fetch,
+): Promise<DayPlan> {
+  return parsePlanRow(
+    await postJson(baseUrl, `/api/planner/plans/${planId}/status`, { status }, fetchImpl),
+  )
+}
+
 /** The evening review for a plan: planned vs tracked focus, and the drift between. */
 export interface PlanReview {
   readonly plannedFocusMin: number

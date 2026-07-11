@@ -5,6 +5,7 @@ import {
   getPlan,
   getPlanBriefing,
   getPlanReview,
+  setPlanStatus,
   type DayPlan,
   type GeneratePlanInput,
   type PlanBriefing,
@@ -80,6 +81,8 @@ export interface PlannerResource {
   readonly dayStartMin: number
   readonly dayEndMin: number
   readonly repropose: () => void
+  /** Accept the current proposal — persists status = accepted (M5). */
+  readonly accept: () => void
   /** The AI day-briefing, once requested (M8). */
   readonly briefing: PlanBriefing | null
   readonly briefingBusy: boolean
@@ -179,6 +182,26 @@ export function usePlanner(): PlannerResource {
       })
   }, [base, plan])
 
+  const accept = useCallback(() => {
+    if (plan === null || base === null) {
+      // Demo/no plan: reflect acceptance locally so the UI still confirms.
+      if (plan !== null) setPlan({ ...plan, status: 'accepted' })
+      return
+    }
+    setBusy(true)
+    setPlanStatus(base, plan.id, 'accepted')
+      .then(p => {
+        setPlan(p)
+        setError(null)
+      })
+      .catch((cause: unknown) => {
+        setError(cause instanceof Error ? cause : new Error(String(cause)))
+      })
+      .finally(() => {
+        setBusy(false)
+      })
+  }, [base, plan])
+
   const repropose = useCallback(() => {
     setBriefing(null)
     if (base === null) {
@@ -209,6 +232,7 @@ export function usePlanner(): PlannerResource {
     dayStartMin: DAY_START,
     dayEndMin: DAY_END,
     repropose,
+    accept,
     briefing,
     briefingBusy,
     requestBriefing,
