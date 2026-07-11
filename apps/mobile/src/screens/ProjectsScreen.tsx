@@ -1,6 +1,8 @@
-import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
+import { useState } from 'react'
+import { Pressable, View, useWindowDimensions } from 'react-native'
 import { Text } from '../components/core/Text'
 import {
+  boundedList,
   budgetTone,
   formatDuration,
   formatMoneyMinor,
@@ -8,7 +10,7 @@ import {
   type Screen,
 } from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
-import { Badge, BudgetRing, Button, Card, Sparkline } from '../components/index'
+import { Badge, BudgetRing, Button, Card, ScreenScaffold, Sparkline } from '../components/index'
 import type { Client, Project } from './projectsData'
 import { useCatalog } from './useCatalog'
 
@@ -210,6 +212,11 @@ function Notice({ title, children }: { title: string; children?: string }): Reac
   )
 }
 
+/** Budget consumption ratio for risk sorting — projects without a cap sink to 0. */
+function budgetRisk(project: Project): number {
+  return project.budgetMs > 0 ? project.spentMs / project.budgetMs : 0
+}
+
 export function ProjectsScreen({
   onNavigate,
 }: {
@@ -218,40 +225,65 @@ export function ProjectsScreen({
   const t = useTheme()
   const { width } = useWindowDimensions()
   const columns = width >= 1040 ? 2 : 1
+  const [expanded, setExpanded] = useState(false)
   const catalog = useCatalog()
   const clients: readonly Client[] = catalog.data ?? []
-  const projectCount = clients.reduce((n, c) => n + c.projects.length, 0)
+
+  // Bounded screen (design v1): one flat list sorted by budget risk, the top few
+  // visible and the rest behind a "+N weitere" drill-in — scroll depth never
+  // grows with the project count. The limit follows the column count.
+  const sorted = [...clients.flatMap(c => c.projects)].sort((a, b) => budgetRisk(b) - budgetRisk(a))
+  const limit = columns === 2 ? 6 : 3
+  const { shown, hidden } = boundedList(sorted, limit, expanded)
 
   const subtitle = catalog.loading
     ? 'Loading…'
     : catalog.error
       ? 'Could not load'
-      : `${String(clients.length)} clients · ${String(projectCount)} active projects`
+      : 'nach Budget-Risiko'
 
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: t.color.bg }}
-      contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s5 }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: t.spacing.s3 }}>
-        <View style={{ flex: 1 }}>
+  const header = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
+      <Text
+        style={{
+          fontWeight: '700',
+          fontSize: t.fontSize.xl,
+          color: t.color.ink,
+          fontFamily: t.fontFamily.display,
+        }}
+      >
+        Projects
+      </Text>
+      {sorted.length > 0 && (
+        <View
+          style={{
+            paddingVertical: 2,
+            paddingHorizontal: t.spacing.s2,
+            borderRadius: t.radius.pill,
+            backgroundColor: t.color.sunk,
+          }}
+        >
           <Text
             style={{
+              fontFamily: t.fontFamily.numeric,
+              fontSize: t.fontSize['2xs'],
               fontWeight: '700',
-              fontSize: t.fontSize.xl,
-              color: t.color.ink,
-              fontFamily: t.fontFamily.display,
+              color: t.color.ink2,
             }}
           >
-            Projects
-          </Text>
-          <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, marginTop: 2 }}>
-            {subtitle}
+            {sorted.length}
           </Text>
         </View>
-        {!catalog.live && <Badge tone="neutral">Demo data</Badge>}
-      </View>
+      )}
+      <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, marginLeft: 'auto' }}>
+        {subtitle}
+      </Text>
+      {!catalog.live && <Badge tone="neutral">Demo data</Badge>}
+    </View>
+  )
 
+  return (
+    <ScreenScaffold header={header}>
       {catalog.loading && catalog.data === null && <Notice title="Loading projects…" />}
 
       {catalog.error && (
@@ -269,44 +301,37 @@ export function ProjectsScreen({
         </Card>
       )}
 
-      {!catalog.loading && !catalog.error && clients.length === 0 && (
+      {!catalog.loading && !catalog.error && sorted.length === 0 && (
         <Notice title="No projects yet">Create a client and project to start tracking.</Notice>
       )}
 
-      {clients.map(client => (
-        <View key={client.id} style={{ gap: t.spacing.s3 }}>
-          <Text
-            style={{
-              fontSize: t.fontSize.xs,
-              fontWeight: '700',
-              letterSpacing: 0.6,
-              textTransform: 'uppercase',
-              color: t.color.ink3,
-            }}
-          >
-            {client.name}
-          </Text>
+      <View
+        style={{
+          flexDirection: columns === 2 ? 'row' : 'column',
+          flexWrap: columns === 2 ? 'wrap' : 'nowrap',
+          gap: t.spacing.s4,
+        }}
+      >
+        {shown.map(project => (
           <View
-            style={{
-              flexDirection: columns === 2 ? 'row' : 'column',
-              flexWrap: columns === 2 ? 'wrap' : 'nowrap',
-              gap: t.spacing.s4,
-            }}
+            key={project.id}
+            style={columns === 2 ? { flexBasis: '48%', flexGrow: 1 } : { alignSelf: 'stretch' }}
           >
-            {client.projects.map(project => (
-              <View
-                key={project.id}
-                style={columns === 2 ? { flexBasis: '48%', flexGrow: 1 } : { alignSelf: 'stretch' }}
-              >
-                <ProjectCard
-                  project={project}
-                  onOpen={() => onNavigate('project', { projectId: project.id })}
-                />
-              </View>
-            ))}
+            <ProjectCard
+              project={project}
+              onOpen={() => onNavigate('project', { projectId: project.id })}
+            />
           </View>
+        ))}
+      </View>
+
+      {(hidden > 0 || expanded) && sorted.length > limit && (
+        <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+          <Button size="sm" variant="secondary" onPress={() => setExpanded(e => !e)}>
+            {expanded ? 'Weniger anzeigen' : `+${String(hidden)} weitere anzeigen`}
+          </Button>
         </View>
-      ))}
-    </ScrollView>
+      )}
+    </ScreenScaffold>
   )
 }
