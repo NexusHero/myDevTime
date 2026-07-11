@@ -29,6 +29,7 @@ const ICON_PATHS: Record<string, string> = {
   edit: 'M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4',
   chevronLeft: 'M14 6l-6 6 6 6',
   chevronRight: 'M10 6l6 6-6 6',
+  alert: 'M12 4l9 16H3zM12 10v4M12 17.5v.5',
 }
 
 export interface IconProps {

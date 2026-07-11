@@ -1,0 +1,1 @@
+ALTER TABLE "plans" ADD COLUMN "dropped_anchors" jsonb DEFAULT '[]'::jsonb NOT NULL;

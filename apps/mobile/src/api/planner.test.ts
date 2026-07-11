@@ -13,6 +13,7 @@ const PLAN = {
   status: 'proposed',
   plannedFocusMin: 180,
   unplacedMin: 60,
+  droppedAnchors: [{ startMin: 540, lenMin: 30, label: 'Clash' }],
   blocks: [
     { startMin: 540, lenMin: 30, kind: 'meeting', label: 'Daily', taskId: null },
     { startMin: 570, lenMin: 90, kind: 'focus', label: 'Sync engine', taskId: 't1' },

@@ -580,6 +580,41 @@ function CoPlannerProposal(): React.JSX.Element {
               )
             })}
           </View>
+          {(plan.droppedAnchors.length > 0 || plan.unplacedMin > 0) && (
+            <View
+              accessibilityRole="alert"
+              style={{
+                marginTop: t.spacing.s3,
+                padding: t.spacing.s3,
+                borderRadius: t.radius.block,
+                borderWidth: 1,
+                borderColor: t.color.warn,
+                backgroundColor: t.color.raised,
+                gap: t.spacing.s1,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
+                <Icon name="alert" size={14} color={t.color.warn} />
+                <Text style={{ fontSize: t.fontSize.sm, fontWeight: '700', color: t.color.warn }}>
+                  Tag überbucht
+                </Text>
+              </View>
+              {plan.droppedAnchors.length > 0 && (
+                <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>
+                  {plan.droppedAnchors.length === 1
+                    ? '1 Termin überschneidet sich und wurde nicht eingeplant:'
+                    : `${String(plan.droppedAnchors.length)} Termine überschneiden sich und wurden nicht eingeplant:`}{' '}
+                  {plan.droppedAnchors.map(a => a.label).join(', ')}
+                </Text>
+              )}
+              {plan.unplacedMin > 0 && (
+                <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>
+                  {formatDuration(plan.unplacedMin * 60_000)} h Backlog fanden keinen Platz — kürze
+                  Aufgaben, verschiebe Termine oder plane einen weiteren Tag ein.
+                </Text>
+              )}
+            </View>
+          )}
           <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, marginTop: t.spacing.s2 }}>
             {formatDuration(plan.plannedFocusMin * 60_000)} h Fokus geplant
             {plan.unplacedMin > 0
