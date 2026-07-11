@@ -45,6 +45,8 @@ export const absencePolicies = pgTable(
       .references(() => workspaces.id, { onDelete: 'cascade' }),
     annualAllowanceDays: integer('annual_allowance_days').notNull().default(30),
     carryOverDays: integer('carry_over_days').notNull().default(0),
+    // Public-holiday region for this workspace (e.g. 'DE-BW', 'CH-BS'); null = none.
+    region: text('region'),
   },
   t => [uniqueIndex('absence_policies_one_per_ws').on(t.workspaceId)],
 )

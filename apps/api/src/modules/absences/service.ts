@@ -19,7 +19,7 @@ import { NotFoundError } from '../../errors.js'
 export type AbsenceRow = typeof absences.$inferSelect
 export type PolicyRow = typeof absencePolicies.$inferSelect
 
-const DEFAULT_POLICY = { annualAllowanceDays: 30, carryOverDays: 0 }
+const DEFAULT_POLICY = { annualAllowanceDays: 30, carryOverDays: 0, region: null }
 
 function first<T>(rows: readonly T[]): T {
   const row = rows[0]
@@ -110,6 +110,7 @@ export async function getPolicy(
 export interface SetPolicyInput {
   annualAllowanceDays: number
   carryOverDays: number
+  region?: string | null | undefined
 }
 
 /** Upsert the workspace's vacation policy (one row per workspace). */
@@ -118,18 +119,21 @@ export async function setPolicy(
   workspaceId: string,
   input: SetPolicyInput,
 ): Promise<PolicyRow> {
+  const region = input.region ?? null
   const rows = await db
     .insert(absencePolicies)
     .values({
       workspaceId,
       annualAllowanceDays: input.annualAllowanceDays,
       carryOverDays: input.carryOverDays,
+      region,
     })
     .onConflictDoUpdate({
       target: absencePolicies.workspaceId,
       set: {
         annualAllowanceDays: input.annualAllowanceDays,
         carryOverDays: input.carryOverDays,
+        region,
       },
     })
     .returning()
