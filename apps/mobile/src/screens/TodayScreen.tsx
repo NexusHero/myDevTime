@@ -244,6 +244,13 @@ export function TodayScreen(): React.JSX.Element {
           backgroundColor: active ? t.color.live : t.color.accent,
           alignItems: 'center',
           justifyContent: 'center',
+          // Coloured glow under the Stempel button, matching the design
+          // (box-shadow 0 10px 28px -8px, tinted live/accent).
+          shadowColor: active ? t.color.live : t.color.accent,
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.5,
+          shadowRadius: 14,
+          elevation: 8,
         }}
       >
         {active ? (
