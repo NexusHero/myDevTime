@@ -1,4 +1,4 @@
-import { generateText, type LanguageModel } from 'ai'
+import { generateText, jsonSchema, Output, type LanguageModel } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
@@ -45,6 +45,13 @@ export interface GenerateArgs {
   }[]
   readonly maxOutputTokens?: number
   readonly temperature?: number
+  /**
+   * A JSON Schema for structured output. When set, the adapter switches to the
+   * SDK's object mode so the provider is *constrained* to emit conforming JSON
+   * (Gemini's native JSON mode, OpenAI's `json_schema`, …) instead of prose in a
+   * markdown fence — the defect that silently degraded every structured feature.
+   */
+  readonly jsonSchema?: unknown
 }
 
 export interface GenerateReply {
@@ -78,9 +85,29 @@ function buildModel(config: VercelLlmConfig): LanguageModel {
 export function createVercelGenerate(config: VercelLlmConfig): GenerateFn {
   const model = buildModel(config)
   return async (args: GenerateArgs): Promise<GenerateReply> => {
+    const messages = args.messages.map(m => ({ role: m.role, content: m.content }))
+    // Structured output: force provider-native JSON mode via generateText's object
+    // output so the completion is the object itself (no markdown fence to strip, no
+    // prose to reject). The canonical JSON string we return is still validated by
+    // the deterministic core upstream (ADR-0005); we never trust it blindly.
+    if (args.jsonSchema !== undefined) {
+      const result = await generateText({
+        model,
+        messages,
+        output: Output.object({
+          schema: jsonSchema(args.jsonSchema as Parameters<typeof jsonSchema>[0]),
+        }),
+        ...(args.temperature === undefined ? {} : { temperature: args.temperature }),
+      })
+      return {
+        text: JSON.stringify(result.output),
+        inputTokens: result.usage.inputTokens ?? 0,
+        outputTokens: result.usage.outputTokens ?? 0,
+      }
+    }
     const result = await generateText({
       model,
-      messages: args.messages.map(m => ({ role: m.role, content: m.content })),
+      messages,
       ...(args.maxOutputTokens === undefined ? {} : { maxOutputTokens: args.maxOutputTokens }),
       ...(args.temperature === undefined ? {} : { temperature: args.temperature }),
     })
@@ -124,6 +151,7 @@ export class VercelLlm implements LlmPort {
           ? {}
           : { maxOutputTokens: request.maxOutputTokens }),
         ...(request.temperature === undefined ? {} : { temperature: request.temperature }),
+        ...(request.responseSchema === undefined ? {} : { jsonSchema: request.responseSchema }),
       })
       return {
         text: reply.text,

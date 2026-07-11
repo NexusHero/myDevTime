@@ -62,11 +62,26 @@ function buildPrompt(plan: DayPlan): string {
   ].join('\n')
 }
 
+/**
+ * Strip a Markdown code fence around a JSON payload. Gemini and other providers
+ * wrap valid JSON in ```` ```json … ``` ````; a raw `JSON.parse` on that rejects it
+ * and the paid AI garnish degrades to deterministic. Providers driven through the
+ * schema path already emit bare JSON — this is the belt-and-suspenders for the rest.
+ */
+function stripCodeFence(text: string): string {
+  const trimmed = text.trim()
+  if (!trimmed.startsWith('```')) return trimmed
+  return trimmed
+    .replace(/^```(?:json)?\s*\n?/i, '')
+    .replace(/\n?```$/, '')
+    .trim()
+}
+
 /** Validate an LLM completion into `PlanLabel[]` for THIS plan, or null if unusable. */
 function parseLabels(text: string, plan: DayPlan): PlanLabel[] | null {
   let raw: unknown
   try {
-    raw = JSON.parse(text)
+    raw = JSON.parse(stripCodeFence(text))
   } catch {
     return null
   }

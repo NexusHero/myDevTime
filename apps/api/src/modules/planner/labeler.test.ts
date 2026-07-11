@@ -76,6 +76,22 @@ describe('LlmPlanLabeler', () => {
     expect(out.labels[1]).toEqual({ blockIndex: 1, note: 'Tiefe Arbeit zuerst', rank: 1 })
   })
 
+  it('FencedJsonCompletion_YieldsAiProposalLabels', async () => {
+    // Gemini (and others) wrap valid JSON in a ```json … ``` markdown fence; the
+    // labeler must strip it, or the paid AI garnish silently degrades for everyone.
+    const fenced =
+      '```json\n' +
+      JSON.stringify([
+        { blockIndex: 0, note: 'Termin: Standup', rank: 0 },
+        { blockIndex: 1, note: 'Tiefe Arbeit zuerst', rank: 1 },
+        { blockIndex: 2, note: 'Reviews danach', rank: 2 },
+      ]) +
+      '\n```'
+    const out = await new LlmPlanLabeler(fakeLlm(fenced)).label(plan, { allowAi: true })
+    expect(out.source).toBe('ai-proposal')
+    expect(out.labels[1]).toEqual({ blockIndex: 1, note: 'Tiefe Arbeit zuerst', rank: 1 })
+  })
+
   it('MalformedCompletion_FallsBackToDeterministic', async () => {
     const out = await new LlmPlanLabeler(fakeLlm('not json at all')).label(plan, { allowAi: true })
     expect(out.source).toBe('deterministic')
