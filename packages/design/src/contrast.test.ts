@@ -51,4 +51,10 @@ describe.each(combos)('%s a11y contract', (_name, p: Palette) => {
     expect(meetsAA(p.crit, p.surface, AA_LARGE)).toBe(true)
     expect(meetsAA(p.warn, p.surface, AA_LARGE)).toBe(true)
   })
+
+  it('LiveStrong_ClearsAaLargeOnSurface', () => {
+    // "Live" reads as text only via `liveStrong`; the raw `live` fill is a dot /
+    // now-line and carries no text, so it is exempt from the text contract.
+    expect(meetsAA(p.liveStrong, p.surface, AA_LARGE)).toBe(true)
+  })
 })
