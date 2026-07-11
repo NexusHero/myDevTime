@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Pressable, ScrollView, TextInput, View, useWindowDimensions } from 'react-native'
-import { projectColor, type Theme } from '@mydevtime/design'
+import { formatDuration, projectColor, type Theme } from '@mydevtime/design'
 import { Text } from '../components/core/Text'
 import { useTheme } from '../theme/ThemeProvider'
 import {
@@ -14,7 +14,16 @@ import {
   MoodCheck,
 } from '../components/index'
 import { useTimer } from '../hooks/useTimer'
+import { usePlanner } from '../hooks/usePlanner'
 import { NlQuickAdd } from './NlQuickAdd'
+
+/** Minutes-from-midnight → `HH:MM`. */
+function hhmm(min: number): string {
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  const p = (n: number): string => String(n).padStart(2, '0')
+  return `${p(h)}:${p(m)}`
+}
 
 /**
  * Today — the Day Canvas home (ux-vision §2.1, §3), ported 1:1 from the design
@@ -26,24 +35,6 @@ import { NlQuickAdd } from './NlQuickAdd'
  * colors are assigned deterministically per id (ADR-0005). The AI never mutates
  * state — every proposal lands only on your tap.
  */
-interface Ghost {
-  readonly id: string
-  readonly label: string
-  readonly time: string
-  readonly project: string
-}
-
-const INITIAL_GHOSTS: readonly Ghost[] = [
-  { id: 'g1', label: 'Deep work: Sync engine', time: '13:00–15:00', project: 'sync-engine' },
-  { id: 'g2', label: 'Code review backlog', time: '15:15–16:00', project: 'reviews' },
-]
-
-const REPLAN_GHOSTS: readonly Ghost[] = [
-  { id: 'g3', label: 'Deep work: Sync engine', time: '13:00–14:45', project: 'sync-engine' },
-  { id: 'g4', label: 'Nordwind Call (verschoben)', time: '15:00–15:45', project: 'nordwind' },
-  { id: 'g5', label: 'Code review backlog', time: '16:00–16:45', project: 'reviews' },
-]
-
 /** Auto-Tracker sample: share of the running session per app (deterministic demo). */
 const APP_USAGE: readonly { readonly name: string; readonly mins: number; readonly pct: number }[] =
   [
@@ -97,37 +88,37 @@ export function TodayScreen(): React.JSX.Element {
   const t = useTheme()
   const { width } = useWindowDimensions()
   const stacked = width < 720
-  const [ghosts, setGhosts] = useState<readonly Ghost[]>(INITIAL_GHOSTS)
-  const [accepted, setAccepted] = useState<readonly string[]>([])
-  const [planning, setPlanning] = useState(false)
   const [driftEvent, setDriftEvent] = useState(true)
   const [task, setTask] = useState('Sync engine: conflict resolution')
   const [idleHint, setIdleHint] = useState(true)
   const [expanded, setExpanded] = useState(false)
+  const [dismissed, setDismissed] = useState<readonly number[]>([])
   const timer = useTimer()
+  // The Co-Planner on Today is the real persisted plan (M5): its blocks, accept and
+  // replan all go through the planner service — no local ghost constants.
+  const planner = usePlanner()
+  const plan = planner.plan
   const isRunning = timer.running !== null
   const paused = timer.paused
   // The session is "active" (has time on it) whether the segment is running or paused.
   const active = isRunning || paused
   const recording = isRunning
 
-  const acceptGhost = (id: string): void => setAccepted(a => (a.includes(id) ? a : [...a, id]))
-  const dismissGhost = (id: string): void => setGhosts(gs => gs.filter(g => g.id !== id))
+  const planBlocks = (plan?.blocks ?? []).map((b, i) => ({ ...b, index: i }))
+  const visibleBlocks = planBlocks.filter(b => !dismissed.includes(b.index))
+  const accepted = plan?.status === 'accepted'
+  const dismissBlock = (index: number): void =>
+    setDismissed(d => (d.includes(index) ? d : [...d, index]))
 
-  // One-tap replan: the Co-Planner reflows the rest of the day (deterministic
-  // engine proposes; nothing lands without your tap — ADR-0005).
+  // One-tap replan: the Co-Planner reflows the day (deterministic engine proposes;
+  // the new version persists — ADR-0005). Clears local dismissals.
   const replan = (): void => {
-    setPlanning(true)
-    setTimeout(() => {
-      setGhosts(REPLAN_GHOSTS)
-      setAccepted([])
-      setDriftEvent(false)
-      setPlanning(false)
-    }, 900)
+    setDismissed([])
+    planner.repropose()
+    setDriftEvent(false)
   }
 
   const segColors = appSegmentColors(t)
-  const allAccepted = accepted.length > 0 && accepted.length === ghosts.length
 
   const heroBar = (
     <View
@@ -279,12 +270,20 @@ export function TodayScreen(): React.JSX.Element {
   const coPlanner = (
     <Card
       title="Co-Planner"
-      subtitle="Morgen-Briefing · 08:12"
+      subtitle={planner.live ? 'Dein Plan für heute' : 'Morgen-Briefing · Beispiel'}
       action={
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
-          <Badge tone="accent">✦ Vorschlag</Badge>
-          {ghosts.some(g => !accepted.includes(g.id)) && (
-            <Button size="sm" variant="ghost" onPress={() => setAccepted(ghosts.map(g => g.id))}>
+          <Badge tone={accepted ? 'good' : 'accent'}>
+            {accepted ? '✓ Angenommen' : '✦ Vorschlag'}
+          </Badge>
+          {!planner.live && <Badge tone="neutral">Demo</Badge>}
+          {!accepted && visibleBlocks.length > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={planner.busy}
+              onPress={() => planner.accept()}
+            >
               Alle übernehmen
             </Button>
           )}
@@ -292,63 +291,37 @@ export function TodayScreen(): React.JSX.Element {
       }
     >
       <View style={{ marginBottom: t.spacing.s3 }}>
-        <AICallout title="Dein Tag: 3 Meetings, 4,5h Fokus möglich.">
-          Nordwind ist bei 91% Budget — Deep Work auf Sync engine priorisiert, Reviews in den
-          Nachmittag. Vorschlag unten: annehmen, ziehen oder verwerfen.
+        <AICallout
+          title={
+            plan === null
+              ? 'Noch kein Plan.'
+              : `Dein Tag: ${String(plan.blocks.filter(b => b.kind === 'meeting').length)} Termine, ${formatDuration(plan.plannedFocusMin * 60_000)} h Fokus.`
+          }
+        >
+          {plan !== null && plan.unplacedMin > 0
+            ? `${formatDuration(plan.unplacedMin * 60_000)} h Backlog ohne Platz — priorisiere oder verschiebe. Vorschlag unten: annehmen, ziehen oder verwerfen.`
+            : 'Blöcke unten: annehmen, ziehen oder verwerfen. Die Reihenfolge folgt der Priorität.'}
         </AICallout>
       </View>
-      <View style={{ gap: t.spacing.s2, opacity: planning ? 0.5 : 1 }}>
-        <DayBlock
-          label="Team standup"
-          time="09:00–09:15"
-          kind="meeting"
-          color={projectColor('finanzo', t.mode)}
-          height={48}
-        />
-        <DayBlock
-          label="Finanzo Review"
-          time="09:30–11:00"
-          kind="actual"
-          color={projectColor('finanzo', t.mode)}
-          height={56}
-        />
-        <DayBlock
-          label="Client call — Nordwind"
-          time="11:15–12:00"
-          kind="meeting"
-          color={projectColor('nordwind', t.mode)}
-          height={48}
-        />
-        {ghosts.map(g => (
-          <DayBlock
-            key={g.id}
-            label={g.label}
-            time={g.time}
-            kind={accepted.includes(g.id) ? 'actual' : 'ghost'}
-            color={projectColor(g.project, t.mode)}
-            onAccept={() => acceptGhost(g.id)}
-            onDismiss={() => dismissGhost(g.id)}
-          />
-        ))}
-      </View>
-      {planning && (
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: t.spacing.s2,
-            marginTop: t.spacing.s3,
-          }}
-        >
-          <Icon name="assistant" size={14} color={t.color.accentText} />
-          <Text
-            style={{ fontSize: t.fontSize['2xs'], fontWeight: '600', color: t.color.accentText }}
-          >
-            Co-Planner ordnet den Rest des Tages neu …
-          </Text>
+      {planner.loading && plan === null ? (
+        <Text style={{ color: t.color.ink2 }}>Dein Tag wird geplant …</Text>
+      ) : (
+        <View style={{ gap: t.spacing.s2, opacity: planner.busy ? 0.5 : 1 }}>
+          {visibleBlocks.map(b => (
+            <DayBlock
+              key={b.index}
+              label={b.label}
+              time={`${hhmm(b.startMin)}–${hhmm(b.startMin + b.lenMin)}`}
+              kind={b.kind === 'meeting' ? 'meeting' : accepted ? 'actual' : 'ghost'}
+              color={projectColor(b.taskId ?? b.label, t.mode)}
+              {...(b.kind === 'meeting'
+                ? {}
+                : { onAccept: () => planner.accept(), onDismiss: () => dismissBlock(b.index) })}
+            />
+          ))}
         </View>
       )}
-      {!planning && allAccepted && (
+      {accepted && (
         <View
           style={{
             flexDirection: 'row',
@@ -359,7 +332,7 @@ export function TodayScreen(): React.JSX.Element {
         >
           <Icon name="check" size={14} color={t.color.good} />
           <Text style={{ fontSize: t.fontSize['2xs'], fontWeight: '600', color: t.color.good }}>
-            Plan übernommen — {ghosts.length} Blöcke sind jetzt fest.
+            Plan übernommen — {visibleBlocks.length} Blöcke sind jetzt fest.
           </Text>
         </View>
       )}

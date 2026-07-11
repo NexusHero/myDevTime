@@ -7,6 +7,7 @@ import {
   parseBlock,
   parsePlan,
   parsePlanBriefing,
+  setPlanStatus,
 } from './planner.js'
 
 /**
@@ -75,6 +76,18 @@ describe('requests', () => {
     )
     expect(review).toEqual({ plannedFocusMin: 180, trackedFocusMin: 135, driftMin: -45 })
     expect(seen[0]).toContain('/api/planner/plans/p1/review')
+  })
+
+  it('PostsThePlanStatusToTheStatusRoute', async () => {
+    const seen: string[] = []
+    const updated = await setPlanStatus(
+      'http://api',
+      'p1',
+      'accepted',
+      jsonFetch({ ...PLAN, status: 'accepted' }, seen),
+    )
+    expect(updated.status).toBe('accepted')
+    expect(seen[0]).toContain('/api/planner/plans/p1/status')
   })
 
   it('PostsForTheAiBriefingAndParsesTheResult', async () => {
