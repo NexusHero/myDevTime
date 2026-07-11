@@ -10,6 +10,7 @@ import { worktimeReportToXlsx } from './report/xlsx.js'
 import {
   ClockInDto,
   ClockOutDto,
+  CoverageQueryDto,
   CreateShiftDto,
   ReportQueryDto,
   SetScheduleDto,
@@ -74,6 +75,12 @@ export class WorktimeController {
   async listShifts(@CurrentUser() user: AuthenticatedUser, @Query() query: ShiftsQueryDto) {
     const { db, workspaceId } = await this.ctx.workspaceOf(user)
     return svc.listShifts(db, workspaceId, { from: query.from, to: query.to })
+  }
+
+  @Get('coverage')
+  async coverage(@CurrentUser() user: AuthenticatedUser, @Query() query: CoverageQueryDto) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    return svc.worktimeCoverage(db, workspaceId, { from: query.from, to: query.to })
   }
 
   @Post('shifts')
