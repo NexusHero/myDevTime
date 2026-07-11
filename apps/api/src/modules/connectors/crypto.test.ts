@@ -25,8 +25,11 @@ describe('sealToken / openToken', () => {
   })
 
   it('ProducesAFreshDataKeyEachTime', () => {
-    const a = sealToken(masterKey, 'x')
-    const b = sealToken(masterKey, 'x')
+    // A long plaintext so the ciphertext comparison can't collide by chance (a
+    // 1-byte payload has only 256 possible ciphertext bytes → 1/256 flake).
+    const token = 'a-sufficiently-long-secret-token-value-0123456789'
+    const a = sealToken(masterKey, token)
+    const b = sealToken(masterKey, token)
     expect(a.wrappedKey).not.toBe(b.wrappedKey)
     expect(a.ciphertext).not.toBe(b.ciphertext)
   })
