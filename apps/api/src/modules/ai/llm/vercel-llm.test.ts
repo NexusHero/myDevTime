@@ -38,6 +38,39 @@ describe('VercelLlm', () => {
     expect(seen[0]?.messages[0]?.content).toBe('zwei Stunden Finanzo review')
   })
 
+  it('Complete_ForwardsResponseSchemaToTheGenerateCall', async () => {
+    // Regression: without the schema the provider answers in prose and structured
+    // output silently degrades — every JSON feature on the port must constrain it.
+    const seen: GenerateArgs[] = []
+    const schema = { type: 'array', items: { type: 'object' } }
+    const fake = (args: GenerateArgs): Promise<GenerateReply> => {
+      seen.push(args)
+      return Promise.resolve({ text: '[]', inputTokens: 1, outputTokens: 1 })
+    }
+    const llm = new VercelLlm({ provider: 'gemini', model: 'gemini-2.5-flash', apiKey: 'k' }, fake)
+
+    await llm.complete({
+      messages: [{ role: 'user', content: 'label these blocks' }],
+      responseSchema: schema,
+      temperature: 0,
+    })
+
+    expect(seen[0]?.jsonSchema).toEqual(schema)
+  })
+
+  it('Complete_OmitsJsonSchemaWhenNoResponseSchemaGiven', async () => {
+    const seen: GenerateArgs[] = []
+    const fake = (args: GenerateArgs): Promise<GenerateReply> => {
+      seen.push(args)
+      return Promise.resolve({ text: 'plain', inputTokens: 1, outputTokens: 1 })
+    }
+    const llm = new VercelLlm({ provider: 'openai', model: 'gpt-4o-mini', apiKey: 'k' }, fake)
+
+    await llm.complete({ messages: [{ role: 'user', content: 'hi' }] })
+
+    expect(seen[0]?.jsonSchema).toBeUndefined()
+  })
+
   it('Complete_WrapsProviderErrorsAsUnavailable', async () => {
     const fake = (): Promise<GenerateReply> => Promise.reject(new Error('429 rate limited'))
     const llm = new VercelLlm(
