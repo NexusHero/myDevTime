@@ -75,6 +75,16 @@ export interface Palette {
   readonly liveSoft: string
   /** `live` tuned to clear WCAG AA-Large as text on a normal surface. */
   readonly liveStrong: string
+  /**
+   * Soft background wash behind AI-proposal surfaces (AICallout). Pre-blended
+   * over the mode's bg (ADR-0026 §3), theme-independent like `live`.
+   */
+  readonly aiSoft: string
+  /**
+   * AI-signature ink — the violet used for AI-proposal titles/marks on `aiSoft`.
+   * Part of the "this came from AI, you decide" visual contract (ADR-0005/0034).
+   */
+  readonly aiInk: string
 }
 
 /** The mode-dependent, accent-independent half of a palette. */
@@ -103,6 +113,8 @@ const neutralDark: Neutrals = {
   live: '#ff6b3d',
   liveSoft: '#362120',
   liveStrong: '#ff5320',
+  aiSoft: '#1f1a35',
+  aiInk: '#a9a2ff',
 }
 
 const neutralLight: Neutrals = {
@@ -125,6 +137,8 @@ const neutralLight: Neutrals = {
   live: '#ff5320',
   liveSoft: '#ffeae4',
   liveStrong: '#e33e0f',
+  aiSoft: '#f3f2fd',
+  aiInk: '#4a3fd6',
 }
 
 /**
@@ -207,6 +221,14 @@ export const palettes: Record<AccentTheme, { readonly dark: Palette; readonly li
 /** The default-accent (Blueprint) palettes, exported for convenience; track `DEFAULT_ACCENT`. */
 export const dark: Palette = palettes[DEFAULT_ACCENT].dark
 export const light: Palette = palettes[DEFAULT_ACCENT].light
+
+/**
+ * The AI-signature gradient (theme-independent, like `live`) — blue→violet→orange,
+ * "plan meets now". Every AI proposal (Co-Planner, Assistant, insights, briefings)
+ * wears it — as a tri-stop rail or a ✦ chip; deterministic UI never does. It is the
+ * "this came from AI, you decide" marker (ADR-0005: proposals, never actions; 0034).
+ */
+export const AI_GRADIENT = ['#3654e0', '#7a44d8', '#ff5320'] as const
 
 /**
  * The categorical project palette, per mode — CVD-checked, the only saturated

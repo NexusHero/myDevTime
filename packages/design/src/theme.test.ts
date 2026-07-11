@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { theme, themes } from './theme.js'
-import { dark, light, palettes, ACCENT_THEMES, DEFAULT_ACCENT } from './palette.js'
+import { AI_GRADIENT, dark, light, palettes, ACCENT_THEMES, DEFAULT_ACCENT } from './palette.js'
 import { spacing, densityScale } from './tokens.js'
 
 describe('theme resolver', () => {
@@ -30,6 +30,13 @@ describe('theme resolver', () => {
       expect(theme('light', accent).color).toBe(palettes[accent].light)
       expect(theme('light', accent).accent).toBe(accent)
     }
+  })
+
+  it('AiGradient_IsTheThreeStopSignature_AccentIndependent', () => {
+    // The AI-signature gradient is theme-independent (like `live`, ADR-0034).
+    expect(theme('dark').aiGradient).toEqual(AI_GRADIENT)
+    expect(theme('light', 'ember').aiGradient).toBe(theme('dark', 'blueprint').aiGradient)
+    expect(theme('light').aiGradient).toHaveLength(3)
   })
 
   it('ProjectColors_AreAccentIndependent', () => {

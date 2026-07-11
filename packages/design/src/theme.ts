@@ -1,4 +1,5 @@
 import {
+  AI_GRADIENT,
   DEFAULT_ACCENT,
   palettes,
   projectColors,
@@ -30,6 +31,8 @@ export interface Theme {
   readonly density: Density
   readonly color: Palette
   readonly projectColors: readonly string[]
+  /** AI-signature gradient stops (blue→violet→orange), theme-independent (ADR-0034). */
+  readonly aiGradient: readonly [string, string, string]
   readonly spacing: typeof spacing
   readonly semanticSpacing: typeof semanticSpacing
   readonly appShell: typeof appShell
@@ -57,6 +60,7 @@ export function theme(
     density,
     color: palettes[accent][mode],
     projectColors: projectColors[mode],
+    aiGradient: AI_GRADIENT,
     spacing,
     semanticSpacing,
     appShell,
