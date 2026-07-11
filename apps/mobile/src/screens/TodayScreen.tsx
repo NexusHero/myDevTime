@@ -244,6 +244,13 @@ export function TodayScreen(): React.JSX.Element {
           backgroundColor: active ? t.color.live : t.color.accent,
           alignItems: 'center',
           justifyContent: 'center',
+          // Coloured glow under the Stempel button, matching the design
+          // (box-shadow 0 10px 28px -8px, tinted live/accent).
+          shadowColor: active ? t.color.live : t.color.accent,
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.5,
+          shadowRadius: 14,
+          elevation: 8,
         }}
       >
         {active ? (
@@ -342,7 +349,7 @@ export function TodayScreen(): React.JSX.Element {
   const autoTracker = (
     <Card
       title="Auto-Tracker"
-      subtitle="Vorschau · Beispiel-App-Nutzung"
+      subtitle="Beispiel-App-Nutzung"
       action={
         recording ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -472,14 +479,16 @@ export function TodayScreen(): React.JSX.Element {
         expanded={expanded}
         onToggle={() => setExpanded(e => !e)}
         actions={
+          // Design (Island.prompt.md): actions={[{label:'Pause'},{label:'Ausstempeln'}]} —
+          // the Pause action sits next to the Ausstempeln (Stempel) action.
           active
             ? [
                 paused
                   ? { label: timer.busy ? '…' : 'Weiter', onPress: timer.resume }
                   : { label: 'Pause', onPress: timer.pause },
-                { label: timer.busy ? '…' : 'Stop', onPress: timer.punchOut },
+                { label: timer.busy ? '…' : 'Ausstempeln', onPress: timer.punchOut },
               ]
-            : [{ label: timer.busy ? '…' : 'Start', onPress: () => timer.punchIn() }]
+            : [{ label: timer.busy ? '…' : 'Einstempeln', onPress: () => timer.punchIn() }]
         }
       />
     </View>
@@ -525,12 +534,6 @@ export function TodayScreen(): React.JSX.Element {
               marginLeft: 'auto',
             }}
           >
-            <StatusPill
-              dot={t.color.ink3}
-              soft={t.color.raised}
-              fg={t.color.ink3}
-              label="Vorschau"
-            />
             <StatusPill
               dot={t.color.good}
               soft={t.color.goodSoft}
