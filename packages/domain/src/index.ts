@@ -95,6 +95,8 @@ export type { BookedInterval, CoverageReport } from './attendance/coverage.js'
 export { reconcileCoverage } from './attendance/coverage.js'
 export type { HolidayRegion } from './absences/holidays.js'
 export { easterSunday, holidaysForRegion, HOLIDAY_REGIONS } from './absences/holidays.js'
+export type { PlanLabel } from './planner/label.js'
+export { deterministicLabels } from './planner/label.js'
 
 // Absences (REQ-029, ADR-0010) — leave as inclusive calendar-date ranges +
 // vacation-allowance balance; deterministic, LLM-free (ADR-0005).

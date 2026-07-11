@@ -20,6 +20,29 @@ function first<T>(rows: readonly T[]): T {
   return row
 }
 
+/** A stored plan by id, workspace-scoped; throws when it is not the caller's. */
+export async function getPlanById(db: Db, workspaceId: string, id: string): Promise<PlanRow> {
+  const rows = await db
+    .select()
+    .from(plans)
+    .where(and(eq(plans.workspaceId, workspaceId), eq(plans.id, id)))
+    .limit(1)
+  const row = rows[0]
+  if (!row) throw new NotFoundError('plan not found')
+  return row
+}
+
+/** Reconstruct the labeling-relevant `DayPlan` view from a stored plan row. */
+export function planRowToDayPlan(row: PlanRow): DayPlan {
+  return {
+    dayStartMin: 0,
+    dayEndMin: 0,
+    blocks: row.blocks,
+    plannedFocusMin: row.plannedFocusMin,
+    unplacedMin: row.unplacedMin,
+  }
+}
+
 /** The latest plan version for a day, or null. */
 export async function getLatestPlan(
   db: Db,
