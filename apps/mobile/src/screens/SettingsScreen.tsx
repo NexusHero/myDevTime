@@ -1,18 +1,19 @@
-import { useState } from 'react'
 import { ScrollView, View } from 'react-native'
 import { Text } from '../components/core/Text'
 import { Badge, Card, Row, Switch, SegmentedControl } from '../components/index'
 import { useTheme, useThemePref, useAccent, useDensity } from '../theme/ThemeProvider'
+import { usePreferences } from '../hooks/usePreferences'
 import { SubScreenHeader } from './SubScreenHeader'
 import type { ThemePref } from '../theme/resolveMode'
 import type { AccentTheme, Density } from '@mydevtime/design'
 
 /**
  * Settings (ux-vision §3) — the preferences, subscription, and data controls the
- * Profile hub links into. Toggles are local state in this scaffold; the
- * subscription and data-export/delete rows are the entry points the billing (#34)
- * and account (#5) flows will own. Consent and data-ownership items are surfaced
- * explicitly (REQ-025 / GDPR), not buried.
+ * Profile hub links into. The preference toggles persist per user + workspace via
+ * the `preferences` API (M10, optimistic with rollback); the subscription and
+ * data-export/delete rows are the entry points the billing (#34) and account (#5)
+ * flows will own. Consent and data-ownership items are surfaced explicitly
+ * (REQ-025 / GDPR), not buried.
  */
 const CHEVRON = '›'
 
@@ -40,10 +41,8 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
   const { accent, setAccent } = useAccent()
   const { density, setDensity } = useDensity()
 
-  const [reminders, setReminders] = useState(true)
-  const [idleDetection, setIdleDetection] = useState(true)
-  const [weekStartMonday, setWeekStartMonday] = useState(true)
-  const [meetingConsent, setMeetingConsent] = useState(false)
+  // Persisted per user + workspace (M10); optimistic, saved via the preferences API.
+  const { prefs, setPref: setToggle, live: prefsLive } = usePreferences()
 
   const chevron = <Text style={{ color: t.color.ink3, fontSize: t.fontSize.lg }}>{CHEVRON}</Text>
 
@@ -116,16 +115,27 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
       </View>
 
       <View>
-        <SectionLabel>Preferences</SectionLabel>
+        <SectionLabel>{`Preferences${prefsLive ? '' : ' · nicht gespeichert (offline)'}`}</SectionLabel>
         <Card>
           <Row
             title="Focus reminders"
             subtitle="Nudge when a planned block starts"
             trailing={
               <Switch
-                checked={reminders}
-                onChange={setReminders}
+                checked={prefs.reminders}
+                onChange={v => setToggle('reminders', v)}
                 accessibilityLabel="Focus reminders"
+              />
+            }
+          />
+          <Row
+            title="Break reminders"
+            subtitle="Prompt for a break after a focus run"
+            trailing={
+              <Switch
+                checked={prefs.breakReminders}
+                onChange={v => setToggle('breakReminders', v)}
+                accessibilityLabel="Break reminders"
               />
             }
           />
@@ -134,9 +144,31 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
             subtitle="Ask what to do with away time"
             trailing={
               <Switch
-                checked={idleDetection}
-                onChange={setIdleDetection}
+                checked={prefs.idleDetection}
+                onChange={v => setToggle('idleDetection', v)}
                 accessibilityLabel="Idle detection"
+              />
+            }
+          />
+          <Row
+            title="Calendar sync"
+            subtitle="Pull events as capture candidates"
+            trailing={
+              <Switch
+                checked={prefs.calendarSync}
+                onChange={v => setToggle('calendarSync', v)}
+                accessibilityLabel="Calendar sync"
+              />
+            }
+          />
+          <Row
+            title="Auto-tracker"
+            subtitle="Suggest entries from app/editor usage"
+            trailing={
+              <Switch
+                checked={prefs.autoTracker}
+                onChange={v => setToggle('autoTracker', v)}
+                accessibilityLabel="Auto-tracker"
               />
             }
           />
@@ -144,8 +176,8 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
             title="Week starts Monday"
             trailing={
               <Switch
-                checked={weekStartMonday}
-                onChange={setWeekStartMonday}
+                checked={prefs.weekStartMonday}
+                onChange={v => setToggle('weekStartMonday', v)}
                 accessibilityLabel="Week starts Monday"
               />
             }
@@ -161,8 +193,8 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
             subtitle="Opt-in, revocable per meeting (REQ-025)"
             trailing={
               <Switch
-                checked={meetingConsent}
-                onChange={setMeetingConsent}
+                checked={prefs.meetingConsent}
+                onChange={v => setToggle('meetingConsent', v)}
                 accessibilityLabel="Allow meeting recording"
               />
             }
