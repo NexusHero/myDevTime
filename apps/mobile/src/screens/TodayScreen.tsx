@@ -479,14 +479,16 @@ export function TodayScreen(): React.JSX.Element {
         expanded={expanded}
         onToggle={() => setExpanded(e => !e)}
         actions={
+          // Design (Island.prompt.md): actions={[{label:'Pause'},{label:'Ausstempeln'}]} —
+          // the Pause action sits next to the Ausstempeln (Stempel) action.
           active
             ? [
                 paused
                   ? { label: timer.busy ? '…' : 'Weiter', onPress: timer.resume }
                   : { label: 'Pause', onPress: timer.pause },
-                { label: timer.busy ? '…' : 'Stop', onPress: timer.punchOut },
+                { label: timer.busy ? '…' : 'Ausstempeln', onPress: timer.punchOut },
               ]
-            : [{ label: timer.busy ? '…' : 'Start', onPress: () => timer.punchIn() }]
+            : [{ label: timer.busy ? '…' : 'Einstempeln', onPress: () => timer.punchIn() }]
         }
       />
     </View>
