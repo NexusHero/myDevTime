@@ -52,3 +52,6 @@ export * from './credits-schema.js'
 
 // Per-user preference toggles (M10): one jsonb blob per workspace+user.
 export * from './preferences-schema.js'
+
+// Connector secrets (sealed OAuth tokens) + per-capability consent (M3).
+export * from './connectors-schema.js'

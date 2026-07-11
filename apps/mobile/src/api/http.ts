@@ -89,6 +89,19 @@ export async function postJson(
   )
 }
 
+/** DELETE a resource and read the JSON response (credentialed). */
+export async function deleteJson(
+  baseUrl: string,
+  path: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<unknown> {
+  return send(
+    `${baseUrl}${path}`,
+    { method: 'DELETE', credentials: 'include', headers: { accept: 'application/json' } },
+    fetchImpl,
+  )
+}
+
 /** PUT a JSON body and read the JSON response (same credentialed transport as POST). */
 export async function putJson(
   baseUrl: string,
