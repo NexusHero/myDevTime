@@ -124,7 +124,7 @@ export { creditBalance, usageByCategory, canDebit } from './credits/ledger.js'
 
 // Natural-language time entry (REQ-013, ADR-0005) — deterministic pre-parser that
 // turns a phrase into a draft the user confirms; LLM only for what it can't parse.
-export type { TimeEntryDraft } from './nlentry/parse.js'
+export type { TimeEntryDraft, ParseOptions } from './nlentry/parse.js'
 export { parseTimeEntry } from './nlentry/parse.js'
 
 // Entitlements — the domain of monetization (REQ-016, ADR-0006/0008). Provider-
