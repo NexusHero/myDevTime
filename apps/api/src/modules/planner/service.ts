@@ -1,7 +1,13 @@
-import { and, desc, eq } from 'drizzle-orm'
-import { buildDayPlan, type DayPlan, type PlanInput } from '@mydevtime/domain'
+import { and, desc, eq, gte, isNotNull, isNull, lt } from 'drizzle-orm'
+import {
+  buildDayPlan,
+  reviewDayPlan,
+  type DayPlan,
+  type PlanInput,
+  type PlanReview,
+} from '@mydevtime/domain'
 import type { Db } from '../../db/client.js'
-import { plans } from '../../db/schema.js'
+import { plans, timeEntries } from '../../db/schema.js'
 import { NotFoundError, ValidationError } from '../../errors.js'
 
 /**
@@ -18,6 +24,59 @@ function first<T>(rows: readonly T[]): T {
   const row = rows[0]
   if (!row) throw new Error('insert returned no row')
   return row
+}
+
+/** A stored plan by id, workspace-scoped; throws when it is not the caller's. */
+export async function getPlanById(db: Db, workspaceId: string, id: string): Promise<PlanRow> {
+  const rows = await db
+    .select()
+    .from(plans)
+    .where(and(eq(plans.workspaceId, workspaceId), eq(plans.id, id)))
+    .limit(1)
+  const row = rows[0]
+  if (!row) throw new NotFoundError('plan not found')
+  return row
+}
+
+/** Reconstruct the labeling-relevant `DayPlan` view from a stored plan row. */
+export function planRowToDayPlan(row: PlanRow): DayPlan {
+  return {
+    dayStartMin: 0,
+    dayEndMin: 0,
+    blocks: row.blocks,
+    plannedFocusMin: row.plannedFocusMin,
+    unplacedMin: row.unplacedMin,
+  }
+}
+
+/**
+ * The evening review for a plan (REQ-031, #151): plan-vs-actual focus, computed by
+ * the deterministic `reviewDayPlan` (ADR-0005). Tracked focus is the total of the
+ * day's completed, non-deleted project entries (started on the plan's calendar day,
+ * UTC); the drift is `tracked − planned`. Workspace-scoped by construction.
+ */
+export async function reviewPlan(db: Db, workspaceId: string, id: string): Promise<PlanReview> {
+  const row = await getPlanById(db, workspaceId, id)
+  const from = new Date(`${row.planDate}T00:00:00.000Z`)
+  const to = new Date(from.getTime() + 86_400_000)
+  const entries = await db
+    .select({ startedAt: timeEntries.startedAt, endedAt: timeEntries.endedAt })
+    .from(timeEntries)
+    .where(
+      and(
+        eq(timeEntries.workspaceId, workspaceId),
+        isNotNull(timeEntries.projectId),
+        isNotNull(timeEntries.endedAt),
+        isNull(timeEntries.deletedAt),
+        gte(timeEntries.startedAt, from),
+        lt(timeEntries.startedAt, to),
+      ),
+    )
+  const trackedMs = entries.reduce(
+    (sum, e) => sum + (e.endedAt === null ? 0 : e.endedAt.getTime() - e.startedAt.getTime()),
+    0,
+  )
+  return reviewDayPlan(planRowToDayPlan(row), Math.round(trackedMs / 60_000))
 }
 
 /** The latest plan version for a day, or null. */

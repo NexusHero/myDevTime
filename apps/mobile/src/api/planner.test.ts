@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { generatePlan, getPlan, parseBlock, parsePlan } from './planner.js'
+import { generatePlan, getPlan, getPlanReview, parseBlock, parsePlan } from './planner.js'
 
 /**
  * The planner client parses the versioned plan entity (proposed ghost blocks the
@@ -55,5 +55,16 @@ describe('requests', () => {
     )
     expect(plan.version).toBe(2)
     expect(seen[0]).toContain('/api/planner/plans')
+  })
+
+  it('ReadsTheEveningReviewFromThePlanReviewRoute', async () => {
+    const seen: string[] = []
+    const review = await getPlanReview(
+      'http://api',
+      'p1',
+      jsonFetch({ plannedFocusMin: 180, trackedFocusMin: 135, driftMin: -45 }, seen),
+    )
+    expect(review).toEqual({ plannedFocusMin: 180, trackedFocusMin: 135, driftMin: -45 })
+    expect(seen[0]).toContain('/api/planner/plans/p1/review')
   })
 })

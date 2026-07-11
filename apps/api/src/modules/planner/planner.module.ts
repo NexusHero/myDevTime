@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common'
 import { AuthModule } from '../auth/auth.module.js'
+import { llmProvider } from '../ai/contract.js'
 import { PlannerController } from './planner.controller.js'
 import { PlannerStatusController } from './planner.status.controller.js'
 import { PlannerContext } from './planner.context.js'
+import { planLabelerProvider } from './labeler.js'
 
 /**
  * The `planner` module (REQ-031, ADR-0011/0025): the Co-Planner's versioned plan
@@ -14,6 +16,6 @@ import { PlannerContext } from './planner.context.js'
 @Module({
   imports: [AuthModule],
   controllers: [PlannerStatusController, PlannerController],
-  providers: [PlannerContext],
+  providers: [PlannerContext, llmProvider, planLabelerProvider],
 })
 export class PlannerModule {}

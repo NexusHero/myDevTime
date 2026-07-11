@@ -84,12 +84,56 @@ describe.skipIf(!databaseUrl)('planner (integration)', () => {
     expect(await svc.getLatestPlan(db, wsB, '2026-07-10')).toBeNull()
   })
 
+  it('GetPlanById_IsWorkspaceScopedAndReconstructsTheDayPlan', async () => {
+    const created = await svc.generatePlan(db, wsA, idA, input)
+    const row = await svc.getPlanById(db, wsA, created.id)
+    const day = svc.planRowToDayPlan(row)
+    expect(day.blocks).toEqual(created.blocks)
+    // Workspace B cannot read A's plan.
+    await expect(svc.getPlanById(db, wsB, created.id)).rejects.toThrow(/not found/)
+  })
+
   it('GetPlans_Unauthenticated_Returns401', async () => {
     const app = await buildApp({
       config: loadConfig({ LOG_LEVEL: 'silent', AUTH_SECRET: 'x'.repeat(32) }),
       db: handle,
     })
     const res = await app.inject({ method: 'GET', url: '/api/planner/plans?date=2026-07-10' })
+    expect(res.statusCode).toBe(401)
+    await app.close()
+  })
+
+  it('LabelPlan_Unauthenticated_Returns401', async () => {
+    const app = await buildApp({
+      config: loadConfig({ LOG_LEVEL: 'silent', AUTH_SECRET: 'x'.repeat(32) }),
+      db: handle,
+    })
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/planner/plans/00000000-0000-0000-0000-000000000000/label',
+    })
+    expect(res.statusCode).toBe(401)
+    await app.close()
+  })
+
+  it('ReviewPlan_WithNoTrackedTime_ReportsTheFullPlanAsUndershot', async () => {
+    const created = await svc.generatePlan(db, wsA, idA, input)
+    const review = await svc.reviewPlan(db, wsA, created.id)
+    // No entries tracked → trackedFocusMin 0, drift = -plannedFocusMin.
+    expect(review.plannedFocusMin).toBe(created.plannedFocusMin)
+    expect(review.trackedFocusMin).toBe(0)
+    expect(review.driftMin).toBe(-created.plannedFocusMin)
+  })
+
+  it('ReviewPlan_Unauthenticated_Returns401', async () => {
+    const app = await buildApp({
+      config: loadConfig({ LOG_LEVEL: 'silent', AUTH_SECRET: 'x'.repeat(32) }),
+      db: handle,
+    })
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/planner/plans/00000000-0000-0000-0000-000000000000/review',
+    })
     expect(res.statusCode).toBe(401)
     await app.close()
   })

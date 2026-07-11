@@ -3,9 +3,11 @@ import { apiBaseUrl } from '../config.js'
 import {
   generatePlan,
   getPlan,
+  getPlanReview,
   type DayPlan,
   type GeneratePlanInput,
   type PlanCandidate,
+  type PlanReview,
 } from '../api/planner.js'
 
 /**
@@ -67,6 +69,7 @@ function defaultInput(date: string): GeneratePlanInput {
 
 export interface PlannerResource {
   readonly plan: DayPlan | null
+  readonly review: PlanReview | null
   readonly loading: boolean
   readonly error: Error | null
   readonly live: boolean
@@ -84,6 +87,7 @@ export function usePlanner(): PlannerResource {
   const [error, setError] = useState<Error | null>(null)
   const [busy, setBusy] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [review, setReview] = useState<PlanReview | null>(null)
 
   useEffect(() => {
     let alive = true
@@ -110,6 +114,35 @@ export function usePlanner(): PlannerResource {
     }
   }, [base, reloadKey])
 
+  // Evening review: plan-vs-actual focus. Live plans read the deterministic core's
+  // review; the demo shows an illustrative under-plan drift.
+  useEffect(() => {
+    if (plan === null) {
+      setReview(null)
+      return
+    }
+    if (base === null) {
+      const tracked = Math.max(0, plan.plannedFocusMin - 45)
+      setReview({
+        plannedFocusMin: plan.plannedFocusMin,
+        trackedFocusMin: tracked,
+        driftMin: tracked - plan.plannedFocusMin,
+      })
+      return
+    }
+    let alive = true
+    getPlanReview(base, plan.id)
+      .then(r => {
+        if (alive) setReview(r)
+      })
+      .catch(() => {
+        if (alive) setReview(null)
+      })
+    return () => {
+      alive = false
+    }
+  }, [base, plan])
+
   const repropose = useCallback(() => {
     if (base === null) {
       setReloadKey(k => k + 1) // demo: re-resolve the demo plan
@@ -129,5 +162,15 @@ export function usePlanner(): PlannerResource {
       })
   }, [base])
 
-  return { plan, loading, error, live, busy, dayStartMin: DAY_START, dayEndMin: DAY_END, repropose }
+  return {
+    plan,
+    review,
+    loading,
+    error,
+    live,
+    busy,
+    dayStartMin: DAY_START,
+    dayEndMin: DAY_END,
+    repropose,
+  }
 }
