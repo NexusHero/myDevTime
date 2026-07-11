@@ -62,6 +62,18 @@ export interface Palette {
   readonly goodSoft: string
   readonly critSoft: string
   readonly warnSoft: string
+  /**
+   * The "now / live / running" signal — theme-independent orange (ux-vision §4,
+   * design-system rule). It means exactly one thing: something is happening right
+   * now (running timer, now-line, REC dot, logo playhead). Never decorative, and
+   * never the accent: under Blueprint/Sovereign the accent is blue/purple, but
+   * "live" stays orange in all six accent × mode combinations.
+   */
+  readonly live: string
+  /** Soft `live` wash for pill/banner backgrounds. */
+  readonly liveSoft: string
+  /** `live` tuned to clear WCAG AA-Large as text on a normal surface. */
+  readonly liveStrong: string
 }
 
 /** The mode-dependent, accent-independent half of a palette. */
@@ -87,6 +99,9 @@ const neutralDark: Neutrals = {
   goodSoft: '#1a2c29',
   critSoft: '#2e1e23',
   warnSoft: '#302720',
+  live: '#ff5a2e',
+  liveSoft: '#2c1811',
+  liveStrong: '#ff7a52',
 }
 
 const neutralLight: Neutrals = {
@@ -106,6 +121,9 @@ const neutralLight: Neutrals = {
   goodSoft: '#e4f1e9',
   critSoft: '#f9ebea',
   warnSoft: '#f6eae1',
+  live: '#e5431c',
+  liveSoft: '#fdece3',
+  liveStrong: '#c2410c',
 }
 
 /**
