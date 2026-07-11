@@ -6,13 +6,15 @@ import { useTheme } from '../../theme/ThemeProvider'
 /**
  * Badge (core) — a small pill carrying a status tone. Ported from the design
  * system's `Badge`. Tone is carried by color/shape, never emoji (brand voice).
+ * Sizes: sm (xs text), md (sm text), lg (md text).
  */
 type Tone = 'neutral' | 'accent' | 'good' | 'crit' | 'warn'
+type Size = 'sm' | 'md' | 'lg'
 
 interface BadgeProps {
   readonly children: string
   readonly tone?: Tone
-  readonly size?: 'sm' | 'md'
+  readonly size?: Size
 }
 
 function toneColors(t: Theme): Record<Tone, { bg: string; fg: string }> {
@@ -25,28 +27,26 @@ function toneColors(t: Theme): Record<Tone, { bg: string; fg: string }> {
   }
 }
 
+function sizeSpec(size: Size, t: Theme) {
+  const fontSizeMap = { sm: t.fontSize.xs, md: t.fontSize.sm, lg: t.fontSize.md }
+  return { fontSize: fontSizeMap[size], padV: t.spacing.s1, padH: t.spacing.s2 }
+}
+
 export function Badge({ children, tone = 'neutral', size = 'md' }: BadgeProps): React.JSX.Element {
   const t = useTheme()
   const c = toneColors(t)[tone]
+  const { fontSize, padV, padH } = sizeSpec(size, t)
   return (
     <View
       style={{
         alignSelf: 'flex-start',
-        paddingVertical: size === 'sm' ? 2 : 4,
-        paddingHorizontal: size === 'sm' ? 8 : 10,
-        borderRadius: t.radius.pill,
+        paddingVertical: padV,
+        paddingHorizontal: padH,
+        borderRadius: t.radius.chip,
         backgroundColor: c.bg,
       }}
     >
-      <Text
-        style={{
-          fontSize: size === 'sm' ? t.fontSize.xs : t.fontSize.sm,
-          fontWeight: '600',
-          color: c.fg,
-        }}
-      >
-        {children}
-      </Text>
+      <Text style={{ fontSize, fontWeight: '600', color: c.fg }}>{children}</Text>
     </View>
   )
 }

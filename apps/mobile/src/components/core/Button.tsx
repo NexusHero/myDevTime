@@ -29,6 +29,14 @@ function variantColors(t: Theme): Record<Variant, { bg: string; fg: string; bord
   }
 }
 
+function sizeSpec(size: Size, t: Theme) {
+  // Touch targets: sm=32pt (s2 v-pad), md=44pt (s3 v-pad), lg=56pt (s4 v-pad)
+  // H-padding: s3=12pt (sm), s4=16pt (md/lg)
+  if (size === 'sm') return { padV: t.spacing.s2, padH: t.spacing.s3, fontSize: t.fontSize.xs }
+  if (size === 'lg') return { padV: t.spacing.s4, padH: t.spacing.s4, fontSize: t.fontSize.md }
+  return { padV: t.spacing.s3, padH: t.spacing.s4, fontSize: t.fontSize.sm }
+}
+
 export function Button({
   children,
   variant = 'primary',
@@ -40,9 +48,7 @@ export function Button({
 }: ButtonProps): React.JSX.Element {
   const t = useTheme()
   const c = variantColors(t)[variant]
-  const padV = size === 'sm' ? 6 : size === 'lg' ? 12 : 9
-  const padH = size === 'sm' ? 14 : size === 'lg' ? 22 : 18
-  const fontSize = size === 'sm' ? t.fontSize.xs : size === 'lg' ? t.fontSize.md : t.fontSize.sm
+  const { padV, padH, fontSize } = sizeSpec(size, t)
 
   const style = ({ pressed }: { pressed: boolean }): ViewStyle => ({
     flexDirection: 'row',
