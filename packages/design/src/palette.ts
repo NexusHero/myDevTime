@@ -2,7 +2,8 @@
  * Color palettes (ux-vision §4) — dark-first, light a first-class sibling, now
  * across **three swappable accent themes** (ADR-0022): **Blueprint** (royal blue
  * "Königsblau" `#2563EB`, the default — ADR-0023), **Sovereign** (indigo royal
- * blue) and **Ember** (the validated "now/live" amber from the binding UX vision).
+ * blue) and **Ember** (vivid signal orange `#FF5320` — an evolution of the
+ * validated "now/live" amber, pushed to full signal energy after the user tests).
  *
  * The design system separates two independent axes (mirroring the source design
  * project's `colors.css` × `modes.css` split): the **neutral** surfaces/inks and
@@ -93,15 +94,15 @@ const neutralDark: Neutrals = {
   ink: '#eef1f6',
   ink2: '#9aa6b4',
   ink3: '#66707d',
-  good: '#57c785',
+  good: '#4ade80',
   crit: '#e5655e',
   warn: '#d9903f',
   goodSoft: '#1a2c29',
   critSoft: '#2e1e23',
   warnSoft: '#302720',
-  live: '#ff5a2e',
-  liveSoft: '#2c1811',
-  liveStrong: '#ff7a52',
+  live: '#ff6b3d',
+  liveSoft: '#362120',
+  liveStrong: '#ff5320',
 }
 
 const neutralLight: Neutrals = {
@@ -115,15 +116,15 @@ const neutralLight: Neutrals = {
   ink: '#101828',
   ink2: '#475467',
   ink3: '#98a2b3',
-  good: '#1e8f4d',
+  good: '#16a34a',
   crit: '#c2372f',
   warn: '#b45309',
   goodSoft: '#e4f1e9',
   critSoft: '#f9ebea',
   warnSoft: '#f6eae1',
-  live: '#e5431c',
-  liveSoft: '#fdece3',
-  liveStrong: '#c2410c',
+  live: '#ff5320',
+  liveSoft: '#ffeae4',
+  liveStrong: '#e33e0f',
 }
 
 /**
@@ -148,17 +149,20 @@ const accents: Record<AccentTheme, { readonly dark: Accent; readonly light: Acce
     },
   },
   ember: {
+    // Vivid signal orange (`#ff5320`) after the user tests — was warm amber.
+    // The fill carries white ink; light `accentText` darkens to the 700 shade
+    // (`#b33009`) to clear AA as text on a normal surface.
     light: {
-      accent: '#e8a33d',
-      accentInk: '#201503',
-      accentText: '#8f5e0d',
-      accentSoft: '#f5ede1',
+      accent: '#ff5320',
+      accentInk: '#ffffff',
+      accentText: '#b33009',
+      accentSoft: '#ffede6',
     },
     dark: {
-      accent: '#e8a33d',
-      accentInk: '#201503',
-      accentText: '#e8a33d',
-      accentSoft: '#2e271e',
+      accent: '#ff5320',
+      accentInk: '#ffffff',
+      accentText: '#ff7a52',
+      accentSoft: '#33201a',
     },
   },
   blueprint: {
