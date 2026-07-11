@@ -1,14 +1,17 @@
-import { and, asc, desc, eq, gte, isNotNull, isNull, lt, lte } from 'drizzle-orm'
+import { and, asc, desc, eq, gt, gte, isNotNull, isNull, lt, lte } from 'drizzle-orm'
 import {
   ARBZG_PRESET,
   breakShortfallMs,
   computeOvertime,
+  reconcileCoverage,
+  type BookedInterval,
+  type CoverageReport,
   type OvertimeBalance,
   type Shift as CoreShift,
   type WeeklyTarget,
 } from '@mydevtime/domain'
 import type { Db } from '../../db/client.js'
-import { attendanceShifts, workSchedules } from '../../db/schema.js'
+import { attendanceShifts, timeEntries, workSchedules } from '../../db/schema.js'
 import { NotFoundError, ValidationError } from '../../errors.js'
 
 /**
@@ -246,4 +249,52 @@ export async function worktimeSummary(
     to: query.to.getTime(),
     tz: query.tz,
   })
+}
+
+/**
+ * Project-coverage reconciliation for a window (REQ-028 follow-up, #149): how much
+ * of the completed shifts' on-the-clock time is booked to a project. Loads the
+ * completed shifts starting in the window and the completed, non-deleted project
+ * entries overlapping it, then hands both to the deterministic `reconcileCoverage`
+ * core — no arithmetic here (ADR-0005). Workspace-scoped by construction.
+ */
+export async function worktimeCoverage(
+  db: Db,
+  workspaceId: string,
+  range: { from: Date; to: Date },
+): Promise<CoverageReport> {
+  const shiftRows = await db
+    .select()
+    .from(attendanceShifts)
+    .where(
+      and(
+        eq(attendanceShifts.workspaceId, workspaceId),
+        gte(attendanceShifts.startedAt, range.from),
+        lt(attendanceShifts.startedAt, range.to),
+        isNotNull(attendanceShifts.endedAt),
+      ),
+    )
+  const shifts: CoreShift[] = shiftRows
+    .filter((r): r is ShiftRow & { endedAt: Date } => r.endedAt !== null)
+    .map(r => ({ start: r.startedAt.getTime(), end: r.endedAt.getTime(), breakMs: r.breakMs }))
+
+  // Completed, non-deleted project entries overlapping [from, to).
+  const entryRows = await db
+    .select()
+    .from(timeEntries)
+    .where(
+      and(
+        eq(timeEntries.workspaceId, workspaceId),
+        isNotNull(timeEntries.projectId),
+        isNotNull(timeEntries.endedAt),
+        isNull(timeEntries.deletedAt),
+        lt(timeEntries.startedAt, range.to),
+        gt(timeEntries.endedAt, range.from),
+      ),
+    )
+  const bookings: BookedInterval[] = entryRows
+    .filter((r): r is (typeof entryRows)[number] & { endedAt: Date } => r.endedAt !== null)
+    .map(r => ({ start: r.startedAt.getTime(), end: r.endedAt.getTime() }))
+
+  return reconcileCoverage(shifts, bookings)
 }

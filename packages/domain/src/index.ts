@@ -91,6 +91,8 @@ export {
 } from './attendance/break-rule.js'
 export type { WorktimeReportDay, WorktimeReport, WorktimeReportInput } from './attendance/report.js'
 export { buildWorktimeReport } from './attendance/report.js'
+export type { BookedInterval, CoverageReport } from './attendance/coverage.js'
+export { reconcileCoverage } from './attendance/coverage.js'
 
 // Absences (REQ-029, ADR-0010) — leave as inclusive calendar-date ranges +
 // vacation-allowance balance; deterministic, LLM-free (ADR-0005).
