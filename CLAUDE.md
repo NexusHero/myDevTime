@@ -1,8 +1,8 @@
 # CLAUDE.md — Agent Orientation for myDevTime
 
-This repo is in the **pre-code planning phase**: the product, architecture, process, and backlog
-are fully specified in documentation; implementation starts with milestone M0. An agent (or
-human) picking up any task gets the complete picture by reading, in this order:
+This repo is **past M0 and in active implementation**: the product, architecture, process, and
+backlog are fully specified in documentation, and the milestones now ship against them. An agent
+(or human) picking up any task gets the complete picture by reading, in this order:
 
 1. **[`skills/ultimate-dev-process/SKILL.md`](skills/ultimate-dev-process/SKILL.md)** — the
    governance process. Applies to every change, automatically: TDD (test before implementation),
@@ -11,7 +11,7 @@ human) picking up any task gets the complete picture by reading, in this order:
 2. **[`docs/adr/README.md`](docs/adr/README.md)** — all decisions + Tech Radar. Never edit an
    accepted ADR; amend or supersede with a new one (ADR-0008 is the worked example).
 3. **[`docs/architecture.md`](docs/architecture.md)** — arc42 documentation. §1 contains the
-   **Requirements Register (REQ-001…REQ-027)**: every requirement with the issue that delivers
+   **Requirements Register (REQ-001…REQ-040)**: every requirement with the issue that delivers
    it and its status. Keep this register and the Runtime View current in the same PR that
    changes them.
 4. **[`docs/roadmap.md`](docs/roadmap.md)** — milestones M0–M5, the dependency graph (what
@@ -19,7 +19,7 @@ human) picking up any task gets the complete picture by reading, in this order:
 4a. **[`docs/design/ux-vision.md`](docs/design/ux-vision.md)** — binding for any client/UI work:
    design principles, the Day Canvas/Co-Planner/Island concepts, IA, visual & motion language.
    UI that contradicts it fails review.
-5. **The GitHub issue you are implementing** — each issue (#1–#34) carries milestone, REQ/ADR
+5. **The GitHub issue you are implementing** — each backlog issue carries milestone, REQ/ADR
    references, acceptance criteria (checkboxes), and the test approach. **Read the issue's
    comments first**: scope changes are recorded as ⚠️-comments and override the issue body.
 
