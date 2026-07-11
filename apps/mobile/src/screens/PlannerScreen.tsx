@@ -422,6 +422,34 @@ function Legend(): React.JSX.Element {
   )
 }
 
+/** One labelled figure in the evening review, value in the numeric mono font. */
+function ReviewMetric({
+  label,
+  value,
+  tone,
+}: {
+  readonly label: string
+  readonly value: string
+  readonly tone: string
+}): React.JSX.Element {
+  const t = useTheme()
+  return (
+    <View style={{ gap: 2 }}>
+      <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>{label}</Text>
+      <Text
+        style={{
+          fontFamily: t.fontFamily.numeric,
+          fontSize: t.fontSize.md,
+          fontWeight: '700',
+          color: tone,
+        }}
+      >
+        {value}
+      </Text>
+    </View>
+  )
+}
+
 /** Today's Co-Planner proposal (REQ-031): the deterministic core's ghost blocks. */
 function CoPlannerProposal(): React.JSX.Element {
   const t = useTheme()
@@ -558,6 +586,51 @@ function CoPlannerProposal(): React.JSX.Element {
               ? ` · ${formatDuration(plan.unplacedMin * 60_000)} h ohne Platz`
               : ''}
           </Text>
+          {planner.review !== null && (
+            <View
+              style={{
+                marginTop: t.spacing.s3,
+                paddingTop: t.spacing.s3,
+                borderTopWidth: 1,
+                borderTopColor: t.color.border,
+                gap: t.spacing.s2,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: t.fontSize['2xs'],
+                  fontWeight: '700',
+                  color: t.color.ink3,
+                  letterSpacing: t.fontSize['2xs'] * t.letterSpacing.wide,
+                  textTransform: 'uppercase',
+                }}
+              >
+                Abend-Review
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s5 }}>
+                <ReviewMetric
+                  label="Geplant"
+                  value={`${formatDuration(planner.review.plannedFocusMin * 60_000)} h`}
+                  tone={t.color.ink}
+                />
+                <ReviewMetric
+                  label="Getrackt"
+                  value={`${formatDuration(planner.review.trackedFocusMin * 60_000)} h`}
+                  tone={t.color.ink}
+                />
+                <ReviewMetric
+                  label="Drift"
+                  value={`${planner.review.driftMin >= 0 ? '+' : '−'}${formatDuration(Math.abs(planner.review.driftMin) * 60_000)} h`}
+                  tone={planner.review.driftMin >= 0 ? t.color.good : t.color.warn}
+                />
+              </View>
+              <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
+                {planner.review.driftMin >= 0
+                  ? 'Im Plan oder darüber — starker Fokustag.'
+                  : 'Unter dem geplanten Fokus — morgen ruhiger takten?'}
+              </Text>
+            </View>
+          )}
         </>
       )}
     </Card>

@@ -77,6 +77,16 @@ export class PlannerController {
    * A credit is debited only when the AI actually produced the labels, idempotently
    * per plan, so re-labeling the same plan never double-charges (ADR-0008).
    */
+  /**
+   * The evening review (REQ-031, #151): plan-vs-actual focus for a stored plan,
+   * computed by the deterministic core. Read-only, no credit.
+   */
+  @Get('plans/:id/review')
+  async review(@CurrentUser() user: AuthenticatedUser, @Param() params: IdParamDto) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    return svc.reviewPlan(db, workspaceId, params.id)
+  }
+
   @Post('plans/:id/label')
   async label(@CurrentUser() user: AuthenticatedUser, @Param() params: IdParamDto) {
     const { db, workspaceId } = await this.ctx.workspaceOf(user)

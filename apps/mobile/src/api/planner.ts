@@ -98,3 +98,29 @@ export async function generatePlan(
 ): Promise<DayPlan> {
   return parsePlanRow(await postJson(baseUrl, '/api/planner/plans', input, fetchImpl))
 }
+
+/** The evening review for a plan: planned vs tracked focus, and the drift between. */
+export interface PlanReview {
+  readonly plannedFocusMin: number
+  readonly trackedFocusMin: number
+  /** `tracked − planned`; negative means under the plan. */
+  readonly driftMin: number
+}
+
+export function parsePlanReview(value: unknown): PlanReview {
+  const o = record(value)
+  return {
+    plannedFocusMin: num(o, 'plannedFocusMin'),
+    trackedFocusMin: num(o, 'trackedFocusMin'),
+    driftMin: num(o, 'driftMin'),
+  }
+}
+
+/** The plan-vs-actual evening review for a stored plan (deterministic core). */
+export async function getPlanReview(
+  baseUrl: string,
+  planId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<PlanReview> {
+  return parsePlanReview(await getJson(baseUrl, `/api/planner/plans/${planId}/review`, fetchImpl))
+}
