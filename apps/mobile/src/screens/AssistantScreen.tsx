@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ScrollView, View } from 'react-native'
 import { Text } from '../components/core/Text'
-import { Badge, Button, Input } from '../components/index'
+import { Badge, Button, EmptyState, Icon, Input } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
 
 /**
@@ -17,34 +17,30 @@ interface ChatMsg {
   readonly refusal?: boolean
 }
 
-const SCRIPT: readonly ChatMsg[] = [
-  { role: 'user', text: 'Where am I over budget?' },
-  {
-    role: 'assistant',
-    text: 'Finanzo is at 92% of its 40h monthly budget (36.8h booked) — the only project past 80%. Huber CMS sits at 54%, everything else is under half.',
-  },
-  { role: 'user', text: 'Draft my standup for today.' },
-  {
-    role: 'assistant',
-    text: 'Yesterday: 6.4h across Finanzo auth (2.5h), conflict tests (1.5h) and reviews. Today’s plan: sprint review at 14:00 and the tombstone story. No blockers flagged.',
-  },
-]
+/**
+ * Scripted example answers for the preview. In the product these come from the
+ * deterministic query tools — the assistant only reads, never writes (ADR-0005).
+ */
+const SCRIPTED: Readonly<Record<string, string>> = {
+  'Wo bin ich über Budget?':
+    'Finanzo liegt bei 92% des 40h-Monatsbudgets (36,8h gebucht) — das einzige Projekt über 80%. Huber CMS steht bei 54%, alles andere unter der Hälfte.',
+  'Entwirf mein Standup':
+    'Gestern: 6,4h auf Finanzo-Auth (2,5h), Konflikt-Tests (1,5h) und Reviews. Heute: Sprint-Review um 14:00 und die Tombstone-Story. Keine Blocker gemeldet.',
+}
+
+const EXAMPLES: readonly string[] = Object.keys(SCRIPTED)
 
 export function AssistantScreen(): React.JSX.Element {
   const t = useTheme()
-  const [msgs, setMsgs] = useState<readonly ChatMsg[]>(SCRIPT)
+  const [msgs, setMsgs] = useState<readonly ChatMsg[]>([])
   const [input, setInput] = useState('')
 
   const send = (text: string): void => {
     if (!text.trim()) return
-    setMsgs(m => [
-      ...m,
-      { role: 'user', text },
-      {
-        role: 'assistant',
-        text: 'In this preview I answer the example questions. In the product the assistant answers any question about your times, projects, budgets and meetings through deterministic query tools — 1 credit per question.',
-      },
-    ])
+    const answer =
+      SCRIPTED[text] ??
+      'In dieser Preview beantworte ich die Beispielfragen. Im Produkt beantwortet der Assistant jede Frage zu deinen Zeiten, Projekten, Budgets und Meetings über deterministische Query-Tools — 1 Credit pro Frage.'
+    setMsgs(m => [...m, { role: 'user', text }, { role: 'assistant', text: answer }])
     setInput('')
   }
 
@@ -60,17 +56,32 @@ export function AssistantScreen(): React.JSX.Element {
           gap: t.spacing.s3,
         }}
       >
-        <Text
-          style={{
-            fontWeight: '700',
-            fontSize: t.fontSize.xl,
-            color: t.color.ink,
-            fontFamily: t.fontFamily.display,
-          }}
-        >
-          ✦ Assistant
-        </Text>
-        <Badge tone="neutral">your data · read-only</Badge>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s3, flex: 1 }}>
+          <View
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              backgroundColor: t.color.accent,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon name="assistant" size={20} color="#fff" />
+          </View>
+          <Text
+            style={{
+              fontWeight: '700',
+              fontSize: t.fontSize.xl,
+              color: t.color.ink,
+              fontFamily: t.fontFamily.display,
+              letterSpacing: t.fontSize.xl * t.letterSpacing.tight,
+            }}
+          >
+            Assistant
+          </Text>
+        </View>
+        <Badge tone="neutral">deine Daten · nur Lesezugriff</Badge>
       </View>
 
       <ScrollView
@@ -81,9 +92,14 @@ export function AssistantScreen(): React.JSX.Element {
           gap: t.spacing.s3,
         }}
       >
-        {msgs.map((m, i) => (
-          <Bubble key={`${m.role}-${String(i)}`} msg={m} />
-        ))}
+        {msgs.length === 0 ? (
+          <EmptyState
+            title="Frag deine eigenen Daten"
+            hint="Der Assistant antwortet nur aus deinen Zeiten, Projekten, Budgets und Meetings — jede Zahl kommt aus der deterministischen Aggregation, nie aus dem Modell. 1 Credit pro Frage."
+          />
+        ) : (
+          msgs.map((m, i) => <Bubble key={`${m.role}-${String(i)}`} msg={m} />)
+        )}
       </ScrollView>
 
       <View
@@ -96,7 +112,7 @@ export function AssistantScreen(): React.JSX.Element {
         }}
       >
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s2 }}>
-          {['Where am I over budget?', 'Draft my standup'].map(s => (
+          {EXAMPLES.map(s => (
             <Button key={s} size="sm" variant="ghost" onPress={() => send(s)}>
               {s}
             </Button>
@@ -105,12 +121,12 @@ export function AssistantScreen(): React.JSX.Element {
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: t.spacing.s2 }}>
           <View style={{ flex: 1 }}>
             <Input
-              placeholder="Ask about your times, budgets, meetings … · 1 credit"
+              placeholder="Frag nach Zeiten, Budgets, Meetings … · 1 Credit"
               value={input}
               onChangeText={setInput}
             />
           </View>
-          <Button onPress={() => send(input)}>Send</Button>
+          <Button onPress={() => send(input)}>Senden</Button>
         </View>
       </View>
     </View>
@@ -129,7 +145,9 @@ function Bubble({ msg }: { msg: ChatMsg }): React.JSX.Element {
         borderRadius: t.radius.card,
         backgroundColor: isUser ? t.color.accent : t.color.surface,
         borderWidth: isUser ? 0 : 1,
-        borderColor: t.color.border,
+        // Assistant bubbles carry the accent AI-signature border (the product's
+        // grounded-answer marker); user bubbles read as the accent fill.
+        borderColor: t.color.accent,
         gap: 6,
       }}
     >
@@ -137,14 +155,14 @@ function Bubble({ msg }: { msg: ChatMsg }): React.JSX.Element {
         style={{
           fontSize: t.fontSize.sm,
           lineHeight: 20,
-          color: isUser ? t.color.accentText : t.color.ink,
+          color: isUser ? t.color.accentInk : t.color.ink,
         }}
       >
         {msg.text}
       </Text>
       {!isUser && !msg.refusal && (
         <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>
-          Figures from the deterministic aggregation · never the model
+          Zahlen aus der deterministischen Aggregation · nie aus dem Modell
         </Text>
       )}
     </View>

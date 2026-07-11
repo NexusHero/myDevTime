@@ -114,7 +114,7 @@ export function MeetingsScreen(): React.JSX.Element {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
                 <Text
                   style={{
-                    fontSize: t.fontSize.xs,
+                    fontSize: t.fontSize['2xs'],
                     color: t.color.ink2,
                     fontFamily: t.fontFamily.numeric,
                   }}
@@ -173,8 +173,8 @@ export function MeetingsScreen(): React.JSX.Element {
                     <Text style={{ flex: 1, fontSize: t.fontSize.sm, color: t.color.ink }}>
                       {a}
                     </Text>
-                    <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
-                      {(['Task', 'Jira', 'Slack'] as const).map(target => (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s2 }}>
+                      {(['Task', 'Jira', 'GitHub', 'Slack'] as const).map(target => (
                         <Button
                           key={target}
                           size="sm"
@@ -303,11 +303,11 @@ function Section({
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
         <Text
           style={{
-            fontSize: t.fontSize.xs,
+            fontSize: t.fontSize['2xs'],
             fontWeight: '700',
             color: t.color.ink2,
             textTransform: 'uppercase',
-            letterSpacing: 0.6,
+            letterSpacing: t.fontSize['2xs'] * t.letterSpacing.wide,
           }}
         >
           {title}
