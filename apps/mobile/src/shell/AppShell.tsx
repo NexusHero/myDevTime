@@ -64,7 +64,7 @@ export function AppShell(): React.JSX.Element {
         >
           {nav}
         </View>
-        <View style={styles.fill}>
+        <View style={styles.content}>
           <ScreenView screen={active} params={route.params ?? {}} onNavigate={navigate} />
         </View>
       </View>
@@ -73,7 +73,7 @@ export function AppShell(): React.JSX.Element {
 
   return (
     <View style={[styles.fill, { backgroundColor: t.color.bg }]}>
-      <View style={styles.fill}>
+      <View style={styles.content}>
         <ScreenView screen={active} params={route.params ?? {}} onNavigate={navigate} />
       </View>
       <View
@@ -90,6 +90,10 @@ export function AppShell(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
+  // Viewport-locked content pane (bounded-screens, ADR-0035/design v1): the shell
+  // never scrolls — each screen owns its internal scroll pane, and this clips so a
+  // screen's height can never push the chrome off-viewport.
+  content: { flex: 1, minWidth: 0, overflow: 'hidden' },
   row: { flex: 1, flexDirection: 'row' },
   sidebar: { width: 200, paddingTop: 48, borderRightWidth: 1, gap: 4, paddingHorizontal: 8 },
   navItem: { alignItems: 'center', justifyContent: 'center', flex: 1, paddingVertical: 8 },

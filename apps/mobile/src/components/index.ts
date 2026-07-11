@@ -13,6 +13,7 @@ export { Badge } from './core/Badge'
 export { Card } from './core/Card'
 export { Icon, type IconProps } from './core/Icon'
 export { EmptyState } from './core/EmptyState'
+export { ScreenScaffold } from './core/ScreenScaffold'
 export { AICallout } from './core/AICallout'
 export { AIAskBar } from './core/AIAskBar'
 
