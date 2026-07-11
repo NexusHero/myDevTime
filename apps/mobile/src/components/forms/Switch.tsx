@@ -3,9 +3,10 @@ import { Text } from '../core/Text'
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
- * Switch (form) — a custom pill toggle matching the design system's `Switch`
- * (transitions color, never bounces — ux-vision §4). Track colors by accent; the
- * thumb slides between two positions.
+ * Switch (form) — a pill toggle matching the design system's `Switch`
+ * (transitions color and thumb position in 140ms, never bounces — ux-vision §4).
+ * Touch target: 44pt height (regular) or 32pt (compact density).
+ * Colors: accent when on, overlay when off.
  */
 interface SwitchProps {
   readonly checked: boolean
@@ -23,6 +24,10 @@ export function Switch({
   accessibilityLabel,
 }: SwitchProps): React.JSX.Element {
   const t = useTheme()
+  const trackHeight = t.touchTarget
+  const trackWidth = Math.round(trackHeight * 1.8) // ~80pt for 44pt height
+  const thumbSize = trackHeight - 4
+
   return (
     <Pressable
       onPress={() => onChange?.(!checked)}
@@ -33,20 +38,21 @@ export function Switch({
     >
       <View
         style={{
-          width: 40,
-          height: 24,
+          width: trackWidth,
+          height: trackHeight,
           borderRadius: t.radius.pill,
-          backgroundColor: checked ? t.color.accent : t.color.borderStrong,
+          backgroundColor: checked ? t.color.accent : t.color.overlay,
           justifyContent: 'center',
+          paddingHorizontal: 2,
         }}
       >
         <View
           style={{
             position: 'absolute',
-            left: checked ? 19 : 3,
-            width: 18,
-            height: 18,
-            borderRadius: 9,
+            left: checked ? trackWidth - thumbSize - 2 : 2,
+            width: thumbSize,
+            height: thumbSize,
+            borderRadius: thumbSize / 2,
             backgroundColor: '#ffffff',
           }}
         />
