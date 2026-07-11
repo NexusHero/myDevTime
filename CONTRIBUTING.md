@@ -46,20 +46,60 @@ Conventional Commits. Bypass in a real emergency with `git commit --no-verify`.
 ```bash
 git switch -c feat/short-description     # or fix/, docs/, chore/, refactor/, test/, ci/
 # ... work, commit ...
+git rebase origin/main                    # rebase before merge (not merge commit)
 git push -u origin feat/short-description
 # open a PR against main
+# merge via GitHub: "Rebase and merge" (never "Create merge commit")
 ```
 
-Commit messages follow [Conventional Commits](https://www.conventionalcommits.org) in English:
+### Commit message strategy
 
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org) in English,
+with professional structure for public visibility (GitHub releases, team communication):
+
+**Subject line (max 70 chars):**
 ```
-feat(api): add pagination to GET /time-entries
-fix(timer): stop double-counting overlapping entries
-docs(adr): record the billing-provider decision
+feat(scope): clear, imperative title (Issue #X, ADR-Y)
 ```
 
-Types: `feat` · `fix` · `docs` · `test` · `refactor` · `chore` · `ci` · `build` · `perf` ·
+**Types:** `feat` · `fix` · `docs` · `test` · `refactor` · `chore` · `ci` · `build` · `perf` ·
 `style` · `revert`.
+
+**Scopes:** `api` (backend), `mobile` (RN/Expo app), `design` (tokens/components), `domain`
+(core logic), `shared` (types/schemas), `ci` (pipeline), etc.
+
+**For major features (Tier 1):**
+Include a detailed body with rationale and risks:
+
+```
+feat(api): migrate to NestJS modular monolith (#3, ADR-0025)
+
+Replace Fastify app.ts with Nest bootstrap. Add DI container configuration,
+provider setup, RFC 7807 exception filter, and health endpoint with OpenAPI.
+
+Supports fine-grained module architecture (auth, tracking, sync, billing) with
+dependency injection and better testability via @nestjs/testing.
+
+Risk: All endpoints must re-integrate under Nest controllers. Phased approach
+mitigates: #102 tracks controller ports one by one.
+
+Closes #3, refs ADR-0025
+```
+
+**For bug fixes or smaller changes (Tier 2 & 3):**
+Keep it concise:
+
+```
+fix(timer): stop double-counting overlapping entries (#87)
+docs(adr): record the billing-provider decision
+chore: upgrade pnpm to v10
+```
+
+### Merge strategy: Rebase + Fast-Forward
+
+- Always `git rebase origin/main` before pushing (keeps linear history)
+- Merge via GitHub: select **"Rebase and merge"** (creates one clean line, no merge commits)
+- Result: Clean, linear `main` branch readable as a story from top to bottom
 
 ## Tests
 
