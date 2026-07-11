@@ -1,6 +1,6 @@
 function AssistantScreen() {
   const DS = window.MyDevTimeDesignSystem_254296
-  const { Card, Badge, Button } = DS
+  const { Badge, Button } = DS
   // Defensive: never blank-screen on a one-compile-stale bundle
   const Icon = DS.Icon || (() => null)
   const EmptyState =

@@ -29,7 +29,6 @@ function DevTimeApp() {
     assistant: window.AssistantScreen,
     profile: window.ProfileScreen,
   }
-  const Screen = screens[screen] || window.TodayScreen
 
   return (
     <div data-theme={theme} data-mode={mode} style={{ height: '100vh', background: 'var(--bg)' }}>
