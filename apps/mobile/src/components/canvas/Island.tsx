@@ -12,6 +12,8 @@ import { useTheme } from '../../theme/ThemeProvider'
 export interface IslandAction {
   readonly label: string
   readonly onPress?: () => void
+  /** `live` renders the hot punch action (Ausstempeln/Einstempeln) in live orange. */
+  readonly tone?: 'live'
 }
 
 interface IslandProps {
@@ -46,6 +48,13 @@ export function Island({
         paddingVertical: expanded ? t.spacing.s3 : 10,
         paddingHorizontal: expanded ? t.spacing.s3 : t.spacing.s4,
         gap: expanded ? t.spacing.s3 : 0,
+        // A running timer casts the live-orange glow (the "happening now" signal);
+        // idle falls back to a neutral drop shadow. Matches the design's Island.
+        shadowColor: running ? t.color.live : '#000000',
+        shadowOffset: { width: 0, height: running ? 10 : 6 },
+        shadowOpacity: running ? 0.45 : 0.25,
+        shadowRadius: running ? 16 : 12,
+        elevation: running ? 8 : 4,
         ...(expanded ? { minWidth: 220 } : null),
       }}
     >
@@ -55,7 +64,8 @@ export function Island({
             width: 8,
             height: 8,
             borderRadius: 4,
-            backgroundColor: running ? t.color.accent : t.color.ink3,
+            // The running signal is always live orange (never the accent) — ux-vision §4.
+            backgroundColor: running ? t.color.live : t.color.ink3,
           }}
         />
         <Text
@@ -79,7 +89,7 @@ export function Island({
                 flex: 1,
                 paddingVertical: t.spacing.s2,
                 borderRadius: t.radius.pill,
-                backgroundColor: 'rgba(255,255,255,0.1)',
+                backgroundColor: a.tone === 'live' ? t.color.live : 'rgba(255,255,255,0.1)',
                 alignItems: 'center',
               }}
             >

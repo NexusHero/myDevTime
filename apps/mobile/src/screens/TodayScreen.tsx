@@ -486,9 +486,15 @@ export function TodayScreen(): React.JSX.Element {
                 paused
                   ? { label: timer.busy ? '…' : 'Weiter', onPress: timer.resume }
                   : { label: 'Pause', onPress: timer.pause },
-                { label: timer.busy ? '…' : 'Ausstempeln', onPress: timer.punchOut },
+                { label: timer.busy ? '…' : 'Ausstempeln', onPress: timer.punchOut, tone: 'live' },
               ]
-            : [{ label: timer.busy ? '…' : 'Einstempeln', onPress: () => timer.punchIn() }]
+            : [
+                {
+                  label: timer.busy ? '…' : 'Einstempeln',
+                  onPress: () => timer.punchIn(),
+                  tone: 'live',
+                },
+              ]
         }
       />
     </View>
