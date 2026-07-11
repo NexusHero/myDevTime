@@ -60,7 +60,7 @@ export function Input({
           backgroundColor: t.color.surface,
           color: t.color.ink,
           fontFamily: mono ? t.fontFamily.numeric : t.fontFamily.ui,
-          fontSize: t.fontSize.base,
+          fontSize: t.fontSize.sm,
         }}
       />
       {error !== undefined && (

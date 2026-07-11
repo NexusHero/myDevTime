@@ -1,0 +1,121 @@
+<!-- @dsCard group="Colors" viewport="700x210" name="Live / Now color" subtitle="Theme-independent vivid orange — everything happening right now" -->
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body {
+    margin: 0;
+    padding: 20px;
+    font-family: var(--font-ui);
+    background: var(--surface);
+    display: flex;
+    gap: 20px;
+    align-items: stretch;
+  }
+  .swatch {
+    width: 190px;
+    flex: none;
+    border-radius: var(--radius-card);
+    background: var(--live);
+    color: var(--live-contrast);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+  }
+  .swatch b {
+    font-family: var(--font-display);
+    font-size: 17px;
+  }
+  .swatch code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    opacity: 0.85;
+  }
+  .uses {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    justify-content: center;
+  }
+  .u {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--live);
+    flex: none;
+    animation: p 1.6s ease infinite;
+  }
+  @keyframes p {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+  .line {
+    width: 26px;
+    height: 2px;
+    background: var(--live);
+    flex: none;
+    box-shadow: 0 0 6px rgba(255, 83, 32, 0.6);
+  }
+  .btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--live);
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn span {
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 8px solid #fff;
+    margin-left: 2px;
+  }
+  .ph {
+    width: 9px;
+    height: 22px;
+    flex: none;
+    display: flex;
+    justify-content: center;
+  }
+  .ph i {
+    width: 3px;
+    background: var(--live);
+    border-radius: 2px;
+  }
+  .note {
+    font-size: 11px;
+    color: var(--ink-3);
+    margin-top: 2px;
+  }
+</style>
+<div class="swatch"><b>--live</b><code>#FF5320 · dark: #FF6B3D</code></div>
+<div class="uses">
+  <div class="u">
+    <span class="btn"><span></span></span> Der Start/Stop-Button — das Herzstück jeder Seite
+  </div>
+  <div class="u"><span class="line"></span> Die Jetzt-Linie im Planner</div>
+  <div class="u"><span class="dot"></span> Der REC-Puls des Auto-Trackers</div>
+  <div class="u">
+    <span class="ph"><i></i></span> Der Playhead im Logo
+  </div>
+  <div class="note">
+    Identisch in jedem Theme — Königsblau trägt Struktur, Live-Orange trägt „jetzt".
+  </div>
+</div>

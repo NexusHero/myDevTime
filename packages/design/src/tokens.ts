@@ -7,6 +7,7 @@
 
 /** 8-pt spacing grid (ux-vision §4: "8-pt grid"). */
 export const spacing = {
+  s0: 0,
   s1: 4,
   s2: 8,
   s3: 12,
@@ -14,16 +15,36 @@ export const spacing = {
   s5: 24,
   s6: 32,
   s7: 48,
+  s8: 64,
+} as const
+
+/** Semantic layout rhythm — named gap/padding values used consistently. */
+export const semanticSpacing = {
+  gapChip: 6,
+  gapList: 8,
+  gapSection: 40,
+  padCard: 20,
+  padApp: 24,
+} as const
+
+/** App-shell geometry — dimensions for navigation chrome and layout. */
+export const appShell = {
+  railWidth: 76, // icon-only rail, desktop
+  sidebarWidth: 248, // expanded sidebar, tablet/desktop
+  topbarHeight: 64,
+  tabbarHeight: 64, // phone bottom tabs
 } as const
 
 /** Type scale, in points. Numerals render in the monospace family (see `fontFamily`). */
 export const fontSize = {
-  xs: 11,
-  sm: 12.5,
-  base: 14,
+  '2xs': 11,
+  xs: 12.5,
+  sm: 14,
   md: 16,
   lg: 20,
   xl: 28,
+  '2xl': 34,
+  '3xl': 42,
 } as const
 
 /** Corner radii per surface kind. */
@@ -31,7 +52,31 @@ export const radius = {
   chip: 6,
   block: 10,
   card: 14,
+  xl: 20,
   pill: 999,
+} as const
+
+/** Border widths for strokes and dividers. */
+export const borderWidth = {
+  hair: 1,
+  medium: 1.5,
+  thick: 2,
+} as const
+
+/** Line heights for text blocks — unitless multipliers. */
+export const lineHeight = {
+  tight: 1.1,
+  snug: 1.3,
+  normal: 1.5,
+  relaxed: 1.7,
+} as const
+
+/** Letter spacing in em units (multiply by font-size to get px adjustment). */
+export const letterSpacing = {
+  tight: -0.02, // in em
+  normal: 0,
+  wide: 0.06, // in em
+  wider: 0.12, // in em
 } as const
 
 /**
@@ -40,8 +85,16 @@ export const radius = {
  * motion behind the OS reduced-motion setting.
  */
 export const motion = {
-  fast: 140,
-  spring: 220,
+  fast: 140, // hovers, fades, icon transitions
+  med: 220, // standard animations
+  spring: 220, // spring physics for settles/morphs
+  slow: 320, // longer deliberate animations
+} as const
+
+/** Easing functions for motion — cubic-bezier curves matching design spec. */
+export const easing = {
+  out: 'cubic-bezier(0.16, 1, 0.3, 1)', // chrome hovers/fades
+  spring: 'cubic-bezier(0.34, 1.56, 0.64, 1)', // Day Canvas blocks, Island morph
 } as const
 
 /**
@@ -125,5 +178,12 @@ export const densityScale: Record<
 export const gridUnit = 8
 
 export type Spacing = keyof typeof spacing
+export type SemanticSpacing = keyof typeof semanticSpacing
 export type FontSize = keyof typeof fontSize
 export type Radius = keyof typeof radius
+export type BorderWidth = keyof typeof borderWidth
+export type LineHeight = keyof typeof lineHeight
+export type LetterSpacing = keyof typeof letterSpacing
+export type Motion = keyof typeof motion
+export type Easing = keyof typeof easing
+export type AppShell = keyof typeof appShell

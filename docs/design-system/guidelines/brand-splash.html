@@ -1,0 +1,201 @@
+<!-- @dsCard group="Brand" viewport="700x340" name="Animated splash" subtitle="Logo sting — blocks spring in, the live playhead sweeps, wordmark rises. Loops for demo; runs once (~1.4s) in the app." -->
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../styles.css" />
+    <style>
+      body {
+        margin: 0;
+      }
+      .stage {
+        width: 100%;
+        height: 340px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+        background: radial-gradient(120% 120% at 50% 0%, #16255c 0%, #0d1330 55%, #0a0c11 100%);
+        font-family: var(--font-display);
+      }
+      .mark {
+        position: relative;
+        width: 128px;
+        height: 128px;
+        border-radius: 30px;
+        background: linear-gradient(135deg, #3d5cf5 0%, #2941b8 100%);
+        box-shadow: 0 24px 60px -18px rgba(61, 92, 245, 0.55);
+        animation: tile-in 3.6s var(--ease-spring) infinite;
+      }
+      .blk {
+        position: absolute;
+        top: 48px;
+        width: 30px;
+        height: 36px;
+        border-radius: 9px;
+      }
+      .blk.actual {
+        left: 25px;
+        background: #fff;
+        animation: slide-in 3.6s var(--ease-spring) infinite;
+      }
+      .blk.ghost {
+        left: 73px;
+        border: 3.5px dashed rgba(255, 255, 255, 0.8);
+        background: none;
+        animation: fade-in 3.6s ease infinite;
+      }
+      .playhead {
+        position: absolute;
+        left: 61.5px;
+        top: 40px;
+        width: 5px;
+        height: 52px;
+        border-radius: 3px;
+        background: var(--live);
+        transform-origin: top center;
+        animation: sweep 3.6s var(--ease-out) infinite;
+      }
+      .dot {
+        position: absolute;
+        left: 57.5px;
+        top: 25px;
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: var(--live);
+        animation: pulse 3.6s ease infinite;
+      }
+      .word {
+        color: #fff;
+        font-size: 30px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        animation: rise 3.6s var(--ease-out) infinite;
+      }
+      .word .accent {
+        color: var(--live);
+      }
+      .tag {
+        color: rgba(255, 255, 255, 0.55);
+        font-family: var(--font-ui);
+        font-size: 13.5px;
+        margin-top: -14px;
+        animation: rise 3.6s var(--ease-out) infinite;
+      }
+
+      @keyframes tile-in {
+        0% {
+          transform: scale(0.55);
+          opacity: 0;
+        }
+        8% {
+          opacity: 1;
+        }
+        14% {
+          transform: scale(1.05);
+        }
+        20%,
+        88% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(1);
+          opacity: 0;
+        }
+      }
+      @keyframes slide-in {
+        0%,
+        12% {
+          transform: translateX(-18px);
+          opacity: 0;
+        }
+        26% {
+          transform: translateX(2px);
+          opacity: 1;
+        }
+        34%,
+        100% {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      @keyframes fade-in {
+        0%,
+        22% {
+          opacity: 0;
+        }
+        38%,
+        100% {
+          opacity: 1;
+        }
+      }
+      @keyframes sweep {
+        0%,
+        18% {
+          transform: scaleY(0);
+        }
+        38%,
+        100% {
+          transform: scaleY(1);
+        }
+      }
+      @keyframes pulse {
+        0%,
+        30% {
+          transform: scale(0);
+        }
+        40% {
+          transform: scale(1.35);
+        }
+        48% {
+          transform: scale(1);
+        }
+        62% {
+          transform: scale(1.25);
+        }
+        74%,
+        100% {
+          transform: scale(1);
+        }
+      }
+      @keyframes rise {
+        0%,
+        30% {
+          transform: translateY(14px);
+          opacity: 0;
+        }
+        48%,
+        100% {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .mark,
+        .blk,
+        .playhead,
+        .dot,
+        .word,
+        .tag {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage">
+      <div class="mark">
+        <span class="blk actual"></span>
+        <span class="blk ghost"></span>
+        <span class="playhead"></span>
+        <span class="dot"></span>
+      </div>
+      <div class="word">my<span class="accent">Dev</span>Time</div>
+      <div class="tag">Dein Tag, geplant.</div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,147 @@
+/* ============================================================
+   COLORS — base palette + semantic aliases
+   myDevTime design system. Three swappable accent themes:
+     SOVEREIGN (royal blue, flagship default) · EMBER (validated
+     "now/live" amber from the binding UX vision) · BLUEPRINT
+     (myjob's steel blue, ported 1:1 for direct family resemblance).
+   Swap with data-theme="sovereign|ember|blueprint" (see themes.css).
+   Light mode lives here in :root; dark mode flips the semantic
+   aliases in modes.css — every component adapts automatically.
+   ============================================================ */
+:root {
+  /* ---- Neutral scale (shared across all themes) ---- */
+  --neutral-0: #ffffff;
+  --neutral-50: #f8fafc;
+  --neutral-100: #f1f5f9;
+  --neutral-200: #e5e9ef;
+  --neutral-300: #cbd2dc;
+  --neutral-400: #98a2b3;
+  --neutral-500: #667085;
+  --neutral-600: #475467;
+  --neutral-700: #344054;
+  --neutral-800: #1d2939;
+  --neutral-900: #101828;
+  --neutral-950: #0b0f19;
+
+  /* ---- Canvas near-blacks (dark-mode bases — never pure #000) ---- */
+  --canvas-950: #0a0c11;
+  --canvas-900: #10131a;
+  --canvas-850: #171c27;
+  --canvas-800: #1b2130;
+
+  /* ---- Accent: SOVEREIGN — royal blue + white (flagship default) ---- */
+  --sovereign-500: #3654e0;
+  --sovereign-600: #2941b8;
+  --sovereign-700: #1f3391;
+  --sovereign-on-dark: #90a0ff;
+  --sovereign-soft: #ebedfb;
+  --sovereign-border: #c7d2ff;
+
+  /* ---- Accent: EMBER — vivid signal orange. Evolution of the validated
+     "now/live" amber (ux-vision §4), pushed to GetYourGuide-level energy. ---- */
+  --ember-500: #ff5320;
+  --ember-600: #e33e0f;
+  --ember-700: #b33009;
+  --ember-on-dark: #ff7a52;
+  --ember-soft: #ffede6;
+  --ember-border: #ffc9b5;
+
+  /* ---- Accent: BLUEPRINT — "Königsblau", THE DEFAULT (ADR-0023) ---- */
+  --blueprint-500: #2563eb;
+  --blueprint-600: #1d4ed8;
+  --blueprint-700: #1e3a8a;
+  --blueprint-on-dark: #60a5fa;
+  --blueprint-soft: #e9effd;
+  --blueprint-border: #bfdbfe;
+
+  /* ---- Semantic feedback (theme-independent). Soft fills are ABSOLUTE
+     hexes pre-blended over the default bg (ADR-0026 §3) — predictable
+     WCAG contrast on every elevation. Green punched up per owner. ---- */
+  --good: #16a34a;
+  --good-dark: #4ade80;
+  --good-soft: #e4f1e9;
+  --crit: #c2372f;
+  --crit-dark: #e5655e;
+  --crit-soft: #f9ebea;
+  --warn: #b45309;
+  --warn-soft: #f6eae1;
+  --info: #2563eb;
+  --info-soft: #e9effd;
+
+  /* ---- Project palette — categorical, deterministic id->color (FNV-1a).
+     12 CVD-safe colors per mode (ADR-0026 §2) — the ONLY saturated data
+     colors on screen; chrome stays quiet. Values from palette.ts 1:1. ---- */
+  --project-1: #00937c;
+  --project-2: #6d5ae0;
+  --project-3: #c23a62;
+  --project-4: #2374bd;
+  --project-5: #6e8523;
+  --project-6: #bd7122;
+  --project-7: #b58c21;
+  --project-8: #2f8754;
+  --project-9: #9e529b;
+  --project-10: #288188;
+  --project-11: #6f7887;
+  --project-12: #b54242;
+
+  /* ---- LIVE / NOW — the one theme-independent hot color.
+     Everything that is "happening right now" — the running timer,
+     the now-line in the planner, the recording dot, the playhead in
+     the logo — is ALWAYS this vivid orange, in every theme. This is
+     the brand's energy signature (GetYourGuide-style signal color
+     paired with Sovereign royal blue). ---- */
+  --live: #ff5320;
+  --live-strong: #e33e0f;
+  --live-soft: rgba(255, 83, 32, 0.12);
+  --live-border: rgba(255, 83, 32, 0.38);
+  --live-contrast: #ffffff;
+
+  /* ---- AI SIGNATURE — theme-independent, like --live.
+     Everything the Co-Planner / Assistant produces carries the
+     blue→orange gradient (plan meets now): ✦ chips, hairline
+     borders on AI callouts, the Assistant nav item. Deterministic
+     UI never wears this gradient — it is the "this came from AI,
+     you decide" marker (ADR-0005: proposals, never actions). ---- */
+  --ai-grad: linear-gradient(120deg, #3654e0 0%, #7a44d8 55%, #ff5320 100%); /* @kind color */
+  --ai-soft: rgba(84, 74, 224, 0.07);
+  --ai-ink: #4a3fd6;
+
+  /* ---- NAV RAIL — the floating sidebar reads semantic tokens directly
+     (AppShell uses var(--rail-*, <semantic fallback>)). Do NOT declare
+     --rail-* here on :root: a var() chain inside a custom property
+     resolves at the declaring element, freezing light-mode values and
+     breaking dark mode / theme accents. Only declare --rail-* inside a
+     [data-theme] scope when a theme needs to override the rail. ---- */
+
+  /* ============================================================
+     SEMANTIC ALIASES — components read these, never raw values.
+     Defaults = BLUEPRINT accent ("Königsblau", ADR-0023) + LIGHT
+     mode; switch with data-theme / data-mode wrappers.
+     ============================================================ */
+  --accent: var(--blueprint-500);
+  --accent-strong: var(--blueprint-600);
+  --accent-on-dark: var(--blueprint-on-dark);
+  --accent-soft: var(--blueprint-soft);
+  --accent-border: var(--blueprint-border);
+  --accent-contrast: #ffffff;
+
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-sunk: var(--neutral-100);
+  --overlay: #ffffff;
+
+  /* The app-shell chrome (AppShell sidebar/rail) is always dark — a fixed
+     frame around the light-or-dark working canvas, same "dark frame, light
+     surfaces work" pattern in every theme (Blueprint just uses its own
+     gradient — see themes.css). Never flips with data-mode. */
+  --shell-bg: linear-gradient(165deg, var(--canvas-850) 0%, var(--canvas-950) 100%);
+
+  --border: var(--neutral-200);
+  --border-strong: var(--neutral-300);
+
+  --ink: var(--neutral-900);
+  --ink-2: var(--neutral-600);
+  --ink-3: var(--neutral-400);
+  --ink-on-accent: #ffffff;
+}

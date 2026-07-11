@@ -10,8 +10,14 @@ import {
   systemFontFamily,
   fontSize,
   motion,
+  easing,
   radius,
   spacing,
+  semanticSpacing,
+  appShell,
+  borderWidth,
+  lineHeight,
+  letterSpacing,
   densityScale,
   type Density,
 } from './tokens.js'
@@ -25,9 +31,15 @@ export interface Theme {
   readonly color: Palette
   readonly projectColors: readonly string[]
   readonly spacing: typeof spacing
+  readonly semanticSpacing: typeof semanticSpacing
+  readonly appShell: typeof appShell
   readonly fontSize: typeof fontSize
   readonly radius: typeof radius
+  readonly borderWidth: typeof borderWidth
+  readonly lineHeight: typeof lineHeight
+  readonly letterSpacing: typeof letterSpacing
   readonly motion: typeof motion
+  readonly easing: typeof easing
   readonly fontFamily: typeof blueprintFontFamily | typeof systemFontFamily
   readonly touchTarget: number
   readonly padCard: number
@@ -46,9 +58,15 @@ export function theme(
     color: palettes[accent][mode],
     projectColors: projectColors[mode],
     spacing,
+    semanticSpacing,
+    appShell,
     fontSize,
     radius,
+    borderWidth,
+    lineHeight,
+    letterSpacing,
     motion,
+    easing,
     fontFamily: accent === 'blueprint' ? blueprintFontFamily : systemFontFamily,
     touchTarget: densityScale[density].touchTarget,
     padCard: densityScale[density].padCard,
