@@ -21,6 +21,12 @@ interface IslandProps {
   readonly expanded?: boolean
   readonly onToggle?: () => void
   readonly actions?: readonly IslandAction[]
+  /**
+   * `floating` (default) is the free bottom-center phone pill; `docked` is the
+   * full-width desktop sidebar-footer slot that never overlaps the working surface
+   * and glows live-orange while running (design v2).
+   */
+  readonly posture?: 'floating' | 'docked'
 }
 
 const ISLAND_BG = '#12151c'
@@ -32,26 +38,32 @@ export function Island({
   expanded = false,
   onToggle,
   actions = [],
+  posture = 'floating',
 }: IslandProps): React.JSX.Element {
   const t = useTheme()
+  const docked = posture === 'docked'
+  const dockedGlow = docked && running
   return (
     <Pressable
       onPress={() => onToggle?.()}
       accessibilityRole="button"
       accessibilityLabel={`Timer ${elapsed}, ${punched ? 'punched in' : 'punched out'}`}
       style={{
-        alignSelf: 'flex-start',
+        alignSelf: docked ? 'stretch' : 'flex-start',
+        ...(docked ? { width: '100%' } : null),
         backgroundColor: ISLAND_BG,
-        borderRadius: expanded ? t.radius.card : t.radius.pill,
-        paddingVertical: expanded ? t.spacing.s3 : 10,
-        paddingHorizontal: expanded ? t.spacing.s3 : t.spacing.s4,
-        gap: expanded ? t.spacing.s3 : 0,
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.22,
-        shadowRadius: 12,
-        elevation: 4,
-        ...(expanded ? { minWidth: 220 } : null),
+        borderRadius: docked ? t.radius.card : expanded ? t.radius.card : t.radius.pill,
+        paddingVertical: docked || expanded ? t.spacing.s3 : 10,
+        paddingHorizontal: docked || expanded ? t.spacing.s3 : t.spacing.s4,
+        gap: docked || expanded ? t.spacing.s3 : 0,
+        // Docked glows live-orange while running (the "happening now" signal, ux-vision §4);
+        // the floating pill and idle docked keep a neutral drop shadow.
+        shadowColor: dockedGlow ? t.color.live : '#000000',
+        shadowOffset: { width: 0, height: dockedGlow ? 8 : 6 },
+        shadowOpacity: dockedGlow ? 0.45 : 0.22,
+        shadowRadius: dockedGlow ? 16 : 12,
+        elevation: dockedGlow ? 8 : 4,
+        ...(!docked && expanded ? { minWidth: 220 } : null),
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s3 }}>
