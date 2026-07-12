@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
+import {
+  getRunningEntry,
+  startEntry,
+  stopRunningEntry,
+  type LocalTimeEntry,
+} from '@mydevtime/local-db'
 import { apiBaseUrl } from '../config.js'
+import { LOCAL_WORKSPACE_ID, useLocalDb } from '../localDb/context.js'
 import {
   entryDurationMs,
   formatStopwatch,
@@ -14,13 +21,16 @@ import {
 } from '../api/timer.js'
 
 /**
- * The live timer for the Island (REQ-004, ux-vision §2.3). When an API base URL is
- * configured it loads the running entry and drives start/stop through the tracking
- * routes; otherwise — the default in local dev — it runs a local demo timer so the
- * Island still ticks without a backend. Start/stop update optimistically and
- * reconcile with (or roll back to) the server's answer. `elapsed` ticks once a
- * second while running; the duration is formatted by the pure `formatStopwatch`,
- * never computed inline (ADR-0005 keeps math out of the view).
+ * The live timer for the Island (REQ-004, ux-vision §2.3). Three modes:
+ * - **API** (`apiBaseUrl` set): load the running entry and drive start/stop
+ *   through the tracking routes, reconciling optimistically.
+ * - **Offline** (no API, local DB open): persist the running timer in the local
+ *   SQLite store (ADR-0040), so a running timer **survives an app reload**.
+ * - **Demo** (no DB yet, e.g. the test gate): an in-memory local timer.
+ * The elapsed duration is always formatted by the pure `formatStopwatch`, never
+ * computed inline (ADR-0005 keeps math out of the view). Pause banks time in
+ * session state; a running timer restores across reload, a paused one resumes
+ * within the session.
  */
 export interface TimerResource {
   readonly running: TimeEntry | null
@@ -47,9 +57,24 @@ export interface TimerResource {
   readonly resume: () => void
 }
 
+/** Map a stored local entry onto the client `TimeEntry` shape (drops workspace id). */
+function toTimeEntry(entry: LocalTimeEntry): TimeEntry {
+  return {
+    id: entry.id,
+    projectId: entry.projectId,
+    taskId: entry.taskId,
+    startedAt: entry.startedAt,
+    endedAt: entry.endedAt,
+    billable: entry.billable,
+    source: entry.source,
+    note: entry.note,
+  }
+}
+
 export function useTimer(): TimerResource {
   const base = apiBaseUrl
   const live = base !== null
+  const db = useLocalDb()
   const [running, setRunning] = useState<TimeEntry | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -59,11 +84,19 @@ export function useTimer(): TimerResource {
   const [accumulatedMs, setAccumulatedMs] = useState(0)
   const [pausedInput, setPausedInput] = useState<StartTimerInput | null>(null)
 
-  // Load the running entry once (demo mode starts idle).
+  // Load the running entry once. API → server; offline → the local store (restores
+  // a running timer after a reload); demo → idle.
   useEffect(() => {
     let alive = true
     setLoading(true)
-    const load = base === null ? Promise.resolve<TimeEntry | null>(null) : getRunning(base)
+    const load: Promise<TimeEntry | null> =
+      base !== null
+        ? getRunning(base)
+        : db !== null
+          ? getRunningEntry(db, LOCAL_WORKSPACE_ID).then(entry =>
+              entry === null ? null : toTimeEntry(entry),
+            )
+          : Promise.resolve(null)
     load
       .then(entry => {
         if (alive) {
@@ -80,29 +113,46 @@ export function useTimer(): TimerResource {
     return () => {
       alive = false
     }
-  }, [base])
+  }, [base, db])
 
-  // Start a segment (optimistic/demo, then reconcile with the server). Shared by a
-  // fresh start and a resume; the caller decides whether to reset the accumulator.
+  // Start a segment (optimistic, then reconcile with the server or the local store).
   const beginEntry = useCallback(
     (input: StartTimerInput) => {
       setRunning(provisionalEntry(input, new Date()))
       setError(null)
-      if (base === null) return
-      setBusy(true)
-      startTimer(base, input)
-        .then(entry => {
-          setRunning(entry)
+      if (base !== null) {
+        setBusy(true)
+        startTimer(base, input)
+          .then(entry => {
+            setRunning(entry)
+          })
+          .catch((cause: unknown) => {
+            setRunning(null) // roll back
+            setError(cause instanceof Error ? cause : new Error(String(cause)))
+          })
+          .finally(() => {
+            setBusy(false)
+          })
+        return
+      }
+      // Offline: persist locally so the running timer survives a reload.
+      if (db !== null) {
+        startEntry(db, LOCAL_WORKSPACE_ID, {
+          projectId: input.projectId ?? null,
+          taskId: input.taskId ?? null,
+          note: input.note ?? null,
+          billable: input.billable ?? true,
         })
-        .catch((cause: unknown) => {
-          setRunning(null) // roll back
-          setError(cause instanceof Error ? cause : new Error(String(cause)))
-        })
-        .finally(() => {
-          setBusy(false)
-        })
+          .then(entry => {
+            setRunning(toTimeEntry(entry))
+          })
+          .catch((cause: unknown) => {
+            setRunning(null)
+            setError(cause instanceof Error ? cause : new Error(String(cause)))
+          })
+      }
     },
-    [base],
+    [base, db],
   )
 
   const punchIn = useCallback(
@@ -120,26 +170,32 @@ export function useTimer(): TimerResource {
       const segMs = entryDurationMs(previous, new Date())
       setAccumulatedMs(a => a + segMs) // bank the worked segment
       setPausedInput(resumeInput(previous))
+      const rollback = (cause: unknown): void => {
+        setRunning(previous)
+        setAccumulatedMs(a => a - segMs)
+        setPausedInput(null)
+        setError(cause instanceof Error ? cause : new Error(String(cause)))
+      }
       if (base !== null) {
         setBusy(true)
         stopTimer(base)
           .then(() => {
             setError(null)
           })
-          .catch((cause: unknown) => {
-            // Roll the pause back so UI and server agree the timer is still running.
-            setRunning(previous)
-            setAccumulatedMs(a => a - segMs)
-            setPausedInput(null)
-            setError(cause instanceof Error ? cause : new Error(String(cause)))
-          })
+          .catch(rollback)
           .finally(() => {
             setBusy(false)
           })
+      } else if (db !== null) {
+        stopRunningEntry(db, LOCAL_WORKSPACE_ID)
+          .then(() => {
+            setError(null)
+          })
+          .catch(rollback)
       }
       return null // optimistic pause: no running segment
     })
-  }, [base])
+  }, [base, db])
 
   const resume = useCallback(() => {
     if (pausedInput === null) return
@@ -151,22 +207,29 @@ export function useTimer(): TimerResource {
     setAccumulatedMs(0)
     setPausedInput(null)
     setRunning(previous => {
-      if (previous === null || base === null) return null // demo/paused: local stop
-      setBusy(true)
-      stopTimer(base)
-        .then(() => {
-          setError(null)
-        })
-        .catch((cause: unknown) => {
-          setRunning(previous) // roll back
+      if (previous === null) return null
+      if (base !== null) {
+        setBusy(true)
+        stopTimer(base)
+          .then(() => {
+            setError(null)
+          })
+          .catch((cause: unknown) => {
+            setRunning(previous) // roll back
+            setError(cause instanceof Error ? cause : new Error(String(cause)))
+          })
+          .finally(() => {
+            setBusy(false)
+          })
+      } else if (db !== null) {
+        stopRunningEntry(db, LOCAL_WORKSPACE_ID).catch((cause: unknown) => {
+          setRunning(previous)
           setError(cause instanceof Error ? cause : new Error(String(cause)))
         })
-        .finally(() => {
-          setBusy(false)
-        })
+      }
       return null // optimistic clear
     })
-  }, [base])
+  }, [base, db])
 
   const elapsed = formatStopwatch(sessionElapsedMs(accumulatedMs, running, new Date()))
   const paused = pausedInput !== null
