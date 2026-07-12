@@ -23,6 +23,7 @@
     "@expo/metro-runtime": "~4.0.1",
     "@mydevtime/design": "workspace:*",
     "@mydevtime/local-db": "workspace:*",
+    "@shopify/flash-list": "1.7.3",
     "expo": "~52.0.0",
     "expo-font": "~13.0.4",
     "expo-sqlite": "~15.0.3",

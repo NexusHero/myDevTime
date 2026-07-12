@@ -13,6 +13,7 @@ import { useTheme } from '../theme/ThemeProvider'
 import { Badge, BudgetRing, Button, Card, ScreenScaffold, Sparkline } from '../components/index'
 import type { Client, Project } from './projectsData'
 import { useCatalog } from './useCatalog'
+import { FlashList } from '@shopify/flash-list'
 
 /**
  * Projects — clients → projects → tasks with budget consumption and rates
@@ -283,7 +284,7 @@ export function ProjectsScreen({
   )
 
   return (
-    <ScreenScaffold header={header}>
+    <ScreenScaffold header={header} disableScroll={true}>
       {catalog.loading && catalog.data === null && <Notice title="Loading projects…" />}
 
       {catalog.error && (
@@ -305,32 +306,32 @@ export function ProjectsScreen({
         <Notice title="No projects yet">Create a client and project to start tracking.</Notice>
       )}
 
-      <View
-        style={{
-          flexDirection: columns === 2 ? 'row' : 'column',
-          flexWrap: columns === 2 ? 'wrap' : 'nowrap',
-          gap: t.spacing.s4,
-        }}
-      >
-        {shown.map(project => (
-          <View
-            key={project.id}
-            style={columns === 2 ? { flexBasis: '48%', flexGrow: 1 } : { alignSelf: 'stretch' }}
-          >
-            <ProjectCard
-              project={project}
-              onOpen={() => onNavigate('project', { projectId: project.id })}
-            />
-          </View>
-        ))}
-      </View>
-
-      {(hidden > 0 || expanded) && sorted.length > limit && (
-        <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-          <Button size="sm" variant="secondary" onPress={() => setExpanded(e => !e)}>
-            {expanded ? 'Weniger anzeigen' : `+${String(hidden)} weitere anzeigen`}
-          </Button>
-        </View>
+      {shown.length > 0 && (
+        <FlashList
+          data={shown}
+          estimatedItemSize={250}
+          numColumns={columns}
+          contentContainerStyle={{ paddingHorizontal: t.spacing.s5, paddingBottom: t.spacing.s5 }}
+          renderItem={({ item: project }) => (
+            <View style={{ padding: t.spacing.s4 / 2, flex: 1 }}>
+              <ProjectCard
+                project={project}
+                onOpen={() => onNavigate('project', { projectId: project.id })}
+              />
+            </View>
+          )}
+          ListFooterComponent={
+            (hidden > 0 || expanded) && sorted.length > limit ? (
+              <View
+                style={{ flexDirection: 'row', justifyContent: 'center', marginTop: t.spacing.s4 }}
+              >
+                <Button size="sm" variant="secondary" onPress={() => setExpanded(e => !e)}>
+                  {expanded ? 'Weniger anzeigen' : `+${String(hidden)} weitere anzeigen`}
+                </Button>
+              </View>
+            ) : null
+          }
+        />
       )}
     </ScreenScaffold>
   )

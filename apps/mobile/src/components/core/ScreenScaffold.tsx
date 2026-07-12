@@ -6,6 +6,8 @@ interface ScreenScaffoldProps {
   readonly header: React.ReactNode
   /** The single scrolling pane — the only part whose height grows with data. */
   readonly children: React.ReactNode
+  /** Disables the ScrollView wrapper so you can pass a FlashList/FlatList instead. */
+  readonly disableScroll?: boolean
 }
 
 /**
@@ -15,7 +17,11 @@ interface ScreenScaffoldProps {
  * depth is bounded to that pane, never the whole viewport. Screens compose this
  * instead of wrapping everything in one ScrollView.
  */
-export function ScreenScaffold({ header, children }: ScreenScaffoldProps): React.JSX.Element {
+export function ScreenScaffold({
+  header,
+  children,
+  disableScroll = false,
+}: ScreenScaffoldProps): React.JSX.Element {
   const t = useTheme()
   return (
     <View style={{ flex: 1, minHeight: 0, backgroundColor: t.color.bg }}>
@@ -28,16 +34,20 @@ export function ScreenScaffold({ header, children }: ScreenScaffoldProps): React
       >
         {header}
       </View>
-      <ScrollView
-        style={{ flex: 1, minHeight: 0 }}
-        contentContainerStyle={{
-          paddingHorizontal: t.spacing.s5,
-          paddingBottom: t.spacing.s5,
-          gap: t.spacing.s4,
-        }}
-      >
-        {children}
-      </ScrollView>
+      {disableScroll ? (
+        <View style={{ flex: 1, minHeight: 0 }}>{children}</View>
+      ) : (
+        <ScrollView
+          style={{ flex: 1, minHeight: 0 }}
+          contentContainerStyle={{
+            paddingHorizontal: t.spacing.s5,
+            paddingBottom: t.spacing.s5,
+            gap: t.spacing.s4,
+          }}
+        >
+          {children}
+        </ScrollView>
+      )}
     </View>
   )
 }
