@@ -10,8 +10,10 @@ import {
   Card,
   DayBlock,
   Icon,
+  LoadMeter,
   MoodCheck,
   OverflowShelf,
+  ReanimatedTimer,
   type OverflowItem,
 } from '../components/index'
 import { useTimerContext } from '../timer/TimerContext'
@@ -190,17 +192,31 @@ export function TodayScreen(): React.JSX.Element {
           Sync engine
         </Text>
       </View>
-      <Text
-        style={{
-          fontFamily: t.fontFamily.numeric,
-          fontSize: t.fontSize.xl,
-          fontWeight: '600',
-          color: isRunning ? t.color.live : paused ? t.color.warn : t.color.ink3,
-          textAlign: 'right',
-        }}
-      >
-        {timer.elapsed}
-      </Text>
+      {isRunning && timer.running ? (
+        <ReanimatedTimer
+          startedAt={timer.running.startedAt}
+          accumulatedMs={timer.accumulatedMs}
+          style={{
+            fontFamily: t.fontFamily.numeric,
+            fontSize: t.fontSize.xl,
+            fontWeight: '600',
+            color: t.color.live,
+            textAlign: 'right',
+          }}
+        />
+      ) : (
+        <Text
+          style={{
+            fontFamily: t.fontFamily.numeric,
+            fontSize: t.fontSize.xl,
+            fontWeight: '600',
+            color: paused ? t.color.warn : t.color.ink3,
+            textAlign: 'right',
+          }}
+        >
+          {timer.elapsed}
+        </Text>
+      )}
       {active && (
         <Pressable
           onPress={() => (paused ? timer.resume() : timer.pause())}

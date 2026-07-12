@@ -2,5 +2,8 @@
 // core RN; its plugin is added with the Day Canvas in a later phase of #11.)
 module.exports = function (api) {
   api.cache(true)
-  return { presets: ['babel-preset-expo'] }
+  return {
+    presets: ['babel-preset-expo'],
+    plugins: ['react-native-reanimated/plugin'],
+  }
 }

@@ -39,6 +39,8 @@ export interface TimerResource {
   readonly pause: () => void
   /** Start a fresh segment from the paused context; the total keeps climbing. */
   readonly resume: () => void
+  /** Total tracked ms in the current session excluding the live running segment */
+  readonly accumulatedMs: number
 }
 
 export function useTimer(): TimerResource {
@@ -78,16 +80,9 @@ export function useTimer(): TimerResource {
     }
   }, [base])
 
-  // Tick the clock while a timer runs, so the elapsed label advances.
+  // The clock ticking is now handled natively by ReanimatedTimer to avoid React re-renders.
   useEffect(() => {
-    if (running === null) return
-    setNowMs(Date.now())
-    const id = setInterval(() => {
-      setNowMs(Date.now())
-    }, 1000)
-    return () => {
-      clearInterval(id)
-    }
+    // No-op interval to avoid breaking changes, or just remove it entirely.
   }, [running])
 
   // Start a segment (optimistic/demo, then reconcile with the server). Shared by a
@@ -192,5 +187,18 @@ export function useTimer(): TimerResource {
   const elapsed = formatStopwatch(sessionElapsedMs(accumulatedMs, running, new Date(nowMs)))
   const paused = pausedInput !== null
 
-  return { running, elapsed, loading, error, live, busy, paused, punchIn, punchOut, pause, resume }
+  return {
+    running,
+    elapsed,
+    loading,
+    error,
+    live,
+    busy,
+    paused,
+    punchIn,
+    punchOut,
+    pause,
+    resume,
+    accumulatedMs,
+  }
 }

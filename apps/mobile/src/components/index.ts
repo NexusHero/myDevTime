@@ -16,6 +16,7 @@ export { EmptyState } from './core/EmptyState'
 export { ScreenScaffold } from './core/ScreenScaffold'
 export { AICallout } from './core/AICallout'
 export { AIAskBar } from './core/AIAskBar'
+export { ReanimatedTimer } from '../components/ReanimatedTimer'
 
 // Forms
 export { Input } from './forms/Input'
