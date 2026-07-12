@@ -43,6 +43,8 @@ export type {
   PullResponse,
 } from './sync/engine.js'
 export { emptyServer, entityKey, applyPush, pull } from './sync/engine.js'
+export type { CrudOp, CrudWrite, ServerRow, CrudDecision } from './sync/crud.js'
+export { resolveCrudWrite } from './sync/crud.js'
 
 // Money, rates & budgets (REQ-005, ADR-0005) — integer minor units, no float.
 export type { Money, MoneyRounding } from './budgets/money.js'
