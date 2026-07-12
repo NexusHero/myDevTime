@@ -12,7 +12,7 @@ import {
 } from '@mydevtime/design'
 import { useAccent, useTheme, useThemePref } from '../theme/ThemeProvider'
 import type { ThemePref } from '../theme/resolveMode'
-import { Badge, Button, Card, ProgressBar, Row, ScreenScaffold, Switch } from '../components/index'
+import { Badge, Button, Card, LeaveBalance, Row, ScreenScaffold, Switch } from '../components/index'
 import { useConnectors } from '../hooks/useConnectors'
 import { initialsOf, useSessionContext } from '../shell/SessionContext'
 
@@ -164,7 +164,6 @@ export function ProfileScreen({
   const user = session.user ?? { name: '', email: '', id: '', emailVerified: false }
   const displayName = user.name.trim() || user.email || 'You'
   const mono = { fontFamily: t.fontFamily.numeric, color: t.color.ink }
-  const vacationRatio = VACATION_USED / VACATION_ALLOWANCE
   const chevron = <Text style={{ color: t.color.ink3, fontSize: t.fontSize.lg }}>›</Text>
 
   const identity = (
@@ -462,19 +461,8 @@ export function ProfileScreen({
 
   const abwesenheiten = (
     <Card title="Abwesenheiten">
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: t.spacing.s2 }}>
-        <Text style={{ ...mono, fontSize: t.fontSize.md, fontWeight: '700' }}>
-          {String(VACATION_ALLOWANCE - VACATION_USED)}
-        </Text>
-        <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>Urlaubstage übrig</Text>
-        <Text style={{ marginLeft: 'auto', ...mono, fontSize: t.fontSize.xs, color: t.color.ink3 }}>
-          {String(VACATION_USED)}/{String(VACATION_ALLOWANCE)} Tage
-        </Text>
-      </View>
+      <LeaveBalance entitlement={VACATION_ALLOWANCE} taken={VACATION_USED} />
       <View style={{ marginTop: t.spacing.s3 }}>
-        <ProgressBar ratio={vacationRatio} label="Urlaubstage genutzt" />
-      </View>
-      <View style={{ marginTop: t.spacing.s2 }}>
         <Row
           title="Abwesenheitskalender öffnen"
           subtitle="Urlaub, Krankheit, Feiertage"
