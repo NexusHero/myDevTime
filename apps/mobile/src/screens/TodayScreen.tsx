@@ -10,12 +10,11 @@ import {
   Card,
   DayBlock,
   Icon,
-  Island,
   MoodCheck,
   OverflowShelf,
   type OverflowItem,
 } from '../components/index'
-import { useTimer } from '../hooks/useTimer'
+import { useTimerContext } from '../timer/TimerContext'
 import { usePlanner } from '../hooks/usePlanner'
 import { NlQuickAdd } from './NlQuickAdd'
 
@@ -93,9 +92,8 @@ export function TodayScreen(): React.JSX.Element {
   const [driftEvent, setDriftEvent] = useState(true)
   const [task, setTask] = useState('Sync engine: conflict resolution')
   const [idleHint, setIdleHint] = useState(true)
-  const [expanded, setExpanded] = useState(false)
   const [dismissed, setDismissed] = useState<readonly number[]>([])
-  const timer = useTimer()
+  const timer = useTimerContext()
   // The Co-Planner on Today is the real persisted plan (M5): its blocks, accept and
   // replan all go through the planner service — no local ghost constants.
   const planner = usePlanner()
@@ -484,38 +482,10 @@ export function TodayScreen(): React.JSX.Element {
     </Card>
   )
 
-  const floatingIsland = (
-    <View
-      style={{
-        position: 'absolute',
-        bottom: t.spacing.s5,
-        alignSelf: 'center',
-        pointerEvents: 'box-none',
-      }}
-    >
-      <Island
-        running={isRunning}
-        elapsed={timer.elapsed}
-        punched={active}
-        expanded={expanded}
-        onToggle={() => setExpanded(e => !e)}
-        actions={
-          // Design (Island.prompt.md): actions={[{label:'Pause'},{label:'Ausstempeln'}]} —
-          // the Pause action sits next to the Ausstempeln (Stempel) action.
-          active
-            ? [
-                paused
-                  ? { label: timer.busy ? '…' : 'Weiter', onPress: timer.resume }
-                  : { label: 'Pause', onPress: timer.pause },
-                { label: timer.busy ? '…' : 'Ausstempeln', onPress: timer.punchOut },
-              ]
-            : [{ label: timer.busy ? '…' : 'Einstempeln', onPress: () => timer.punchIn() }]
-        }
-      />
-    </View>
-  )
-
-  const SCROLL_BOTTOM_CLEARANCE = 120 // Space for the floating Island
+  // Today carries the clock in its hero tracker, so the persistent Island is hidden
+  // here and shown on every other screen from the AppShell (design v2 — never two
+  // clocks). A little bottom clearance keeps the last card off the tab bar.
+  const SCROLL_BOTTOM_CLEARANCE = 40
 
   return (
     <View style={{ flex: 1, backgroundColor: t.color.bg }}>
@@ -645,7 +615,6 @@ export function TodayScreen(): React.JSX.Element {
           </View>
         </View>
       </ScrollView>
-      {floatingIsland}
     </View>
   )
 }

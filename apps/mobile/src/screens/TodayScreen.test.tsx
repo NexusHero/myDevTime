@@ -1,48 +1,37 @@
 // @vitest-environment jsdom
 // The NL quick-add renders a react-native-web TextInput, which needs a DOM.
 import { describe, expect, it } from 'vitest'
-import TestRenderer, { ReactTestInstance } from 'react-test-renderer'
-import { ScrollView, View } from 'react-native'
+import TestRenderer from 'react-test-renderer'
+import { ScrollView } from 'react-native'
 import { TodayScreen } from './TodayScreen.js'
 import { ThemeProvider } from '../theme/ThemeProvider.js'
+import { TimerProvider } from '../timer/TimerContext.js'
+
+function render(): TestRenderer.ReactTestRenderer {
+  // Today reads the shared timer via context, so it must render inside a provider.
+  return TestRenderer.create(
+    <ThemeProvider>
+      <TimerProvider>
+        <TodayScreen />
+      </TimerProvider>
+    </ThemeProvider>,
+  )
+}
 
 describe('TodayScreen Layout', () => {
-  it('renders the floating island and leaves scroll clearance', () => {
-    const renderer = TestRenderer.create(
-      <ThemeProvider>
-        <TodayScreen />
-      </ThemeProvider>,
-    )
-    const root = renderer.root
-
-    // 1. Verify ScrollView has the correct clearance padding (SCROLL_BOTTOM_CLEARANCE = 120)
+  it('is one bounded scroll pane with bottom clearance (no floating Island on Today)', () => {
+    const root = render().root
+    // Exactly one scroll pane (bounded-screens rule); Today owns the clock via the
+    // hero tracker, so the persistent Island is NOT rendered here (design v2).
     const scrollViews = root.findAllByType(ScrollView)
     expect(scrollViews.length).toBe(1)
-    expect(scrollViews[0]!.props.contentContainerStyle.paddingBottom).toBe(120)
-
-    // 2. Verify the Floating Island is present (it renders the elapsed time and title)
-    // The Island is rendered as an absolute view at the bottom
-    const absoluteViews = root
-      .findAllByType(View)
-      .filter(
-        (v: ReactTestInstance) =>
-          v.props.style &&
-          v.props.style.position === 'absolute' &&
-          v.props.style.bottom !== undefined,
-      )
-
-    expect(absoluteViews.length).toBeGreaterThanOrEqual(1)
+    expect(scrollViews[0]!.props.contentContainerStyle.paddingBottom).toBe(40)
   })
 
-  it('drives the Island from the timer hook (idle in demo mode, not a hardcoded time)', () => {
-    const renderer = TestRenderer.create(
-      <ThemeProvider>
-        <TodayScreen />
-      </ThemeProvider>,
-    )
-    const tree = JSON.stringify(renderer.toJSON())
+  it('hero tracker shows the timer from the shared context (idle demo → 00:00:00, not hardcoded)', () => {
+    const tree = JSON.stringify(render().toJSON())
     // Demo mode (no EXPO_PUBLIC_API_URL) starts with no running timer → 00:00:00,
-    // proving the Island reads the hook rather than the old static "00:42:11".
+    // proving the tracker reads the hook rather than the old static "00:42:11".
     expect(tree).toContain('00:00:00')
     expect(tree).not.toContain('00:42:11')
   })
