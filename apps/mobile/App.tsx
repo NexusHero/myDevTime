@@ -4,6 +4,7 @@ import { useFonts } from 'expo-font'
 import { ThemeProvider } from './src/theme/ThemeProvider'
 import { AppShell } from './src/shell/AppShell'
 import { AuthGate } from './src/shell/AuthGate'
+import { OnboardingGate } from './src/onboarding/OnboardingGate'
 import { TimerProvider } from './src/timer/TimerContext'
 
 /**
@@ -37,9 +38,11 @@ export default function App(): React.JSX.Element | null {
       <ThemeProvider>
         <StatusBar style="auto" />
         <AuthGate>
-          <TimerProvider>
-            <AppShell />
-          </TimerProvider>
+          <OnboardingGate>
+            <TimerProvider>
+              <AppShell />
+            </TimerProvider>
+          </OnboardingGate>
         </AuthGate>
       </ThemeProvider>
     </SafeAreaProvider>
