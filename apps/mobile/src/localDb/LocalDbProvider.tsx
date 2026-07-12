@@ -3,6 +3,7 @@ import { View } from 'react-native'
 import type { LocalDb } from '@mydevtime/local-db'
 import { LocalDbContext } from './context'
 import { openExpoLocalDb } from './expoAdapter'
+import { seedIfEmpty } from './seed'
 
 /**
  * Opens the local SQLite database once at app start and provides it (ADR-0040).
@@ -17,6 +18,10 @@ export function LocalDbProvider({ children }: { children: React.ReactNode }): Re
   useEffect(() => {
     let alive = true
     openExpoLocalDb()
+      .then(async opened => {
+        await seedIfEmpty(opened) // populate a starter catalog on first launch
+        return opened
+      })
       .then(opened => {
         if (alive) setDb(opened)
       })

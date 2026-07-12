@@ -1,5 +1,7 @@
+import { listEntries as listLocalEntries, type LocalTimeEntry } from '@mydevtime/local-db'
 import { apiBaseUrl } from '../config.js'
 import { listEntries, type TimeEntry } from '../api/timer.js'
+import { LOCAL_WORKSPACE_ID, useLocalDb } from '../localDb/context.js'
 import { useAsync, type AsyncResource } from './useAsync.js'
 
 /**
@@ -33,14 +35,36 @@ function demoEntries(taskId: string): TimeEntry[] {
   ]
 }
 
+/** Map a stored local entry onto the client `TimeEntry` shape (drops workspace id). */
+function toTimeEntry(entry: LocalTimeEntry): TimeEntry {
+  return {
+    id: entry.id,
+    projectId: entry.projectId,
+    taskId: entry.taskId,
+    startedAt: entry.startedAt,
+    endedAt: entry.endedAt,
+    billable: entry.billable,
+    source: entry.source,
+    note: entry.note,
+  }
+}
+
 export function useTaskEntries(taskId: string): TaskEntriesResource {
   const base = apiBaseUrl
+  const db = useLocalDb()
   const resource = useAsync<TimeEntry[]>(
-    () =>
-      base === null
-        ? Promise.resolve(demoEntries(taskId))
-        : listEntries(base).then(rows => rows.filter(e => e.taskId === taskId)),
-    `${base ?? 'demo'}:${taskId}`,
+    () => {
+      if (base !== null) {
+        return listEntries(base).then(rows => rows.filter(e => e.taskId === taskId))
+      }
+      if (db !== null) {
+        return listLocalEntries(db, LOCAL_WORKSPACE_ID).then(rows =>
+          rows.filter(e => e.taskId === taskId).map(toTimeEntry),
+        )
+      }
+      return Promise.resolve(demoEntries(taskId))
+    },
+    `${base ?? (db !== null ? 'local-db' : 'demo')}:${taskId}`,
   )
   return { ...resource, live: base !== null }
 }

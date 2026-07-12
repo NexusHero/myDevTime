@@ -15,9 +15,38 @@ export {
 export {
   type LocalProject,
   type LocalTask,
+  type LocalClient,
   type CreateProjectInput,
   listProjects,
   createProject,
   listTasks,
+  listAllTasks,
   createTask,
+  listClients,
+  createClient,
 } from './catalog.js'
+export {
+  type LocalRate,
+  type RateLevel,
+  type CreateRateInput,
+  listRates,
+  createRate,
+} from './rates.js'
+export {
+  type LocalBudget,
+  type BudgetScope,
+  type BudgetBasis,
+  type BudgetPeriod,
+  type CreateBudgetInput,
+  listBudgets,
+  createBudget,
+} from './budgets.js'
+export { getAllPreferences, setPreference } from './preferences.js'
+export {
+  type OutboxOp,
+  type EnqueueOpInput,
+  enqueueOp,
+  listPendingOps,
+  acknowledgeOps,
+} from './outbox.js'
+export { type SyncState, getSyncState, setWatermark } from './syncState.js'
