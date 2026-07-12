@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
+import { Pressable, View, useWindowDimensions } from 'react-native'
 import { Text } from '../components/core/Text'
 import {
   PROFILE_HUB_LINKS,
@@ -12,7 +12,7 @@ import {
 } from '@mydevtime/design'
 import { useAccent, useTheme, useThemePref } from '../theme/ThemeProvider'
 import type { ThemePref } from '../theme/resolveMode'
-import { Badge, Button, Card, ProgressBar, Row, Switch } from '../components/index'
+import { Badge, Button, Card, ProgressBar, Row, ScreenScaffold, Switch } from '../components/index'
 import { useConnectors } from '../hooks/useConnectors'
 import { initialsOf, useSessionContext } from '../shell/SessionContext'
 
@@ -486,22 +486,21 @@ export function ProfileScreen({
   )
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: t.color.bg }}
-      contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s5 }}
+    <ScreenScaffold
+      header={
+        <Text
+          style={{
+            fontWeight: '700',
+            fontSize: t.fontSize.xl,
+            color: t.color.ink,
+            fontFamily: t.fontFamily.display,
+            letterSpacing: t.fontSize.xl * t.letterSpacing.tight,
+          }}
+        >
+          Profil & Einstellungen
+        </Text>
+      }
     >
-      <Text
-        style={{
-          fontWeight: '700',
-          fontSize: t.fontSize.xl,
-          color: t.color.ink,
-          fontFamily: t.fontFamily.display,
-          letterSpacing: t.fontSize.xl * t.letterSpacing.tight,
-        }}
-      >
-        Profil & Einstellungen
-      </Text>
-
       <View
         style={{
           flexDirection: wide ? 'row' : 'column',
@@ -550,6 +549,6 @@ export function ProfileScreen({
           }}
         />
       </Card>
-    </ScrollView>
+    </ScreenScaffold>
   )
 }

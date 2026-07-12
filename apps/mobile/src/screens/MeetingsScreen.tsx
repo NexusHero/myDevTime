@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
+import { Pressable, View, useWindowDimensions } from 'react-native'
 import { projectColor } from '@mydevtime/design'
 import { Text } from '../components/core/Text'
-import { Badge, Button, Card } from '../components/index'
+import { Badge, Button, Card, ScreenScaffold } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
 
 /**
@@ -258,26 +258,26 @@ export function MeetingsScreen(): React.JSX.Element {
     </View>
   )
 
+  const header = (
+    <View>
+      <Text
+        style={{
+          fontWeight: '700',
+          fontSize: t.fontSize.xl,
+          color: t.color.ink,
+          fontFamily: t.fontFamily.display,
+        }}
+      >
+        Meetings
+      </Text>
+      <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, marginTop: 2 }}>
+        Transcripts & AI insights · consent-first
+      </Text>
+    </View>
+  )
+
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: t.color.bg }}
-      contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s5 }}
-    >
-      <View>
-        <Text
-          style={{
-            fontWeight: '700',
-            fontSize: t.fontSize.xl,
-            color: t.color.ink,
-            fontFamily: t.fontFamily.display,
-          }}
-        >
-          Meetings
-        </Text>
-        <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, marginTop: 2 }}>
-          Transcripts & AI insights · consent-first
-        </Text>
-      </View>
+    <ScreenScaffold header={header}>
       <View
         style={{
           flexDirection: stacked ? 'column' : 'row',
@@ -288,7 +288,7 @@ export function MeetingsScreen(): React.JSX.Element {
         {list}
         {detail}
       </View>
-    </ScrollView>
+    </ScreenScaffold>
   )
 }
 
