@@ -46,6 +46,8 @@ export function AppShell(): React.JSX.Element {
         posture={posture}
         running={timer.running !== null}
         elapsed={timer.elapsed}
+        {...(timer.running ? { startedAt: timer.running.startedAt } : {})}
+        accumulatedMs={timer.accumulatedMs}
         punched={timerActive}
         expanded={islandExpanded}
         onToggle={() => setIslandExpanded(e => !e)}
