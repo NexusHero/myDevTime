@@ -35,6 +35,12 @@ export default defineConfig({
       // a lightweight test shim instead.
       'react-native-svg': new URL('./test/__mocks__/react-native-svg.tsx', import.meta.url)
         .pathname,
+      // react-native-reanimated needs the native/worklet runtime; alias to a test
+      // shim so component render tests don't load its native source (ADR-0027).
+      'react-native-reanimated': new URL(
+        './test/__mocks__/react-native-reanimated.tsx',
+        import.meta.url,
+      ).pathname,
       // Workspace packages → source so Vitest transforms them via SWC/Oxc
       '@mydevtime/design': new URL('./packages/design/src/index.ts', import.meta.url).pathname,
       '@mydevtime/domain': new URL('./packages/domain/src/index.ts', import.meta.url).pathname,

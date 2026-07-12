@@ -1,6 +1,9 @@
-// Expo preset. (Reanimated isn't a dependency yet — the shell scaffold uses only
-// core RN; its plugin is added with the Day Canvas in a later phase of #11.)
+// Expo preset + the Reanimated plugin (must be last) for the UI-thread stopwatch
+// (ReanimatedTimer, ADR-0039 direction).
 module.exports = function (api) {
   api.cache(true)
-  return { presets: ['babel-preset-expo'] }
+  return {
+    presets: ['babel-preset-expo'],
+    plugins: ['react-native-reanimated/plugin'],
+  }
 }
