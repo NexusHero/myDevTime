@@ -59,7 +59,7 @@ below in number order.
 | [0040](0040-offline-first-local-store-as-sync-client.md) | **Offline-first local store as the sync client**: the device's local SQLite is the *client half* of ADR-0019, not a new architecture. One schema for both modes (carries `workspace_id`/`version`/`updated_at`/`deleted_at`/`device_id`/`operation_id`); the store is a **thin repository** with **no math** — every offline number comes from the same `packages/domain` functions the API uses (offline == online, ADR-0005); standalone = sync-off + synthetic workspace, team = sync-on (ADR-0019 engine). Workspace-scoped by construction | Accepted (owner decision) — extends ADR-0019, bound by ADR-0005; supersedes the offline-only approach of PR #172; delivered via epic #174 (#175–#177) |
 | [0041](0041-reanimated-ui-thread-timer.md) | **UI-thread stopwatch (react-native-reanimated)**: the live clock ticks on the UI thread via a display-only `ReanimatedTimer` (Today hero + Island) instead of a per-second `setState` that re-rendered whole screens; `useTimer` drops the tick and exposes raw inputs, source of truth + `formatStopwatch` unchanged (presentation only, ADR-0005 unaffected); Vitest aliases reanimated to a shim (ADR-0027). Cherry-picks the one sound idea from #173 | Accepted (owner decision) — introduces `react-native-reanimated`; other #173 changes rejected/deferred |
 | [0042](0042-offline-money-path-in-the-core.md) | **Offline money path in the core**: mirror the server's `rates`/`budgets` tables into the local schema (carrying the ADR-0040 sync/tenancy columns) and compute offline Reports money via `packages/domain` — a single entry-pricing rule (`rateForEntry`) reused by server and client, `priceBillableEntries`/`budgetConsumptions` over local rows. Retires the fabricated demo figures offline; a seeded default rate + budgets make the numbers real from tracked time; overtime stays an honest `0` until offline shifts exist | Accepted (owner decision) — realizes ADR-0040, bound by ADR-0005; delivered via epic #174 (#176) |
-
+| [0043](0043-architecture-simplification-strategy.md) | **Architecture Simplification Strategy**: Phased adoption of Drizzle ORM on the client, Expo Router for navigation, TanStack Query for remote state, and spiking PowerSync/ElectricSQL to potentially replace the custom delta-sync engine. | Proposed |
 ## Tech Radar
 
 One line per technology so the stack's shape stays visible without re-reading the ADR log
@@ -121,3 +121,7 @@ One line per technology so the stack's shape stays visible without re-reading th
 | OpenAI LLM adapter | Trial (launch rail, behind the port) | ADR-0029 |
 | Google Gemini LLM adapter | Trial (hosted hedge, behind the port) | ADR-0029 |
 | Ollama LLM adapter (local/self-hosted) | Trial (privacy + free test rail, behind the port) | ADR-0029 |
+| Drizzle ORM (Client-side) | Assess (replacing wa-sqlite raw queries) | ADR-0043 |
+| Expo Router | Assess (replacing custom app shell) | ADR-0043 |
+| TanStack Query (React Query) | Assess | ADR-0043 |
+| Local-first platforms (PowerSync / ElectricSQL) | Assess (spike to replace custom sync) | ADR-0043 |
