@@ -17,6 +17,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@mydevtime/domain": "workspace:*"
+    "@mydevtime/domain": "workspace:*",
+    "drizzle-orm": "^0.45.2"
   }
 }
