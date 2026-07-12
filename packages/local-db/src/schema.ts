@@ -89,6 +89,50 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_one_running_per_ws
   ON time_entries(workspace_id)
   WHERE ended_at IS NULL AND deleted_at IS NULL;
 
+CREATE TABLE IF NOT EXISTS rates (
+  id           TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  -- 'workspace' | 'client' | 'project' | 'task'
+  level        TEXT NOT NULL,
+  -- the client/project/task id this rate applies to; NULL for the workspace default
+  scope_id     TEXT,
+  -- integer minor units per hour
+  amount_minor_per_hour INTEGER NOT NULL,
+  -- inclusive instant from which this rate applies (effective-dated, non-retroactive)
+  effective_from TEXT NOT NULL,
+  created_at   TEXT NOT NULL,
+  updated_at   TEXT NOT NULL,
+  version      INTEGER NOT NULL DEFAULT 0,
+  deleted_at   TEXT,
+  device_id    TEXT,
+  operation_id TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_rates_ws ON rates(workspace_id);
+
+CREATE TABLE IF NOT EXISTS budgets (
+  id           TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  -- 'project' | 'client'
+  scope        TEXT NOT NULL,
+  scope_id     TEXT NOT NULL,
+  -- 'hours' | 'money'
+  basis        TEXT NOT NULL,
+  -- cap: milliseconds for hours-based, integer minor units for money-based
+  limit_amount INTEGER NOT NULL,
+  -- 'total' | 'monthlyRecurring'
+  period       TEXT NOT NULL,
+  -- JSON array of alert ratios, e.g. [0.8, 1]
+  thresholds   TEXT NOT NULL DEFAULT '[]',
+  created_at   TEXT NOT NULL,
+  updated_at   TEXT NOT NULL,
+  version      INTEGER NOT NULL DEFAULT 0,
+  deleted_at   TEXT,
+  device_id    TEXT,
+  operation_id TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_budgets_ws ON budgets(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_budgets_scope ON budgets(workspace_id, scope, scope_id);
+
 CREATE TABLE IF NOT EXISTS shifts (
   id           TEXT PRIMARY KEY,
   workspace_id TEXT NOT NULL,
