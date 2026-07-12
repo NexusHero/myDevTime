@@ -7,6 +7,8 @@ import {
   type UsageBucket,
 } from '../api/credits.js'
 import { useAsync, type AsyncResource } from './useAsync.js'
+import { useLocalDb } from '../localDb/LocalDbProvider.js'
+import { getCreditBalance, listCreditEntries, getCreditUsage } from '@mydevtime/local-db'
 
 /**
  * The AI-credit data source (REQ-027). When an API base URL is configured the hook
@@ -41,57 +43,6 @@ function totals(ledger: readonly CreditEntry[]): {
   return { balance: granted - spent, granted, spent }
 }
 
-function demoCredits(): CreditsData {
-  const at = (d: number): string => `2026-07-${String(d).padStart(2, '0')}T09:00:00.000Z`
-  const ledger: CreditEntry[] = [
-    {
-      id: 'l1',
-      kind: 'grant',
-      amount: 500,
-      category: 'monthly-grant',
-      reason: 'Monthly Pro grant',
-      at: at(1),
-    },
-    {
-      id: 'l2',
-      kind: 'debit',
-      amount: -8,
-      category: 'meeting-insights',
-      reason: 'Finanzo review',
-      at: at(7),
-    },
-    { id: 'l3', kind: 'debit', amount: -4, category: 'nl-entry', reason: null, at: at(8) },
-    {
-      id: 'l4',
-      kind: 'debit',
-      amount: -1,
-      category: 'assistant',
-      reason: 'Budget question',
-      at: at(8),
-    },
-    {
-      id: 'l5',
-      kind: 'debit',
-      amount: -2,
-      category: 'co-planner',
-      reason: 'Day proposal',
-      at: at(9),
-    },
-  ]
-  const { balance, granted, spent } = totals(ledger)
-  return {
-    balance,
-    grantedTotal: granted,
-    spentTotal: spent,
-    ledger,
-    usage: [
-      { category: 'meeting-insights', credits: 8 },
-      { category: 'nl-entry', credits: 4 },
-      { category: 'co-planner', credits: 2 },
-      { category: 'assistant', credits: 1 },
-    ],
-  }
-}
 
 /** The trailing 30-day usage window ending at the next UTC midnight. */
 function cycleWindow(): { from: string; to: string } {
@@ -105,19 +56,36 @@ function cycleWindow(): { from: string; to: string } {
 
 export function useCredits(): CreditsResource {
   const base = apiBaseUrl
+  const db = useLocalDb()
   const resource = useAsync<CreditsData>(
     async () => {
-      if (base === null) return demoCredits()
       const range = cycleWindow()
-      const [balance, ledger, usage] = await Promise.all([
-        fetchBalance(base),
-        fetchLedger(base, 50),
-        fetchUsage(base, range),
+      
+      if (base !== null) {
+        const [balance, ledger, usage] = await Promise.all([
+          fetchBalance(base),
+          fetchLedger(base, 50),
+          fetchUsage(base, range),
+        ])
+        const { granted, spent } = totals(ledger)
+        return { balance, grantedTotal: granted, spentTotal: spent, ledger, usage }
+      }
+      
+      const [localBalance, localLedger, localUsage] = await Promise.all([
+        getCreditBalance(db),
+        listCreditEntries(db, 50),
+        getCreditUsage(db, range.from, range.to),
       ])
-      const { granted, spent } = totals(ledger)
-      return { balance, grantedTotal: granted, spentTotal: spent, ledger, usage }
+      const { granted, spent } = totals(localLedger)
+      return { 
+        balance: localBalance, 
+        grantedTotal: granted, 
+        spentTotal: spent, 
+        ledger: localLedger as CreditEntry[], 
+        usage: localUsage 
+      }
     },
-    `${base ?? 'demo'}:credits`,
+    `${base ?? 'local-db'}:credits`,
   )
   return { ...resource, live: base !== null }
 }

@@ -2,11 +2,13 @@ import { useCallback, useEffect, useState } from 'react'
 import { apiBaseUrl } from '../config.js'
 import {
   DEFAULT_PREFERENCES,
-  getPreferences,
-  updatePreferences,
+  getPreferences as apiGetPreferences,
+  updatePreferences as apiUpdatePreferences,
   type PreferenceKey,
   type Preferences,
 } from '../api/preferences.js'
+import { useLocalDb } from '../localDb/LocalDbProvider.js'
+import { getPreferences as localGetPreferences, updatePreferences as localUpdatePreferences } from '@mydevtime/local-db'
 
 /**
  * The Settings toggles source (M10): when an API base URL is configured the hook
@@ -25,16 +27,20 @@ export interface PreferencesResource {
 
 export function usePreferences(): PreferencesResource {
   const base = apiBaseUrl
+  const db = useLocalDb()
   const live = base !== null
   const [prefs, setPrefs] = useState<Preferences>(DEFAULT_PREFERENCES)
   const [loading, setLoading] = useState(live)
   const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
-    if (base === null) return
     let alive = true
     setLoading(true)
-    getPreferences(base)
+    const promise = base === null 
+      ? localGetPreferences(db).then(prefs => ({ ...DEFAULT_PREFERENCES, ...(prefs as Partial<Preferences>) }))
+      : apiGetPreferences(base)
+      
+    promise
       .then(p => {
         if (alive) {
           setPrefs(p)
@@ -56,9 +62,13 @@ export function usePreferences(): PreferencesResource {
     (key: PreferenceKey, value: boolean) => {
       setPrefs(previous => {
         const optimistic = { ...previous, [key]: value }
-        if (base !== null) {
-          updatePreferences(base, { [key]: value })
-            .then(saved => {
+        
+        const promise = base === null 
+          ? localUpdatePreferences(db, { [key]: String(value) }).then(() => optimistic)
+          : apiUpdatePreferences(base, { [key]: value })
+          
+        promise
+          .then(saved => {
               setPrefs(saved)
               setError(null)
             })
@@ -66,7 +76,6 @@ export function usePreferences(): PreferencesResource {
               setPrefs(previous) // roll back the toggle
               setError(cause instanceof Error ? cause : new Error(String(cause)))
             })
-        }
         return optimistic
       })
     },

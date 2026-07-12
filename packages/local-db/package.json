@@ -1,0 +1,21 @@
+{
+  "name": "@mydevtime/local-db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Offline-first SQLite persistence layer for the mobile client. Replaces demo data with real local storage so the app works without a backend.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "expo-sqlite": "~15.0.3"
+  }
+}

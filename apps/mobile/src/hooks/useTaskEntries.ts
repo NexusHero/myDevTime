@@ -1,6 +1,8 @@
 import { apiBaseUrl } from '../config.js'
 import { listEntries, type TimeEntry } from '../api/timer.js'
 import { useAsync, type AsyncResource } from './useAsync.js'
+import { useLocalDb } from '../localDb/LocalDbProvider.js'
+import { listEntries as listLocalEntries } from '@mydevtime/local-db'
 
 /**
  * A task's time entries (REQ-004): when an API base URL is configured the hook
@@ -14,32 +16,20 @@ export interface TaskEntriesResource extends AsyncResource<TimeEntry[]> {
 }
 
 /** Illustrative entries shown when no backend is configured. */
-function demoEntries(taskId: string): TimeEntry[] {
-  const row = (id: string, startedAt: string, endedAt: string, source: string): TimeEntry => ({
-    id,
-    projectId: null,
-    taskId,
-    startedAt,
-    endedAt,
-    billable: true,
-    source,
-    note: null,
-  })
-  return [
-    row('e1', '2026-07-10T09:30:00.000Z', '2026-07-10T11:00:00.000Z', 'timer'), // 1:30
-    row('e2', '2026-07-09T14:10:00.000Z', '2026-07-09T16:25:00.000Z', 'timer'), // 2:15
-    row('e3', '2026-07-09T11:00:00.000Z', '2026-07-09T11:45:00.000Z', 'calendar'), // 0:45
-    row('e4', '2026-07-07T16:20:00.000Z', '2026-07-07T16:50:00.000Z', 'manual'), // 0:30
-  ]
-}
+
 
 export function useTaskEntries(taskId: string): TaskEntriesResource {
   const base = apiBaseUrl
+  const db = useLocalDb()
   const resource = useAsync<TimeEntry[]>(
-    () =>
-      base === null
-        ? Promise.resolve(demoEntries(taskId))
-        : listEntries(base).then(rows => rows.filter(e => e.taskId === taskId)),
+    async () => {
+      if (base === null) {
+        const rows = await listLocalEntries(db)
+        return rows.filter(e => e.taskId === taskId) as TimeEntry[]
+      }
+      const rows = await listEntries(base)
+      return rows.filter(e => e.taskId === taskId)
+    },
     `${base ?? 'demo'}:${taskId}`,
   )
   return { ...resource, live: base !== null }

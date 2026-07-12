@@ -12,6 +12,8 @@ import {
   type PlanCandidate,
   type PlanReview,
 } from '../api/planner.js'
+import { useLocalDb } from '../localDb/LocalDbProvider.js'
+import { getPlanByDate, setPlanStatus as setLocalPlanStatus, upsertPlan } from '@mydevtime/local-db'
 
 /**
  * The Co-Planner data source (REQ-031, ADR-0011). When an API base URL is
@@ -92,11 +94,12 @@ export interface PlannerResource {
 export function usePlanner(): PlannerResource {
   const base = apiBaseUrl
   const live = base !== null
+  const db = useLocalDb()
   const [plan, setPlan] = useState<DayPlan | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [busy, setBusy] = useState(false)
-  const [reloadKey, setReloadKey] = useState(0)
+  const [reloadKey] = useState(0)
   const [review, setReview] = useState<PlanReview | null>(null)
   const [briefing, setBriefing] = useState<PlanBriefing | null>(null)
   const [briefingBusy, setBriefingBusy] = useState(false)
@@ -107,7 +110,11 @@ export function usePlanner(): PlannerResource {
     const date = todayIso()
     const load: Promise<DayPlan | null> =
       base === null
-        ? Promise.resolve(demoPlan(date))
+        ? getPlanByDate(db, date).then(existing => {
+            if (existing) return existing as unknown as DayPlan
+            const newPlan = demoPlan(date)
+            return upsertPlan(db, newPlan as any).then(p => p as unknown as DayPlan)
+          })
         : getPlan(base, date).then(existing => existing ?? generatePlan(base, defaultInput(date)))
     load
       .then(p => {
@@ -183,9 +190,20 @@ export function usePlanner(): PlannerResource {
   }, [base, plan])
 
   const accept = useCallback(() => {
-    if (plan === null || base === null) {
-      // Demo/no plan: reflect acceptance locally so the UI still confirms.
-      if (plan !== null) setPlan({ ...plan, status: 'accepted' })
+    if (plan === null) return
+    if (base === null) {
+      setBusy(true)
+      setLocalPlanStatus(db, plan.id, 'accepted')
+        .then(() => {
+          setPlan({ ...plan, status: 'accepted', version: plan.version + 1 })
+          setError(null)
+        })
+        .catch((cause: unknown) => {
+          setError(cause instanceof Error ? cause : new Error(String(cause)))
+        })
+        .finally(() => {
+          setBusy(false)
+        })
       return
     }
     setBusy(true)
@@ -205,7 +223,19 @@ export function usePlanner(): PlannerResource {
   const repropose = useCallback(() => {
     setBriefing(null)
     if (base === null) {
-      setReloadKey(k => k + 1) // demo: re-resolve the demo plan
+      setBusy(true)
+      const newPlan = demoPlan(todayIso())
+      upsertPlan(db, newPlan as any)
+        .then(p => {
+          setPlan(p as unknown as DayPlan)
+          setError(null)
+        })
+        .catch((cause: unknown) => {
+          setError(cause instanceof Error ? cause : new Error(String(cause)))
+        })
+        .finally(() => {
+          setBusy(false)
+        })
       return
     }
     setBusy(true)

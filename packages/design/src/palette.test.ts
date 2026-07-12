@@ -32,9 +32,9 @@ const NEUTRAL_KEYS: readonly (keyof Palette)[] = [
 
 const ACCENT_KEYS: readonly (keyof Palette)[] = ['accent', 'accentInk', 'accentText', 'accentSoft']
 
-describe('palette composition (3 accents × 2 modes)', () => {
-  it('ExposesThreeAccents_BlueprintDefault', () => {
-    expect(ACCENT_THEMES).toEqual(['sovereign', 'ember', 'blueprint'])
+describe('palette composition (4 accents × 2 modes)', () => {
+  it('ExposesFourAccents_BlueprintDefault', () => {
+    expect(ACCENT_THEMES).toEqual(['sovereign', 'ember', 'blueprint', 'outrageous'])
     // ADR-0023 (supersedes ADR-0022): Blueprint / Königsblau is the default.
     expect(DEFAULT_ACCENT).toBe('blueprint')
   })

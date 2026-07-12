@@ -5,11 +5,13 @@ import {
   clockIn as apiClockIn,
   clockOut as apiClockOut,
   fetchWorktimeSummary,
-  getRunningShift,
-  listShifts,
+  getRunningShift as apiGetRunningShift,
+  listShifts as apiListShifts,
   type Overtime,
   type Shift,
 } from '../api/worktime.js'
+import { useLocalDb } from '../localDb/LocalDbProvider.js'
+import { listShifts as localListShifts, getRunningShift as localGetRunningShift, clockIn as localClockIn, clockOut as localClockOut } from '@mydevtime/local-db'
 
 /**
  * The work-day punch clock (REQ-028, ADR-0010). When an API base URL is configured
@@ -37,23 +39,7 @@ export interface WorktimeResource {
   readonly clockOut: () => void
 }
 
-function demoShifts(): Shift[] {
-  const day = (iso: string, h: number, breakMin: number, shortfallMin = 0): Shift => ({
-    id: iso,
-    startedAt: `${iso}T08:00:00.000Z`,
-    endedAt: `${iso}T${String(8 + h).padStart(2, '0')}:00:00.000Z`,
-    breakMs: breakMin * M,
-    source: 'manual',
-    breakShortfallMs: shortfallMin * M,
-  })
-  return [
-    day('2026-07-10', 9, 30),
-    day('2026-07-09', 9, 10, 20),
-    day('2026-07-08', 8, 30),
-    day('2026-07-07', 8, 30),
-    day('2026-07-06', 8, 30),
-  ]
-}
+
 
 /** The trailing 7-day window ending at the next UTC midnight. */
 function trailingWeek(): { from: string; to: string; tz: string } {
@@ -67,6 +53,7 @@ function trailingWeek(): { from: string; to: string; tz: string } {
 
 export function useWorktime(): WorktimeResource {
   const base = apiBaseUrl
+  const db = useLocalDb()
   const live = base !== null
   const [running, setRunning] = useState<Shift | null>(null)
   const [shifts, setShifts] = useState<readonly Shift[]>([])
@@ -82,17 +69,20 @@ export function useWorktime(): WorktimeResource {
     setLoading(true)
     const range = trailingWeek()
     const load: Promise<{ running: Shift | null; shifts: Shift[]; overtime: Overtime }> =
-      base === null
-        ? Promise.resolve({
-            running: null,
-            shifts: demoShifts(),
-            overtime: { workedMs: 42 * H, targetMs: 40 * H, balanceMs: 9 * H + 30 * M },
-          })
-        : Promise.all([
-            getRunningShift(base),
-            listShifts(base, range),
-            fetchWorktimeSummary(base, range),
-          ]).then(([r, s, o]) => ({ running: r, shifts: s, overtime: o }))
+        base === null
+          ? Promise.all([
+              localGetRunningShift(db),
+              localListShifts(db),
+            ]).then(([r, s]) => ({
+              running: r,
+              shifts: s as Shift[],
+              overtime: { workedMs: 42 * H, targetMs: 40 * H, balanceMs: 9 * H + 30 * M } // Offline overtime not implemented
+            }))
+          : Promise.all([
+              apiGetRunningShift(base),
+              apiListShifts(base, range),
+              fetchWorktimeSummary(base, range),
+            ]).then(([r, s, o]) => ({ running: r, shifts: s, overtime: o }))
     load
       .then(({ running: r, shifts: s, overtime }) => {
         if (!alive) return
@@ -135,7 +125,23 @@ export function useWorktime(): WorktimeResource {
     }
     setRunning(optimistic)
     setError(null)
-    if (base === null) return
+    if (base === null) {
+      setBusy(true)
+      localClockIn(db)
+        .then(shift => {
+          setRunning(shift as Shift)
+          setReloadKey(k => k + 1)
+        })
+        .catch((cause: unknown) => {
+          setRunning(null)
+          setError(cause instanceof Error ? cause : new Error(String(cause)))
+        })
+        .finally(() => {
+          setBusy(false)
+        })
+      return
+    }
+    
     setBusy(true)
     apiClockIn(base)
       .then(shift => {
@@ -153,7 +159,23 @@ export function useWorktime(): WorktimeResource {
   const clockOut = useCallback(() => {
     setRunning(previous => {
       if (previous === null) return null
-      if (base === null) return null // demo: local stop
+      if (base === null) {
+        setBusy(true)
+        localClockOut(db, previous.id)
+          .then(() => {
+            setError(null)
+            setReloadKey(k => k + 1)
+          })
+          .catch((cause: unknown) => {
+            setRunning(previous)
+            setError(cause instanceof Error ? cause : new Error(String(cause)))
+          })
+          .finally(() => {
+            setBusy(false)
+          })
+        return null
+      }
+      
       setBusy(true)
       apiClockOut(base)
         .then(() => {

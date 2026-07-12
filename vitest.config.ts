@@ -39,10 +39,17 @@ export default defineConfig({
       '@mydevtime/design': new URL('./packages/design/src/index.ts', import.meta.url).pathname,
       '@mydevtime/domain': new URL('./packages/domain/src/index.ts', import.meta.url).pathname,
       '@mydevtime/shared': new URL('./packages/shared/src/index.ts', import.meta.url).pathname,
+      '@mydevtime/local-db': new URL('./packages/local-db/src/index.ts', import.meta.url).pathname,
     },
   },
   test: {
     include: ['{packages,apps}/*/src/**/*.test.{ts,tsx}'],
+    setupFiles: ['./test/setup.ts'],
+    server: {
+      deps: {
+        inline: [/expo/, /@expo/, 'react-native-reanimated'],
+      },
+    },
     browser: {
       instances: [],
     },

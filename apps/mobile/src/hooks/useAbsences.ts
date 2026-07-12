@@ -9,6 +9,8 @@ import {
   type AbsenceKind,
   type VacationBalance,
 } from '../api/absences.js'
+import { useLocalDb } from '../localDb/LocalDbProvider.js'
+import { listAbsencesInRange } from '@mydevtime/local-db'
 
 /**
  * The Absences data source (REQ-029). When an API base URL is configured the hook
@@ -62,32 +64,10 @@ function currentMonth(): MonthInfo {
   return { year, month0, label: `${MONTHS[month0] ?? ''} ${String(year)}`, today: now.getDate() }
 }
 
-function demoData(month: MonthInfo): AbsencesData {
-  const mm = pad(month.month0 + 1)
-  const day = (d: number): string => `${String(month.year)}-${mm}-${pad(d)}`
-  const list: Absence[] = [
-    { id: 'd1', kind: 'sick', startDate: day(6), endDate: day(6), halfDay: false, note: null },
-    {
-      id: 'd2',
-      kind: 'vacation',
-      startDate: day(14),
-      endDate: day(17),
-      halfDay: false,
-      note: null,
-    },
-    { id: 'd3', kind: 'holiday', startDate: day(29), endDate: day(29), halfDay: false, note: null },
-  ]
-  return {
-    month,
-    marks: monthMarks(list, month.year, month.month0),
-    balance: { allowanceDays: 30, carryOverDays: 0, usedDays: 18, remainingDays: 12 },
-    upcoming: upcomingAbsences(list, day(month.today)),
-  }
-}
-
 export function useAbsences(): AbsencesResource {
   const base = apiBaseUrl
   const live = base !== null
+  const db = useLocalDb()
   const [data, setData] = useState<AbsencesData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -104,7 +84,12 @@ export function useAbsences(): AbsencesResource {
 
     const load: Promise<AbsencesData> =
       base === null
-        ? Promise.resolve(demoData(month))
+        ? listAbsencesInRange(db, from, to).then(list => ({
+            month,
+            marks: monthMarks(list as Absence[], month.year, month.month0),
+            balance: { allowanceDays: 30, carryOverDays: 0, usedDays: 0, remainingDays: 30 },
+            upcoming: upcomingAbsences(list as Absence[], todayIso),
+          }))
         : Promise.all([listAbsences(base, { from, to }), fetchBalance(base, month.year)]).then(
             ([list, balance]) => ({
               month,

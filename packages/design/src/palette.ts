@@ -21,10 +21,10 @@
  */
 
 /** The three accent themes. Blueprint (Königsblau) is the default (ADR-0023). */
-export type AccentTheme = 'sovereign' | 'ember' | 'blueprint'
+export type AccentTheme = 'sovereign' | 'ember' | 'blueprint' | 'outrageous'
 
 /** All accent themes, in historical order; the default is `DEFAULT_ACCENT`. */
-export const ACCENT_THEMES = ['sovereign', 'ember', 'blueprint'] as const
+export const ACCENT_THEMES: readonly AccentTheme[] = ['sovereign', 'ember', 'blueprint', 'outrageous']
 
 /** The default accent — Blueprint / "Königsblau" (ADR-0023, superseding ADR-0022). */
 export const DEFAULT_ACCENT: AccentTheme = 'blueprint'
@@ -193,6 +193,20 @@ const accents: Record<AccentTheme, { readonly dark: Accent; readonly light: Acce
       accentSoft: '#1c2a3d',
     },
   },
+  outrageous: {
+    light: {
+      accent: '#ff5533',
+      accentInk: '#ffffff',
+      accentText: '#d83b1c',
+      accentSoft: '#ffede8',
+    },
+    dark: {
+      accent: '#ff5533',
+      accentInk: '#ffffff',
+      accentText: '#ff775c',
+      accentSoft: '#3a1f18',
+    },
+  },
 }
 
 function compose(neutral: Neutrals, accent: Accent): Palette {
@@ -215,6 +229,10 @@ export const palettes: Record<AccentTheme, { readonly dark: Palette; readonly li
   blueprint: {
     dark: compose(neutralDark, accents.blueprint.dark),
     light: compose(neutralLight, accents.blueprint.light),
+  },
+  outrageous: {
+    dark: compose(neutralDark, accents.outrageous.dark),
+    light: compose(neutralLight, accents.outrageous.light),
   },
 }
 

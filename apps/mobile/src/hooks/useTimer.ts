@@ -12,6 +12,8 @@ import {
   type StartTimerInput,
   type TimeEntry,
 } from '../api/timer.js'
+import { useLocalDb } from '../localDb/LocalDbProvider.js'
+import { getRunningEntry, startEntry, stopEntry as stopLocalEntry } from '@mydevtime/local-db'
 
 /**
  * The live timer for the Island (REQ-004, ux-vision §2.3). When an API base URL is
@@ -42,6 +44,7 @@ export interface TimerResource {
 export function useTimer(): TimerResource {
   const base = apiBaseUrl
   const live = base !== null
+  const db = useLocalDb()
   const [running, setRunning] = useState<TimeEntry | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -56,7 +59,7 @@ export function useTimer(): TimerResource {
   useEffect(() => {
     let alive = true
     setLoading(true)
-    const load = base === null ? Promise.resolve<TimeEntry | null>(null) : getRunning(base)
+    const load = base === null ? getRunningEntry(db) : getRunning(base)
     load
       .then(entry => {
         if (alive) {
@@ -93,7 +96,12 @@ export function useTimer(): TimerResource {
     (input: StartTimerInput) => {
       setRunning(provisionalEntry(input, new Date()))
       setError(null)
-      if (base === null) return
+      if (base === null) {
+        startEntry(db, input).then(entry => {
+          setRunning(entry as TimeEntry)
+        }).catch(console.error)
+        return
+      }
       setBusy(true)
       startTimer(base, input)
         .then(entry => {
@@ -125,7 +133,9 @@ export function useTimer(): TimerResource {
       const segMs = entryDurationMs(previous, new Date())
       setAccumulatedMs(a => a + segMs) // bank the worked segment
       setPausedInput(resumeInput(previous))
-      if (base !== null) {
+      if (base === null) {
+        stopLocalEntry(db).catch(console.error)
+      } else {
         setBusy(true)
         stopTimer(base)
           .then(() => {
@@ -156,7 +166,11 @@ export function useTimer(): TimerResource {
     setAccumulatedMs(0)
     setPausedInput(null)
     setRunning(previous => {
-      if (previous === null || base === null) return null // demo/paused: local stop
+      if (previous === null) return null
+      if (base === null) {
+        stopLocalEntry(db).catch(console.error)
+        return null // demo/paused: local stop
+      }
       setBusy(true)
       stopTimer(base)
         .then(() => {
