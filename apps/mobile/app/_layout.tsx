@@ -1,24 +1,27 @@
+import { useEffect } from 'react'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { useFonts } from 'expo-font'
-import { ThemeProvider } from './src/theme/ThemeProvider'
-import { AppShell } from './src/shell/AppShell'
-import { AuthGate } from './src/shell/AuthGate'
-import { OnboardingGate } from './src/onboarding/OnboardingGate'
-import { TimerProvider } from './src/timer/TimerContext'
-import { LocalDbProvider } from './src/localDb/LocalDbProvider'
+import { ThemeProvider } from '../src/theme/ThemeProvider'
+import { ShellChrome } from '../src/shell/ShellChrome'
+import { AuthGate } from '../src/shell/AuthGate'
+import { OnboardingGate } from '../src/onboarding/OnboardingGate'
+import { TimerProvider } from '../src/timer/TimerContext'
+import { LocalDbProvider } from '../src/localDb/LocalDbProvider'
+import { registerPwa } from '../src/web/registerPwa'
 
 /**
- * App root (issue #11): loads the Blueprint font trio (Inter · Space Grotesk ·
- * JetBrains Mono — ADR-0022's deferred font-loading slice) before painting, then
- * the design-system `ThemeProvider` wraps the responsive navigation shell. One
- * codebase renders on iOS, Android, and web (react-native-web) from here.
+ * Expo Router root layout (ADR-0045) — the app's single entry, replacing the old
+ * hand-rolled `App` + shell router. It loads the Blueprint font trio before
+ * painting, then nests the providers exactly as before and renders the persistent
+ * responsive chrome (`ShellChrome`), whose `<Slot />` hosts the routed screen.
+ * File-based routing under `app/` gives real URLs + deep links on every platform
+ * and route-level code-splitting on web (§Perf). One codebase, iOS/Android/web.
  *
  * The exact weight files are required directly (not via the package index) so the
- * bundle carries only the ~10 faces the design system actually uses, not every
- * weight the `@expo-google-fonts/*` packages ship. Family keys match `fontFace`.
+ * bundle carries only the ~10 faces the design system actually uses.
  */
-export default function App(): React.JSX.Element | null {
+export default function RootLayout(): React.JSX.Element | null {
   const [fontsLoaded] = useFonts({
     Inter_400Regular: require('@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf'),
     Inter_500Medium: require('@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf'),
@@ -32,6 +35,13 @@ export default function App(): React.JSX.Element | null {
     JetBrainsMono_700Bold: require('@expo-google-fonts/jetbrains-mono/700Bold/JetBrainsMono_700Bold.ttf'),
   })
 
+  // Web/PWA: link the manifest + register the offline service worker. In an effect
+  // so it only runs client-side (never during the static web prerender); a no-op
+  // on native and where the browser APIs are absent.
+  useEffect(() => {
+    registerPwa()
+  }, [])
+
   if (!fontsLoaded) return null
 
   return (
@@ -42,7 +52,7 @@ export default function App(): React.JSX.Element | null {
           <AuthGate>
             <OnboardingGate>
               <TimerProvider>
-                <AppShell />
+                <ShellChrome />
               </TimerProvider>
             </OnboardingGate>
           </AuthGate>
