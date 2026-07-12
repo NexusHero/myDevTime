@@ -15,10 +15,14 @@ export {
 export {
   type LocalProject,
   type LocalTask,
+  type LocalClient,
   type CreateProjectInput,
   listProjects,
   createProject,
   listTasks,
+  listAllTasks,
   createTask,
+  listClients,
+  createClient,
 } from './catalog.js'
 export { getAllPreferences, setPreference } from './preferences.js'

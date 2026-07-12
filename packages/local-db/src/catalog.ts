@@ -25,6 +25,22 @@ export interface LocalTask {
   readonly archived: boolean
 }
 
+export interface LocalClient {
+  readonly id: string
+  readonly workspaceId: string
+  readonly name: string
+  readonly archived: boolean
+}
+
+function toClient(row: Row): LocalClient {
+  return {
+    id: String(row.id),
+    workspaceId: String(row.workspace_id),
+    name: String(row.name),
+    archived: toBool(row.archived ?? 0),
+  }
+}
+
 function toProject(row: Row): LocalProject {
   return {
     id: String(row.id),
@@ -132,4 +148,43 @@ export async function createTask(
     [id, workspaceId, projectId, name, now, now],
   )
   return { id, workspaceId, projectId, name, billableDefault: true, archived: false }
+}
+
+/** All active tasks in the workspace (across every project), by name. */
+export async function listAllTasks(db: LocalDb, workspaceId: string): Promise<LocalTask[]> {
+  const rows = await db.getAllAsync(
+    `SELECT id, workspace_id, project_id, name, billable_default, archived
+       FROM tasks
+      WHERE workspace_id = ? AND deleted_at IS NULL AND archived = 0
+      ORDER BY name`,
+    [workspaceId],
+  )
+  return rows.map(toTask)
+}
+
+/** Active clients in the workspace, by name. */
+export async function listClients(db: LocalDb, workspaceId: string): Promise<LocalClient[]> {
+  const rows = await db.getAllAsync(
+    `SELECT id, workspace_id, name, archived
+       FROM clients
+      WHERE workspace_id = ? AND deleted_at IS NULL AND archived = 0
+      ORDER BY name`,
+    [workspaceId],
+  )
+  return rows.map(toClient)
+}
+
+export async function createClient(
+  db: LocalDb,
+  workspaceId: string,
+  name: string,
+  id: string = newId(),
+): Promise<LocalClient> {
+  const now = nowIso()
+  await db.runAsync(
+    `INSERT INTO clients (id, workspace_id, name, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?)`,
+    [id, workspaceId, name, now, now],
+  )
+  return { id, workspaceId, name, archived: false }
 }
