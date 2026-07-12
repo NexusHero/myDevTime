@@ -1,11 +1,14 @@
 import { Body, Controller, Get, Inject, Post, Query, UseGuards } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
-import { DB, type DbToken } from '../../core/tokens.js'
+import type { JWK } from 'jose'
+import { CONFIG, DB, type ConfigToken, type DbToken } from '../../core/tokens.js'
 import type { Db } from '../../db/client.js'
 import { resolveWorkspaceId } from '../../core/workspace.js'
-import { UnauthorizedError } from '../../errors.js'
+import { NotFoundError, UnauthorizedError } from '../../errors.js'
 import { AuthGuard, CurrentUser, type AuthenticatedUser } from '../auth/contract.js'
 import { pullChanges, pushChanges, uploadCrud } from './service.js'
+import { DEFAULT_TTL_SECONDS, mintPowerSyncToken, powerSyncJwks } from './powersync-auth.js'
+import { POWERSYNC_KEYS, type PowerSyncKeysToken } from './sync.tokens.js'
 import {
   PullQueryDto,
   PushBodyDto,
@@ -24,7 +27,11 @@ import {
 @ApiTags('sync')
 @Controller('api/sync')
 export class SyncController {
-  constructor(@Inject(DB) private readonly db: DbToken) {}
+  constructor(
+    @Inject(DB) private readonly db: DbToken,
+    @Inject(CONFIG) private readonly config: ConfigToken,
+    @Inject(POWERSYNC_KEYS) private readonly powerSyncKeys: PowerSyncKeysToken,
+  ) {}
 
   @Get('status')
   status(): { module: 'sync'; status: 'ok' } {
@@ -63,6 +70,31 @@ export class SyncController {
     const db = this.requireDb()
     const workspaceId = await resolveWorkspaceId(db, user.id, user.name)
     return (await uploadCrud(db, workspaceId, body.writes)) as UploadResponse
+  }
+
+  /** JWKS for the PowerSync service to validate device tokens (ADR-0043). Public. */
+  @Get('keys')
+  powerSyncKeySet(): { keys: readonly JWK[] } {
+    if (!this.powerSyncKeys) throw new NotFoundError('PowerSync auth is not configured')
+    return powerSyncJwks(this.powerSyncKeys)
+  }
+
+  /** Mint a short-lived PowerSync device token for the caller's workspace (ADR-0043). */
+  @Get('token')
+  @UseGuards(AuthGuard)
+  async powerSyncToken(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<{ token: string; expiresIn: number }> {
+    if (!this.powerSyncKeys) throw new NotFoundError('PowerSync auth is not configured')
+    const db = this.requireDb()
+    const workspaceId = await resolveWorkspaceId(db, user.id, user.name)
+    const issuer = this.config.POWERSYNC_JWT_ISSUER ?? this.config.AUTH_BASE_URL ?? 'mydevtime'
+    const token = await mintPowerSyncToken(this.powerSyncKeys, {
+      userId: user.id,
+      workspaceId,
+      issuer,
+    })
+    return { token, expiresIn: DEFAULT_TTL_SECONDS }
   }
 
   private requireDb(): Db {

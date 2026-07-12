@@ -123,4 +123,5 @@ One line per technology so the stack's shape stays visible without re-reading th
 | Google Gemini LLM adapter | Trial (hosted hedge, behind the port) | ADR-0029 |
 | Ollama LLM adapter (local/self-hosted) | Trial (privacy + free test rail, behind the port) | ADR-0029 |
 | PowerSync (Postgres ⇄ SQLite offline sync) | Adopt (client sync engine; conflict policy stays ours) | ADR-0043 |
+| `jose` (JWT/JWKS for PowerSync device tokens) | Adopt (crypto confined to the sync module's `powersync-auth`) | ADR-0043 |
 | Hand-rolled ADR-0019 client sync (outbox/watermark/runSync) | Retired (superseded by PowerSync) | ADR-0043 |
