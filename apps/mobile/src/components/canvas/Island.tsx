@@ -46,18 +46,36 @@ export function Island({
         paddingVertical: expanded ? t.spacing.s3 : 10,
         paddingHorizontal: expanded ? t.spacing.s3 : t.spacing.s4,
         gap: expanded ? t.spacing.s3 : 0,
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.22,
+        shadowRadius: 12,
+        elevation: 4,
         ...(expanded ? { minWidth: 220 } : null),
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s3 }}>
+        {/* The running signal is always live orange (never the accent, ux-vision §4),
+            wrapped in a soft live ring while running. */}
         <View
           style={{
-            width: 8,
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: running ? t.color.accent : t.color.ink3,
+            width: 16,
+            height: 16,
+            borderRadius: 8,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: running ? t.color.liveSoft : 'transparent',
           }}
-        />
+        >
+          <View
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: running ? t.color.live : t.color.ink3,
+            }}
+          />
+        </View>
         <Text
           style={{ fontFamily: t.fontFamily.numeric, fontSize: t.fontSize.sm, color: '#ffffff' }}
         >
