@@ -1,5 +1,6 @@
 import { Pressable, View } from 'react-native'
 import { Text } from '../core/Text'
+import { ReanimatedTimer } from '../ReanimatedTimer'
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
@@ -17,6 +18,13 @@ export interface IslandAction {
 interface IslandProps {
   readonly running?: boolean
   readonly elapsed?: string
+  /**
+   * When running, the session start (ISO) + banked ms let the pill tick on the UI
+   * thread via `ReanimatedTimer` instead of re-rendering every second. Omitted →
+   * the static `elapsed` snapshot is shown (idle/paused).
+   */
+  readonly startedAt?: string
+  readonly accumulatedMs?: number
   readonly punched?: boolean
   readonly expanded?: boolean
   readonly onToggle?: () => void
@@ -34,6 +42,8 @@ const ISLAND_BG = '#12151c'
 export function Island({
   running = true,
   elapsed = '00:00:00',
+  startedAt,
+  accumulatedMs = 0,
   punched = true,
   expanded = false,
   onToggle,
@@ -88,11 +98,19 @@ export function Island({
             }}
           />
         </View>
-        <Text
-          style={{ fontFamily: t.fontFamily.numeric, fontSize: t.fontSize.sm, color: '#ffffff' }}
-        >
-          {elapsed}
-        </Text>
+        {running && startedAt ? (
+          <ReanimatedTimer
+            startedAt={startedAt}
+            accumulatedMs={accumulatedMs}
+            style={{ fontFamily: t.fontFamily.numeric, fontSize: t.fontSize.sm, color: '#ffffff' }}
+          />
+        ) : (
+          <Text
+            style={{ fontFamily: t.fontFamily.numeric, fontSize: t.fontSize.sm, color: '#ffffff' }}
+          >
+            {elapsed}
+          </Text>
+        )}
         <Text style={{ fontSize: t.fontSize.xs, color: 'rgba(255,255,255,0.55)' }}>
           {punched ? 'Punched in' : 'Punched out'}
         </Text>

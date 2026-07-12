@@ -24,7 +24,15 @@ import {
  */
 export interface TimerResource {
   readonly running: TimeEntry | null
+  /**
+   * A formatted snapshot of the elapsed time at render (idle/paused display).
+   * While a segment runs the live seconds are driven on the UI thread by
+   * `ReanimatedTimer` from `running.startedAt` + `accumulatedMs` — so the hook no
+   * longer re-renders once a second (perf, ADR-0039).
+   */
   readonly elapsed: string
+  /** Milliseconds banked from previous paused segments this session. */
+  readonly accumulatedMs: number
   readonly loading: boolean
   readonly error: Error | null
   readonly live: boolean
@@ -46,7 +54,6 @@ export function useTimer(): TimerResource {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [busy, setBusy] = useState(false)
-  const [nowMs, setNowMs] = useState(() => Date.now())
   // Real pause is segment-based: `accumulatedMs` banks completed segments; while
   // `pausedInput` is set the session is paused (no running segment) and can resume.
   const [accumulatedMs, setAccumulatedMs] = useState(0)
@@ -74,18 +81,6 @@ export function useTimer(): TimerResource {
       alive = false
     }
   }, [base])
-
-  // Tick the clock while a timer runs, so the elapsed label advances.
-  useEffect(() => {
-    if (running === null) return
-    setNowMs(Date.now())
-    const id = setInterval(() => {
-      setNowMs(Date.now())
-    }, 1000)
-    return () => {
-      clearInterval(id)
-    }
-  }, [running])
 
   // Start a segment (optimistic/demo, then reconcile with the server). Shared by a
   // fresh start and a resume; the caller decides whether to reset the accumulator.
@@ -173,8 +168,21 @@ export function useTimer(): TimerResource {
     })
   }, [base])
 
-  const elapsed = formatStopwatch(sessionElapsedMs(accumulatedMs, running, new Date(nowMs)))
+  const elapsed = formatStopwatch(sessionElapsedMs(accumulatedMs, running, new Date()))
   const paused = pausedInput !== null
 
-  return { running, elapsed, loading, error, live, busy, paused, punchIn, punchOut, pause, resume }
+  return {
+    running,
+    elapsed,
+    accumulatedMs,
+    loading,
+    error,
+    live,
+    busy,
+    paused,
+    punchIn,
+    punchOut,
+    pause,
+    resume,
+  }
 }
