@@ -63,13 +63,15 @@ const BY_SCREEN: ReadonlyMap<Screen, RouteDef> = new Map(ROUTES.map(r => [r.scre
 export const PHONE_TABS: readonly Screen[] = ['today', 'planner', 'projects', 'reports', 'profile']
 
 /**
- * Sidebar items on tablet/desktop (ux-vision §3): the five phone tabs plus the
- * secondary surfaces (Meetings, Assistant) promoted to top level — wide layouts
- * have the room, phones do not.
+ * Sidebar items on tablet/desktop (ux-vision §3, design v3): the five phone tabs
+ * plus the secondary surfaces (Absence, Meetings, Assistant) promoted to top level
+ * — wide layouts have the room, phones do not (Absence stays under the Profile hub
+ * on phone). Absence sits next to Planner, its natural planning neighbour.
  */
 export const SIDEBAR_ITEMS: readonly Screen[] = [
   'today',
   'planner',
+  'absences',
   'projects',
   'reports',
   'meetings',
