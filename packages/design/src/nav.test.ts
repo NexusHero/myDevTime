@@ -79,4 +79,11 @@ describe('navigation route map', () => {
     expect(SIDEBAR_ITEMS).toContain('meetings')
     expect(SIDEBAR_ITEMS).toContain('assistant')
   })
+
+  it('Sidebar_PromotesAbsence_ButPhoneKeepsItUnderProfile', () => {
+    // Design v3: Absence is a first-class sidebar destination on wide layouts,
+    // but stays off the five-tab phone bar (reached via the Profile hub there).
+    expect(SIDEBAR_ITEMS).toContain('absences')
+    expect(PHONE_TABS).not.toContain('absences')
+  })
 })
