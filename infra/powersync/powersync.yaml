@@ -1,0 +1,34 @@
+# Self-hosted PowerSync service config — DRAFT, validate against the running
+# service (see README). Image: journeyapps/powersync-service.
+#
+# Values come from the environment (`!env`) so no secrets live in the repo; the
+# docker-compose file passes them through.
+
+# The source database PowerSync replicates from — our app Postgres. Requires
+# logical replication (wal_level=logical) + a publication (see README).
+replication:
+  connections:
+    - type: postgresql
+      uri: !env PS_SOURCE_DATABASE_URI
+      # Enable TLS in production; disable only for a local Docker network.
+      sslmode: disable
+
+# Where PowerSync keeps its bucket/sync state. We use Postgres (not MongoDB) to
+# keep a single datastore family — a separate database from the source.
+storage:
+  type: postgresql
+  uri: !env PS_STORAGE_DATABASE_URI
+
+# HTTP port the client connects to for the sync stream + uploads.
+port: !env PS_PORT
+
+# The sync rules that define what each workspace syncs (mounted into the container).
+sync_rules:
+  path: /config/sync-rules.yaml
+
+# Validate client JWTs minted by our NestJS backend against its JWKS endpoint, so
+# only an authenticated device for a given workspace can open the sync stream.
+client_auth:
+  jwks_uri: !env PS_JWKS_URI
+  audience:
+    - powersync
