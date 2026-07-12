@@ -1,0 +1,31 @@
+# Self-hosted PowerSync service — DRAFT, validate against the running service
+# (see README). Brings up only the PowerSync container; it replicates from our
+# existing app Postgres and keeps its bucket state in a separate Postgres database.
+#
+#   docker compose --env-file .env up
+#
+# Pin an explicit image tag in production instead of a floating one.
+
+services:
+  powersync:
+    image: journeyapps/powersync-service:latest
+    restart: unless-stopped
+    # `unified` runs replication + the sync API in one process; split into
+    # `-r api` / `-r sync` workers when scaling. Confirm the entrypoint args
+    # against the image's docs.
+    command: ['start', '-r', 'unified']
+    ports:
+      - '${PS_PORT:-8080}:8080'
+    volumes:
+      - ./powersync.yaml:/config/powersync.yaml:ro
+      - ./sync-rules.yaml:/config/sync-rules.yaml:ro
+    environment:
+      PS_SOURCE_DATABASE_URI: ${PS_SOURCE_DATABASE_URI}
+      PS_STORAGE_DATABASE_URI: ${PS_STORAGE_DATABASE_URI}
+      PS_JWKS_URI: ${PS_JWKS_URI}
+      PS_PORT: 8080
+    healthcheck:
+      test: ['CMD', 'node', '-e', "require('http').get('http://localhost:8080/probes/liveness')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
