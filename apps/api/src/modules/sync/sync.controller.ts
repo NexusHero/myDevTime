@@ -5,8 +5,15 @@ import type { Db } from '../../db/client.js'
 import { resolveWorkspaceId } from '../../core/workspace.js'
 import { UnauthorizedError } from '../../errors.js'
 import { AuthGuard, CurrentUser, type AuthenticatedUser } from '../auth/contract.js'
-import { pullChanges, pushChanges } from './service.js'
-import { PullQueryDto, PushBodyDto, type PullResponse, type PushResponse } from './sync.dto.js'
+import { pullChanges, pushChanges, uploadCrud } from './service.js'
+import {
+  PullQueryDto,
+  PushBodyDto,
+  UploadBodyDto,
+  type PullResponse,
+  type PushResponse,
+  type UploadResponse,
+} from './sync.dto.js'
 
 /**
  * The `sync` module (ADR-0019/0025): cross-device delta sync (REQ-006). Both
@@ -44,6 +51,18 @@ export class SyncController {
     const db = this.requireDb()
     const workspaceId = await resolveWorkspaceId(db, user.id, user.name)
     return (await pullChanges(db, workspaceId, query.since)) as PullResponse
+  }
+
+  /** PowerSync `uploadData` target (ADR-0043): apply the client's CRUD write queue. */
+  @Post('upload')
+  @UseGuards(AuthGuard)
+  async upload(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: UploadBodyDto,
+  ): Promise<UploadResponse> {
+    const db = this.requireDb()
+    const workspaceId = await resolveWorkspaceId(db, user.id, user.name)
+    return (await uploadCrud(db, workspaceId, body.writes)) as UploadResponse
   }
 
   private requireDb(): Db {

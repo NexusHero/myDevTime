@@ -1,4 +1,11 @@
-import { resolve, type EntityState, type SyncEntityType, type SyncValue } from '@mydevtime/domain'
+import {
+  resolve,
+  resolveCrudWrite,
+  type CrudOp,
+  type EntityState,
+  type SyncEntityType,
+  type SyncValue,
+} from '@mydevtime/domain'
 import type { Db } from '../../db/client.js'
 import { syncConflicts, syncOperations } from '../../db/schema.js'
 import { ValidationError } from '../../errors.js'
@@ -162,4 +169,116 @@ export async function pullChanges(
     changes: all.map(v => ({ version: v.version, state: v.state })),
     watermark: last ? last.version : since,
   }
+}
+
+// ── PowerSync CRUD upload (ADR-0043) ─────────────────────────────────────────
+
+/**
+ * One intercepted local write as PowerSync's `uploadData` sends it: an op, the
+ * row id, and — for PUT/PATCH — the changed columns (`opData`) in the canonical
+ * `EntityState` field shape (e.g. `startedAt` as epoch-ms). `baseVersion` is the
+ * server `version` the client's row was based on (`null` for an offline insert).
+ */
+export interface CrudWriteInput {
+  readonly type: SyncEntityType
+  readonly op: CrudOp
+  readonly id: string
+  readonly data: Readonly<Record<string, SyncValue>>
+  readonly baseVersion: number | null
+  readonly updatedAt: number
+  readonly deviceId: string
+}
+
+export interface CrudResultOut {
+  readonly id: string
+  readonly type: SyncEntityType
+  readonly outcome: 'applied' | 'surfaced' | 'noop'
+  readonly version: number
+  readonly fields?: readonly string[]
+}
+
+/**
+ * The `EntityState` a write persists: the changed columns merged onto the current
+ * row (a delete keeps the payload but stamps a tombstone). Merging onto `current`
+ * means a PATCH need only carry the columns it changed.
+ */
+function nextState(write: CrudWriteInput, current: VersionedState | null): EntityState {
+  const baseFields = current ? current.state.fields : {}
+  const isDelete = write.op === 'delete'
+  return {
+    type: write.type,
+    id: write.id,
+    deletedAt: isDelete ? write.updatedAt : null,
+    updatedAt: write.updatedAt,
+    deviceId: write.deviceId,
+    fields: isDelete ? { ...baseFields } : { ...baseFields, ...write.data },
+  }
+}
+
+/** Apply one uploaded CRUD write transactionally; returns its result. */
+async function applyOneCrud(
+  db: Db,
+  workspaceId: string,
+  write: CrudWriteInput,
+): Promise<CrudResultOut> {
+  const adapter = ADAPTERS[write.type]
+  return db.transaction(async tx => {
+    const current = await adapter.load(tx, workspaceId, write.id)
+    const server = current
+      ? { version: current.version, deleted: current.state.deletedAt !== null }
+      : null
+    const decision = resolveCrudWrite(
+      { type: write.type, op: write.op, changed: write.data, baseVersion: write.baseVersion },
+      server,
+    )
+
+    if (decision.outcome === 'noop') {
+      return { id: write.id, type: write.type, outcome: 'noop', version: current?.version ?? 0 }
+    }
+
+    if (decision.outcome === 'surfaced') {
+      // Keep the server's authoritative row; record the conflict durably so the
+      // losing edit is never lost (REQ-006).
+      await tx.insert(syncConflicts).values({
+        workspaceId,
+        entityType: write.type,
+        entityId: write.id,
+        fields: JSON.stringify(decision.fields ?? []),
+        incoming: JSON.stringify(nextState(write, current)),
+      })
+      return {
+        id: write.id,
+        type: write.type,
+        outcome: 'surfaced',
+        version: current?.version ?? 0,
+        ...(decision.fields ? { fields: decision.fields } : {}),
+      }
+    }
+
+    const written = await adapter.persist(tx, workspaceId, nextState(write, current))
+    if (!written) throw new ValidationError('sync: entity id belongs to another workspace')
+    return { id: write.id, type: write.type, outcome: 'applied', version: written.version }
+  })
+}
+
+export interface UploadResponseOut {
+  readonly results: readonly CrudResultOut[]
+}
+
+/**
+ * Apply a batch of PowerSync CRUD uploads (ADR-0043). Each write commits on its
+ * own transaction (resumable); conflict resolution is the deterministic
+ * `resolveCrudWrite` and persistence reuses the ADR-0019 storage adapters — so a
+ * time-entry interval conflict is surfaced (and recorded), never auto-merged.
+ */
+export async function uploadCrud(
+  db: Db,
+  workspaceId: string,
+  writes: readonly CrudWriteInput[],
+): Promise<UploadResponseOut> {
+  const results: CrudResultOut[] = []
+  for (const write of writes) {
+    results.push(await applyOneCrud(db, workspaceId, write))
+  }
+  return { results }
 }
