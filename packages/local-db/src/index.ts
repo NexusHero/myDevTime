@@ -42,3 +42,11 @@ export {
   createBudget,
 } from './budgets.js'
 export { getAllPreferences, setPreference } from './preferences.js'
+export {
+  type OutboxOp,
+  type EnqueueOpInput,
+  enqueueOp,
+  listPendingOps,
+  acknowledgeOps,
+} from './outbox.js'
+export { type SyncState, getSyncState, setWatermark } from './syncState.js'
