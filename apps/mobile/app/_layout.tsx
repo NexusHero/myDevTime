@@ -1,13 +1,15 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { useFonts } from 'expo-font'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from '../src/theme/ThemeProvider'
 import { ShellChrome } from '../src/shell/ShellChrome'
 import { AuthGate } from '../src/shell/AuthGate'
 import { OnboardingGate } from '../src/onboarding/OnboardingGate'
 import { TimerProvider } from '../src/timer/TimerContext'
 import { LocalDbProvider } from '../src/localDb/LocalDbProvider'
+import { makeQueryClient } from '../src/query/queryClient'
 import { registerPwa } from '../src/web/registerPwa'
 
 /**
@@ -42,22 +44,28 @@ export default function RootLayout(): React.JSX.Element | null {
     registerPwa()
   }, [])
 
+  // One QueryClient for the app's lifetime (ADR-0047), created lazily so it is
+  // stable across re-renders.
+  const [queryClient] = useState(makeQueryClient)
+
   if (!fontsLoaded) return null
 
   return (
     <SafeAreaProvider>
-      <LocalDbProvider>
-        <ThemeProvider>
-          <StatusBar style="auto" />
-          <AuthGate>
-            <OnboardingGate>
-              <TimerProvider>
-                <ShellChrome />
-              </TimerProvider>
-            </OnboardingGate>
-          </AuthGate>
-        </ThemeProvider>
-      </LocalDbProvider>
+      <QueryClientProvider client={queryClient}>
+        <LocalDbProvider>
+          <ThemeProvider>
+            <StatusBar style="auto" />
+            <AuthGate>
+              <OnboardingGate>
+                <TimerProvider>
+                  <ShellChrome />
+                </TimerProvider>
+              </OnboardingGate>
+            </AuthGate>
+          </ThemeProvider>
+        </LocalDbProvider>
+      </QueryClientProvider>
     </SafeAreaProvider>
   )
 }
