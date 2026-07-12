@@ -25,4 +25,20 @@ export {
   listClients,
   createClient,
 } from './catalog.js'
+export {
+  type LocalRate,
+  type RateLevel,
+  type CreateRateInput,
+  listRates,
+  createRate,
+} from './rates.js'
+export {
+  type LocalBudget,
+  type BudgetScope,
+  type BudgetBasis,
+  type BudgetPeriod,
+  type CreateBudgetInput,
+  listBudgets,
+  createBudget,
+} from './budgets.js'
 export { getAllPreferences, setPreference } from './preferences.js'

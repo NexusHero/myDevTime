@@ -4,12 +4,12 @@ import {
   costOf,
   entryDuration,
   evaluateThresholds,
-  resolveRate,
+  rateForEntry,
   sumMoney,
   type Budget as CoreBudget,
   type BudgetStatus,
   type RateLevel,
-  type RateRule,
+  type ScopedRateRule,
   type ThresholdEvaluation,
 } from '@mydevtime/domain'
 import type { Db } from '../../db/client.js'
@@ -91,7 +91,7 @@ export async function deleteRate(db: Db, workspaceId: string, id: string): Promi
 }
 
 /** Map a stored rate to the domain rule shape. */
-function toRule(r: Rate): RateRule & { scopeId: string | null } {
+function toRule(r: Rate): ScopedRateRule {
   return {
     level: r.level as RateLevel,
     scopeId: r.scopeId,
@@ -153,16 +153,12 @@ export async function projectCost(
   const asOfMs = asOf.getTime()
   const costs = entries.map(e => {
     const startMs = e.startedAt.getTime()
-    // Rules that apply to this entry's chain, most specific first at resolve time.
-    const applicable = allRules.filter(
-      r =>
-        (r.level === 'workspace' && r.scopeId === null) ||
-        (r.level === 'client' && r.scopeId === project.clientId) ||
-        (r.level === 'project' && r.scopeId === projectId) ||
-        (r.level === 'task' && r.scopeId === e.taskId),
+    const rate = rateForEntry(
+      allRules,
+      { projectId, clientId: project.clientId, taskId: e.taskId },
+      startMs,
     )
-    const rate = resolveRate(applicable, startMs)
-    if (!rate) return 0
+    if (rate === null) return 0
     const duration = entryDuration(
       {
         id: e.id,
@@ -173,7 +169,7 @@ export async function projectCost(
       },
       asOfMs,
     )
-    return costOf(rate.amountMinorPerHour, duration)
+    return costOf(rate, duration)
   })
 
   return { costMinor: sumMoney(costs), currencyCode: currency, entryCount: entries.length }
@@ -232,15 +228,12 @@ export async function billingSummary(
   for (const e of entries) {
     if (!e.billable || e.projectId === null) continue
     const clientId = clientByProject.get(e.projectId) ?? null
-    const applicable = allRules.filter(
-      r =>
-        (r.level === 'workspace' && r.scopeId === null) ||
-        (r.level === 'client' && r.scopeId === clientId) ||
-        (r.level === 'project' && r.scopeId === e.projectId) ||
-        (r.level === 'task' && r.scopeId === e.taskId),
+    const rate = rateForEntry(
+      allRules,
+      { projectId: e.projectId, clientId, taskId: e.taskId },
+      e.startedAt.getTime(),
     )
-    const rate = resolveRate(applicable, e.startedAt.getTime())
-    if (!rate) continue
+    if (rate === null) continue
     const duration = entryDuration(
       {
         id: e.id,
@@ -252,7 +245,7 @@ export async function billingSummary(
       asOfMs,
     )
     const list = costsByProject.get(e.projectId) ?? []
-    list.push(costOf(rate.amountMinorPerHour, duration))
+    list.push(costOf(rate, duration))
     costsByProject.set(e.projectId, list)
   }
 

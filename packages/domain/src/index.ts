@@ -49,6 +49,8 @@ export type { Money, MoneyRounding } from './budgets/money.js'
 export { costOf, sumMoney, hoursToMs } from './budgets/money.js'
 export type { RateLevel, RateRule } from './budgets/rates.js'
 export { resolveRate, rateAmountAt } from './budgets/rates.js'
+export type { ScopedRateRule, EntryScope } from './budgets/pricing.js'
+export { applicableRules, rateForEntry } from './budgets/pricing.js'
 export type {
   BudgetBasis,
   BudgetPeriod,
@@ -76,6 +78,13 @@ export type {
 export { buildTimesheet } from './reporting/timesheet.js'
 export type { ProjectSummary, WorkspaceSummary, SummaryOptions } from './reporting/summary.js'
 export { summarizeEntries } from './reporting/summary.js'
+export type {
+  ProjectCost,
+  BillingBreakdown,
+  BudgetLimit,
+  BudgetConsumption,
+} from './reporting/finance.js'
+export { priceBillableEntries, budgetConsumptions } from './reporting/finance.js'
 
 // Attendance work-day core (REQ-028, ADR-0010) — punch-pair math + overtime
 // balance against a weekly target + the ArbZG §4 break-rule check; deterministic,

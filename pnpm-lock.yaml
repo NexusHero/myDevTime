@@ -172,6 +172,9 @@ importers:
       '@mydevtime/design':
         specifier: workspace:*
         version: link:../../packages/design
+      '@mydevtime/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@mydevtime/local-db':
         specifier: workspace:*
         version: link:../../packages/local-db

@@ -13,6 +13,8 @@ import {
 } from '../api/budgets.js'
 import { fetchWorktimeSummary } from '../api/worktime.js'
 import { fetchCatalog } from '../api/tracking.js'
+import { LOCAL_WORKSPACE_ID, useLocalDb } from '../localDb/context.js'
+import { computeOfflineReports } from '../localDb/reports.js'
 import { useAsync, type AsyncResource } from './useAsync.js'
 
 /**
@@ -99,10 +101,15 @@ function trailingWeek(): { from: string; to: string; tz: string } {
 
 export function useReports(): ReportsResource {
   const base = apiBaseUrl
+  const db = useLocalDb()
   const range = trailingWeek()
   const resource = useAsync<ReportsData>(
     async () => {
-      if (base === null) return demoReports()
+      // Offline (no API, local store open): compute from the local store via the
+      // deterministic core (ADR-0040/0005) — real time + money, no demo figures.
+      if (base === null) {
+        return db === null ? demoReports() : computeOfflineReports(db, LOCAL_WORKSPACE_ID, range)
+      }
       const [summary, billing, catalog, budgetList, overtime] = await Promise.all([
         fetchSummary(base, range),
         fetchBillingSummary(base, range),
@@ -123,7 +130,7 @@ export function useReports(): ReportsResource {
         overtimeMs: overtime.balanceMs,
       }
     },
-    `${base ?? 'demo'}:${range.from}`,
+    `${base ?? (db !== null ? 'local-db' : 'demo')}:${range.from}`,
   )
   return { ...resource, live: base !== null }
 }
