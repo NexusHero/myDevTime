@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { openTestDb } from './testing/node-sqlite.js'
-import { createProject, createTask, listProjects, listTasks } from './catalog.js'
+import {
+  createClient,
+  createProject,
+  createTask,
+  listAllTasks,
+  listClients,
+  listProjects,
+  listTasks,
+} from './catalog.js'
 
 const WS = 'ws-1'
 const OTHER = 'ws-2'
@@ -34,5 +42,25 @@ describe('catalog repository', () => {
     // ws-2 sees none of ws-1's projects or tasks.
     expect(await listProjects(db, OTHER)).toHaveLength(0)
     expect(await listTasks(db, OTHER, mine.id)).toHaveLength(0)
+  })
+
+  it('Clients_RoundTrip_AndAreWorkspaceIsolated', async () => {
+    const db = await openTestDb()
+    await createClient(db, WS, 'Zeta Co')
+    await createClient(db, WS, 'Acme')
+    const clients = await listClients(db, WS)
+    expect(clients.map(c => c.name)).toEqual(['Acme', 'Zeta Co'])
+    expect(await listClients(db, OTHER)).toHaveLength(0)
+  })
+
+  it('ListAllTasks_ReturnsEveryProjectsTasks', async () => {
+    const db = await openTestDb()
+    const a = await createProject(db, WS, { name: 'A' })
+    const b = await createProject(db, WS, { name: 'B' })
+    await createTask(db, WS, a.id, 'a1')
+    await createTask(db, WS, b.id, 'b1')
+    const all = await listAllTasks(db, WS)
+    expect(all.map(t => t.name).sort()).toEqual(['a1', 'b1'])
+    expect(await listAllTasks(db, OTHER)).toHaveLength(0)
   })
 })
