@@ -223,7 +223,11 @@ importers:
 
   packages/domain: {}
 
-  packages/local-db: {}
+  packages/local-db:
+    dependencies:
+      '@mydevtime/domain':
+        specifier: workspace:*
+        version: link:../domain
 
   packages/shared: {}
 

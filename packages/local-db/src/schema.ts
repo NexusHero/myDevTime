@@ -194,6 +194,31 @@ CREATE TABLE IF NOT EXISTS preferences (
   operation_id TEXT,
   PRIMARY KEY (workspace_id, key)
 );
+
+-- The client change-log (ADR-0019 client half): one row per local mutation,
+-- carrying the op_id (idempotency), the base server version + snapshot it was
+-- edited from (NULL = an offline insert), and the full EntityState to push. Rows
+-- are removed once the server acks them. Append-only; standalone mode never writes
+-- here (sync off).
+CREATE TABLE IF NOT EXISTS sync_outbox (
+  op_id          TEXT PRIMARY KEY,
+  workspace_id   TEXT NOT NULL,
+  entity_type    TEXT NOT NULL,
+  entity_id      TEXT NOT NULL,
+  base_version   INTEGER,
+  base_state     TEXT,
+  incoming_state TEXT NOT NULL,
+  created_at     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_outbox_ws ON sync_outbox(workspace_id, created_at);
+
+-- Per-workspace sync bookkeeping: the pull watermark (last server version applied)
+-- and this device's stable id (the deterministic LWW tie-break, ADR-0019).
+CREATE TABLE IF NOT EXISTS sync_state (
+  workspace_id TEXT PRIMARY KEY,
+  watermark    INTEGER NOT NULL DEFAULT 0,
+  device_id    TEXT NOT NULL
+);
 `
 
 /** Create every table + index if it does not already exist. Idempotent. */
