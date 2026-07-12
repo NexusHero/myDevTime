@@ -12,6 +12,8 @@ import {
   Icon,
   Island,
   MoodCheck,
+  OverflowShelf,
+  type OverflowItem,
 } from '../components/index'
 import { useTimer } from '../hooks/useTimer'
 import { usePlanner } from '../hooks/usePlanner'
@@ -109,6 +111,20 @@ export function TodayScreen(): React.JSX.Element {
   const accepted = plan?.status === 'accepted'
   const dismissBlock = (index: number): void =>
     setDismissed(d => (d.includes(index) ? d : [...d, index]))
+
+  // Overbooked/unplaced work becomes the "ohne Platz" chip shelf (bounded screens,
+  // ADR-0035): dropped meetings (M4) plus a backlog summary chip when time spilled.
+  const overflowItems: readonly OverflowItem[] = plan
+    ? [
+        ...plan.droppedAnchors.map(a => ({
+          label: a.label,
+          detail: `${formatDuration(a.lenMin * 60_000)} h`,
+        })),
+        ...(plan.unplacedMin > 0
+          ? [{ label: 'Backlog', detail: `${formatDuration(plan.unplacedMin * 60_000)} h` }]
+          : []),
+      ]
+    : []
 
   // One-tap replan: the Co-Planner reflows the day (deterministic engine proposes;
   // the new version persists — ADR-0005). Clears local dismissals.
@@ -310,6 +326,11 @@ export function TodayScreen(): React.JSX.Element {
             : 'Blöcke unten: annehmen, ziehen oder verwerfen. Die Reihenfolge folgt der Priorität.'}
         </AICallout>
       </View>
+      {overflowItems.length > 0 && (
+        <View style={{ marginBottom: t.spacing.s3 }}>
+          <OverflowShelf items={overflowItems} />
+        </View>
+      )}
       {planner.loading && plan === null ? (
         <Text style={{ color: t.color.ink2 }}>Dein Tag wird geplant …</Text>
       ) : (
