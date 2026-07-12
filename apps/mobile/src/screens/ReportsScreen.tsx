@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
+import { Pressable, View, useWindowDimensions } from 'react-native'
 import {
   formatDuration,
   formatMoneyMinor,
@@ -20,6 +20,7 @@ import {
   CheckinCard,
   Heatmap,
   LoadMeter,
+  ScreenScaffold,
   Sparkline,
   StatTile,
   Tabs,
@@ -848,32 +849,35 @@ export function ReportsScreen(): React.JSX.Element {
     range === 'week' ? focusCard : range === 'month' ? monthCard : heatmapCard
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: t.color.bg }}
-      contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s4 }}
-    >
-      {/* Title + export */}
-      <View
-        style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: t.spacing.s3 }}
-      >
-        <Text
+    <ScreenScaffold
+      header={
+        <View
           style={{
-            flex: 1,
-            fontWeight: '700',
-            fontSize: t.fontSize.xl,
-            color: t.color.ink,
-            fontFamily: t.fontFamily.display,
-            letterSpacing: t.fontSize.xl * t.letterSpacing.tight,
+            flexDirection: 'row',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: t.spacing.s3,
           }}
         >
-          Reports
-        </Text>
-        {!reports.live && <Badge tone="neutral">Demo-Daten</Badge>}
-        <Button size="sm" variant="ghost">
-          {`${range === 'year' ? 'Jahresbericht' : 'Monatsbericht'} exportieren`}
-        </Button>
-      </View>
-
+          <Text
+            style={{
+              flex: 1,
+              fontWeight: '700',
+              fontSize: t.fontSize.xl,
+              color: t.color.ink,
+              fontFamily: t.fontFamily.display,
+              letterSpacing: t.fontSize.xl * t.letterSpacing.tight,
+            }}
+          >
+            Reports
+          </Text>
+          {!reports.live && <Badge tone="neutral">Demo-Daten</Badge>}
+          <Button size="sm" variant="ghost">
+            {`${range === 'year' ? 'Jahresbericht' : 'Monatsbericht'} exportieren`}
+          </Button>
+        </View>
+      }
+    >
       <Tabs
         items={[
           { value: 'week', label: 'Woche' },
@@ -967,6 +971,6 @@ export function ReportsScreen(): React.JSX.Element {
         {boxPlotCard}
         {bottomSecondCard}
       </View>
-    </ScrollView>
+    </ScreenScaffold>
   )
 }

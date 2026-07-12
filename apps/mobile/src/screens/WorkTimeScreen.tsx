@@ -1,8 +1,8 @@
-import { ScrollView, View } from 'react-native'
+import { View } from 'react-native'
 import { Text } from '../components/core/Text'
 import { formatDuration } from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
-import { Badge, Button, Card } from '../components/index'
+import { Badge, Button, Card, ScreenScaffold } from '../components/index'
 import { SubScreenHeader } from './SubScreenHeader'
 import { useWorktime } from '../hooks/useWorktime'
 import type { Shift } from '../api/worktime'
@@ -60,22 +60,17 @@ export function WorkTimeScreen({ onBack }: { onBack: () => void }): React.JSX.El
   const wt = useWorktime()
   const clockedIn = wt.running !== null
 
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: t.color.bg }}
-      contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s5 }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: t.spacing.s2 }}>
-        <View style={{ flex: 1 }}>
-          <SubScreenHeader
-            title="Work time"
-            subtitle="Clock in, breaks & overtime"
-            onBack={onBack}
-          />
-        </View>
-        {!wt.live && <Badge tone="neutral">Demo data</Badge>}
+  const header = (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: t.spacing.s2 }}>
+      <View style={{ flex: 1 }}>
+        <SubScreenHeader title="Work time" subtitle="Clock in, breaks & overtime" onBack={onBack} />
       </View>
+      {!wt.live && <Badge tone="neutral">Demo data</Badge>}
+    </View>
+  )
 
+  return (
+    <ScreenScaffold header={header}>
       {/* Punch clock */}
       <Card>
         <View style={{ alignItems: 'center', gap: t.spacing.s3 }}>
@@ -158,6 +153,6 @@ export function WorkTimeScreen({ onBack }: { onBack: () => void }): React.JSX.El
           )}
         </Card>
       </View>
-    </ScrollView>
+    </ScreenScaffold>
   )
 }
