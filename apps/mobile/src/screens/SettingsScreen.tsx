@@ -1,6 +1,6 @@
-import { ScrollView, View } from 'react-native'
+import { View } from 'react-native'
 import { Text } from '../components/core/Text'
-import { Badge, Card, Row, Switch, SegmentedControl } from '../components/index'
+import { Badge, Card, Row, ScreenScaffold, Switch, SegmentedControl } from '../components/index'
 import { useTheme, useThemePref, useAccent, useDensity } from '../theme/ThemeProvider'
 import { usePreferences } from '../hooks/usePreferences'
 import { SubScreenHeader } from './SubScreenHeader'
@@ -47,12 +47,15 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
   const chevron = <Text style={{ color: t.color.ink3, fontSize: t.fontSize.lg }}>{CHEVRON}</Text>
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: t.color.bg }}
-      contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s5 }}
+    <ScreenScaffold
+      header={
+        <SubScreenHeader
+          title="Settings"
+          subtitle="Preferences, plan & your data"
+          onBack={onBack}
+        />
+      }
     >
-      <SubScreenHeader title="Settings" subtitle="Preferences, plan & your data" onBack={onBack} />
-
       <View>
         <SectionLabel>Appearance</SectionLabel>
         <Card>
@@ -255,6 +258,6 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
       >
         myDevTime · v0.0.0
       </Text>
-    </ScrollView>
+    </ScreenScaffold>
   )
 }

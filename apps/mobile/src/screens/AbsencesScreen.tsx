@@ -1,7 +1,7 @@
-import { ScrollView, View } from 'react-native'
+import { View } from 'react-native'
 import { monthGrid, weekdayHeaders } from '@mydevtime/design'
 import { Text } from '../components/core/Text'
-import { Badge, Card, ProgressBar, Row } from '../components/index'
+import { Badge, Card, ProgressBar, Row, ScreenScaffold } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
 import { SubScreenHeader } from './SubScreenHeader'
 import { useAbsences } from '../hooks/useAbsences'
@@ -70,22 +70,21 @@ export function AbsencesScreen({ onBack }: { onBack: () => void }): React.JSX.El
   const allowanceTotal = balance.allowanceDays + balance.carryOverDays
   const usedRatio = allowanceTotal > 0 ? balance.usedDays / allowanceTotal : 0
 
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: t.color.bg }}
-      contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s5 }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: t.spacing.s2 }}>
-        <View style={{ flex: 1 }}>
-          <SubScreenHeader
-            title="Absences"
-            subtitle="Vacation, sick days & public holidays"
-            onBack={onBack}
-          />
-        </View>
-        {!live && <Badge tone="neutral">Demo data</Badge>}
+  const header = (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: t.spacing.s2 }}>
+      <View style={{ flex: 1 }}>
+        <SubScreenHeader
+          title="Absences"
+          subtitle="Vacation, sick days & public holidays"
+          onBack={onBack}
+        />
       </View>
+      {!live && <Badge tone="neutral">Demo data</Badge>}
+    </View>
+  )
 
+  return (
+    <ScreenScaffold header={header}>
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: t.spacing.s2 }}>
           <Text
@@ -244,6 +243,6 @@ export function AbsencesScreen({ onBack }: { onBack: () => void }): React.JSX.El
           )}
         </Card>
       </View>
-    </ScrollView>
+    </ScreenScaffold>
   )
 }

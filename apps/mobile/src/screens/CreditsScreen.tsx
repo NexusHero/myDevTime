@@ -1,7 +1,7 @@
-import { ScrollView, View } from 'react-native'
+import { View } from 'react-native'
 import { formatSigned } from '@mydevtime/design'
 import { Text } from '../components/core/Text'
-import { Badge, Button, Card, ProgressBar, Row } from '../components/index'
+import { Badge, Button, Card, ProgressBar, Row, ScreenScaffold } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
 import { SubScreenHeader } from './SubScreenHeader'
 import { useCredits } from '../hooks/useCredits'
@@ -25,22 +25,21 @@ export function CreditsScreen({ onBack }: { onBack: () => void }): React.JSX.Ele
   const usage = data?.usage ?? []
   const usageMax = Math.max(1, ...usage.map(u => u.credits))
 
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: t.color.bg }}
-      contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s5 }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: t.spacing.s2 }}>
-        <View style={{ flex: 1 }}>
-          <SubScreenHeader
-            title="AI Credits"
-            subtitle="Every AI action is metered here"
-            onBack={onBack}
-          />
-        </View>
-        {!credits.live && <Badge tone="neutral">Demo data</Badge>}
+  const header = (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: t.spacing.s2 }}>
+      <View style={{ flex: 1 }}>
+        <SubScreenHeader
+          title="AI Credits"
+          subtitle="Every AI action is metered here"
+          onBack={onBack}
+        />
       </View>
+      {!credits.live && <Badge tone="neutral">Demo data</Badge>}
+    </View>
+  )
 
+  return (
+    <ScreenScaffold header={header}>
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: t.spacing.s2 }}>
           <Text
@@ -143,7 +142,7 @@ export function CreditsScreen({ onBack }: { onBack: () => void }): React.JSX.Ele
         Feature gates read this balance, never a payment SDK (ADR-0008). Credits never expire
         mid-cycle — unused grant resets on renewal.
       </Text>
-    </ScrollView>
+    </ScreenScaffold>
   )
 }
 
