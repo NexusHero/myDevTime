@@ -1,11 +1,15 @@
-import type { LocalDb, Row } from './port.js'
+import { and, eq, isNull } from 'drizzle-orm'
+import type { LocalDb } from './port.js'
+import { drizzleFor } from './db.js'
+import { budgets } from './tables.js'
 import { newId, nowIso } from './ids.js'
 
 /**
  * Budget repository (REQ-005). Caps per project/client, workspace-scoped and
  * tombstone-aware; **no consumption math** (that is `packages/domain`'s job,
  * ADR-0005). Mirrors the server `budgets` table so the ADR-0019 sync engine
- * reconciles the same rows. `thresholds` is a JSON array in the store.
+ * reconciles the same rows. `thresholds` is a JSON column (Drizzle parses it),
+ * queried through Drizzle (ADR-0046).
  */
 export type BudgetScope = 'project' | 'client'
 export type BudgetBasis = 'hours' | 'money'
@@ -23,27 +27,15 @@ export interface LocalBudget {
   readonly thresholds: number[]
 }
 
-function parseThresholds(value: unknown): number[] {
-  if (typeof value !== 'string') return []
-  try {
-    const parsed: unknown = JSON.parse(value)
-    return Array.isArray(parsed) ? parsed.filter((n): n is number => typeof n === 'number') : []
-  } catch {
-    return []
-  }
-}
-
-function toBudget(row: Row): LocalBudget {
-  return {
-    id: String(row.id),
-    workspaceId: String(row.workspace_id),
-    scope: String(row.scope) as BudgetScope,
-    scopeId: String(row.scope_id),
-    basis: String(row.basis) as BudgetBasis,
-    limitAmount: Number(row.limit_amount),
-    period: String(row.period) as BudgetPeriod,
-    thresholds: parseThresholds(row.thresholds),
-  }
+const cols = {
+  id: budgets.id,
+  workspaceId: budgets.workspaceId,
+  scope: budgets.scope,
+  scopeId: budgets.scopeId,
+  basis: budgets.basis,
+  limitAmount: budgets.limitAmount,
+  period: budgets.period,
+  thresholds: budgets.thresholds,
 }
 
 export interface CreateBudgetInput {
@@ -58,14 +50,11 @@ export interface CreateBudgetInput {
 
 /** All budgets in the workspace, by creation order. */
 export async function listBudgets(db: LocalDb, workspaceId: string): Promise<LocalBudget[]> {
-  const rows = await db.getAllAsync(
-    `SELECT id, workspace_id, scope, scope_id, basis, limit_amount, period, thresholds
-       FROM budgets
-      WHERE workspace_id = ? AND deleted_at IS NULL
-      ORDER BY created_at`,
-    [workspaceId],
-  )
-  return rows.map(toBudget)
+  return drizzleFor(db)
+    .select(cols)
+    .from(budgets)
+    .where(and(eq(budgets.workspaceId, workspaceId), isNull(budgets.deletedAt)))
+    .orderBy(budgets.createdAt)
 }
 
 export async function createBudget(
@@ -76,23 +65,18 @@ export async function createBudget(
   const id = input.id ?? newId()
   const now = nowIso()
   const thresholds = input.thresholds ?? [0.8, 1]
-  await db.runAsync(
-    `INSERT INTO budgets
-       (id, workspace_id, scope, scope_id, basis, limit_amount, period, thresholds, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      workspaceId,
-      input.scope,
-      input.scopeId,
-      input.basis,
-      input.limitAmount,
-      input.period,
-      JSON.stringify(thresholds),
-      now,
-      now,
-    ],
-  )
+  await drizzleFor(db).insert(budgets).values({
+    id,
+    workspaceId,
+    scope: input.scope,
+    scopeId: input.scopeId,
+    basis: input.basis,
+    limitAmount: input.limitAmount,
+    period: input.period,
+    thresholds,
+    createdAt: now,
+    updatedAt: now,
+  })
   return {
     id,
     workspaceId,

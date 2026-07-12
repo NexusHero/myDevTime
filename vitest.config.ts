@@ -41,6 +41,9 @@ export default defineConfig({
         './test/__mocks__/react-native-reanimated.tsx',
         import.meta.url,
       ).pathname,
+      // @shopify/flash-list ships native/Flow syntax Vitest can't transform, and
+      // virtualization is irrelevant to render tests — alias to an eager shim (ADR-0027).
+      '@shopify/flash-list': new URL('./test/__mocks__/flash-list.tsx', import.meta.url).pathname,
       // Workspace packages → source so Vitest transforms them via SWC/Oxc
       '@mydevtime/design': new URL('./packages/design/src/index.ts', import.meta.url).pathname,
       '@mydevtime/domain': new URL('./packages/domain/src/index.ts', import.meta.url).pathname,

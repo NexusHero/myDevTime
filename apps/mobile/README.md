@@ -45,9 +45,13 @@ copied verbatim into `dist/` by `expo export`.
 - **`ThemeProvider`** (`src/theme/`) — resolves the effective theme from the OS color scheme +
   the user's preference (pure `resolveMode`, unit-tested) and hands the whole design system to
   every screen via `useTheme()`. Dark-first, light a first-class sibling.
-- **`AppShell`** (`src/shell/`) — reads the viewport width, asks `@mydevtime/design`'s
-  `chromeForWidth` for the chrome, and renders **bottom tabs on phone** / **sidebar on
-  tablet & web** from `PHONE_TABS` / `SIDEBAR_ITEMS`. The nav model is the source of truth.
+- **Navigation = Expo Router** (`app/` + `src/shell/`, [ADR-0045](../../docs/adr/0045-expo-router-and-list-virtualization.md))
+  — file-based routes under `app/` (one per `@mydevtime/design` `ROUTE`) give **real URLs and deep
+  links** on iOS/Android/web. `app/_layout.tsx` hosts the providers and the persistent `ShellChrome`,
+  which reads the viewport width, asks `chromeForWidth` for the chrome, and renders **bottom tabs on
+  phone** / **sidebar on tablet & web** from `PHONE_TABS` / `SIDEBAR_ITEMS`, deriving the active item
+  from the URL. The nav model stays the source of truth. Long, unbounded lists (credit ledger, task
+  entry history) are virtualized with `@shopify/flash-list` via `ScreenListScaffold`.
 - **Screens** — one themed placeholder per deep-linkable screen; the real Today/Planner/… views
   and the component set (Island, ghost blocks, canvas primitives) land in later phases of #11.
 

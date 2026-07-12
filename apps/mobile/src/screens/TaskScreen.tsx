@@ -1,7 +1,7 @@
 import { ScrollView, View } from 'react-native'
 import { formatDuration, projectColor, type Screen } from '@mydevtime/design'
 import { Text } from '../components/core/Text'
-import { Badge, Card, Row } from '../components/index'
+import { Badge, Card, Row, ScreenListScaffold } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
 import { SubScreenHeader } from './SubScreenHeader'
 import { findTask } from './projectsData'
@@ -61,18 +61,24 @@ export function TaskScreen({
   const { task, project, client } = found
   const color = projectColor(project.id, t.mode)
 
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: t.color.bg }}
-      contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s5 }}
-    >
-      <SubScreenHeader
-        title={task.name}
-        subtitle={`${client.name} · ${project.name}`}
-        backLabel={project.name}
-        onBack={() => onNavigate('project', { projectId: project.id })}
-      />
+  // The task summary is the fixed list header; the entry history is the virtualized
+  // body — it is the one unbounded list here, so only its visible rows mount
+  // (ADR-0045 §Perf). Loading/error/empty collapse to the empty slot.
+  const rows = entries.loading || entries.error ? [] : (entries.data ?? [])
+  const emptyNode = (
+    <Card>
+      {entries.loading && !entries.data ? (
+        <Text style={{ color: t.color.ink2 }}>Loading entries…</Text>
+      ) : entries.error ? (
+        <Text style={{ color: t.color.crit }}>Couldn’t load entries — {entries.error.message}</Text>
+      ) : (
+        <Text style={{ color: t.color.ink2 }}>No time entries for this task yet.</Text>
+      )}
+    </Card>
+  )
 
+  const listHeader = (
+    <View style={{ gap: t.spacing.s5 }}>
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s4 }}>
           <View style={{ flex: 1 }}>
@@ -116,57 +122,60 @@ export function TaskScreen({
         </View>
       </Card>
 
-      <View>
-        <View
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: t.spacing.s2,
+          marginBottom: t.spacing.s2,
+        }}
+      >
+        <Text
           style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: t.spacing.s2,
-            marginBottom: t.spacing.s2,
+            fontSize: t.fontSize.xs,
+            fontWeight: '700',
+            letterSpacing: 0.6,
+            textTransform: 'uppercase',
+            color: t.color.ink3,
           }}
         >
-          <Text
-            style={{
-              fontSize: t.fontSize.xs,
-              fontWeight: '700',
-              letterSpacing: 0.6,
-              textTransform: 'uppercase',
-              color: t.color.ink3,
-            }}
-          >
-            Recent entries
-          </Text>
-          {!entries.live && (
-            <Badge tone="neutral" size="sm">
-              Demo data
-            </Badge>
-          )}
-        </View>
-        <Card>
-          {entries.loading && !entries.data ? (
-            <Text style={{ color: t.color.ink2 }}>Loading entries…</Text>
-          ) : entries.error ? (
-            <Text style={{ color: t.color.crit }}>
-              Couldn’t load entries — {entries.error.message}
-            </Text>
-          ) : (entries.data?.length ?? 0) === 0 ? (
-            <Text style={{ color: t.color.ink2 }}>No time entries for this task yet.</Text>
-          ) : (
-            entries.data?.map(entry => (
-              <Row
-                key={entry.id}
-                title={`${formatDuration(entryDurationMs(entry, now))} h`}
-                subtitle={whenLabel(entry.startedAt)}
-                trailing={
-                  <Badge tone="neutral" size="sm">
-                    {sourceLabel(entry.source)}
-                  </Badge>
-                }
-              />
-            ))
-          )}
-        </Card>
+          Recent entries
+        </Text>
+        {!entries.live && (
+          <Badge tone="neutral" size="sm">
+            Demo data
+          </Badge>
+        )}
       </View>
-    </ScrollView>
+    </View>
+  )
+
+  return (
+    <ScreenListScaffold
+      header={
+        <SubScreenHeader
+          title={task.name}
+          subtitle={`${client.name} · ${project.name}`}
+          backLabel={project.name}
+          onBack={() => onNavigate('project', { projectId: project.id })}
+        />
+      }
+      data={rows}
+      keyExtractor={entry => entry.id}
+      estimatedItemSize={64}
+      listHeader={listHeader}
+      listEmpty={emptyNode}
+      renderItem={({ item: entry }) => (
+        <Row
+          title={`${formatDuration(entryDurationMs(entry, now))} h`}
+          subtitle={whenLabel(entry.startedAt)}
+          trailing={
+            <Badge tone="neutral" size="sm">
+              {sourceLabel(entry.source)}
+            </Badge>
+          }
+        />
+      )}
+    />
   )
 }

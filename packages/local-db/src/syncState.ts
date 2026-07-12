@@ -1,4 +1,7 @@
-import type { LocalDb, Row } from './port.js'
+import { eq } from 'drizzle-orm'
+import type { LocalDb } from './port.js'
+import { drizzleFor } from './db.js'
+import { syncState } from './tables.js'
 import { newId } from './ids.js'
 
 /**
@@ -6,7 +9,8 @@ import { newId } from './ids.js'
  * server version already applied locally, so a pull resumes from where it left
  * off) and this device's stable **device_id** (the deterministic last-writer-wins
  * tie-break when two edits share an `updatedAt`). The row is created lazily on
- * first read with a fresh device id; the id never changes afterwards.
+ * first read with a fresh device id; the id never changes afterwards. Queried
+ * through Drizzle (ADR-0046).
  */
 export interface SyncState {
   readonly workspaceId: string
@@ -14,27 +18,19 @@ export interface SyncState {
   readonly deviceId: string
 }
 
-function toState(row: Row): SyncState {
-  return {
-    workspaceId: String(row.workspace_id),
-    watermark: Number(row.watermark),
-    deviceId: String(row.device_id),
-  }
-}
-
 /** The workspace's sync state, creating it (watermark 0 + a fresh device id) on first read. */
 export async function getSyncState(db: LocalDb, workspaceId: string): Promise<SyncState> {
-  const existing = await db.getFirstAsync(
-    `SELECT workspace_id, watermark, device_id FROM sync_state WHERE workspace_id = ?`,
-    [workspaceId],
-  )
-  if (existing) return toState(existing)
+  const d = drizzleFor(db)
+  const rows = await d
+    .select()
+    .from(syncState)
+    .where(eq(syncState.workspaceId, workspaceId))
+    .limit(1)
+  const existing = rows[0]
+  if (existing) return existing
 
   const deviceId = newId()
-  await db.runAsync(
-    `INSERT INTO sync_state (workspace_id, watermark, device_id) VALUES (?, 0, ?)`,
-    [workspaceId, deviceId],
-  )
+  await d.insert(syncState).values({ workspaceId, watermark: 0, deviceId })
   return { workspaceId, watermark: 0, deviceId }
 }
 
@@ -46,8 +42,8 @@ export async function setWatermark(
 ): Promise<void> {
   // Ensure the row (and its device id) exists before updating.
   await getSyncState(db, workspaceId)
-  await db.runAsync(`UPDATE sync_state SET watermark = ? WHERE workspace_id = ?`, [
-    watermark,
-    workspaceId,
-  ])
+  await drizzleFor(db)
+    .update(syncState)
+    .set({ watermark })
+    .where(eq(syncState.workspaceId, workspaceId))
 }

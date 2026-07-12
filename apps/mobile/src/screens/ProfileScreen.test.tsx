@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import TestRenderer, { act } from 'react-test-renderer'
 import { ThemeProvider } from '../theme/ThemeProvider.js'
 import { SessionProvider } from '../shell/SessionContext.js'
+import { TestQueryProvider } from '../test/TestQueryProvider.js'
 import { ProfileScreen } from './ProfileScreen.js'
 import { Row } from '../components/index.js'
 import type { SessionResource } from '../hooks/useSession.js'
@@ -36,11 +37,13 @@ function render(session: SessionResource): TestRenderer.ReactTestRenderer {
   let renderer!: TestRenderer.ReactTestRenderer
   act(() => {
     renderer = TestRenderer.create(
-      <ThemeProvider>
-        <SessionProvider value={session}>
-          <ProfileScreen onNavigate={() => undefined} />
-        </SessionProvider>
-      </ThemeProvider>,
+      <TestQueryProvider>
+        <ThemeProvider>
+          <SessionProvider value={session}>
+            <ProfileScreen onNavigate={() => undefined} />
+          </SessionProvider>
+        </ThemeProvider>
+      </TestQueryProvider>,
     )
   })
   return renderer
