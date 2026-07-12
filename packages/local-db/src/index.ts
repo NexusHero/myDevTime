@@ -21,3 +21,4 @@ export {
   listTasks,
   createTask,
 } from './catalog.js'
+export { getAllPreferences, setPreference } from './preferences.js'
