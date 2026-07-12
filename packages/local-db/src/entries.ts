@@ -104,13 +104,11 @@ export async function stopEntry(db: LocalDb): Promise<LocalTimeEntry | null> {
 
 /** Compute total tracked ms in a date range. */
 export async function totalMsInRange(db: LocalDb, from: string, to: string): Promise<number> {
-  const entries = await listEntriesInRange(db, from, to)
-  let total = 0
-  const now = Date.now()
-  for (const e of entries) {
-    const start = Date.parse(e.startedAt)
-    const end = e.endedAt ? Date.parse(e.endedAt) : now
-    total += end - start
-  }
-  return total
+  const row = await db.getFirstAsync<{ total: number }>(
+    `SELECT SUM((julianday(IFNULL(ended_at, datetime('now'))) - julianday(started_at)) * 86400000) as total 
+     FROM time_entries 
+     WHERE started_at >= ? AND started_at < ?`,
+    [from, to],
+  )
+  return Math.round(row?.total ?? 0)
 }
