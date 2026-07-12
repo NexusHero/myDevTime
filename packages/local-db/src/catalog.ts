@@ -1,10 +1,15 @@
-import { fromBool, toBool, type LocalDb, type Row } from './port.js'
+import { and, eq, isNull } from 'drizzle-orm'
+import type { LocalDb } from './port.js'
+import { drizzleFor } from './db.js'
+import { clients, projects, tasks } from './tables.js'
 import { newId, nowIso } from './ids.js'
 
 /**
  * Catalog repository (REQ-001): clients → projects → tasks. Thin CRUD, no math,
  * workspace-scoped and tombstone-aware. Mirrors the server catalog shape so the
- * ADR-0019 sync engine reconciles the same rows.
+ * ADR-0019 sync engine reconciles the same rows. Queries go through Drizzle
+ * (ADR-0046); the column projections below replace the old `SELECT` strings and
+ * row mappers.
  */
 export interface LocalProject {
   readonly id: string
@@ -32,36 +37,30 @@ export interface LocalClient {
   readonly archived: boolean
 }
 
-function toClient(row: Row): LocalClient {
-  return {
-    id: String(row.id),
-    workspaceId: String(row.workspace_id),
-    name: String(row.name),
-    archived: toBool(row.archived ?? 0),
-  }
+const clientCols = {
+  id: clients.id,
+  workspaceId: clients.workspaceId,
+  name: clients.name,
+  archived: clients.archived,
 }
 
-function toProject(row: Row): LocalProject {
-  return {
-    id: String(row.id),
-    workspaceId: String(row.workspace_id),
-    clientId: row.client_id === null ? null : String(row.client_id),
-    name: String(row.name),
-    color: row.color === null ? null : String(row.color),
-    billableDefault: toBool(row.billable_default ?? 1),
-    archived: toBool(row.archived ?? 0),
-  }
+const projectCols = {
+  id: projects.id,
+  workspaceId: projects.workspaceId,
+  clientId: projects.clientId,
+  name: projects.name,
+  color: projects.color,
+  billableDefault: projects.billableDefault,
+  archived: projects.archived,
 }
 
-function toTask(row: Row): LocalTask {
-  return {
-    id: String(row.id),
-    workspaceId: String(row.workspace_id),
-    projectId: String(row.project_id),
-    name: String(row.name),
-    billableDefault: toBool(row.billable_default ?? 1),
-    archived: toBool(row.archived ?? 0),
-  }
+const taskCols = {
+  id: tasks.id,
+  workspaceId: tasks.workspaceId,
+  projectId: tasks.projectId,
+  name: tasks.name,
+  billableDefault: tasks.billableDefault,
+  archived: tasks.archived,
 }
 
 export interface CreateProjectInput {
@@ -74,14 +73,17 @@ export interface CreateProjectInput {
 
 /** Active (non-archived, non-deleted) projects in the workspace, by name. */
 export async function listProjects(db: LocalDb, workspaceId: string): Promise<LocalProject[]> {
-  const rows = await db.getAllAsync(
-    `SELECT id, workspace_id, client_id, name, color, billable_default, archived
-       FROM projects
-      WHERE workspace_id = ? AND deleted_at IS NULL AND archived = 0
-      ORDER BY name`,
-    [workspaceId],
-  )
-  return rows.map(toProject)
+  return drizzleFor(db)
+    .select(projectCols)
+    .from(projects)
+    .where(
+      and(
+        eq(projects.workspaceId, workspaceId),
+        isNull(projects.deletedAt),
+        eq(projects.archived, false),
+      ),
+    )
+    .orderBy(projects.name)
 }
 
 export async function createProject(
@@ -92,30 +94,19 @@ export async function createProject(
   const id = input.id ?? newId()
   const now = nowIso()
   const billableDefault = input.billableDefault ?? true
-  await db.runAsync(
-    `INSERT INTO projects
-       (id, workspace_id, client_id, name, color, billable_default, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      workspaceId,
-      input.clientId ?? null,
-      input.name,
-      input.color ?? null,
-      fromBool(billableDefault),
-      now,
-      now,
-    ],
-  )
-  return {
+  const clientId = input.clientId ?? null
+  const color = input.color ?? null
+  await drizzleFor(db).insert(projects).values({
     id,
     workspaceId,
-    clientId: input.clientId ?? null,
+    clientId,
     name: input.name,
-    color: input.color ?? null,
+    color,
     billableDefault,
-    archived: false,
-  }
+    createdAt: now,
+    updatedAt: now,
+  })
+  return { id, workspaceId, clientId, name: input.name, color, billableDefault, archived: false }
 }
 
 /** Active tasks for a project in the workspace, by name. */
@@ -124,14 +115,18 @@ export async function listTasks(
   workspaceId: string,
   projectId: string,
 ): Promise<LocalTask[]> {
-  const rows = await db.getAllAsync(
-    `SELECT id, workspace_id, project_id, name, billable_default, archived
-       FROM tasks
-      WHERE workspace_id = ? AND project_id = ? AND deleted_at IS NULL AND archived = 0
-      ORDER BY name`,
-    [workspaceId, projectId],
-  )
-  return rows.map(toTask)
+  return drizzleFor(db)
+    .select(taskCols)
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.workspaceId, workspaceId),
+        eq(tasks.projectId, projectId),
+        isNull(tasks.deletedAt),
+        eq(tasks.archived, false),
+      ),
+    )
+    .orderBy(tasks.name)
 }
 
 export async function createTask(
@@ -142,36 +137,36 @@ export async function createTask(
   id: string = newId(),
 ): Promise<LocalTask> {
   const now = nowIso()
-  await db.runAsync(
-    `INSERT INTO tasks (id, workspace_id, project_id, name, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [id, workspaceId, projectId, name, now, now],
-  )
+  await drizzleFor(db)
+    .insert(tasks)
+    .values({ id, workspaceId, projectId, name, createdAt: now, updatedAt: now })
   return { id, workspaceId, projectId, name, billableDefault: true, archived: false }
 }
 
 /** All active tasks in the workspace (across every project), by name. */
 export async function listAllTasks(db: LocalDb, workspaceId: string): Promise<LocalTask[]> {
-  const rows = await db.getAllAsync(
-    `SELECT id, workspace_id, project_id, name, billable_default, archived
-       FROM tasks
-      WHERE workspace_id = ? AND deleted_at IS NULL AND archived = 0
-      ORDER BY name`,
-    [workspaceId],
-  )
-  return rows.map(toTask)
+  return drizzleFor(db)
+    .select(taskCols)
+    .from(tasks)
+    .where(
+      and(eq(tasks.workspaceId, workspaceId), isNull(tasks.deletedAt), eq(tasks.archived, false)),
+    )
+    .orderBy(tasks.name)
 }
 
 /** Active clients in the workspace, by name. */
 export async function listClients(db: LocalDb, workspaceId: string): Promise<LocalClient[]> {
-  const rows = await db.getAllAsync(
-    `SELECT id, workspace_id, name, archived
-       FROM clients
-      WHERE workspace_id = ? AND deleted_at IS NULL AND archived = 0
-      ORDER BY name`,
-    [workspaceId],
-  )
-  return rows.map(toClient)
+  return drizzleFor(db)
+    .select(clientCols)
+    .from(clients)
+    .where(
+      and(
+        eq(clients.workspaceId, workspaceId),
+        isNull(clients.deletedAt),
+        eq(clients.archived, false),
+      ),
+    )
+    .orderBy(clients.name)
 }
 
 export async function createClient(
@@ -181,10 +176,8 @@ export async function createClient(
   id: string = newId(),
 ): Promise<LocalClient> {
   const now = nowIso()
-  await db.runAsync(
-    `INSERT INTO clients (id, workspace_id, name, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?)`,
-    [id, workspaceId, name, now, now],
-  )
+  await drizzleFor(db)
+    .insert(clients)
+    .values({ id, workspaceId, name, createdAt: now, updatedAt: now })
   return { id, workspaceId, name, archived: false }
 }

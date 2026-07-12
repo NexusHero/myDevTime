@@ -1,5 +1,8 @@
+import { and, eq, inArray } from 'drizzle-orm'
 import type { EntityState, SyncEntityType } from '@mydevtime/domain'
-import type { LocalDb, Row } from './port.js'
+import type { LocalDb } from './port.js'
+import { drizzleFor } from './db.js'
+import { syncOutbox } from './tables.js'
 import { newId, nowIso } from './ids.js'
 
 /**
@@ -10,8 +13,8 @@ import { newId, nowIso } from './ids.js'
  * store holds the op — it does **no** merge/resolution itself (ADR-0005); the
  * sync engine in `packages/domain` does. Rows are removed once acked.
  *
- * `EntityState` is stored as JSON; it is a pure data type from the sync core, so
- * carrying it here keeps the store thin (no math) while staying type-safe.
+ * `EntityState` is stored in JSON columns (Drizzle serializes/parses them, so
+ * `base`/`incoming` are typed values, not strings — ADR-0046).
  */
 export interface OutboxOp {
   readonly opId: string
@@ -27,6 +30,17 @@ export interface OutboxOp {
   readonly createdAt: string
 }
 
+const cols = {
+  opId: syncOutbox.opId,
+  workspaceId: syncOutbox.workspaceId,
+  entityType: syncOutbox.entityType,
+  entityId: syncOutbox.entityId,
+  baseVersion: syncOutbox.baseVersion,
+  base: syncOutbox.baseState,
+  incoming: syncOutbox.incomingState,
+  createdAt: syncOutbox.createdAt,
+}
+
 export interface EnqueueOpInput {
   readonly entityType: SyncEntityType
   readonly entityId: string
@@ -35,20 +49,6 @@ export interface EnqueueOpInput {
   readonly incoming: EntityState
   /** Provide to reuse a stable op id; otherwise a fresh UUID is generated. */
   readonly opId?: string
-}
-
-function toOp(row: Row): OutboxOp {
-  const baseState = row.base_state === null ? null : String(row.base_state)
-  return {
-    opId: String(row.op_id),
-    workspaceId: String(row.workspace_id),
-    entityType: String(row.entity_type) as SyncEntityType,
-    entityId: String(row.entity_id),
-    baseVersion: row.base_version === null ? null : Number(row.base_version),
-    base: baseState === null ? null : (JSON.parse(baseState) as EntityState),
-    incoming: JSON.parse(String(row.incoming_state)) as EntityState,
-    createdAt: String(row.created_at),
-  }
 }
 
 /** Append a pending op to the change-log. Returns the queued op. */
@@ -61,21 +61,16 @@ export async function enqueueOp(
   const createdAt = nowIso()
   const base = input.base ?? null
   const baseVersion = input.baseVersion ?? null
-  await db.runAsync(
-    `INSERT INTO sync_outbox
-       (op_id, workspace_id, entity_type, entity_id, base_version, base_state, incoming_state, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      opId,
-      workspaceId,
-      input.entityType,
-      input.entityId,
-      baseVersion,
-      base === null ? null : JSON.stringify(base),
-      JSON.stringify(input.incoming),
-      createdAt,
-    ],
-  )
+  await drizzleFor(db).insert(syncOutbox).values({
+    opId,
+    workspaceId,
+    entityType: input.entityType,
+    entityId: input.entityId,
+    baseVersion,
+    baseState: base,
+    incomingState: input.incoming,
+    createdAt,
+  })
   return {
     opId,
     workspaceId,
@@ -90,14 +85,11 @@ export async function enqueueOp(
 
 /** Pending ops for the workspace, oldest first (the order they are pushed). */
 export async function listPendingOps(db: LocalDb, workspaceId: string): Promise<OutboxOp[]> {
-  const rows = await db.getAllAsync(
-    `SELECT op_id, workspace_id, entity_type, entity_id, base_version, base_state, incoming_state, created_at
-       FROM sync_outbox
-      WHERE workspace_id = ?
-      ORDER BY created_at, op_id`,
-    [workspaceId],
-  )
-  return rows.map(toOp)
+  return drizzleFor(db)
+    .select(cols)
+    .from(syncOutbox)
+    .where(eq(syncOutbox.workspaceId, workspaceId))
+    .orderBy(syncOutbox.createdAt, syncOutbox.opId)
 }
 
 /** Remove ops the server has acknowledged (applied/skipped/surfaced). Idempotent. */
@@ -106,10 +98,8 @@ export async function acknowledgeOps(
   workspaceId: string,
   opIds: readonly string[],
 ): Promise<void> {
-  for (const opId of opIds) {
-    await db.runAsync(`DELETE FROM sync_outbox WHERE workspace_id = ? AND op_id = ?`, [
-      workspaceId,
-      opId,
-    ])
-  }
+  if (opIds.length === 0) return
+  await drizzleFor(db)
+    .delete(syncOutbox)
+    .where(and(eq(syncOutbox.workspaceId, workspaceId), inArray(syncOutbox.opId, [...opIds])))
 }

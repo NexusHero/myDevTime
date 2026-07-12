@@ -246,6 +246,9 @@ importers:
       '@mydevtime/domain':
         specifier: workspace:*
         version: link:../domain
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(expo-sqlite@15.0.6(expo@52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@expo/metro-runtime@4.0.1(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.3.1)))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.3.1))(react@18.3.1))(react-native@0.76.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.3.1))(react@18.3.1))(gel@2.2.0)(kysely@0.29.3)(postgres@3.4.9)
 
   packages/shared: {}
 
