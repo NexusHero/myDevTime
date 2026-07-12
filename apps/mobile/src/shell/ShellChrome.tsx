@@ -1,31 +1,40 @@
 import { useState } from 'react'
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native'
+import { Slot, usePathname, useRouter } from 'expo-router'
 import { Text } from '../components/core/Text'
-import { PHONE_TABS, SIDEBAR_ITEMS, chromeForWidth, type Screen } from '@mydevtime/design'
+import {
+  PHONE_TABS,
+  SIDEBAR_ITEMS,
+  buildPath,
+  chromeForWidth,
+  parsePath,
+  type Screen,
+} from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
 import { Island, type IslandAction } from '../components/index'
 import { useTimerContext } from '../timer/TimerContext'
-import { ScreenView, SCREEN_TITLES } from './screens'
+import { SCREEN_TITLES } from './titles'
 
 /**
- * The responsive navigation shell (issue #11). It reads the viewport width, asks
- * `@mydevtime/design` for the chrome (tabs on phone, sidebar on tablet/web), and
- * renders the nav items from that same package's `PHONE_TABS` / `SIDEBAR_ITEMS`
- * — the model is the source of truth, the shell just draws it. Split-view
- * (master–detail) content is a later phase; here each item swaps the active
- * screen.
+ * The responsive navigation chrome (issue #11), now a persistent Expo Router
+ * layout (ADR-0045). It wraps `<Slot />` — so the tab/sidebar bar and the Island
+ * stay mounted while the routed screen below them changes — reads the viewport
+ * width for the chrome (tabs on phone, sidebar on tablet/web from
+ * `@mydevtime/design`), derives the active item from the URL via `parsePath`, and
+ * navigates by pushing real paths (`buildPath`). The nav model is still the single
+ * source of truth; the chrome just draws it and maps it onto URLs.
  */
-export function AppShell(): React.JSX.Element {
+export function ShellChrome(): React.JSX.Element {
   const t = useTheme()
   const { width } = useWindowDimensions()
+  const router = useRouter()
+  const pathname = usePathname()
   const chrome = chromeForWidth(width)
   const items: readonly Screen[] = chrome.navMode === 'tabs' ? PHONE_TABS : SIDEBAR_ITEMS
-  const [route, setRoute] = useState<{ screen: Screen; params?: Record<string, string> }>({
-    screen: 'today',
-  })
-  const active = route.screen
-  const navigate = (screen: Screen, params?: Record<string, string>): void =>
-    setRoute(params ? { screen, params } : { screen })
+  const active: Screen = parsePath(pathname)?.screen ?? 'today'
+  const go = (screen: Screen): void => {
+    router.push(buildPath(screen))
+  }
 
   // One shared timer drives the persistent Island. It shows on every screen EXCEPT
   // Today, where the hero tracker carries the clock — never two clocks (design v2).
@@ -60,7 +69,7 @@ export function AppShell(): React.JSX.Element {
     return (
       <Pressable
         key={screen}
-        onPress={() => navigate(screen)}
+        onPress={() => go(screen)}
         accessibilityRole="tab"
         accessibilityState={{ selected: on }}
         accessibilityLabel={SCREEN_TITLES[screen]}
@@ -99,7 +108,7 @@ export function AppShell(): React.JSX.Element {
           {dockedIsland && <View style={styles.dock}>{dockedIsland}</View>}
         </View>
         <View style={styles.content}>
-          <ScreenView screen={active} params={route.params ?? {}} onNavigate={navigate} />
+          <Slot />
         </View>
       </View>
     )
@@ -109,7 +118,7 @@ export function AppShell(): React.JSX.Element {
   return (
     <View style={[styles.fill, { backgroundColor: t.color.bg }]}>
       <View style={styles.content}>
-        <ScreenView screen={active} params={route.params ?? {}} onNavigate={navigate} />
+        <Slot />
       </View>
       {/* Floating pill, thumb-reachable above the tab bar (design v2). */}
       {floatingIsland && (

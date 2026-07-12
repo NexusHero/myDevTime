@@ -1,7 +1,7 @@
 import { View } from 'react-native'
 import { formatSigned } from '@mydevtime/design'
 import { Text } from '../components/core/Text'
-import { Badge, Button, Card, ProgressBar, Row, ScreenScaffold } from '../components/index'
+import { Badge, Button, Card, ProgressBar, Row, ScreenListScaffold } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
 import { SubScreenHeader } from './SubScreenHeader'
 import { useCredits } from '../hooks/useCredits'
@@ -38,8 +38,11 @@ export function CreditsScreen({ onBack }: { onBack: () => void }): React.JSX.Ele
     </View>
   )
 
-  return (
-    <ScreenScaffold header={header}>
+  // The balance + usage cards ride above the ledger as the list header; the ledger
+  // itself is the virtualized body (it grows with every AI action, so it is the one
+  // unbounded list on this screen — ADR-0045 §Perf).
+  const listHeader = (
+    <View style={{ gap: t.spacing.s4 }}>
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: t.spacing.s2 }}>
           <Text
@@ -109,40 +112,56 @@ export function CreditsScreen({ onBack }: { onBack: () => void }): React.JSX.Ele
         </Card>
       </View>
 
-      <View>
-        <SectionLabel>Ledger</SectionLabel>
-        <Card>
-          {ledger.length === 0 ? (
-            <Text style={{ color: t.color.ink2 }}>No credit activity yet.</Text>
-          ) : (
-            ledger.map(entry => (
-              <Row
-                key={entry.id}
-                title={entry.reason ?? prettyCategory(entry.category)}
-                subtitle={entry.at.slice(0, 10)}
-                trailing={
-                  <Text
-                    style={{
-                      fontFamily: t.fontFamily.numeric,
-                      fontSize: t.fontSize.sm,
-                      fontWeight: '600',
-                      color: entry.amount < 0 ? t.color.ink2 : t.color.good,
-                    }}
-                  >
-                    {formatSigned(entry.amount)}
-                  </Text>
-                }
-              />
-            ))
-          )}
-        </Card>
-      </View>
+      <SectionLabel>Ledger</SectionLabel>
+    </View>
+  )
 
-      <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, lineHeight: 18 }}>
-        Feature gates read this balance, never a payment SDK (ADR-0008). Credits never expire
-        mid-cycle — unused grant resets on renewal.
-      </Text>
-    </ScreenScaffold>
+  const listFooter = (
+    <Text
+      style={{
+        fontSize: t.fontSize.xs,
+        color: t.color.ink3,
+        lineHeight: 18,
+        marginTop: t.spacing.s4,
+      }}
+    >
+      Feature gates read this balance, never a payment SDK (ADR-0008). Credits never expire
+      mid-cycle — unused grant resets on renewal.
+    </Text>
+  )
+
+  return (
+    <ScreenListScaffold
+      header={header}
+      data={ledger}
+      keyExtractor={entry => entry.id}
+      estimatedItemSize={64}
+      listHeader={listHeader}
+      listFooter={listFooter}
+      listEmpty={
+        <Card>
+          <Text style={{ color: t.color.ink2 }}>No credit activity yet.</Text>
+        </Card>
+      }
+      renderItem={({ item: entry }) => (
+        <Row
+          title={entry.reason ?? prettyCategory(entry.category)}
+          subtitle={entry.at.slice(0, 10)}
+          trailing={
+            <Text
+              style={{
+                fontFamily: t.fontFamily.numeric,
+                fontSize: t.fontSize.sm,
+                fontWeight: '600',
+                color: entry.amount < 0 ? t.color.ink2 : t.color.good,
+              }}
+            >
+              {formatSigned(entry.amount)}
+            </Text>
+          }
+        />
+      )}
+    />
   )
 }
 
