@@ -1,66 +1,38 @@
-<!-- @dsCard group="Components" viewport="700x600" name="Instruments" subtitle="BudgetRing, BoxPlot, LoadMeter, CheckinCard, MoodCheck, Sparkline, Heatmap, StatTile" -->
-<link rel="stylesheet" href="../../styles.css" />
-<script
-  src="https://unpkg.com/react@18.3.1/umd/react.development.js"
-  integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L"
-  crossorigin="anonymous"
-></script>
-<script
-  src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"
-  integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm"
-  crossorigin="anonymous"
-></script>
-<script
-  src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"
-  integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y"
-  crossorigin="anonymous"
-></script>
+<!-- @dsCard group="Components" viewport="700x680" name="Instruments" subtitle="BudgetRing, BoxPlot, LoadMeter, LeaveBalance, CheckinCard, MoodCheck, Sparkline, Heatmap, StatTile" -->
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 <script src="../../_ds_bundle.js"></script>
 <div id="root"></div>
 <script type="text/babel" data-presets="react">
-  const {
-    BudgetRing,
-    OvertimeGauge,
-    WeekSparkline,
-    Heatmap,
-    StatTile,
-    BoxPlot,
-    LoadMeter,
-    CheckinCard,
-    MoodCheck,
-  } = window.MyDevTimeDesignSystem_254296
-  function App() {
-    return (
-      <div
-        style={{
-          padding: 20,
-          background: 'var(--bg)',
-          fontFamily: 'var(--font-ui)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 18,
-        }}
-      >
-        <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
-          <BudgetRing percent={62} color="var(--project-1)" />
-          <BudgetRing percent={91} color="var(--project-2)" />
-          <BoxPlot min={6.2} q1={7.5} median={8.4} q3={9.2} max={10.75} target={8.33} width={260} />
-          <LoadMeter score={64} width={220} />
-        </div>
-        <div style={{ maxWidth: 380 }}>
-          <CheckinCard compact />
-        </div>
-        <MoodCheck />
-        <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-          <WeekSparkline values={[6, 7.5, 8, 5, 7, 2, 0]} color="var(--project-3)" />
-          <Heatmap weeks={10} color="var(--accent)" />
-        </div>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <StatTile label="Billable hours" value="128.5h" delta={12} />
-          <StatTile label="Overdue" value="2" delta={-1} />
-        </div>
+const { BudgetRing, OvertimeGauge, WeekSparkline, Heatmap, StatTile, BoxPlot, LoadMeter, CheckinCard, MoodCheck, LeaveBalance } = window.MyDevTimeDesignSystem_254296;
+function App() {
+  return (
+    <div style={{padding:20,background:'var(--bg)',fontFamily:'var(--font-ui)',display:'flex',flexDirection:'column',gap:18}}>
+      <div style={{display:'flex',gap:24,alignItems:'center'}}>
+        <BudgetRing percent={62} color="var(--project-1)" />
+        <BudgetRing percent={91} color="var(--project-2)" />
+        <BoxPlot min={6.2} q1={7.5} median={8.4} q3={9.2} max={10.75} target={8.33} width={260} />
+        <LoadMeter score={64} width={220} />
       </div>
-    )
-  }
-  ReactDOM.createRoot(document.getElementById('root')).render(<App />)
+      <div style={{maxWidth: 380}}>
+        <LeaveBalance entitlement={30} taken={11} planned={5} carryover={2} />
+      </div>
+      <div style={{maxWidth: 380}}>
+        <CheckinCard compact />
+      </div>
+      <MoodCheck />
+      <div style={{display:'flex',gap:20,alignItems:'center'}}>
+        <WeekSparkline values={[6,7.5,8,5,7,2,0]} color="var(--project-3)" />
+        <Heatmap weeks={10} color="var(--accent)" />
+      </div>
+      <div style={{display:'flex',gap:12}}>
+        <StatTile label="Billable hours" value="128.5h" delta={12} />
+        <StatTile label="Overdue" value="2" delta={-1} />
+      </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>

@@ -6,17 +6,17 @@
    Accent themes still swap independently via data-theme.
    ============================================================ */
 
-[data-mode='dark'] {
-  --bg: var(--canvas-950);
-  --surface: var(--canvas-900);
+[data-mode="dark"] {
+  --bg:             var(--canvas-950);
+  --surface:        var(--canvas-900);
   --surface-raised: var(--canvas-850);
-  --surface-sunk: var(--canvas-800);
-  --overlay: var(--canvas-850);
+  --surface-sunk:   var(--canvas-800);
+  --overlay:        var(--canvas-850);
 
-  --border: rgba(255, 255, 255, 0.09);
+  --border:        rgba(255, 255, 255, 0.09);
   --border-strong: rgba(255, 255, 255, 0.16);
 
-  --ink: #eef1f6;
+  --ink:   #eef1f6;
   --ink-2: #9aa6b4;
   --ink-3: #66707d;
 
@@ -24,33 +24,33 @@
      hexes pre-blended over the dark bg (ADR-0026 §3) — default = Blueprint;
      per-theme overrides at the end of this file. */
   --accent-strong: var(--accent-on-dark);
-  --accent-soft: #1c2a3d;
+  --accent-soft:   #1c2a3d;
   --accent-border: color-mix(in srgb, var(--accent) 42%, transparent);
 
   /* Project palette: the validated dark-mode categorical set — 12 colors
      (ADR-0026 §2), slightly brighter so they hold against near-black. */
-  --project-1: #1fa894;
-  --project-2: #8b7bf5;
-  --project-3: #d8577c;
-  --project-4: #3e97dd;
-  --project-5: #7e9433;
-  --project-6: #d48a39;
-  --project-7: #cfa63a;
-  --project-8: #4aa46f;
-  --project-9: #b568b2;
+  --project-1:  #1fa894;
+  --project-2:  #8b7bf5;
+  --project-3:  #d8577c;
+  --project-4:  #3e97dd;
+  --project-5:  #7e9433;
+  --project-6:  #d48a39;
+  --project-7:  #cfa63a;
+  --project-8:  #4aa46f;
+  --project-9:  #b568b2;
   --project-10: #449fa6;
   --project-11: #88909e;
   --project-12: #cc5e5e;
 
   /* Live/now orange brightens slightly against near-black */
-  --live: #ff6b3d;
+  --live:        #ff6b3d;
   --live-strong: #ff5320;
-  --live-soft: rgba(255, 107, 61, 0.16);
+  --live-soft:   #362120;  /* rgba(255,107,61,.16) pre-blended over #10131a (ADR-0026 §3) */
   --live-border: rgba(255, 107, 61, 0.45);
 
   /* AI signature on dark: brighter ink, gradient unchanged */
-  --ai-ink: #a9a2ff;
-  --ai-soft: rgba(122, 68, 216, 0.14);
+  --ai-ink:  #a9a2ff;
+  --ai-soft: #1f1a35;  /* rgba(122,68,216,.14) pre-blended over #10131a (ADR-0026 §3) */
 
   --good: var(--good-dark);
   --crit: var(--crit-dark);
@@ -66,19 +66,15 @@
 }
 
 /* Per-theme absolute dark soft fills (ADR-0026 §3) */
-[data-theme='sovereign'][data-mode='dark'] {
-  --accent-soft: #242a3f;
-}
-[data-theme='ember'][data-mode='dark'] {
-  --accent-soft: #33201a;
-}
+[data-theme="sovereign"][data-mode="dark"] { --accent-soft: #242a3f; }
+[data-theme="ember"][data-mode="dark"]     { --accent-soft: #33201a; }
 
 /* Blueprint's ink shell is fixed-dark in BOTH modes (myjob has no
    light-shell variant) — only its paper canvas (the tokens above)
    flips. Restate shell-bg after dark-mode so cascade order can't
    accidentally clear it. */
-[data-theme='blueprint'][data-mode='dark'],
-[data-theme='blueprint']:not([data-mode]),
-[data-theme='blueprint'][data-mode='light'] {
+[data-theme="blueprint"][data-mode="dark"],
+[data-theme="blueprint"]:not([data-mode]),
+[data-theme="blueprint"][data-mode="light"] {
   --shell-bg: linear-gradient(165deg, #0f1626 0%, #0b1220 100%);
 }

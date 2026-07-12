@@ -4,10 +4,10 @@
  */
 export interface IconProps {
   /** Glyph name: today | timer | planner | projects | reports | meetings | profile | assistant | settings | play | pause | stop | record | mic | break | plus | check | x | search | export | edit | chevronLeft | chevronRight */
-  name?: string
+  name?: string;
   /** @default 20 */
-  size?: number
+  size?: number;
   /** @default 2 */
-  strokeWidth?: number
-  style?: object
+  strokeWidth?: number;
+  style?: object;
 }

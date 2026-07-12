@@ -1,0 +1,19 @@
+<!-- @dsCard group="Spacing" viewport="700x220" name="Density (regular / compact)" subtitle="data-density=compact → 32px targets, 14px card padding — pro desktop density (ADR-0026)" -->
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; padding: 18px; font-family: var(--font-ui); background: var(--surface); display: flex; gap: 18px; }
+  .col { flex: 1; }
+  .lab { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 8px; }
+  .card { background: var(--surface-raised); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-sm); }
+  .body { padding: var(--pad-card); display: flex; flex-direction: column; gap: var(--gap-list); }
+  .row { height: var(--touch-target); border-radius: var(--radius-block); background: var(--surface-sunk); display: flex; align-items: center; padding: 0 12px; font-size: 13px; color: var(--ink-2); }
+  code { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); }
+</style>
+<div class="col">
+  <div class="lab">Regular · 44px <code>(mobile default)</code></div>
+  <div class="card"><div class="body"><div class="row">Finanzo Review</div><div class="row">Sync engine</div><div class="row">Nordwind Call</div></div></div>
+</div>
+<div class="col" data-density="compact">
+  <div class="lab">Compact · 32px <code>data-density="compact"</code></div>
+  <div class="card"><div class="body"><div class="row">Finanzo Review</div><div class="row">Sync engine</div><div class="row">Nordwind Call</div></div></div>
+</div>

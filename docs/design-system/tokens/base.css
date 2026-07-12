@@ -2,12 +2,9 @@
    BASE — minimal global reset + element defaults.
    Tokens must be imported before this file.
    ============================================================ */
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-html,
-body {
+html, body {
   margin: 0;
   padding: 0;
   background: var(--bg);
@@ -20,11 +17,7 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5 {
+h1, h2, h3, h4, h5 {
   font-family: var(--font-display);
   font-weight: var(--fw-bold);
   letter-spacing: var(--ls-tight);
@@ -35,18 +28,13 @@ h5 {
 a {
   color: var(--accent-strong);
   text-decoration: none;
-  transition:
-    color var(--dur-fast) var(--ease-out),
-    opacity var(--dur-fast) var(--ease-out);
+  transition: color var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
 }
-a:hover {
-  color: var(--accent);
-}
+a:hover { color: var(--accent); }
 
 /* Numbers are the product — every duration/amount/count renders
    tabular mono, in every theme (ux-vision §4). */
-.tabular-nums,
-.num {
+.tabular-nums, .num {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }

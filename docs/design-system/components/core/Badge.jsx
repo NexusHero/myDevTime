@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'react';
 
 export function Badge({ children, tone = 'neutral', size = 'md' }) {
   const tones = {
@@ -7,7 +7,7 @@ export function Badge({ children, tone = 'neutral', size = 'md' }) {
     good: { background: 'var(--good-soft)', color: 'var(--good)' },
     crit: { background: 'var(--crit-soft)', color: 'var(--crit)' },
     warn: { background: 'var(--warn-soft)', color: 'var(--warn)' },
-  }
+  };
   return (
     <span
       style={{
@@ -24,5 +24,5 @@ export function Badge({ children, tone = 'neutral', size = 'md' }) {
     >
       {children}
     </span>
-  )
+  );
 }

@@ -6,7 +6,7 @@
  */
 export interface CheckinCardProps {
   /** Called with { exhaustion: 1–5, detachment: 1–5 } on save. */
-  onDone?: (answers: { exhaustion: number; detachment: number }) => void
+  onDone?: (answers: { exhaustion: number; detachment: number }) => void;
   /** Tighter padding for embedding inside another card. @default false */
-  compact?: boolean
+  compact?: boolean;
 }

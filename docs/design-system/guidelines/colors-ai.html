@@ -1,90 +1,18 @@
 <!-- @dsCard group="Colors" viewport="700x240" name="AI-Signatur" subtitle="Blau→Orange-Verlauf = „von der KI vorgeschlagen" — deterministische UI trägt ihn nie" -->
-<link rel="stylesheet" href="../styles.css" />
+<link rel="stylesheet" href="../styles.css">
 <style>
-  body {
-    margin: 0;
-    padding: 20px;
-    font-family: var(--font-ui);
-    background: var(--surface);
-    display: flex;
-    gap: 20px;
-    align-items: stretch;
-  }
-  .swatch {
-    width: 190px;
-    flex: none;
-    border-radius: var(--radius-card);
-    background: var(--ai-grad);
-    color: #fff;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 6px;
-  }
-  .swatch b {
-    font-family: var(--font-display);
-    font-size: 17px;
-  }
-  .swatch code {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    opacity: 0.9;
-  }
-  .right {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    justify-content: center;
-  }
-  .callout {
-    border-radius: var(--radius-card);
-    padding: 1.5px;
-    background: var(--ai-grad);
-  }
-  .callout .in {
-    border-radius: calc(var(--radius-card) - 1.5px);
-    background: var(--surface);
-    padding: 10px 14px;
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    font-size: 12px;
-    color: var(--ink-2);
-  }
-  .chip {
-    width: 24px;
-    height: 24px;
-    border-radius: 7px;
-    background: var(--ai-grad);
-    color: #fff;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    flex: none;
-  }
-  .note {
-    font-size: 11px;
-    color: var(--ink-3);
-    line-height: 1.5;
-  }
+  body{margin:0;padding:20px;font-family:var(--font-ui);background:var(--surface);display:flex;gap:20px;align-items:stretch;}
+  .swatch{width:190px;flex:none;border-radius:var(--radius-card);background:var(--ai-grad);color:#fff;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;}
+  .swatch b{font-family:var(--font-display);font-size:17px;}
+  .swatch code{font-family:var(--font-mono);font-size:10px;opacity:0.9;}
+  .right{flex:1;display:flex;flex-direction:column;gap:10px;justify-content:center;}
+  .callout{border-radius:var(--radius-card);padding:1.5px;background:var(--ai-grad);}
+  .callout .in{border-radius:calc(var(--radius-card) - 1.5px);background:var(--surface);padding:10px 14px;display:flex;gap:10px;align-items:center;font-size:12px;color:var(--ink-2);}
+  .chip{width:24px;height:24px;border-radius:7px;background:var(--ai-grad);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex:none;}
+  .note{font-size:11px;color:var(--ink-3);line-height:1.5;}
 </style>
 <div class="swatch"><b>✦ --ai-grad</b><code>#3654E0 → #7A44D8 → #FF5320</code></div>
 <div class="right">
-  <div class="callout">
-    <div class="in">
-      <span class="chip">✦</span
-      ><span
-        ><b style="color: var(--ink)">Dein Tag: 3 Meetings, 4,5h Fokus möglich.</b> Nordwind bei 91%
-        Budget — Deep Work priorisiert.</span
-      >
-    </div>
-  </div>
-  <div class="note">
-    Der Verlauf (Plan-Blau → Jetzt-Orange) markiert ausschließlich KI-Output: Co-Planner-Briefings,
-    Replan-Prompts, Auto-Tracker-Insights, Assistant-Antworten. Er ist das visuelle Versprechen „KI
-    schlägt vor, du entscheidest" (ADR-0005) — deterministische UI trägt ihn nie.
-  </div>
+  <div class="callout"><div class="in"><span class="chip">✦</span><span><b style="color:var(--ink)">Dein Tag: 3 Meetings, 4,5h Fokus möglich.</b> Nordwind bei 91% Budget — Deep Work priorisiert.</span></div></div>
+  <div class="note">Der Verlauf (Plan-Blau → Jetzt-Orange) markiert ausschließlich KI-Output: Co-Planner-Briefings, Replan-Prompts, Auto-Tracker-Insights, Assistant-Antworten. Er ist das visuelle Versprechen „KI schlägt vor, du entscheidest" (ADR-0005) — deterministische UI trägt ihn nie.</div>
 </div>

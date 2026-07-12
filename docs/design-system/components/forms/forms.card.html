@@ -1,55 +1,26 @@
 <!-- @dsCard group="Components" viewport="700x260" name="Forms" subtitle="Input, Select, Switch, Checkbox" -->
-<link rel="stylesheet" href="../../styles.css" />
-<script
-  src="https://unpkg.com/react@18.3.1/umd/react.development.js"
-  integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L"
-  crossorigin="anonymous"
-></script>
-<script
-  src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"
-  integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm"
-  crossorigin="anonymous"
-></script>
-<script
-  src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"
-  integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y"
-  crossorigin="anonymous"
-></script>
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 <script src="../../_ds_bundle.js"></script>
 <div id="root"></div>
 <script type="text/babel" data-presets="react">
-  const { Input, Select, Switch, Checkbox } = window.MyDevTimeDesignSystem_254296
-  function App() {
-    const [on, setOn] = React.useState(true)
-    const [chk, setChk] = React.useState(false)
-    return (
-      <div
-        style={{
-          padding: 20,
-          background: 'var(--surface)',
-          fontFamily: 'var(--font-ui)',
-          display: 'flex',
-          gap: 20,
-          flexWrap: 'wrap',
-        }}
-      >
-        <Input label="Project" placeholder="Finanzo Review" />
-        <Input label="Duration" mono placeholder="01:45:00" />
-        <Select
-          label="Client"
-          options={[
-            { value: 'a', label: 'Finanzo AG' },
-            { value: 'b', label: 'Nordwind GmbH' },
-          ]}
-        />
-        <div
-          style={{ display: 'flex', flexDirection: 'column', gap: 10, justifyContent: 'center' }}
-        >
-          <Switch checked={on} onChange={setOn} label="Break reminders" />
-          <Checkbox checked={chk} onChange={setChk} label="Include weekends" />
-        </div>
+const { Input, Select, Switch, Checkbox } = window.MyDevTimeDesignSystem_254296;
+function App() {
+  const [on, setOn] = React.useState(true);
+  const [chk, setChk] = React.useState(false);
+  return (
+    <div style={{padding:20,background:'var(--surface)',fontFamily:'var(--font-ui)',display:'flex',gap:20,flexWrap:'wrap'}}>
+      <Input label="Project" placeholder="Finanzo Review" />
+      <Input label="Duration" mono placeholder="01:45:00" />
+      <Select label="Client" options={[{value:'a',label:'Finanzo AG'},{value:'b',label:'Nordwind GmbH'}]} />
+      <div style={{display:'flex',flexDirection:'column',gap:10,justifyContent:'center'}}>
+        <Switch checked={on} onChange={setOn} label="Break reminders" />
+        <Checkbox checked={chk} onChange={setChk} label="Include weekends" />
       </div>
-    )
-  }
-  ReactDOM.createRoot(document.getElementById('root')).render(<App />)
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
