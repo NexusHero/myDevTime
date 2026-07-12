@@ -1,14 +1,20 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import type { EntityState, SyncValue } from '@mydevtime/domain'
 import { loadConfig } from '../../config.js'
 import { createDb } from '../../db/client.js'
 import { user } from '../../db/auth-schema.js'
-import { workspaces } from '../../db/schema.js'
+import { syncConflicts, workspaces } from '../../db/schema.js'
 import { buildApp } from '../../app.js'
 import { resolveWorkspaceId } from '../../core/workspace.js'
-import { pullChanges, pushChanges, type PushChangeInput } from './service.js'
+import {
+  pullChanges,
+  pushChanges,
+  uploadCrud,
+  type CrudWriteInput,
+  type PushChangeInput,
+} from './service.js'
 
 /**
  * The sync engine against a REAL Postgres (SKILL §3.3). Covers REQ-006's
@@ -174,6 +180,158 @@ describe.skipIf(!databaseUrl)('sync engine (integration)', () => {
     // The server interval is kept (2_500_000), not silently overwritten by 3_000_000.
     const pulled = await pullChanges(db, wsA, 0)
     expect(pulled.changes.find(c => c.state.id === id)?.state.fields.endedAt).toBe(2_500_000)
+  })
+
+  // ── PowerSync CRUD upload path (ADR-0043) ──────────────────────────────────
+  const upload = (ws: string, ...writes: CrudWriteInput[]) => uploadCrud(db, ws, writes)
+  const entryData = (over: Record<string, SyncValue> = {}): Record<string, SyncValue> => ({
+    userId: idA,
+    projectId: null,
+    taskId: null,
+    startedAt: 1_000_000,
+    endedAt: 2_000_000,
+    billable: true,
+    source: 'manual',
+    note: 'x',
+    ...over,
+  })
+
+  it('Upload_Put_InsertsAndIsPulled', async () => {
+    const id = randomUUID()
+    const res = await upload(wsA, {
+      type: 'client',
+      op: 'put',
+      id,
+      data: { name: 'Acme', archived: false },
+      baseVersion: null,
+      updatedAt: 1000,
+      deviceId: 'devA',
+    })
+    expect(res.results[0]?.outcome).toBe('applied')
+    expect(res.results[0]?.version).toBeGreaterThan(0)
+    const pulled = await pullChanges(db, wsA, 0)
+    expect(pulled.changes.find(c => c.state.id === id)?.state.fields.name).toBe('Acme')
+  })
+
+  it('Upload_Patch_MergesChangedFieldOntoCurrent', async () => {
+    const id = randomUUID()
+    const put = await upload(wsA, {
+      type: 'timeEntry',
+      op: 'put',
+      id,
+      data: entryData(),
+      baseVersion: null,
+      updatedAt: 1000,
+      deviceId: 'devA',
+    })
+    const v1 = put.results[0]?.version ?? 0
+    const patched = await upload(wsA, {
+      type: 'timeEntry',
+      op: 'patch',
+      id,
+      data: { note: 'updated' },
+      baseVersion: v1, // no concurrent change → applies
+      updatedAt: 2000,
+      deviceId: 'devA',
+    })
+    expect(patched.results[0]?.outcome).toBe('applied')
+    const st = (await pullChanges(db, wsA, 0)).changes.find(c => c.state.id === id)?.state
+    expect(st?.fields.note).toBe('updated')
+    expect(st?.fields.endedAt).toBe(2_000_000) // the note patch left the interval intact
+  })
+
+  it('Upload_ConflictingInterval_IsSurfaced_ServerRowKept_ConflictRecorded', async () => {
+    const id = randomUUID()
+    const put = await upload(wsA, {
+      type: 'timeEntry',
+      op: 'put',
+      id,
+      data: entryData(),
+      baseVersion: null,
+      updatedAt: 1000,
+      deviceId: 'devA',
+    })
+    const v1 = put.results[0]?.version ?? 0
+    // The server moves the end first (from v1).
+    await upload(wsA, {
+      type: 'timeEntry',
+      op: 'patch',
+      id,
+      data: { endedAt: 2_500_000 },
+      baseVersion: v1,
+      updatedAt: 2000,
+      deviceId: 'devA',
+    })
+    // A stale client, still based on v1, moves the end differently → surfaced.
+    const res = await upload(wsA, {
+      type: 'timeEntry',
+      op: 'patch',
+      id,
+      data: { endedAt: 3_000_000 },
+      baseVersion: v1,
+      updatedAt: 3000,
+      deviceId: 'devB',
+    })
+    expect(res.results[0]?.outcome).toBe('surfaced')
+    expect(res.results[0]?.fields).toContain('endedAt')
+    const st = (await pullChanges(db, wsA, 0)).changes.find(c => c.state.id === id)?.state
+    expect(st?.fields.endedAt).toBe(2_500_000) // server interval kept, not overwritten by 3_000_000
+    const conflicts = await db
+      .select()
+      .from(syncConflicts)
+      .where(and(eq(syncConflicts.workspaceId, wsA), eq(syncConflicts.entityId, id)))
+    expect(conflicts.length).toBeGreaterThan(0)
+  })
+
+  it('Upload_Delete_Tombstones_ThenIsIdempotentNoop', async () => {
+    const id = randomUUID()
+    const put = await upload(wsA, {
+      type: 'client',
+      op: 'put',
+      id,
+      data: { name: 'Doomed', archived: false },
+      baseVersion: null,
+      updatedAt: 1000,
+      deviceId: 'devA',
+    })
+    const v1 = put.results[0]?.version ?? 0
+    const del = await upload(wsA, {
+      type: 'client',
+      op: 'delete',
+      id,
+      data: {},
+      baseVersion: v1,
+      updatedAt: 5000,
+      deviceId: 'devA',
+    })
+    expect(del.results[0]?.outcome).toBe('applied')
+    const again = await upload(wsA, {
+      type: 'client',
+      op: 'delete',
+      id,
+      data: {},
+      baseVersion: v1,
+      updatedAt: 6000,
+      deviceId: 'devA',
+    })
+    expect(again.results[0]?.outcome).toBe('noop')
+    const st = (await pullChanges(db, wsA, 0)).changes.find(c => c.state.id === id)?.state
+    expect(st?.deletedAt).not.toBeNull()
+  })
+
+  it('Upload_IsWorkspaceIsolated', async () => {
+    const id = randomUUID()
+    await upload(wsA, {
+      type: 'client',
+      op: 'put',
+      id,
+      data: { name: 'Secret', archived: false },
+      baseVersion: null,
+      updatedAt: 1000,
+      deviceId: 'devA',
+    })
+    const b = await pullChanges(db, wsB, 0)
+    expect(b.changes.some(c => c.state.id === id)).toBe(false)
   })
 
   it('Pull_Unauthenticated_Returns401', async () => {

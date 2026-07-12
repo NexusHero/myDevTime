@@ -39,6 +39,34 @@ export const pushResponse = z.object({
   ),
 })
 export const pullQuery = z.object({ since: z.coerce.number().int().nonnegative().default(0) })
+
+// PowerSync CRUD upload (ADR-0043): the client connector uploads its intercepted
+// write queue here; the deterministic `resolveCrudWrite` decides apply/surface/noop.
+const crudOp = z.enum(['put', 'patch', 'delete'])
+export const uploadBody = z.object({
+  writes: z.array(
+    z.object({
+      type: entityType,
+      op: crudOp,
+      id: z.string().min(1),
+      data: z.record(z.string(), syncValue).default({}),
+      baseVersion: z.number().int().nonnegative().nullable().default(null),
+      updatedAt: z.number(),
+      deviceId: z.string(),
+    }),
+  ),
+})
+export const uploadResponse = z.object({
+  results: z.array(
+    z.object({
+      id: z.string(),
+      type: entityType,
+      outcome: z.enum(['applied', 'surfaced', 'noop']),
+      version: z.number(),
+      fields: z.array(z.string()).optional(),
+    }),
+  ),
+})
 export const pullResponse = z.object({
   changes: z.array(z.object({ version: z.number(), state: entityState })),
   watermark: z.number(),
@@ -46,6 +74,8 @@ export const pullResponse = z.object({
 
 export class PushBodyDto extends createZodDto(pushBody) {}
 export class PullQueryDto extends createZodDto(pullQuery) {}
+export class UploadBodyDto extends createZodDto(uploadBody) {}
 
 export type PushResponse = z.infer<typeof pushResponse>
 export type PullResponse = z.infer<typeof pullResponse>
+export type UploadResponse = z.infer<typeof uploadResponse>
