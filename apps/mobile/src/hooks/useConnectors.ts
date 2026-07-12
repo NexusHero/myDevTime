@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiBaseUrl } from '../config.js'
 import {
   disconnectConnector,
@@ -12,7 +13,10 @@ import {
  * The connectors data source (M3, ADR-0032/0033). With a backend it loads each
  * connector's real state and persists consent/disconnect; offline it shows the
  * known providers honestly as **not configured / not connected** (never a fake
- * "Verbunden"). `live` lets the UI flag that state is real.
+ * "Verbunden"). `live` lets the UI flag that state is real. Backed by TanStack
+ * Query (ADR-0047): `useQuery` for the load, `useMutation` for consent/disconnect,
+ * both writing the returned list straight into the query cache — no hand-rolled
+ * `useEffect`/liveness bookkeeping.
  */
 const DEMO_CONNECTORS: readonly ConnectorStatus[] = [
   {
@@ -69,55 +73,49 @@ export interface ConnectorsResource {
 export function useConnectors(): ConnectorsResource {
   const base = apiBaseUrl
   const live = base !== null
-  const [connectors, setConnectors] = useState<readonly ConnectorStatus[]>(DEMO_CONNECTORS)
-  const [loading, setLoading] = useState(live)
-  const [error, setError] = useState<Error | null>(null)
+  const queryClient = useQueryClient()
+  const key = ['connectors', base ?? 'demo']
 
-  useEffect(() => {
-    if (base === null) return
-    let alive = true
-    setLoading(true)
-    getConnectors(base)
-      .then(list => {
-        if (alive) {
-          setConnectors(list)
-          setError(null)
-        }
-      })
-      .catch((cause: unknown) => {
-        if (alive) setError(cause instanceof Error ? cause : new Error(String(cause)))
-      })
-      .finally(() => {
-        if (alive) setLoading(false)
-      })
-    return () => {
-      alive = false
-    }
-  }, [base])
+  const query = useQuery<readonly ConnectorStatus[]>({
+    queryKey: key,
+    queryFn: () => (base === null ? Promise.resolve(DEMO_CONNECTORS) : getConnectors(base)),
+  })
+
+  const consentMutation = useMutation({
+    mutationFn: (v: { base: string; id: string; capability: Capability; granted: boolean }) =>
+      setConsent(v.base, v.id, v.capability, v.granted),
+    onSuccess: list => queryClient.setQueryData(key, list),
+  })
+
+  const disconnectMutation = useMutation({
+    mutationFn: (v: { base: string; id: string }) => disconnectConnector(v.base, v.id),
+    onSuccess: list => queryClient.setQueryData(key, list),
+  })
 
   const doConsent = useCallback(
     (id: string, capability: Capability, granted: boolean) => {
       if (base === null) return // offline: consent needs the vault backend
-      setConsent(base, id, capability, granted)
-        .then(setConnectors)
-        .catch((cause: unknown) => {
-          setError(cause instanceof Error ? cause : new Error(String(cause)))
-        })
+      consentMutation.mutate({ base, id, capability, granted })
     },
-    [base],
+    [base, consentMutation],
   )
 
   const doDisconnect = useCallback(
     (id: string) => {
       if (base === null) return
-      disconnectConnector(base, id)
-        .then(setConnectors)
-        .catch((cause: unknown) => {
-          setError(cause instanceof Error ? cause : new Error(String(cause)))
-        })
+      disconnectMutation.mutate({ base, id })
     },
-    [base],
+    [base, disconnectMutation],
   )
 
-  return { connectors, live, loading, error, setConsent: doConsent, disconnect: doDisconnect }
+  return {
+    connectors: query.data ?? DEMO_CONNECTORS,
+    live,
+    // Demo data resolves synchronously — only a live backend has a real load.
+    loading: live && query.isPending,
+    // TanStack Query v5 types errors as `Error`, so coalesce the three sources.
+    error: query.error ?? consentMutation.error ?? disconnectMutation.error,
+    setConsent: doConsent,
+    disconnect: doDisconnect,
+  }
 }

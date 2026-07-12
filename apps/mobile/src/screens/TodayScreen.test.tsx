@@ -6,15 +6,19 @@ import { ScrollView } from 'react-native'
 import { TodayScreen } from './TodayScreen.js'
 import { ThemeProvider } from '../theme/ThemeProvider.js'
 import { TimerProvider } from '../timer/TimerContext.js'
+import { TestQueryProvider } from '../test/TestQueryProvider.js'
 
 function render(): TestRenderer.ReactTestRenderer {
-  // Today reads the shared timer via context, so it must render inside a provider.
+  // Today reads the shared timer via context and its NL quick-add loads the
+  // catalog through TanStack Query, so it renders inside both providers.
   return TestRenderer.create(
-    <ThemeProvider>
-      <TimerProvider>
-        <TodayScreen />
-      </TimerProvider>
-    </ThemeProvider>,
+    <TestQueryProvider>
+      <ThemeProvider>
+        <TimerProvider>
+          <TodayScreen />
+        </TimerProvider>
+      </ThemeProvider>
+    </TestQueryProvider>,
   )
 }
 

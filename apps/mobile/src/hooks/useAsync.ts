@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 
 /**
- * A minimal async-resource hook (issue #11): run `fn` on mount (and when `key`
- * changes or `reload` is called), tracking loading / error / data so screens can
- * render the three states without a data-fetching library. A liveness flag drops
- * results from a superseded run, so a fast re-key can't clobber the latest data.
+ * The async-resource hook — now a thin adapter over **TanStack Query** (ADR-0047).
+ * The signature and `{ loading, error, data, reload }` shape are unchanged, so
+ * every caller is untouched, but the engine underneath is React Query: sibling
+ * screens sharing a `key` dedupe one request, results are cached, transient
+ * failures retry, and there is no hand-rolled `useEffect`/liveness bookkeeping.
+ * `key` is the query key; `fn` is the query function.
  */
 export interface AsyncState<T> {
   readonly loading: boolean
@@ -17,35 +19,19 @@ export interface AsyncResource<T> extends AsyncState<T> {
 }
 
 export function useAsync<T>(fn: () => Promise<T>, key: string): AsyncResource<T> {
-  const [state, setState] = useState<AsyncState<T>>({ loading: true, error: null, data: null })
-  const [nonce, setNonce] = useState(0)
-
-  useEffect(() => {
-    let alive = true
-    setState(prev => ({ loading: true, error: null, data: prev.data }))
-    fn()
-      .then(data => {
-        if (alive) setState({ loading: false, error: null, data })
-      })
-      .catch((cause: unknown) => {
-        if (alive) {
-          setState({
-            loading: false,
-            error: cause instanceof Error ? cause : new Error(String(cause)),
-            data: null,
-          })
-        }
-      })
-    return () => {
-      alive = false
-    }
-    // `fn` is re-created each render; `key` + `nonce` are the real inputs.
-  }, [key, nonce])
-
+  const query = useQuery<T>({ queryKey: [key], queryFn: fn })
+  const error =
+    query.error == null
+      ? null
+      : query.error instanceof Error
+        ? query.error
+        : new Error(String(query.error))
   return {
-    ...state,
+    loading: query.isPending,
+    error,
+    data: query.data ?? null,
     reload: () => {
-      setNonce(n => n + 1)
+      void query.refetch()
     },
   }
 }
