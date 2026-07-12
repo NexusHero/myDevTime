@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'react';
 
 export function Switch({ checked, onChange, label }) {
   return (
@@ -31,5 +31,5 @@ export function Switch({ checked, onChange, label }) {
       </span>
       {label && <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--ink)' }}>{label}</span>}
     </label>
-  )
+  );
 }

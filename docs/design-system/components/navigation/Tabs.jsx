@@ -1,9 +1,9 @@
-import React from 'react'
+import React from 'react';
 
 export function Tabs({ items, active, onChange }) {
   return (
     <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border)' }}>
-      {items.map(it => (
+      {items.map((it) => (
         <button
           key={it.value}
           onClick={() => onChange && onChange(it.value)}
@@ -23,5 +23,5 @@ export function Tabs({ items, active, onChange }) {
         </button>
       ))}
     </div>
-  )
+  );
 }

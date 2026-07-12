@@ -13,6 +13,12 @@ apps/api/src/db/migrations/
 docs/design/user-tests/**/results.json
 docs/design/user-tests/**/render.html
 
+# Imported design-system reference (docs/design-system/): the authored output of
+# the design tool (component .jsx/.d.ts, guideline/ui-kit .html, token .css). It
+# is documentation kept verbatim as delivered, not repo source — reformatting it
+# would fight re-imports and obscure what the design owner actually shipped.
+docs/design-system/
+
 # Markdown is hand-authored prose with carefully aligned tables (arc42 docs,
 # ADRs, roadmap). Prettier pads table cells to equal width, which bloats the
 # source and fights hand-editing. Docs integrity is enforced instead by the

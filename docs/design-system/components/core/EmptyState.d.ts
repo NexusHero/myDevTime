@@ -4,13 +4,13 @@
  */
 export interface EmptyStateProps {
   /** Icon name from the brand set. @default "plus" */
-  icon?: string
+  icon?: string;
   /** One sentence: what's empty. */
-  title: string
+  title: string;
   /** One sentence: the next step. */
-  hint?: string
+  hint?: string;
   /** Optional action element (usually a Button). */
-  action?: React.ReactNode
+  action?: React.ReactNode;
   /** Tighter padding for sidebars/cards. @default false */
-  compact?: boolean
+  compact?: boolean;
 }

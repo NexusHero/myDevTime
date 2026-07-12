@@ -1,13 +1,9 @@
-import React from 'react'
+import React from 'react';
 
 export function Select({ label, value, onChange, options = [] }) {
   return (
     <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      {label && (
-        <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--ink-2)' }}>
-          {label}
-        </span>
-      )}
+      {label && <span style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--ink-2)' }}>{label}</span>}
       <select
         value={value}
         onChange={onChange}
@@ -23,12 +19,10 @@ export function Select({ label, value, onChange, options = [] }) {
           outline: 'none',
         }}
       >
-        {options.map(o => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
         ))}
       </select>
     </label>
-  )
+  );
 }

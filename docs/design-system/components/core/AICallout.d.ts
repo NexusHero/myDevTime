@@ -5,11 +5,11 @@
  */
 export interface AICalloutProps {
   /** Optional bold first line. */
-  title?: string
+  title?: string;
   /** Body content (text or elements). */
-  children?: React.ReactNode
+  children?: React.ReactNode;
   /** Optional action element(s), right-aligned (usually Buttons). */
-  action?: React.ReactNode
+  action?: React.ReactNode;
   /** Tighter padding for inside cards. @default false */
-  compact?: boolean
+  compact?: boolean;
 }

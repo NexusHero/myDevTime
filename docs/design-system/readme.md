@@ -222,14 +222,23 @@ themes; Space Grotesk + Inter serve the Blueprint theme's myJob-1:1 fidelity.
 - Each component: `<Name>.jsx` + `<Name>.d.ts` + `<Name>.prompt.md`; one `*.card.html`
   thumbnail per directory.
 
-**UI kit** (`ui_kits/devtime/`) — **myDevTime Workspace**. Six desktop screens (Today/Day
-Canvas + hero tracker + Auto-Tracker + idle hint + focus streak, Planner week-Gantt, Projects
+**UI kit** (`ui_kits/devtime/`) — **myDevTime Workspace**. Seven desktop screens (Today/Day
+Canvas + hero tracker + Auto-Tracker + idle hint + focus streak, Planner week-Gantt **with the
+Task-Inbox rail — where imported tickets from ALL connectors land (Jira, Linear, GitHub —
+managed in Profile → Integrations)**: built for volume (search, tag + source
+filters, project groups, own scroll pane, per-row source badge); "Planen" drops a ticket as a ghost into the next
+free slot, closing the loop Jira → ghost → tracked → time back on the ticket, Absence
+— Urlaubskonto/LeaveBalance, Krank, Gleitzeit-AZK, Jahresübersicht with BW public holidays,
+Antrag flow, AI Brückentag proposal —, Projects
 with budget rings, Reports instruments, Meetings with transcripts + AI insights + Jira/Linear/
 Slack export, Profile/Settings) behind one `AppShell`, with a live theme + light/dark switcher
 so all six palette combinations compare in place. The Island appears bottom-center on every
 screen except Today (there the hero tracker carries the live state — never two clocks at once).
 Plus `mobile.html` — the phone posture (5 bottom tabs, NL Quick-Add, floating Island), same IA
-per ux-vision §3; tablet/desktop use the sidebar posture shown in `index.html`.
+per ux-vision §3; tablet/desktop use the sidebar posture shown in `index.html`. And
+`onboarding.html` — the first-run flow (logo sting → Sollzeit stepper → first project / import
+from Toggl/Clockify/CSV → Auto-Tracker opt-in with privacy statements → done). One decision per
+step, every data-touching step skippable, bounded layout.
 
 **Other** — `SKILL.md` (Agent-Skills wrapper), this `readme.md`.
 
