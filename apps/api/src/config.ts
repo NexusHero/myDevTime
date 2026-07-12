@@ -45,6 +45,11 @@ const envSchema = z
     STRIPE_WEBHOOK_SECRET: z.string().optional(),
     // The Stripe Price id for the Pro subscription (test/live), used by Checkout.
     STRIPE_PRICE_PRO: z.string().optional(),
+    // PowerSync client auth (ADR-0043): the private signing key (a JWK JSON string)
+    // for the device tokens, and the token issuer. Unset → the token/JWKS endpoints
+    // are off (standalone/offline needs neither). Never commit a real key.
+    POWERSYNC_JWT_PRIVATE_JWK: z.string().optional(),
+    POWERSYNC_JWT_ISSUER: z.string().optional(),
   })
   .superRefine((cfg, ctx) => {
     if (cfg.NODE_ENV === 'production' && !cfg.AUTH_SECRET) {

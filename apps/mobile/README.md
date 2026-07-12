@@ -17,6 +17,29 @@ pnpm start            # builds the workspace packages first, then Metro (i / a /
 Verified to bundle: `npx expo export --platform web` produces a runnable web bundle
 (Metro resolves the app, the component library, and `@mydevtime/design` cleanly).
 
+## Run on Windows / Mac (web / PWA)
+
+The client is offline-first (local SQLite; no server needed for standalone use), so the web build
+is a real way to run myDevTime on a **Windows or Mac desktop** — no App Store, no Xcode, no
+Android Studio. Two ways:
+
+```bash
+cd apps/mobile
+pnpm run web          # dev server; open the printed http://localhost URL in any browser
+# — or produce a static build you can serve/host anywhere —
+pnpm run export:web   # writes a static SPA to apps/mobile/dist/
+```
+
+`export:web` emits a self-contained static site under `dist/`. Serve it with any static server
+(e.g. `npx serve apps/mobile/dist`) and open it in Edge, Chrome, Safari, or Firefox.
+
+**Installable, offline-capable (PWA):** the build ships a web app manifest
+(`public/manifest.webmanifest`) and an offline app-shell service worker (`public/sw.js`), both
+registered at startup by `src/web/registerPwa.ts` (a no-op on native). Once the page has been
+opened over `https://` (or `localhost`), the browser offers **"Install"** — the app then launches
+in its own window and its shell keeps working without a network. Everything under `public/` is
+copied verbatim into `dist/` by `expo export`.
+
 ## What's wired
 
 - **`ThemeProvider`** (`src/theme/`) — resolves the effective theme from the OS color scheme +

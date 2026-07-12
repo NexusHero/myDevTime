@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { exportJWK, generateKeyPair } from 'jose'
 import { and, eq } from 'drizzle-orm'
 import type { EntityState, SyncValue } from '@mydevtime/domain'
 import { loadConfig } from '../../config.js'
@@ -340,6 +341,55 @@ describe.skipIf(!databaseUrl)('sync engine (integration)', () => {
       db: handle,
     })
     const res = await app.inject({ method: 'GET', url: '/api/sync/pull' })
+    expect(res.statusCode).toBe(401)
+    await app.close()
+  })
+
+  // ── PowerSync auth (ADR-0043) ──────────────────────────────────────────────
+  async function privateJwkJson(): Promise<string> {
+    const { privateKey } = await generateKeyPair('RS256', { extractable: true })
+    return JSON.stringify({ ...(await exportJWK(privateKey)), alg: 'RS256' })
+  }
+
+  it('PowerSyncKeys_ArePublished_WhenConfigured', async () => {
+    const app = await buildApp({
+      config: loadConfig({
+        LOG_LEVEL: 'silent',
+        AUTH_SECRET: 'x'.repeat(32),
+        POWERSYNC_JWT_PRIVATE_JWK: await privateJwkJson(),
+      }),
+      db: handle,
+    })
+    const res = await app.inject({ method: 'GET', url: '/api/sync/keys' })
+    expect(res.statusCode).toBe(200)
+    const body = res.json<{ keys: { kid?: string; d?: string; use?: string }[] }>()
+    expect(body.keys).toHaveLength(1)
+    expect(body.keys[0]?.kid).toBeTruthy()
+    expect(body.keys[0]?.use).toBe('sig')
+    expect(body.keys[0]?.d).toBeUndefined() // public key only — no private member
+    await app.close()
+  })
+
+  it('PowerSyncKeys_Return404_WhenUnconfigured', async () => {
+    const app = await buildApp({
+      config: loadConfig({ LOG_LEVEL: 'silent', AUTH_SECRET: 'x'.repeat(32) }),
+      db: handle,
+    })
+    const res = await app.inject({ method: 'GET', url: '/api/sync/keys' })
+    expect(res.statusCode).toBe(404)
+    await app.close()
+  })
+
+  it('PowerSyncToken_Unauthenticated_Returns401', async () => {
+    const app = await buildApp({
+      config: loadConfig({
+        LOG_LEVEL: 'silent',
+        AUTH_SECRET: 'x'.repeat(32),
+        POWERSYNC_JWT_PRIVATE_JWK: await privateJwkJson(),
+      }),
+      db: handle,
+    })
+    const res = await app.inject({ method: 'GET', url: '/api/sync/token' })
     expect(res.statusCode).toBe(401)
     await app.close()
   })
