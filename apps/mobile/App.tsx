@@ -4,6 +4,7 @@ import { useFonts } from 'expo-font'
 import { ThemeProvider } from './src/theme/ThemeProvider'
 import { AppShell } from './src/shell/AppShell'
 import { AuthGate } from './src/shell/AuthGate'
+import { TimerProvider } from './src/timer/TimerContext'
 
 /**
  * App root (issue #11): loads the Blueprint font trio (Inter · Space Grotesk ·
@@ -36,7 +37,9 @@ export default function App(): React.JSX.Element | null {
       <ThemeProvider>
         <StatusBar style="auto" />
         <AuthGate>
-          <AppShell />
+          <TimerProvider>
+            <AppShell />
+          </TimerProvider>
         </AuthGate>
       </ThemeProvider>
     </SafeAreaProvider>
