@@ -20,25 +20,32 @@ function rowToCreditEntry(row: Record<string, unknown>): LocalCreditEntry {
   }
 }
 
-export async function listCreditEntries(db: LocalDb, limit: number = 50): Promise<LocalCreditEntry[]> {
+export async function listCreditEntries(
+  db: LocalDb,
+  limit: number = 50,
+): Promise<LocalCreditEntry[]> {
   const rows = await db.getAllAsync<Record<string, unknown>>(
     'SELECT * FROM credit_entries ORDER BY at DESC LIMIT ?',
-    [limit]
+    [limit],
   )
   return rows.map(rowToCreditEntry)
 }
 
 export async function getCreditBalance(db: LocalDb): Promise<number> {
   const row = await db.getFirstAsync<{ balance: number }>(
-    'SELECT SUM(amount) as balance FROM credit_entries'
+    'SELECT SUM(amount) as balance FROM credit_entries',
   )
   return row?.balance ?? 0
 }
 
-export async function getCreditUsage(db: LocalDb, from: string, to: string): Promise<{ category: string, credits: number }[]> {
-  const rows = await db.getAllAsync<{ category: string, credits: number }>(
+export async function getCreditUsage(
+  db: LocalDb,
+  from: string,
+  to: string,
+): Promise<{ category: string; credits: number }[]> {
+  const rows = await db.getAllAsync<{ category: string; credits: number }>(
     'SELECT category, SUM(ABS(amount)) as credits FROM credit_entries WHERE amount < 0 AND at >= ? AND at < ? GROUP BY category',
-    [from, to]
+    [from, to],
   )
   return rows
 }

@@ -10,7 +10,10 @@ export interface LocalAbsence {
 }
 
 function uuid(): string {
-  return (globalThis as any).crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return (
+    (globalThis as any).crypto?.randomUUID?.() ??
+    `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  )
 }
 
 function rowToAbsence(row: Record<string, unknown>): LocalAbsence {

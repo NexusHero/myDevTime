@@ -43,7 +43,6 @@ function totals(ledger: readonly CreditEntry[]): {
   return { balance: granted - spent, granted, spent }
 }
 
-
 /** The trailing 30-day usage window ending at the next UTC midnight. */
 function cycleWindow(): { from: string; to: string } {
   const to = new Date()
@@ -60,7 +59,7 @@ export function useCredits(): CreditsResource {
   const resource = useAsync<CreditsData>(
     async () => {
       const range = cycleWindow()
-      
+
       if (base !== null) {
         const [balance, ledger, usage] = await Promise.all([
           fetchBalance(base),
@@ -70,19 +69,19 @@ export function useCredits(): CreditsResource {
         const { granted, spent } = totals(ledger)
         return { balance, grantedTotal: granted, spentTotal: spent, ledger, usage }
       }
-      
+
       const [localBalance, localLedger, localUsage] = await Promise.all([
         getCreditBalance(db),
         listCreditEntries(db, 50),
         getCreditUsage(db, range.from, range.to),
       ])
       const { granted, spent } = totals(localLedger)
-      return { 
-        balance: localBalance, 
-        grantedTotal: granted, 
-        spentTotal: spent, 
-        ledger: localLedger as CreditEntry[], 
-        usage: localUsage 
+      return {
+        balance: localBalance,
+        grantedTotal: granted,
+        spentTotal: spent,
+        ledger: localLedger as CreditEntry[],
+        usage: localUsage,
       }
     },
     `${base ?? 'local-db'}:credits`,

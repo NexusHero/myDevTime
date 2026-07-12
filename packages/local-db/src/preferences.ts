@@ -1,8 +1,8 @@
 import type { LocalDb } from './client.js'
 
 export async function getPreferences(db: LocalDb): Promise<Record<string, string>> {
-  const rows = await db.getAllAsync<{ key: string, value: string }>(
-    'SELECT key, value FROM preferences'
+  const rows = await db.getAllAsync<{ key: string; value: string }>(
+    'SELECT key, value FROM preferences',
   )
   const prefs: Record<string, string> = {}
   for (const row of rows) {
@@ -11,7 +11,10 @@ export async function getPreferences(db: LocalDb): Promise<Record<string, string
   return prefs
 }
 
-export async function updatePreferences(db: LocalDb, updates: Record<string, string>): Promise<void> {
+export async function updatePreferences(
+  db: LocalDb,
+  updates: Record<string, string>,
+): Promise<void> {
   const entries = Object.entries(updates)
   if (entries.length === 0) return
 
@@ -21,7 +24,7 @@ export async function updatePreferences(db: LocalDb, updates: Record<string, str
     for (const [key, value] of entries) {
       await db.runAsync(
         'INSERT INTO preferences (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
-        [key, value]
+        [key, value],
       )
     }
     await db.execAsync('COMMIT')

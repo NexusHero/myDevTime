@@ -48,7 +48,10 @@ export async function getPlanByDate(db: LocalDb, dateIso: string): Promise<Local
   return row ? rowToPlan(row) : null
 }
 
-export async function upsertPlan(db: LocalDb, plan: Omit<LocalDayPlan, 'version'>): Promise<LocalDayPlan> {
+export async function upsertPlan(
+  db: LocalDb,
+  plan: Omit<LocalDayPlan, 'version'>,
+): Promise<LocalDayPlan> {
   const existing = await getPlanByDate(db, plan.date)
   const version = existing ? existing.version + 1 : 1
   const id = existing ? existing.id : plan.id
@@ -80,8 +83,5 @@ export async function upsertPlan(db: LocalDb, plan: Omit<LocalDayPlan, 'version'
 }
 
 export async function setPlanStatus(db: LocalDb, id: string, status: string): Promise<void> {
-  await db.runAsync(
-    "UPDATE plans SET status = ?, version = version + 1 WHERE id = ?",
-    [status, id]
-  )
+  await db.runAsync('UPDATE plans SET status = ?, version = version + 1 WHERE id = ?', [status, id])
 }

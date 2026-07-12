@@ -8,7 +8,10 @@ import {
   type Preferences,
 } from '../api/preferences.js'
 import { useLocalDb } from '../localDb/LocalDbProvider.js'
-import { getPreferences as localGetPreferences, updatePreferences as localUpdatePreferences } from '@mydevtime/local-db'
+import {
+  getPreferences as localGetPreferences,
+  updatePreferences as localUpdatePreferences,
+} from '@mydevtime/local-db'
 
 /**
  * The Settings toggles source (M10): when an API base URL is configured the hook
@@ -36,10 +39,14 @@ export function usePreferences(): PreferencesResource {
   useEffect(() => {
     let alive = true
     setLoading(true)
-    const promise = base === null 
-      ? localGetPreferences(db).then(prefs => ({ ...DEFAULT_PREFERENCES, ...(prefs as Partial<Preferences>) }))
-      : apiGetPreferences(base)
-      
+    const promise =
+      base === null
+        ? localGetPreferences(db).then(prefs => ({
+            ...DEFAULT_PREFERENCES,
+            ...(prefs as Partial<Preferences>),
+          }))
+        : apiGetPreferences(base)
+
     promise
       .then(p => {
         if (alive) {
@@ -62,20 +69,21 @@ export function usePreferences(): PreferencesResource {
     (key: PreferenceKey, value: boolean) => {
       setPrefs(previous => {
         const optimistic = { ...previous, [key]: value }
-        
-        const promise = base === null 
-          ? localUpdatePreferences(db, { [key]: String(value) }).then(() => optimistic)
-          : apiUpdatePreferences(base, { [key]: value })
-          
+
+        const promise =
+          base === null
+            ? localUpdatePreferences(db, { [key]: String(value) }).then(() => optimistic)
+            : apiUpdatePreferences(base, { [key]: value })
+
         promise
           .then(saved => {
-              setPrefs(saved)
-              setError(null)
-            })
-            .catch((cause: unknown) => {
-              setPrefs(previous) // roll back the toggle
-              setError(cause instanceof Error ? cause : new Error(String(cause)))
-            })
+            setPrefs(saved)
+            setError(null)
+          })
+          .catch((cause: unknown) => {
+            setPrefs(previous) // roll back the toggle
+            setError(cause instanceof Error ? cause : new Error(String(cause)))
+          })
         return optimistic
       })
     },

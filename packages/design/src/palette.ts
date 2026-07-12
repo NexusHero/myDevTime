@@ -24,7 +24,12 @@
 export type AccentTheme = 'sovereign' | 'ember' | 'blueprint' | 'outrageous'
 
 /** All accent themes, in historical order; the default is `DEFAULT_ACCENT`. */
-export const ACCENT_THEMES: readonly AccentTheme[] = ['sovereign', 'ember', 'blueprint', 'outrageous']
+export const ACCENT_THEMES: readonly AccentTheme[] = [
+  'sovereign',
+  'ember',
+  'blueprint',
+  'outrageous',
+]
 
 /** The default accent — Blueprint / "Königsblau" (ADR-0023, superseding ADR-0022). */
 export const DEFAULT_ACCENT: AccentTheme = 'blueprint'

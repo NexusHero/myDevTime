@@ -15,7 +15,12 @@ import { fetchWorktimeSummary } from '../api/worktime.js'
 import { fetchCatalog } from '../api/tracking.js'
 import { useAsync, type AsyncResource } from './useAsync.js'
 import { useLocalDb } from '../localDb/LocalDbProvider.js'
-import { getSummary, getProjectSummary, getWorktimeBalance, listProjects } from '@mydevtime/local-db'
+import {
+  getSummary,
+  getProjectSummary,
+  getWorktimeBalance,
+  listProjects,
+} from '@mydevtime/local-db'
 
 /**
  * The Reports data source (REQ-005/028): when an API base URL is configured the
@@ -40,8 +45,6 @@ export interface ReportsData {
 export interface ReportsResource extends AsyncResource<ReportsData> {
   readonly live: boolean
 }
-
-
 
 /** The trailing 7-day window ending at the next UTC midnight (the summary range). */
 function trailingWeek(): { from: string; to: string; tz: string } {
@@ -80,22 +83,22 @@ export function useReports(): ReportsResource {
           overtimeMs: overtime.balanceMs,
         }
       }
-      
+
       const [localSummary, localProjectSummary, localOvertime, localProjects] = await Promise.all([
         getSummary(db, range.from, range.to),
         getProjectSummary(db, range.from, range.to),
         getWorktimeBalance(db, range.from, range.to),
-        listProjects(db)
+        listProjects(db),
       ])
-      
+
       const nameById = new Map<string, string>()
       for (const p of localProjects) {
         nameById.set(p.id, p.name)
       }
-      
+
       return {
         totalMs: localSummary.totalMs,
-        billableMinor: Math.round(localSummary.billableMs / 3600000 * 10000), // Approx hourly rate 100 EUR
+        billableMinor: Math.round((localSummary.billableMs / 3600000) * 10000), // Approx hourly rate 100 EUR
         currencyCode: 'EUR',
         byProject: localProjectSummary.map(ps => ({
           id: ps.projectId,

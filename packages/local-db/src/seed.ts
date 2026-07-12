@@ -69,20 +69,45 @@ export async function seedLocalDb(db: LocalDb): Promise<void> {
     notify_breaks: true,
   }
   for (const [key, value] of Object.entries(defaultPrefs)) {
-    await db.runAsync(
-      'INSERT INTO preferences (key, value) VALUES (?, ?)',
-      [key, String(value)],
-    )
+    await db.runAsync('INSERT INTO preferences (key, value) VALUES (?, ?)', [key, String(value)])
   }
 
   // 3. Seed Credit Entries
   const at = (d: number): string => `2026-07-${String(d).padStart(2, '0')}T09:00:00.000Z`
   const credits = [
-    { id: 'l1', kind: 'grant', amount: 500, category: 'monthly-grant', reason: 'Monthly Pro grant', at: at(1) },
-    { id: 'l2', kind: 'debit', amount: -8, category: 'meeting-insights', reason: 'Finanzo review', at: at(7) },
+    {
+      id: 'l1',
+      kind: 'grant',
+      amount: 500,
+      category: 'monthly-grant',
+      reason: 'Monthly Pro grant',
+      at: at(1),
+    },
+    {
+      id: 'l2',
+      kind: 'debit',
+      amount: -8,
+      category: 'meeting-insights',
+      reason: 'Finanzo review',
+      at: at(7),
+    },
     { id: 'l3', kind: 'debit', amount: -4, category: 'nl-entry', reason: null, at: at(8) },
-    { id: 'l4', kind: 'debit', amount: -1, category: 'assistant', reason: 'Budget question', at: at(8) },
-    { id: 'l5', kind: 'debit', amount: -2, category: 'co-planner', reason: 'Day proposal', at: at(9) },
+    {
+      id: 'l4',
+      kind: 'debit',
+      amount: -1,
+      category: 'assistant',
+      reason: 'Budget question',
+      at: at(8),
+    },
+    {
+      id: 'l5',
+      kind: 'debit',
+      amount: -2,
+      category: 'co-planner',
+      reason: 'Day proposal',
+      at: at(9),
+    },
   ]
   for (const entry of credits) {
     await db.runAsync(

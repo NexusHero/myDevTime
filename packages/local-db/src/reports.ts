@@ -12,7 +12,7 @@ export interface LocalProjectSummary {
 }
 
 export async function getSummary(db: LocalDb, from: string, to: string): Promise<LocalSummary> {
-  const row = await db.getFirstAsync<{ total: number, billable: number }>(
+  const row = await db.getFirstAsync<{ total: number; billable: number }>(
     `SELECT 
       SUM(
         CASE WHEN ended_at IS NOT NULL 
@@ -26,7 +26,7 @@ export async function getSummary(db: LocalDb, from: string, to: string): Promise
       ) as billable
     FROM time_entries 
     WHERE started_at >= ? AND started_at < ?`,
-    [from, to]
+    [from, to],
   )
   return {
     totalMs: Math.round(row?.total ?? 0),
@@ -34,8 +34,12 @@ export async function getSummary(db: LocalDb, from: string, to: string): Promise
   }
 }
 
-export async function getProjectSummary(db: LocalDb, from: string, to: string): Promise<LocalProjectSummary[]> {
-  const rows = await db.getAllAsync<{ project_id: string, spent: number, day: string }>(
+export async function getProjectSummary(
+  db: LocalDb,
+  from: string,
+  to: string,
+): Promise<LocalProjectSummary[]> {
+  const rows = await db.getAllAsync<{ project_id: string; spent: number; day: string }>(
     `SELECT 
       project_id,
       date(started_at) as day,
@@ -47,27 +51,27 @@ export async function getProjectSummary(db: LocalDb, from: string, to: string): 
     FROM time_entries 
     WHERE started_at >= ? AND started_at < ?
     GROUP BY project_id, day`,
-    [from, to]
+    [from, to],
   )
-  
+
   const byProject = new Map<string, LocalProjectSummary>()
-  
+
   for (const r of rows) {
     const pId = r.project_id || '(none)'
     const existing = byProject.get(pId) || { projectId: pId, spentMs: 0, daily: Array(7).fill(0) }
-    
+
     existing.spentMs += Math.round(r.spent)
-    
+
     // Simple daily mapping: (day - from) in days
     const msDiff = new Date(r.day).getTime() - new Date(from.substring(0, 10)).getTime()
     const dayIdx = Math.floor(msDiff / 86400000)
     if (dayIdx >= 0 && dayIdx < 7) {
       existing.daily[dayIdx] += Math.round(r.spent)
     }
-    
+
     byProject.set(pId, existing)
   }
-  
+
   return Array.from(byProject.values())
 }
 
@@ -81,9 +85,9 @@ export async function getWorktimeBalance(db: LocalDb, from: string, to: string):
       ) as worked
     FROM shifts 
     WHERE started_at >= ? AND started_at < ?`,
-    [from, to]
+    [from, to],
   )
-  
+
   const worked = Math.round(row?.worked ?? 0)
   // Assume 40h target per week
   const target = 40 * 3600000

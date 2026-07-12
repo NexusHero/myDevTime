@@ -11,7 +11,12 @@ import {
   type Shift,
 } from '../api/worktime.js'
 import { useLocalDb } from '../localDb/LocalDbProvider.js'
-import { listShifts as localListShifts, getRunningShift as localGetRunningShift, clockIn as localClockIn, clockOut as localClockOut } from '@mydevtime/local-db'
+import {
+  listShifts as localListShifts,
+  getRunningShift as localGetRunningShift,
+  clockIn as localClockIn,
+  clockOut as localClockOut,
+} from '@mydevtime/local-db'
 
 /**
  * The work-day punch clock (REQ-028, ADR-0010). When an API base URL is configured
@@ -38,8 +43,6 @@ export interface WorktimeResource {
   readonly clockIn: () => void
   readonly clockOut: () => void
 }
-
-
 
 /** The trailing 7-day window ending at the next UTC midnight. */
 function trailingWeek(): { from: string; to: string; tz: string } {
@@ -69,20 +72,17 @@ export function useWorktime(): WorktimeResource {
     setLoading(true)
     const range = trailingWeek()
     const load: Promise<{ running: Shift | null; shifts: Shift[]; overtime: Overtime }> =
-        base === null
-          ? Promise.all([
-              localGetRunningShift(db),
-              localListShifts(db),
-            ]).then(([r, s]) => ({
-              running: r,
-              shifts: s as Shift[],
-              overtime: { workedMs: 42 * H, targetMs: 40 * H, balanceMs: 9 * H + 30 * M } // Offline overtime not implemented
-            }))
-          : Promise.all([
-              apiGetRunningShift(base),
-              apiListShifts(base, range),
-              fetchWorktimeSummary(base, range),
-            ]).then(([r, s, o]) => ({ running: r, shifts: s, overtime: o }))
+      base === null
+        ? Promise.all([localGetRunningShift(db), localListShifts(db)]).then(([r, s]) => ({
+            running: r,
+            shifts: s as Shift[],
+            overtime: { workedMs: 42 * H, targetMs: 40 * H, balanceMs: 9 * H + 30 * M }, // Offline overtime not implemented
+          }))
+        : Promise.all([
+            apiGetRunningShift(base),
+            apiListShifts(base, range),
+            fetchWorktimeSummary(base, range),
+          ]).then(([r, s, o]) => ({ running: r, shifts: s, overtime: o }))
     load
       .then(({ running: r, shifts: s, overtime }) => {
         if (!alive) return
@@ -141,7 +141,7 @@ export function useWorktime(): WorktimeResource {
         })
       return
     }
-    
+
     setBusy(true)
     apiClockIn(base)
       .then(shift => {
@@ -175,7 +175,7 @@ export function useWorktime(): WorktimeResource {
           })
         return null
       }
-      
+
       setBusy(true)
       apiClockOut(base)
         .then(() => {

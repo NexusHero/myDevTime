@@ -17,7 +17,6 @@ export interface TaskEntriesResource extends AsyncResource<TimeEntry[]> {
 
 /** Illustrative entries shown when no backend is configured. */
 
-
 export function useTaskEntries(taskId: string): TaskEntriesResource {
   const base = apiBaseUrl
   const db = useLocalDb()

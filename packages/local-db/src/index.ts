@@ -1,3 +1,4 @@
+export * from './schema.js'
 export * from './client.js'
 export * from './entries.js'
 export * from './catalog.js'

@@ -18,7 +18,10 @@ export interface LocalTask {
 }
 
 function uuid(): string {
-  return (globalThis as any).crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return (
+    (globalThis as any).crypto?.randomUUID?.() ??
+    `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  )
 }
 
 function rowToProject(row: Record<string, unknown>): LocalProject {

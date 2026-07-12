@@ -10,6 +10,10 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./webAdapter": {
+      "types": "./src/webAdapter.ts",
+      "default": "./src/webAdapter.ts"
     }
   },
   "scripts": {

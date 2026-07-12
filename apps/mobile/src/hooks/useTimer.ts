@@ -97,9 +97,11 @@ export function useTimer(): TimerResource {
       setRunning(provisionalEntry(input, new Date()))
       setError(null)
       if (base === null) {
-        startEntry(db, input).then(entry => {
-          setRunning(entry as TimeEntry)
-        }).catch(console.error)
+        startEntry(db, input)
+          .then(entry => {
+            setRunning(entry as TimeEntry)
+          })
+          .catch(console.error)
         return
       }
       setBusy(true)

@@ -19,6 +19,8 @@ config.resolver.nodeModulesPaths = [
 config.resolver.unstable_enableSymlinks = true
 // Enable package exports support
 config.resolver.unstable_enablePackageExports = true
+// Enable WebAssembly for expo-sqlite web support
+config.resolver.assetExts.push('wasm')
 
 // Custom resolver to redirect relative .js imports to .ts/.tsx files
 config.resolver.resolveRequest = (context, moduleName, platform) => {

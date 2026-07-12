@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { openLocalDb, type LocalDb } from '@mydevtime/local-db'
-import { Text, View, Platform } from 'react-native'
+import { type LocalDb } from '@mydevtime/local-db'
+import { Text, View } from 'react-native'
 
 const LocalDbContext = createContext<LocalDb | null>(null)
 
@@ -10,14 +10,16 @@ export function LocalDbProvider({ children }: { children: React.ReactNode }): Re
 
   useEffect(() => {
     let alive = true
-    import('expo-sqlite')
-      .then(SQLite => openLocalDb(SQLite))
+
+    import('@mydevtime/local-db/webAdapter')
+      .then(mod => mod.openWebLocalDb())
       .then(d => {
         if (alive) setDb(d)
       })
       .catch((e: unknown) => {
         if (alive) setError(e instanceof Error ? e : new Error(String(e)))
       })
+
     return () => {
       alive = false
     }

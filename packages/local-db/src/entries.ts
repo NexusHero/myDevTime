@@ -14,7 +14,10 @@ export interface LocalTimeEntry {
 
 function uuid(): string {
   // crypto.randomUUID is available in modern RN/Hermes and web
-  return (globalThis as any).crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return (
+    (globalThis as any).crypto?.randomUUID?.() ??
+    `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  )
 }
 
 function rowToEntry(row: Record<string, unknown>): LocalTimeEntry {
