@@ -88,4 +88,9 @@ CREATE TABLE IF NOT EXISTS credit_entries (
   reason         TEXT,
   at             TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_time_entries_project_id ON time_entries(project_id);
+CREATE INDEX IF NOT EXISTS idx_time_entries_task_id ON time_entries(task_id);
+CREATE INDEX IF NOT EXISTS idx_time_entries_started_at ON time_entries(started_at);
+CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
 `
