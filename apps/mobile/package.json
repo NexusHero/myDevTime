@@ -12,6 +12,7 @@
     "android": "pnpm run build:deps && expo start --android",
     "ios": "pnpm run build:deps && expo start --ios",
     "web": "pnpm run build:deps && expo start --web",
+    "export:web": "pnpm run build:deps && expo export --platform web",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
