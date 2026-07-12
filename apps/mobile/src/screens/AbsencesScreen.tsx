@@ -1,7 +1,7 @@
 import { View } from 'react-native'
 import { monthGrid, weekdayHeaders } from '@mydevtime/design'
 import { Text } from '../components/core/Text'
-import { Badge, Card, ProgressBar, Row, ScreenScaffold } from '../components/index'
+import { Badge, Card, LeaveBalance, Row, ScreenScaffold } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
 import { SubScreenHeader } from './SubScreenHeader'
 import { useAbsences } from '../hooks/useAbsences'
@@ -67,8 +67,6 @@ export function AbsencesScreen({ onBack }: { onBack: () => void }): React.JSX.El
 
   const weeks = monthGrid(month.year, month.month0, true)
   const headers = weekdayHeaders(true)
-  const allowanceTotal = balance.allowanceDays + balance.carryOverDays
-  const usedRatio = allowanceTotal > 0 ? balance.usedDays / allowanceTotal : 0
 
   const header = (
     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: t.spacing.s2 }}>
@@ -86,32 +84,11 @@ export function AbsencesScreen({ onBack }: { onBack: () => void }): React.JSX.El
   return (
     <ScreenScaffold header={header}>
       <Card>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: t.spacing.s2 }}>
-          <Text
-            style={{
-              fontFamily: t.fontFamily.numeric,
-              fontSize: t.fontSize.xl,
-              fontWeight: '700',
-              color: t.color.ink,
-            }}
-          >
-            {String(balance.remainingDays)}
-          </Text>
-          <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>vacation days left</Text>
-          <Text
-            style={{
-              marginLeft: 'auto',
-              fontFamily: t.fontFamily.numeric,
-              fontSize: t.fontSize.xs,
-              color: t.color.ink3,
-            }}
-          >
-            {String(balance.usedDays)}/{String(allowanceTotal)}
-          </Text>
-        </View>
-        <View style={{ marginTop: t.spacing.s3 }}>
-          <ProgressBar ratio={usedRatio} label="Vacation days used" />
-        </View>
+        <LeaveBalance
+          entitlement={balance.allowanceDays}
+          taken={balance.usedDays}
+          carryover={balance.carryOverDays}
+        />
       </Card>
 
       <Card title={month.label}>
