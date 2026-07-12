@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'react';
 
 export function Button({
   children,
@@ -10,8 +10,8 @@ export function Button({
   onClick,
   type = 'button',
 }) {
-  const pad = size === 'sm' ? '6px 14px' : size === 'lg' ? '12px 22px' : '9px 18px'
-  const fontSize = size === 'sm' ? 'var(--fs-xs)' : 'var(--fs-sm)'
+  const pad = size === 'sm' ? '6px 14px' : size === 'lg' ? '12px 22px' : '9px 18px';
+  const fontSize = size === 'sm' ? 'var(--fs-xs)' : 'var(--fs-sm)';
 
   const base = {
     display: 'inline-flex',
@@ -28,20 +28,16 @@ export function Button({
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.5 : 1,
     transition: `transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out)`,
-  }
+  };
 
   const variants = {
     primary: { background: 'var(--accent)', color: 'var(--accent-contrast)' },
-    secondary: {
-      background: 'var(--surface-raised)',
-      color: 'var(--ink)',
-      border: '1px solid var(--border-strong)',
-    },
+    secondary: { background: 'var(--surface-raised)', color: 'var(--ink)', border: '1px solid var(--border-strong)' },
     ghost: { background: 'transparent', color: 'var(--ink-2)' },
     danger: { background: 'var(--crit)', color: '#ffffff' },
-  }
+  };
 
-  const style = { ...base, ...variants[variant] }
+  const style = { ...base, ...variants[variant] };
 
   return (
     <button
@@ -49,19 +45,11 @@ export function Button({
       disabled={disabled}
       onClick={onClick}
       style={style}
-      onMouseEnter={e => {
-        if (!disabled) {
-          e.currentTarget.style.transform = 'translateY(-1px)'
-          e.currentTarget.style.boxShadow = 'var(--shadow-md)'
-        }
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.transform = 'none'
-        e.currentTarget.style.boxShadow = 'none'
-      }}
+      onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; } }}
+      onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
     >
       {icon}
       {children}
     </button>
-  )
+  );
 }

@@ -1,0 +1,348 @@
+[
+  {
+    "key": "low",
+    "name": "Lena (Low)",
+    "note": "Freelancerin, trackt gelegentlich, wenige Termine, keine Integrationen.",
+    "dayStartMin": 540,
+    "dayEndMin": 1020,
+    "anchorsIn": 1,
+    "meetingsPlaced": 1,
+    "droppedAnchors": [],
+    "focusBlocks": 3,
+    "breakBlocks": 1,
+    "plannedFocusMin": 180,
+    "unplacedMin": 0,
+    "blocks": [
+      {
+        "i": 0,
+        "kind": "focus",
+        "label": "Logo-Feinschliff",
+        "startMin": 540,
+        "lenMin": 30,
+        "rank": 1
+      },
+      {
+        "i": 1,
+        "kind": "meeting",
+        "label": "Kurzes Kundengespräch",
+        "startMin": 570,
+        "lenMin": 30,
+        "rank": 0
+      },
+      {
+        "i": 2,
+        "kind": "focus",
+        "label": "Logo-Feinschliff",
+        "startMin": 600,
+        "lenMin": 90,
+        "rank": 2
+      },
+      {
+        "i": 3,
+        "kind": "break",
+        "label": "Break",
+        "startMin": 690,
+        "lenMin": 15,
+        "rank": 0
+      },
+      {
+        "i": 4,
+        "kind": "focus",
+        "label": "Angebote schreiben",
+        "startMin": 705,
+        "lenMin": 60,
+        "rank": 3
+      }
+    ],
+    "nl": [
+      {
+        "phrase": "2h logo feinschliff",
+        "parsed": {
+          "durationMin": 120,
+          "projectHint": null,
+          "dayOffset": 0,
+          "billable": true
+        }
+      },
+      {
+        "phrase": "kaffee mit kunde",
+        "parsed": null
+      }
+    ]
+  },
+  {
+    "key": "medium",
+    "name": "Max (Medium)",
+    "note": "Angestellter Dev, Jira verbunden, schaut hin und wieder rein, moderate Last.",
+    "dayStartMin": 510,
+    "dayEndMin": 1050,
+    "anchorsIn": 3,
+    "meetingsPlaced": 3,
+    "droppedAnchors": [],
+    "focusBlocks": 7,
+    "breakBlocks": 3,
+    "plannedFocusMin": 330,
+    "unplacedMin": 0,
+    "blocks": [
+      {
+        "i": 0,
+        "kind": "focus",
+        "label": "PROJ-142 Auth-Bug",
+        "startMin": 510,
+        "lenMin": 30,
+        "rank": 1
+      },
+      {
+        "i": 1,
+        "kind": "meeting",
+        "label": "Daily Standup",
+        "startMin": 540,
+        "lenMin": 15,
+        "rank": 0
+      },
+      {
+        "i": 2,
+        "kind": "focus",
+        "label": "PROJ-142 Auth-Bug",
+        "startMin": 555,
+        "lenMin": 90,
+        "rank": 2
+      },
+      {
+        "i": 3,
+        "kind": "break",
+        "label": "Break",
+        "startMin": 645,
+        "lenMin": 15,
+        "rank": 0
+      },
+      {
+        "i": 4,
+        "kind": "meeting",
+        "label": "Sprint Refinement (Jira)",
+        "startMin": 660,
+        "lenMin": 60,
+        "rank": 0
+      },
+      {
+        "i": 5,
+        "kind": "focus",
+        "label": "PROJ-150 Sync-Feature",
+        "startMin": 720,
+        "lenMin": 90,
+        "rank": 3
+      },
+      {
+        "i": 6,
+        "kind": "break",
+        "label": "Break",
+        "startMin": 810,
+        "lenMin": 15,
+        "rank": 0
+      },
+      {
+        "i": 7,
+        "kind": "focus",
+        "label": "PROJ-150 Sync-Feature",
+        "startMin": 825,
+        "lenMin": 15,
+        "rank": 4
+      },
+      {
+        "i": 8,
+        "kind": "meeting",
+        "label": "Review Call",
+        "startMin": 840,
+        "lenMin": 30,
+        "rank": 0
+      },
+      {
+        "i": 9,
+        "kind": "focus",
+        "label": "PROJ-150 Sync-Feature",
+        "startMin": 870,
+        "lenMin": 45,
+        "rank": 5
+      },
+      {
+        "i": 10,
+        "kind": "focus",
+        "label": "Code Reviews",
+        "startMin": 915,
+        "lenMin": 45,
+        "rank": 6
+      },
+      {
+        "i": 11,
+        "kind": "break",
+        "label": "Break",
+        "startMin": 960,
+        "lenMin": 15,
+        "rank": 0
+      },
+      {
+        "i": 12,
+        "kind": "focus",
+        "label": "Code Reviews",
+        "startMin": 975,
+        "lenMin": 15,
+        "rank": 7
+      }
+    ],
+    "nl": [
+      {
+        "phrase": "1,5h PROJ-142 auth bug gestern",
+        "parsed": {
+          "durationMin": 90,
+          "projectHint": "PROJ-142",
+          "dayOffset": -1,
+          "billable": true
+        }
+      },
+      {
+        "phrase": "30min review call",
+        "parsed": {
+          "durationMin": 30,
+          "projectHint": null,
+          "dayOffset": 0,
+          "billable": true
+        }
+      }
+    ]
+  },
+  {
+    "key": "hardcore",
+    "name": "Hannes (Hardcore)",
+    "note": "Lead, ÜBERBUCHT: überlappende Termine (3 im selben Slot), alle Integrationen, hoher Stress.",
+    "dayStartMin": 480,
+    "dayEndMin": 1140,
+    "anchorsIn": 8,
+    "meetingsPlaced": 6,
+    "droppedAnchors": [
+      "1:1 mit CTO",
+      "Incident-Bridge (P1)"
+    ],
+    "focusBlocks": 6,
+    "breakBlocks": 0,
+    "plannedFocusMin": 300,
+    "unplacedMin": 270,
+    "blocks": [
+      {
+        "i": 0,
+        "kind": "focus",
+        "label": "ADR Zahlungs-Rails",
+        "startMin": 480,
+        "lenMin": 60,
+        "rank": 1
+      },
+      {
+        "i": 1,
+        "kind": "meeting",
+        "label": "Standup",
+        "startMin": 540,
+        "lenMin": 30,
+        "rank": 0
+      },
+      {
+        "i": 2,
+        "kind": "focus",
+        "label": "ADR Zahlungs-Rails",
+        "startMin": 570,
+        "lenMin": 30,
+        "rank": 2
+      },
+      {
+        "i": 3,
+        "kind": "meeting",
+        "label": "Architektur-Review",
+        "startMin": 600,
+        "lenMin": 60,
+        "rank": 0
+      },
+      {
+        "i": 4,
+        "kind": "focus",
+        "label": "ADR Zahlungs-Rails",
+        "startMin": 660,
+        "lenMin": 60,
+        "rank": 3
+      },
+      {
+        "i": 5,
+        "kind": "meeting",
+        "label": "Vendor Call",
+        "startMin": 720,
+        "lenMin": 60,
+        "rank": 0
+      },
+      {
+        "i": 6,
+        "kind": "meeting",
+        "label": "Roadmap Workshop",
+        "startMin": 780,
+        "lenMin": 90,
+        "rank": 0
+      },
+      {
+        "i": 7,
+        "kind": "focus",
+        "label": "ADR Zahlungs-Rails",
+        "startMin": 870,
+        "lenMin": 30,
+        "rank": 4
+      },
+      {
+        "i": 8,
+        "kind": "meeting",
+        "label": "Interview Kandidat",
+        "startMin": 900,
+        "lenMin": 60,
+        "rank": 0
+      },
+      {
+        "i": 9,
+        "kind": "focus",
+        "label": "Prod-Incident Nacharbeit",
+        "startMin": 960,
+        "lenMin": 30,
+        "rank": 5
+      },
+      {
+        "i": 10,
+        "kind": "meeting",
+        "label": "Board Prep",
+        "startMin": 990,
+        "lenMin": 60,
+        "rank": 0
+      },
+      {
+        "i": 11,
+        "kind": "focus",
+        "label": "Prod-Incident Nacharbeit",
+        "startMin": 1050,
+        "lenMin": 90,
+        "rank": 6
+      }
+    ],
+    "nl": [
+      {
+        "phrase": "3h ADR zahlungs-rails",
+        "parsed": {
+          "durationMin": 180,
+          "projectHint": null,
+          "dayOffset": 0,
+          "billable": true
+        }
+      },
+      {
+        "phrase": "incident bridge 45min",
+        "parsed": {
+          "durationMin": 45,
+          "projectHint": null,
+          "dayOffset": 0,
+          "billable": true
+        }
+      }
+    ]
+  }
+]

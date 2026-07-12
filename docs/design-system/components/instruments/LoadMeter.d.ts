@@ -5,9 +5,9 @@
  */
 export interface LoadMeterProps {
   /** Strain score 0–100 (computed from the deterministic signals). @default 42 */
-  score?: number
+  score?: number;
   /** Override the zone label ("Im grünen Bereich" / "Erhöht" / "Kritisch"). */
-  label?: string
+  label?: string;
   /** @default 300 */
-  width?: number
+  width?: number;
 }

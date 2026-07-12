@@ -1,64 +1,19 @@
 <!-- @dsCard group="Colors" viewport="700x220" name="Light / dark mode" subtitle="Same tokens, both first-class" -->
-<link rel="stylesheet" href="../styles.css" />
+<link rel="stylesheet" href="../styles.css">
 <style>
-  body {
-    margin: 0;
-    padding: 20px;
-    font-family: var(--font-ui);
-    background: #e9ecf1;
-  }
-  .row {
-    display: flex;
-    gap: 16px;
-  }
-  .panel {
-    flex: 1;
-    border-radius: var(--radius-card);
-    padding: 16px;
-    border: 1px solid var(--border);
-    background: var(--bg);
-  }
-  .card {
-    background: var(--surface-raised);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-block);
-    padding: 12px;
-    box-shadow: var(--shadow-sm);
-  }
-  h4 {
-    margin: 0 0 4px;
-    font-size: 14px;
-    color: var(--ink);
-  }
-  p {
-    margin: 0;
-    font-size: 12px;
-    color: var(--ink-2);
-  }
-  .tag {
-    display: inline-block;
-    margin-top: 8px;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    padding: 3px 8px;
-    border-radius: var(--radius-pill);
-    background: var(--accent-soft);
-    color: var(--accent-strong);
-  }
+  body{margin:0;padding:20px;font-family:var(--font-ui);background:#e9ecf1;}
+  .row{display:flex;gap:16px;}
+  .panel{flex:1;border-radius:var(--radius-card);padding:16px;border:1px solid var(--border);background:var(--bg);}
+  .card{background:var(--surface-raised);border:1px solid var(--border);border-radius:var(--radius-block);padding:12px;box-shadow:var(--shadow-sm);}
+  h4{margin:0 0 4px;font-size:14px;color:var(--ink);}
+  p{margin:0;font-size:12px;color:var(--ink-2);}
+  .tag{display:inline-block;margin-top:8px;font-family:var(--font-mono);font-size:10px;padding:3px 8px;border-radius:var(--radius-pill);background:var(--accent-soft);color:var(--accent-strong);}
 </style>
 <div class="row">
   <div class="panel" data-mode="light">
-    <div class="card">
-      <h4>Today</h4>
-      <p>3 meetings · 4.5h focus</p>
-      <span class="tag">data-mode="light"</span>
-    </div>
+    <div class="card"><h4>Today</h4><p>3 meetings · 4.5h focus</p><span class="tag">data-mode="light"</span></div>
   </div>
   <div class="panel" data-mode="dark">
-    <div class="card">
-      <h4>Today</h4>
-      <p>3 meetings · 4.5h focus</p>
-      <span class="tag">data-mode="dark"</span>
-    </div>
+    <div class="card"><h4>Today</h4><p>3 meetings · 4.5h focus</p><span class="tag">data-mode="dark"</span></div>
   </div>
 </div>

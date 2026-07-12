@@ -1,8 +1,8 @@
 export interface StatTileProps {
-  label: string
-  value: string | number
+  label: string;
+  value: string | number;
   /** Percent change; sign controls good/crit coloring. */
-  delta?: number
+  delta?: number;
   /** Render value in mono. @default true */
-  mono?: boolean
+  mono?: boolean;
 }

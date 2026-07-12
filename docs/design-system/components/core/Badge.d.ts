@@ -1,7 +1,7 @@
 export interface BadgeProps {
-  children: React.ReactNode
+  children: React.ReactNode;
   /** @default 'neutral' */
-  tone?: 'neutral' | 'accent' | 'good' | 'crit' | 'warn'
+  tone?: 'neutral' | 'accent' | 'good' | 'crit' | 'warn';
   /** @default 'md' */
-  size?: 'sm' | 'md'
+  size?: 'sm' | 'md';
 }

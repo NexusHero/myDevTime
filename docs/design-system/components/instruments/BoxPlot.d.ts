@@ -5,23 +5,23 @@
  */
 export interface BoxPlotProps {
   /** Shortest day, in decimal hours. */
-  min?: number
+  min?: number;
   /** 25th percentile. */
-  q1?: number
+  q1?: number;
   /** Median day. */
-  median?: number
+  median?: number;
   /** 75th percentile. */
-  q3?: number
+  q3?: number;
   /** Longest day. */
-  max?: number
+  max?: number;
   /** Daily target (Soll), e.g. 8.33 for 8:20h. */
-  target?: number
+  target?: number;
   /** Scale lower bound (hours). Defaults to fit the data. */
-  lo?: number
+  lo?: number;
   /** Scale upper bound (hours). Defaults to fit the data. */
-  hi?: number
+  hi?: number;
   /** @default 300 */
-  width?: number
+  width?: number;
   /** Box color. @default var(--accent) */
-  color?: string
+  color?: string;
 }
