@@ -6,6 +6,7 @@ import { AppShell } from './src/shell/AppShell'
 import { AuthGate } from './src/shell/AuthGate'
 import { OnboardingGate } from './src/onboarding/OnboardingGate'
 import { TimerProvider } from './src/timer/TimerContext'
+import { LocalDbProvider } from './src/localDb/LocalDbProvider'
 
 /**
  * App root (issue #11): loads the Blueprint font trio (Inter · Space Grotesk ·
@@ -35,16 +36,18 @@ export default function App(): React.JSX.Element | null {
 
   return (
     <SafeAreaProvider>
-      <ThemeProvider>
-        <StatusBar style="auto" />
-        <AuthGate>
-          <OnboardingGate>
-            <TimerProvider>
-              <AppShell />
-            </TimerProvider>
-          </OnboardingGate>
-        </AuthGate>
-      </ThemeProvider>
+      <LocalDbProvider>
+        <ThemeProvider>
+          <StatusBar style="auto" />
+          <AuthGate>
+            <OnboardingGate>
+              <TimerProvider>
+                <AppShell />
+              </TimerProvider>
+            </OnboardingGate>
+          </AuthGate>
+        </ThemeProvider>
+      </LocalDbProvider>
     </SafeAreaProvider>
   )
 }
