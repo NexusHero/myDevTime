@@ -50,3 +50,14 @@ export {
   acknowledgeOps,
 } from './outbox.js'
 export { type SyncState, getSyncState, setWatermark } from './syncState.js'
+export { applyServerChange } from './syncMapping.js'
+export {
+  type SyncPushChange,
+  type SyncConflict,
+  type SyncPushResult,
+  type SyncPullChange,
+  type SyncPullResponse,
+  type SyncTransport,
+  type SyncOutcome,
+  runSync,
+} from './sync.js'
