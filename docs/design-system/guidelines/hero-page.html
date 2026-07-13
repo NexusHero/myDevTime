@@ -1,0 +1,113 @@
+<!-- @dsCard group="Brand" viewport="1280x800" name="Animated hero page" subtitle="Marketing-Page mit Logo-Sting, Tages-Timeline und sweependem Live-Playhead. Loopt zur Demo." -->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>myDevTime — Dein Tag, geplant.</title>
+<link rel="stylesheet" href="../styles.css">
+<style>
+  :root { --loop: 7s; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--font-ui); }
+  a { color: #9db1ff; } a:hover { color: #ffffff; }
+  .hero {
+    min-height: 800px; overflow: hidden; position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+    background: radial-gradient(130% 130% at 50% -10%, #1a2c6e 0%, #0e1638 52%, #0a0c14 100%);
+    text-align: center; padding: 48px 24px;
+  }
+  /* faint hour grid in the background */
+  .grid { position: absolute; inset: 0; pointer-events: none; opacity: 0.35;
+    background-image: linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px);
+    background-size: 100% 88px; }
+
+  .mark { position: relative; width: 96px; height: 96px; border-radius: 23px;
+    background: linear-gradient(135deg, #3D5CF5 0%, #2941B8 100%);
+    box-shadow: 0 20px 50px -14px rgba(61,92,245,0.6);
+    animation: m-in var(--loop) var(--ease-spring) infinite; }
+  .mark .actual { position: absolute; left: 18px; top: 35px; width: 23px; height: 28px; border-radius: 7px; background: #fff;
+    animation: a-in var(--loop) var(--ease-spring) infinite; }
+  .mark .ghost { position: absolute; left: 55px; top: 35px; width: 23px; height: 28px; border-radius: 7px;
+    border: 3px dashed rgba(255,255,255,0.8); animation: g-in var(--loop) ease infinite; }
+  .mark .ph { position: absolute; left: 45.5px; top: 29px; width: 5px; height: 40px; border-radius: 3px; background: var(--live);
+    transform-origin: top center; animation: ph-in var(--loop) var(--ease-out) infinite; }
+  .mark .dot { position: absolute; left: 42.5px; top: 17px; width: 11px; height: 11px; border-radius: 50%; background: var(--live);
+    animation: dot-in var(--loop) ease infinite; }
+
+  h1 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.03em;
+    font-size: 64px; line-height: 1.05; color: #fff; margin: 34px 0 0;
+    animation: rise var(--loop) var(--ease-out) infinite; }
+  h1 .live-word { color: var(--live); white-space: nowrap; }
+  .sub { color: rgba(255,255,255,0.6); font-size: 19px; max-width: 560px; margin: 18px auto 0; line-height: 1.55;
+    animation: rise2 var(--loop) var(--ease-out) infinite; }
+  .cta { margin-top: 30px; display: inline-flex; align-items: center; gap: 14px;
+    animation: rise3 var(--loop) var(--ease-out) infinite; }
+  .btn { border: none; cursor: pointer; font: 600 16px/1 var(--font-ui); color: #fff;
+    background: var(--live); padding: 16px 30px; border-radius: 999px;
+    box-shadow: 0 12px 32px -8px rgba(255,83,32,0.6);
+    animation: breathe 2.4s ease-in-out infinite; }
+  .btn-ghost { border: 1.5px solid rgba(255,255,255,0.25); background: none; color: #fff;
+    font: 600 16px/1 var(--font-ui); padding: 15px 26px; border-radius: 999px; cursor: pointer; }
+
+  /* ---- the day timeline: blocks settle in, the now-line sweeps across ---- */
+  .day { position: relative; width: min(860px, 92%); height: 118px; margin-top: 58px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px; padding: 16px; backdrop-filter: blur(6px);
+    animation: rise3 var(--loop) var(--ease-out) infinite; }
+  .lane { position: relative; height: 100%; }
+  .blk { position: absolute; top: 0; height: 40px; border-radius: 10px;
+    animation: settle var(--loop) var(--ease-spring) infinite; }
+  .blk.b1 { left: 0%; width: 17%; background: var(--project-1); animation-delay: 0.10s; }
+  .blk.b2 { left: 19%; width: 25%; background: var(--project-2); animation-delay: 0.22s; }
+  .blk.b3 { left: 46%; width: 12%; background: var(--project-3); animation-delay: 0.34s; }
+  .blk.r2 { top: 46px; left: 8%; width: 22%; background: var(--project-4); animation-delay: 0.46s; }
+  .blk.gh { top: 46px; left: 62%; width: 24%; background: none; border: 2px dashed rgba(255,255,255,0.45);
+    animation-name: settle-gh; animation-delay: 0.58s; }
+  .now { position: absolute; top: -8px; bottom: -8px; left: 0; width: 3px; border-radius: 2px;
+    background: var(--live); box-shadow: 0 0 14px rgba(255,83,32,0.8);
+    animation: sweep-x var(--loop) linear infinite; }
+  .now::before { content: ''; position: absolute; top: -6px; left: -4.5px; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--live); }
+
+  @keyframes m-in { 0% { transform: scale(0.5); opacity: 0; } 5% { opacity: 1; } 9% { transform: scale(1.06); } 13%, 96% { transform: scale(1); opacity: 1; } 100% { opacity: 0; } }
+  @keyframes a-in { 0%, 7% { transform: translateX(-14px); opacity: 0; } 14% { transform: translateX(1px); opacity: 1; } 18%, 100% { transform: none; opacity: 1; } }
+  @keyframes g-in { 0%, 11% { opacity: 0; } 20%, 100% { opacity: 1; } }
+  @keyframes ph-in { 0%, 3% { transform: scaleY(0); } 10%, 100% { transform: scaleY(1); } }
+  @keyframes dot-in { 0%, 5% { transform: scale(0); } 9% { transform: scale(1.4); } 12%, 100% { transform: scale(1); } }
+  @keyframes rise  { 0%, 8%  { transform: translateY(22px); opacity: 0; } 17%, 100% { transform: none; opacity: 1; } }
+  @keyframes rise2 { 0%, 12% { transform: translateY(22px); opacity: 0; } 21%, 100% { transform: none; opacity: 1; } }
+  @keyframes rise3 { 0%, 16% { transform: translateY(22px); opacity: 0; } 25%, 100% { transform: none; opacity: 1; } }
+  @keyframes settle { 0%, 18% { transform: translateY(26px) scale(0.92); opacity: 0; } 30%, 100% { transform: none; opacity: 1; } }
+  @keyframes settle-gh { 0%, 18% { transform: translateY(26px) scale(0.92); opacity: 0; } 30%, 100% { transform: none; opacity: 0.9; } }
+  @keyframes sweep-x { 0%, 26% { left: 2%; opacity: 0; } 30% { opacity: 1; } 92% { left: 58%; opacity: 1; } 96%, 100% { left: 58%; opacity: 0; } }
+  @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); box-shadow: 0 14px 40px -6px rgba(255,83,32,0.85); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mark, .mark *, h1, .sub, .cta, .btn, .day, .blk, .now { animation: none !important; }
+    .now { left: 58%; }
+  }
+  @media (max-width: 720px) { h1 { font-size: 40px; } }
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="grid"></div>
+  <div class="mark">
+    <span class="actual"></span><span class="ghost"></span><span class="ph"></span><span class="dot"></span>
+  </div>
+  <h1>Dein Tag, geplant.<br>Dein <span class="live-word">Jetzt</span>, sichtbar.</h1>
+  <p class="sub">Plan und Realität auf einer Fläche. Der Co-Planner schlägt vor, du entscheidest — und die Stempeluhr läuft immer mit.</p>
+  <div class="cta">
+    <button class="btn">Kostenlos starten</button>
+    <button class="btn-ghost">Live-Demo ansehen</button>
+  </div>
+  <div class="day">
+    <div class="lane">
+      <span class="blk b1"></span><span class="blk b2"></span><span class="blk b3"></span>
+      <span class="blk r2"></span><span class="blk gh"></span>
+      <span class="now"></span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

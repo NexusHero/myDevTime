@@ -214,8 +214,8 @@ themes; Space Grotesk + Inter serve the Blueprint theme's myJob-1:1 fidelity.
   meetingfreien Tag + Feierabend-Ghost), `CheckinCard` (wöchentlicher 2-Fragen-Check-in im
   OLBI-Kurzform-Stil — Erschöpfung + Abschalten auf 5er-Skalen; Selbstauskunft × passive
   Signale ist das wissenschaftlich ehrliche Belastungssignal, die Antworten bleiben lokal),
-  `MoodCheck` (Moment-Stress per Ein-Tap — Gut/Angespannt/Gestresst, EMA-Muster; max. 1×/Tag
-  auf Today, nie modal).
+  `MoodCheck` (Moment-Stress per Ein-Tap — Gut/Angespannt/Gestresst, EMA-Muster; erscheint
+  NICHT als stehendes Widget, sondern nur im Ausstempel-Moment als transiente Zeile, nie modal).
   Der Balance-Bereich in Reports zeigt zusätzlich den 10-Wochen-Trend (Linie = passive
   Signale, Quadrate = Check-ins) — Burnout ist ein Prozess, keine Momentaufnahme.
 - `navigation/` — `AppShell` (sidebar/tabs posture), `Tabs`.

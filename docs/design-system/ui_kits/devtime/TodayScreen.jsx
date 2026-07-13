@@ -8,7 +8,9 @@ function TodayScreen({ theme, running, setRunning, paused, setPaused, secs, fmt 
       <div style={{ flex: 1, fontSize: 'var(--fs-xs)', color: 'var(--ink-2)' }}>{title && <b style={{ color: 'var(--ink)' }}>{title} </b>}{children}</div>{action}
     </div>
   ));
-  const MoodCheck = DS.MoodCheck || (() => null);
+  // Punch-out mood: asked once, im Moment des Ausstempelns — kein stehendes Widget
+  const [askMood, setAskMood] = React.useState(false);
+  const [moodPicked, setMoodPicked] = React.useState(null);
 
   // ---- Co-Planner state: ghosts are PROPOSALS (dashed, provenance) ----
   const [ghosts, setGhosts] = React.useState([
@@ -110,16 +112,32 @@ function TodayScreen({ theme, running, setRunning, paused, setPaused, secs, fmt 
         </span>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xl)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: running ? (paused ? 'var(--warn)' : 'var(--live)') : 'var(--ink-3)', textAlign: 'right', flexShrink: 0, transition: 'color var(--dur-med) var(--ease-out)' }}>{fmt(secs)}</span>
         {running && (
-          <button onClick={() => setPaused(!paused)} aria-label={paused ? 'Weiter' : 'Pause'} title={paused ? 'Weiter' : 'Pause'} style={{ width: 48, height: 48, borderRadius: '50%', cursor: 'pointer', flexShrink: 0, border: '1.5px solid ' + (paused ? 'var(--warn)' : 'var(--border-strong)'), background: paused ? 'var(--warn-soft)' : 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, transition: 'background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out)' }}>
-            {paused
-              ? <span style={{ width: 0, height: 0, marginLeft: 3, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderLeft: '13px solid var(--warn)' }}></span>
-              : <React.Fragment><span style={{ width: 5, height: 16, borderRadius: 2, background: 'var(--ink-2)' }}></span><span style={{ width: 5, height: 16, borderRadius: 2, background: 'var(--ink-2)' }}></span></React.Fragment>}
-          </button>
+          <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+            {paused && [0, 1].map((i) => <span key={i} className="dt-pulse" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'var(--warn)', animation: 'dt-punch-wave 2s var(--ease-out) infinite', animationDelay: i * 1 + 's', pointerEvents: 'none' }}></span>)}
+            <button onClick={() => setPaused(!paused)} aria-label={paused ? 'Weiter' : 'Pause'} title={paused ? 'Weiter' : 'Pause'} className={paused ? 'dt-breathe-warn' : ''} style={{ width: 48, height: 48, borderRadius: '50%', cursor: 'pointer', flexShrink: 0, position: 'relative', border: '1.5px solid ' + (paused ? 'var(--warn)' : 'var(--border-strong)'), background: paused ? 'var(--warn-soft)' : 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, transition: 'background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out)' }}>
+              {paused
+                ? <span style={{ width: 0, height: 0, marginLeft: 3, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderLeft: '13px solid var(--warn)' }}></span>
+                : <React.Fragment><span style={{ width: 5, height: 16, borderRadius: 2, background: 'var(--ink-2)' }}></span><span style={{ width: 5, height: 16, borderRadius: 2, background: 'var(--ink-2)' }}></span></React.Fragment>}
+            </button>
+          </span>
         )}
-        <button
-          onClick={() => { if (running) { setRunning(false); setPaused(false); } else { setRunning(true); } }}
+        <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+          <style>{[
+            '@keyframes dt-punch-wave { 0% { transform: scale(0.5); opacity: 0.45; } 100% { transform: scale(1.9); opacity: 0; } }',
+            '@keyframes dt-breathe { 0%, 100% { transform: scale(1); box-shadow: 0 10px 28px -8px rgba(255,83,32,0.55); } 50% { transform: scale(1.06); box-shadow: 0 12px 36px -6px rgba(255,83,32,0.8); } }',
+            '.dt-breathe-live { animation: dt-breathe 2.4s ease-in-out infinite; }',
+            '@keyframes dt-breathe-w { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }',
+            '.dt-breathe-warn { animation: dt-breathe-w 2s ease-in-out infinite; }',
+            '@media (prefers-reduced-motion: reduce) { .dt-pulse, .dt-breathe-live, .dt-breathe-warn { animation: none !important; } .dt-pulse { opacity: 0 !important; } }',
+          ].join(' ')}</style>
+          {running && !paused && [0, 1].map((i) => (
+            <span key={i} className="dt-pulse" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'var(--live)', animation: 'dt-punch-wave 2.4s var(--ease-out) infinite', animationDelay: i * 1.2 + 's', pointerEvents: 'none' }}></span>
+          ))}
+          <button
+          className={running && !paused ? 'dt-breathe-live' : ''}
+          onClick={() => { if (running) { setRunning(false); setPaused(false); setAskMood(true); setMoodPicked(null); } else { setRunning(true); setAskMood(false); } }}
           aria-label={running ? 'Stop' : 'Start'}
-          style={{ width: 64, height: 64, borderRadius: '50%', border: 'none', cursor: 'pointer', background: running ? 'var(--live)' : 'var(--accent)', boxShadow: running ? '0 10px 28px -8px rgba(255,83,32,0.55)' : '0 10px 28px -8px rgba(54,84,224,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background var(--dur-med) var(--ease-out), transform var(--dur-fast) var(--ease-spring), box-shadow var(--dur-med) var(--ease-out)' }}
+          style={{ width: 64, height: 64, borderRadius: '50%', border: 'none', cursor: 'pointer', position: 'relative', background: running ? 'var(--live)' : 'var(--accent)', boxShadow: running ? '0 10px 28px -8px rgba(255,83,32,0.55)' : '0 10px 28px -8px rgba(54,84,224,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background var(--dur-med) var(--ease-out), transform var(--dur-fast) var(--ease-spring), box-shadow var(--dur-med) var(--ease-out)' }}
           onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.92)'; }}
           onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
@@ -128,14 +146,31 @@ function TodayScreen({ theme, running, setRunning, paused, setPaused, secs, fmt 
             ? <span style={{ width: 20, height: 20, borderRadius: 5, background: '#fff' }}></span>
             : <span style={{ width: 0, height: 0, marginLeft: 5, borderTop: '13px solid transparent', borderBottom: '13px solid transparent', borderLeft: '22px solid #fff' }}></span>}
         </button>
+        </span>
       </div>
 
       {/* Arbeitsfläche — einziger Scrollbereich; Titel + Tracker stehen fest */}
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', margin: '0 -28px', padding: '4px 28px 28px' }}>
-      {/* ---- Momentary mood — one tap, once a day, feeds Balance ---- */}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12, minHeight: 30 }}>
-        <MoodCheck />
-      </div>
+      {/* ---- Punch-out mood — erscheint nur im Moment des Ausstempelns, verschwindet nach dem Tap ---- */}
+      {askMood && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12, padding: '10px 16px', borderRadius: 'var(--radius-lg)', background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+          {moodPicked ? (
+            <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--good)' }}>Notiert — fließt still in deinen Balance-Trend ein.</span>
+          ) : (
+            <React.Fragment>
+              <span style={{ fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>Ausgestempelt · wie war der Block?</span>
+              <span style={{ display: 'inline-flex', gap: 16 }}>
+                {[['gut', 'Gut', 'var(--good)'], ['angespannt', 'Angespannt', 'var(--warn)'], ['gestresst', 'Gestresst', 'var(--bad)']].map(([id, label, color]) => (
+                  <button key={id} onClick={() => { setMoodPicked(id); setTimeout(() => { setAskMood(false); setMoodPicked(null); }, 2000); }} style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--ink-2)', padding: 0 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: color }}></span>{label}
+                  </button>
+                ))}
+              </span>
+              <button onClick={() => setAskMood(false)} aria-label="Überspringen" style={{ marginLeft: 'auto', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 'var(--fs-2xs)' }}>Überspringen</button>
+            </React.Fragment>
+          )}
+        </div>
+      )}
 
       {/* ---- NL Quick-Add with LIVE deterministic parse (⌘K) ---- */}
       <div style={{ marginBottom: 12 }}>

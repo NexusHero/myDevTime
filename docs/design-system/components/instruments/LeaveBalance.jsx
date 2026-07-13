@@ -9,7 +9,15 @@ import React from 'react';
 export function LeaveBalance({ entitlement = 30, taken = 0, planned = 0, carryover = 0, label = 'Urlaub', unit = 'Tage' }) {
   const total = entitlement + carryover;
   const rest = Math.max(0, total - taken - planned);
-  const pct = (n) => (total > 0 ? (n / total) * 100 : 0) + '%';
+  const [mounted, setMounted] = React.useState(
+    typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+  React.useEffect(() => {
+    if (mounted) return;
+    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setMounted(true)));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  const pct = (n) => (total > 0 && mounted ? (n / total) * 100 : 0) + '%';
   const seg = (w, bg, extra) => ({ width: w, background: bg, transition: 'width var(--dur-slow) var(--ease-out)', ...extra });
   return (
     <div>
