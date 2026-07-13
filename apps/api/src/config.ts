@@ -15,6 +15,7 @@ const envSchema = z
     // Optional so the app can boot for unit tests / OpenAPI emit without a DB;
     // readiness checks and integration tests require it.
     DATABASE_URL: z.url().optional(),
+    REDIS_URL: z.url().optional(),
 
     // Auth (ADR-0007/0017). Secret + base URL are required in production; in
     // dev/test the auth module falls back to a fixed dev value so the app boots.

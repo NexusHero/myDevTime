@@ -11,6 +11,11 @@ import { AbsencesModule } from './modules/absences/absences.module.js'
 import { PlannerModule } from './modules/planner/planner.module.js'
 import { PreferencesModule } from './modules/preferences/preferences.module.js'
 import { ConnectorsModule } from './modules/connectors/connectors.module.js'
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler'
+import { ThrottlerStorageRedisService } from 'nestjs-throttler-storage-redis'
+import { APP_GUARD } from '@nestjs/core'
+import { CONFIG } from './core/tokens.js'
+import type { Config } from './config.js'
 
 /**
  * The composition root (ADR-0025): `forRoot` wires the shared providers
@@ -24,6 +29,13 @@ export class AppModule {
     return {
       module: AppModule,
       imports: [
+        ThrottlerModule.forRootAsync({
+          inject: [CONFIG],
+          useFactory: (config: Config) => ({
+            throttlers: [{ ttl: 60000, limit: 100 }],
+            storage: config.REDIS_URL ? new ThrottlerStorageRedisService(config.REDIS_URL) : undefined,
+          }),
+        }),
         CoreModule.forRoot(deps),
         HealthModule,
         AutomationModule,
@@ -36,6 +48,12 @@ export class AppModule {
         PlannerModule,
         PreferencesModule,
         ConnectorsModule,
+      ],
+      providers: [
+        {
+          provide: APP_GUARD,
+          useClass: ThrottlerGuard,
+        },
       ],
     }
   }

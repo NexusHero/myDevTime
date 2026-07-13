@@ -138,3 +138,4 @@ One line per technology so the stack's shape stays visible without re-reading th
 | `jose` (JWT/JWKS for PowerSync device tokens) | Adopt (crypto confined to the sync module's `powersync-auth`) | ADR-0043 |
 | Hand-rolled ADR-0019 client sync (outbox/watermark/runSync) | Retired (superseded by PowerSync) | ADR-0043 |
 - [ADR-0049: Abandon Offline-First Architecture](./0049-abandon-offline-first-architecture.md)
+- [ADR-0050: Redis for Global Rate Limiting](./0050-redis-rate-limiting.md)

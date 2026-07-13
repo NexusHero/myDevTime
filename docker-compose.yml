@@ -17,6 +17,18 @@ services:
       test: ['CMD-SHELL', 'pg_isready -U mydevtime']
       interval: 5s
       timeout: 5s
+    retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - mydevtime-redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
       retries: 10
 
   api:
@@ -25,9 +37,12 @@ services:
       dockerfile: apps/api/Dockerfile
     environment:
       DATABASE_URL: postgres://mydevtime:mydevtime@postgres:5432/mydevtime
+      REDIS_URL: redis://redis:6379
       PORT: 3000
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   web:
@@ -41,3 +56,4 @@ services:
 
 volumes:
   mydevtime-pg:
+  mydevtime-redis:
