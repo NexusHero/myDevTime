@@ -66,6 +66,7 @@ export {
   type ConsumptionTone,
 } from './format.js'
 export { ringDashOffset, gaugeAngle, polarToCartesian, sparklinePoints } from './instruments.js'
+export { clamp01, easeOutCubic, easeTo } from './motion.js'
 export { plannerBlockRect, plannerTotalHours, type BlockRect } from './planner.js'
 export { monthGrid, daysInMonth, weekdayHeaders, type DayCell } from './calendar.js'
 

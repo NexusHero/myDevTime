@@ -2,6 +2,7 @@ import { View } from 'react-native'
 import { Gauge } from '../data/Gauge'
 import { Text } from '../core/Text'
 import { useTheme } from '../../theme/ThemeProvider'
+import { useMountValue } from '../../hooks/useMountValue'
 
 interface OvertimeGaugeProps {
   readonly label: string
@@ -11,6 +12,8 @@ interface OvertimeGaugeProps {
 
 export function OvertimeGauge({ label, value, max }: OvertimeGaugeProps): React.JSX.Element {
   const t = useTheme()
+  // The readout counts up in sync with the Gauge needle's mount swing (design v4).
+  const shown = useMountValue(value)
 
   return (
     <View style={{ alignItems: 'center', gap: t.spacing.s3 }}>
@@ -21,7 +24,7 @@ export function OvertimeGauge({ label, value, max }: OvertimeGaugeProps): React.
       <Text
         style={{ fontFamily: t.fontFamily.numeric, fontSize: t.fontSize.sm, color: t.color.ink }}
       >
-        {value.toFixed(1)} / {max}h
+        {shown.toFixed(1)} / {max}h
       </Text>
     </View>
   )

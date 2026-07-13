@@ -2,6 +2,7 @@ import { View } from 'react-native'
 import Svg, { Circle, Line, Path } from 'react-native-svg'
 import { gaugeAngle, polarToCartesian } from '@mydevtime/design'
 import { useTheme } from '../../theme/ThemeProvider'
+import { useMountValue } from '../../hooks/useMountValue'
 
 /**
  * Gauge (data) — a symmetric balance gauge for a signed value around zero
@@ -25,7 +26,10 @@ export function Gauge({ value, range, size = 132, label }: GaugeProps): React.JS
   const left = polarToCartesian(c, c, r, -90)
   const right = polarToCartesian(c, c, r, 90)
   const track = `M ${String(left.x)} ${String(left.y)} A ${String(r)} ${String(r)} 0 0 1 ${String(right.x)} ${String(right.y)}`
-  const needle = polarToCartesian(c, c, r - 6, gaugeAngle(value, range))
+  // The needle swings out from the zero (up) position to the real value on mount
+  // (design v4); the tone stays fixed by the real sign so it never flips mid-swing.
+  const shown = useMountValue(value)
+  const needle = polarToCartesian(c, c, r - 6, gaugeAngle(shown, range))
   const tone = value >= 0 ? t.color.good : t.color.crit
 
   return (

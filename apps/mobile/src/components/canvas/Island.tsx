@@ -1,4 +1,13 @@
+import { useEffect } from 'react'
 import { Pressable, View } from 'react-native'
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated'
 import { Text } from '../core/Text'
 import { ReanimatedTimer } from '../ReanimatedTimer'
 import { useTheme } from '../../theme/ThemeProvider'
@@ -39,6 +48,64 @@ interface IslandProps {
 
 const ISLAND_BG = '#12151c'
 
+/**
+ * The live signal dot — orange while running (never the accent, ux-vision §4),
+ * wrapped in a soft live ring. While running it emits a slow expanding pulse
+ * (design v4 motion pass), gated behind the OS reduced-motion setting: when the
+ * user opts out (or the timer is idle) it renders as a plain static dot.
+ */
+function LiveDot({
+  running,
+  live,
+  liveSoft,
+  ink3,
+}: {
+  readonly running: boolean
+  readonly live: string
+  readonly liveSoft: string
+  readonly ink3: string
+}): React.JSX.Element {
+  const reduce = useReducedMotion()
+  const pulse = useSharedValue(0)
+  const animate = running && !reduce
+
+  useEffect(() => {
+    pulse.value = animate
+      ? withRepeat(withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) }), -1, false)
+      : 0
+  }, [animate, pulse])
+
+  const ringStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + pulse.value * 0.9 }],
+    opacity: 0.5 * (1 - pulse.value),
+  }))
+
+  return (
+    <View
+      style={{
+        width: 16,
+        height: 16,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: running ? liveSoft : 'transparent',
+      }}
+    >
+      {animate && (
+        <Animated.View
+          style={[
+            { position: 'absolute', width: 16, height: 16, borderRadius: 8, backgroundColor: live },
+            ringStyle,
+          ]}
+        />
+      )}
+      <View
+        style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: running ? live : ink3 }}
+      />
+    </View>
+  )
+}
+
 export function Island({
   running = true,
   elapsed = '00:00:00',
@@ -77,27 +144,12 @@ export function Island({
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s3 }}>
-        {/* The running signal is always live orange (never the accent, ux-vision §4),
-            wrapped in a soft live ring while running. */}
-        <View
-          style={{
-            width: 16,
-            height: 16,
-            borderRadius: 8,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: running ? t.color.liveSoft : 'transparent',
-          }}
-        >
-          <View
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: running ? t.color.live : t.color.ink3,
-            }}
-          />
-        </View>
+        <LiveDot
+          running={running}
+          live={t.color.live}
+          liveSoft={t.color.liveSoft}
+          ink3={t.color.ink3}
+        />
         {running && startedAt ? (
           <ReanimatedTimer
             startedAt={startedAt}

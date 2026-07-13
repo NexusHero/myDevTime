@@ -3,6 +3,7 @@ import { Text } from '../core/Text'
 import Svg, { Circle } from 'react-native-svg'
 import { budgetTone, formatPercent, ringDashOffset, type ConsumptionTone } from '@mydevtime/design'
 import { useTheme } from '../../theme/ThemeProvider'
+import { useMountValue } from '../../hooks/useMountValue'
 
 /**
  * BudgetRing (data) — a project's budget consumption as a ring (ux-vision §2.5).
@@ -33,7 +34,10 @@ export function BudgetRing({
   const r = (size - stroke) / 2
   const c = size / 2
   const circumference = 2 * Math.PI * r
+  // Tone is fixed by the real ratio (green/amber/red never shifts mid-draw); the
+  // arc and the centre percent both animate in from 0 on mount (design v4).
   const color = TONE_COLOR[budgetTone(ratio)](t)
+  const shown = useMountValue(ratio)
 
   return (
     <View
@@ -52,7 +56,7 @@ export function BudgetRing({
           fill="none"
           strokeLinecap="round"
           strokeDasharray={circumference}
-          strokeDashoffset={ringDashOffset(ratio, circumference)}
+          strokeDashoffset={ringDashOffset(shown, circumference)}
           rotation={-90}
           originX={c}
           originY={c}
@@ -67,7 +71,7 @@ export function BudgetRing({
             color: t.color.ink,
           }}
         >
-          {formatPercent(ratio)}
+          {formatPercent(shown)}
         </Text>
       </View>
     </View>

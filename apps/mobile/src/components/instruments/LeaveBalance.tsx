@@ -1,6 +1,7 @@
 import { View } from 'react-native'
 import { Text } from '../core/Text'
 import { useTheme } from '../../theme/ThemeProvider'
+import { useMountValue } from '../../hooks/useMountValue'
 
 interface LeaveBalanceProps {
   /** Annual entitlement in days. */
@@ -33,7 +34,9 @@ export function LeaveBalance({
   const t = useTheme()
   const total = entitlement + carryover
   const rest = Math.max(0, total - taken - planned)
-  const pct = (n: number): `${number}%` => `${total > 0 ? (n / total) * 100 : 0}%`
+  // The taken/planned segments grow in from zero width on mount (design v4).
+  const grow = useMountValue(1)
+  const pct = (n: number): `${number}%` => `${total > 0 ? (n / total) * 100 * grow : 0}%`
   const mono = { fontFamily: t.fontFamily.numeric, fontWeight: '600' as const, color: t.color.ink }
 
   const legendSwatch = (bg: string, border?: string): React.JSX.Element => (
