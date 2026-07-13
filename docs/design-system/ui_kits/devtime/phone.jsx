@@ -1,7 +1,6 @@
 function PhoneApp() {
   const DS = window.MyDevTimeDesignSystem_254296;
   const { AppShell, Island, Card, Badge, BudgetRing, StatTile } = DS;
-  const MoodCheck = DS.MoodCheck || (() => null);
   const LoadMeter = DS.LoadMeter || (() => null);
   const LeaveBalance = DS.LeaveBalance || (() => null);
   const [tab, setTab] = React.useState('today');
@@ -9,6 +8,9 @@ function PhoneApp() {
   const [mode, setMode] = React.useState('light');
   const [running, setRunning] = React.useState(true);
   const [paused, setPaused] = React.useState(false);
+  // Punch-out mood: nur im Moment des Ausstempelns, kein stehendes Widget
+  const [askMood, setAskMood] = React.useState(false);
+  const [moodPicked, setMoodPicked] = React.useState(null);
   const [secs, setSecs] = React.useState(2531);
   const [expanded, setExpanded] = React.useState(false);
   const [ghostAccepted, setGhostAccepted] = React.useState(false);
@@ -95,8 +97,10 @@ function PhoneApp() {
         </div>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: running ? (paused ? 'var(--warn)' : 'var(--live)') : 'var(--ink-3)' }}>{fmt(secs)}</span>
         {running && (
-          <button onClick={() => setPaused(!paused)} aria-label={paused ? 'Weiter' : 'Pause'} style={{
-            width: 40, height: 40, borderRadius: '50%', cursor: 'pointer', flexShrink: 0,
+          <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+            {paused && [0, 1].map((i) => <span key={i} className="dt-pulse" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'var(--warn)', animation: 'dt-punch-wave 2s var(--ease-out) infinite', animationDelay: i * 1 + 's', pointerEvents: 'none' }}></span>)}
+            <button onClick={() => setPaused(!paused)} aria-label={paused ? 'Weiter' : 'Pause'} className={paused ? 'dt-breathe-warn' : ''} style={{
+            width: 40, height: 40, borderRadius: '50%', cursor: 'pointer', flexShrink: 0, position: 'relative',
             border: '1.5px solid ' + (paused ? 'var(--warn)' : 'var(--border-strong)'),
             background: paused ? 'var(--warn-soft)' : 'var(--surface)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
@@ -107,10 +111,23 @@ function PhoneApp() {
                   <span style={{ width: 4, height: 13, borderRadius: 2, background: 'var(--ink-2)' }}></span>
                   <span style={{ width: 4, height: 13, borderRadius: 2, background: 'var(--ink-2)' }}></span>
                 </React.Fragment>}
-          </button>
+            </button>
+          </span>
         )}
-        <button onClick={() => { if (running) { setRunning(false); setPaused(false); } else setRunning(true); }} aria-label={running ? 'Stop' : 'Start'} style={{
-          width: 52, height: 52, borderRadius: '50%', border: 'none', cursor: 'pointer', flexShrink: 0,
+        <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+          <style>{[
+            '@keyframes dt-punch-wave { 0% { transform: scale(0.5); opacity: 0.45; } 100% { transform: scale(1.9); opacity: 0; } }',
+            '@keyframes dt-breathe { 0%, 100% { transform: scale(1); box-shadow: 0 8px 20px -6px rgba(255,83,32,0.55); } 50% { transform: scale(1.06); box-shadow: 0 10px 28px -4px rgba(255,83,32,0.8); } }',
+            '.dt-breathe-live { animation: dt-breathe 2.4s ease-in-out infinite; }',
+            '@keyframes dt-breathe-w { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }',
+            '.dt-breathe-warn { animation: dt-breathe-w 2s ease-in-out infinite; }',
+            '@media (prefers-reduced-motion: reduce) { .dt-pulse, .dt-breathe-live, .dt-breathe-warn { animation: none !important; } .dt-pulse { opacity: 0 !important; } }',
+          ].join(' ')}</style>
+          {running && !paused && [0, 1].map((i) => (
+            <span key={i} className="dt-pulse" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'var(--live)', animation: 'dt-punch-wave 2.4s var(--ease-out) infinite', animationDelay: i * 1.2 + 's', pointerEvents: 'none' }}></span>
+          ))}
+          <button onClick={() => { if (running) { setRunning(false); setPaused(false); setAskMood(true); setMoodPicked(null); } else { setRunning(true); setAskMood(false); } }} aria-label={running ? 'Stop' : 'Start'} className={running && !paused ? 'dt-breathe-live' : ''} style={{
+          width: 52, height: 52, borderRadius: '50%', border: 'none', cursor: 'pointer', flexShrink: 0, position: 'relative',
           background: running ? 'var(--live)' : 'var(--accent)',
           boxShadow: running ? '0 8px 20px -6px rgba(255,83,32,0.55)' : '0 8px 20px -6px rgba(37,99,235,0.5)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -119,12 +136,26 @@ function PhoneApp() {
             ? <span style={{ width: 16, height: 16, borderRadius: 4, background: '#fff' }}></span>
             : <span style={{ width: 0, height: 0, marginLeft: 4, borderTop: '10px solid transparent', borderBottom: '10px solid transparent', borderLeft: '17px solid #fff' }}></span>}
         </button>
+        </span>
       </div>
 
-      {/* Momentary mood — one tap, once a day, feeds Balance */}
-      <div style={{ minHeight: 26, display: 'flex', alignItems: 'center' }}>
-        <MoodCheck />
-      </div>
+      {/* Punch-out mood — erscheint nur nach dem Ausstempeln, ein Tap, weg */}
+      {askMood && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 'var(--radius-lg)', background: 'var(--surface)', border: '1px solid var(--border)', flexWrap: 'wrap' }}>
+          {moodPicked ? (
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--good)' }}>Notiert — fließt in Balance ein.</span>
+          ) : (
+            <React.Fragment>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-2)' }}>Wie war der Block?</span>
+              {[['gut', 'Gut', 'var(--good)'], ['angespannt', 'Angespannt', 'var(--warn)'], ['gestresst', 'Gestresst', 'var(--bad)']].map(([id, label, color]) => (
+                <button key={id} onClick={() => { setMoodPicked(id); setTimeout(() => { setAskMood(false); setMoodPicked(null); }, 2000); }} style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: 'var(--ink-2)', padding: '4px 0' }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: color }}></span>{label}
+                </button>
+              ))}
+            </React.Fragment>
+          )}
+        </div>
+      )}
 
       {/* Drift event — one-tap replan (Co-Planner, AI signature) */}
       {driftEvent && (
@@ -455,8 +486,8 @@ function PhoneApp() {
             onToggle={() => setExpanded(!expanded)}
             actions={[
               running ? { label: paused ? 'Weiter' : 'Pause', onClick: () => setPaused(!paused) } : { label: 'Start', onClick: () => setRunning(true) },
-              running ? { label: 'Stop', onClick: () => { setRunning(false); setPaused(false); } } : { label: 'Today', onClick: () => setTab('today') },
-              { label: 'Ausstempeln', onClick: () => { setRunning(false); setPaused(false); } },
+              running ? { label: 'Stop', onClick: () => { setRunning(false); setPaused(false); setAskMood(true); } } : { label: 'Today', onClick: () => setTab('today') },
+              { label: 'Ausstempeln', onClick: () => { setRunning(false); setPaused(false); setAskMood(true); } },
             ]}
           />
         </div>

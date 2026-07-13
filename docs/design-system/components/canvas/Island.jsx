@@ -35,7 +35,8 @@ export function Island({ running = true, elapsed = '00:42:11', punched = true, e
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: running ? 'var(--live, var(--accent))' : 'var(--ink-3, #666)', boxShadow: running ? '0 0 0 4px var(--live-soft, rgba(255,83,32,0.2))' : 'none' }} />
+        <style>{'@keyframes dt-island-pulse { 0% { box-shadow: 0 0 0 0 var(--live-border, rgba(255,83,32,0.38)); } 70%, 100% { box-shadow: 0 0 0 8px transparent; } } @media (prefers-reduced-motion: reduce) { .dt-island-dot { animation: none !important; } }'}</style>
+        <span className={running ? 'dt-island-dot' : undefined} style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: running ? 'var(--live, var(--accent))' : 'var(--ink-3, #666)', animation: running ? 'dt-island-pulse 2s var(--ease-out, ease-out) infinite' : 'none' }} />
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)', fontVariantNumeric: 'tabular-nums' }}>{elapsed}</span>
         <span style={{ fontSize: 'var(--fs-2xs)', color: 'rgba(255,255,255,0.55)', whiteSpace: 'nowrap' }}>{punched ? 'Eingestempelt' : 'Ausgestempelt'}</span>
       </div>

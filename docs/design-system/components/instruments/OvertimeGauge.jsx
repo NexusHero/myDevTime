@@ -1,8 +1,25 @@
 import React from 'react';
 
-/** Overtime balance gauge — positive/negative around zero. */
+const reduced = () => typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** Overtime balance gauge — positive/negative around zero.
+ *  Animates: bar grows out from the zero line on mount, hours count up. */
 export function OvertimeGauge({ hours = 4.5, max = 20 }) {
-  const pct = Math.max(-1, Math.min(1, hours / max));
+  const [shown, setShown] = React.useState(reduced() ? hours : 0);
+  React.useEffect(() => {
+    if (reduced()) { setShown(hours); return; }
+    let raf, start;
+    const dur = 800;
+    const step = (t) => {
+      if (!start) start = t;
+      const p = Math.min((t - start) / dur, 1);
+      setShown(hours * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [hours]);
+  const pct = Math.max(-1, Math.min(1, shown / max));
   const isPositive = hours >= 0;
   const width = Math.abs(pct) * 50;
   return (
@@ -16,12 +33,11 @@ export function OvertimeGauge({ hours = 4.5, max = 20 }) {
             width: `${width}%`,
             background: isPositive ? 'var(--good)' : 'var(--crit)',
             borderRadius: 'var(--radius-pill)',
-            transition: 'all var(--dur-slow) var(--ease-out)',
           }}
         />
       </div>
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)', fontWeight: 600, color: isPositive ? 'var(--good)' : 'var(--crit)' }}>
-        {isPositive ? '+' : ''}{hours.toFixed(1)}h
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: isPositive ? 'var(--good)' : 'var(--crit)' }}>
+        {isPositive ? '+' : ''}{shown.toFixed(1)}h
       </div>
     </div>
   );

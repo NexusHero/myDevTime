@@ -20,17 +20,25 @@ function ProjectDonut({ data, total }) {
   const R = 56, C = 2 * Math.PI * R;
   let acc = 0;
   const sum = data.reduce((s, d) => s + d.h, 0);
+  const [drawn, setDrawn] = React.useState(
+    window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+  React.useEffect(() => {
+    if (drawn) return;
+    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setDrawn(true)));
+    return () => cancelAnimationFrame(raf);
+  }, []);
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
       <div style={{ position: 'relative', width: 150, height: 150, flexShrink: 0 }}>
         <svg viewBox="0 0 150 150" style={{ width: '100%', transform: 'rotate(-90deg)' }}>
           {data.map((d) => {
-            const frac = d.h / sum;
+            const frac = drawn ? d.h / sum : 0;
             const seg = (
               <circle key={d.n} cx="75" cy="75" r={R} fill="none" stroke={d.c} strokeWidth="16"
-                strokeDasharray={(frac * C - 3) + ' ' + (C - frac * C + 3)}
+                strokeDasharray={Math.max(frac * C - 3, 0.01) + ' ' + (C - frac * C + 3)}
                 strokeDashoffset={-acc * C}
-                style={{ transition: 'stroke-dasharray var(--dur-slow) var(--ease-out)' }} />
+                style={{ transition: 'stroke-dasharray var(--dur-slow) var(--ease-out), stroke-dashoffset var(--dur-slow) var(--ease-out)' }} />
             );
             acc += frac;
             return seg;
@@ -116,8 +124,10 @@ function ReportsScreen() {
       </div>
       <Tabs items={[{ value: 'week', label: 'Woche' }, { value: 'month', label: 'Monat' }, { value: 'year', label: 'Jahr' }]} active={range} onChange={setRange} />
 
-      {/* Arbeitsfläche — einziger Scrollbereich; Titel + Tabs stehen fest */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', margin: '0 -28px', padding: '0 28px 28px' }}>
+      {/* Arbeitsfläche — einziger Scrollbereich; Titel + Tabs stehen fest.
+           key={range}: beim Range-Wechsel steigen die Sektionen gestaffelt neu ein. */}
+      <div key={range} style={{ flex: 1, minHeight: 0, overflowY: 'auto', margin: '0 -28px', padding: '0 28px 28px' }}>
+      <style>{'@keyframes dt-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } } .dt-rise { animation: dt-rise var(--dur-slow) var(--ease-out) both; } @media (prefers-reduced-motion: reduce) { .dt-rise { animation: none; } }'}</style>
       {/* AI reachable in context */}
       <div style={{ margin: '16px 0 0', maxWidth: 680 }}>
         <AIAskBar
@@ -130,7 +140,7 @@ function ReportsScreen() {
       </div>
 
       {/* The story in one row: how much · how much of it paid · what it earned · balance */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: 12, marginTop: 20 }}>
+      <div className="dt-rise" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: 12, marginTop: 20 }}>
         <StatTile label={'Gearbeitet · ' + d.label} value={fmtWorked} />
         <StatTile label="Billable-Quote" value={d.billablePct + '%'} delta={range === 'week' ? 4 : 2} />
         <StatTile label="Umsatz" value={d.revenue.replace(' ', '\u00A0')} delta={range === 'year' ? 18 : 6} />
@@ -138,7 +148,7 @@ function ReportsScreen() {
       </div>
 
       {/* ---- Balance: strain made visible — deterministic signals + AI recovery proposal ---- */}
-      <div style={{ marginTop: 12 }}>
+      <div className="dt-rise" style={{ marginTop: 12, animationDelay: '60ms' }}>
         <Card title="Balance" subtitle={d.label + ' · Belastung aus deinen eigenen Daten — keine Diagnose'}>
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
             <div style={{ flex: '0 1 300px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -197,7 +207,7 @@ function ReportsScreen() {
         </Card>
       </div>
 
-      <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+      <div className="dt-rise" style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap', animationDelay: '120ms' }}>
         {/* Where the time went — the pie */}
         <Card title="Wohin ging die Zeit?" subtitle={d.label + ' · nach Projekt'} style={{ flex: '1.3 1 340px', minWidth: 0 }}>
           <ProjectDonut data={d.donut} total={d.workedLabel} />
@@ -209,8 +219,9 @@ function ReportsScreen() {
             {[0, 1, 2, 3].map((i) => (
               <line key={i} x1="0" y1={10 + i * 30} x2="300" y2={10 + i * 30} stroke="var(--border)" strokeWidth="0.5" opacity="0.5" />
             ))}
-            <polyline points={d.burn.pts} fill="none" stroke="var(--project-3)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'all var(--dur-slow) var(--ease-out)' }} />
-            <polyline points="150,66 210,84 258,100" fill="none" stroke="var(--project-3)" strokeWidth="2" strokeDasharray="5 5" opacity="0.55" />
+            <style>{'@keyframes dt-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } } @media (prefers-reduced-motion: reduce) { .dt-draw { animation: none !important; stroke-dashoffset: 0 !important; } }'}</style>
+            <polyline className="dt-draw" points={d.burn.pts} fill="none" stroke="var(--project-3)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" pathLength="1" strokeDasharray="1" style={{ animation: 'dt-draw 900ms var(--ease-out) both 150ms' }} />
+            <polyline className="dt-draw" points="150,66 210,84 258,100" fill="none" stroke="var(--project-3)" strokeWidth="2" strokeDasharray="5 5" opacity="0.55" />
             <circle cx="150" cy="66" r="4" fill="var(--live)" />
             <text x="4" y="24" fontFamily="var(--font-mono)" fontSize="9" fill="var(--ink-3)">80h</text>
             <text x="130" y="108" fontFamily="var(--font-mono)" fontSize="9" fill="var(--live)">heute</text>
@@ -236,7 +247,7 @@ function ReportsScreen() {
         </Card>
       </div>
 
-      <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+      <div className="dt-rise" style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap', animationDelay: '180ms' }}>
         <Card title="Tagesarbeitszeit" subtitle={d.label + ' · Verteilung vs. Soll 8:20h'} action={<span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-2xs)', fontWeight: 600, color: 'var(--good)', background: 'var(--good-soft)', padding: '3px 10px', borderRadius: 'var(--radius-pill)', fontVariantNumeric: 'tabular-nums' }}>Saldo {d.overtime}</span>} style={{ flex: '1 1 300px', minWidth: 0 }}>
           <BoxPlot
             min={range === 'year' ? 5.5 : 6.2} q1={range === 'year' ? 7.4 : 7.5} median={range === 'year' ? 8.3 : 8.4}

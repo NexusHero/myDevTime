@@ -15,11 +15,13 @@ function ProjectsScreen() {
         <Button size="sm">Neues Projekt</Button>
       </div>
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', margin: '0 -28px', padding: '4px 28px 28px' }}>
+      <style>{'@keyframes dt-card-in { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } } @media (prefers-reduced-motion: reduce) { .dt-card-in { animation: none !important; } }'}</style>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-        {projects.map((p) => (
+        {projects.map((p, idx) => (
           <div
             key={p.name}
-            style={{ transition: 'transform var(--dur-fast) var(--ease-out)' }}
+            className="dt-card-in"
+            style={{ transition: 'transform var(--dur-fast) var(--ease-out)', animation: 'dt-card-in var(--dur-slow) var(--ease-out) backwards ' + idx * 70 + 'ms' }}
             onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
           >
