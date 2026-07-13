@@ -5,7 +5,6 @@ import { AutomationModule } from './modules/automation/automation.module.js'
 import { AiModule } from './modules/ai/ai.module.js'
 import { AuthModule } from './modules/auth/auth.module.js'
 import { TrackingModule } from './modules/tracking/tracking.module.js'
-import { SyncModule } from './modules/sync/sync.module.js'
 import { BillingModule } from './modules/billing/billing.module.js'
 import { WorktimeModule } from './modules/worktime/worktime.module.js'
 import { AbsencesModule } from './modules/absences/absences.module.js'
@@ -31,7 +30,6 @@ export class AppModule {
         AiModule,
         AuthModule,
         TrackingModule,
-        SyncModule,
         BillingModule,
         WorktimeModule,
         AbsencesModule,

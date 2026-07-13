@@ -8,9 +8,7 @@ import { ShellChrome } from '../src/shell/ShellChrome'
 import { AuthGate } from '../src/shell/AuthGate'
 import { OnboardingGate } from '../src/onboarding/OnboardingGate'
 import { TimerProvider } from '../src/timer/TimerContext'
-import { LocalDbProvider } from '../src/localDb/LocalDbProvider'
 import { makeQueryClient } from '../src/query/queryClient'
-import { registerPwa } from '../src/web/registerPwa'
 
 /**
  * Expo Router root layout (ADR-0045) — the app's single entry, replacing the old
@@ -37,12 +35,7 @@ export default function RootLayout(): React.JSX.Element | null {
     JetBrainsMono_700Bold: require('@expo-google-fonts/jetbrains-mono/700Bold/JetBrainsMono_700Bold.ttf'),
   })
 
-  // Web/PWA: link the manifest + register the offline service worker. In an effect
-  // so it only runs client-side (never during the static web prerender); a no-op
-  // on native and where the browser APIs are absent.
-  useEffect(() => {
-    registerPwa()
-  }, [])
+  // Web/PWA: Removed offline service worker registration.
 
   // One QueryClient for the app's lifetime (ADR-0047), created lazily so it is
   // stable across re-renders.
@@ -53,18 +46,16 @@ export default function RootLayout(): React.JSX.Element | null {
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
-        <LocalDbProvider>
-          <ThemeProvider>
-            <StatusBar style="auto" />
-            <AuthGate>
-              <OnboardingGate>
-                <TimerProvider>
-                  <ShellChrome />
-                </TimerProvider>
-              </OnboardingGate>
-            </AuthGate>
-          </ThemeProvider>
-        </LocalDbProvider>
+        <ThemeProvider>
+          <StatusBar style="auto" />
+          <AuthGate>
+            <OnboardingGate>
+              <TimerProvider>
+                <ShellChrome />
+              </TimerProvider>
+            </OnboardingGate>
+          </AuthGate>
+        </ThemeProvider>
       </QueryClientProvider>
     </SafeAreaProvider>
   )

@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: mydevtime
       POSTGRES_DB: mydevtime
     ports:
-      - '5432:5432'
+      - '5433:5432'
     volumes:
       - mydevtime-pg:/var/lib/postgresql/data
     healthcheck:
@@ -18,6 +18,26 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgres://mydevtime:mydevtime@postgres:5432/mydevtime
+      PORT: 3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/mobile/Dockerfile
+    ports:
+      - '8080:80'
+    depends_on:
+      - api
 
 volumes:
   mydevtime-pg:

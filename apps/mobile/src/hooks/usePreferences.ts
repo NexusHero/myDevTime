@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getAllPreferences, setPreference } from '@mydevtime/local-db'
 import { apiBaseUrl } from '../config.js'
-import { LOCAL_WORKSPACE_ID, useLocalDb } from '../localDb/context.js'
 import {
   DEFAULT_PREFERENCES,
   getPreferences,
@@ -27,20 +25,9 @@ export interface PreferencesResource {
   readonly setPref: (key: PreferenceKey, value: boolean) => void
 }
 
-/** Overlay stored `'1'`/`'0'` string values onto the defaults. */
-function mergeStored(stored: Record<string, string>): Preferences {
-  const out = { ...DEFAULT_PREFERENCES } as Record<PreferenceKey, boolean>
-  for (const key of Object.keys(DEFAULT_PREFERENCES) as PreferenceKey[]) {
-    const value = stored[key]
-    if (value !== undefined) out[key] = value === '1'
-  }
-  return out
-}
-
 export function usePreferences(): PreferencesResource {
   const base = apiBaseUrl
   const live = base !== null
-  const db = useLocalDb()
   const [prefs, setPrefs] = useState<Preferences>(DEFAULT_PREFERENCES)
   const [loading, setLoading] = useState(live)
   const [error, setError] = useState<Error | null>(null)
@@ -66,26 +53,7 @@ export function usePreferences(): PreferencesResource {
         alive = false
       }
     }
-    // Offline: hydrate from the local store once it is open (demo until then).
-    if (db === null) return
-    setLoading(true)
-    getAllPreferences(db, LOCAL_WORKSPACE_ID)
-      .then(stored => {
-        if (alive) {
-          setPrefs(mergeStored(stored))
-          setError(null)
-        }
-      })
-      .catch((cause: unknown) => {
-        if (alive) setError(cause instanceof Error ? cause : new Error(String(cause)))
-      })
-      .finally(() => {
-        if (alive) setLoading(false)
-      })
-    return () => {
-      alive = false
-    }
-  }, [base, db])
+  }, [base])
 
   const setPref = useCallback(
     (key: PreferenceKey, value: boolean) => {
@@ -101,16 +69,11 @@ export function usePreferences(): PreferencesResource {
               setPrefs(previous) // roll back the toggle
               setError(cause instanceof Error ? cause : new Error(String(cause)))
             })
-        } else if (db !== null) {
-          setPreference(db, LOCAL_WORKSPACE_ID, key, value ? '1' : '0').catch((cause: unknown) => {
-            setPrefs(previous) // roll back the toggle
-            setError(cause instanceof Error ? cause : new Error(String(cause)))
-          })
         }
         return optimistic
       })
     },
-    [base, db],
+    [base],
   )
 
   return { prefs, live, loading, error, setPref }

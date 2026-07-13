@@ -6,8 +6,16 @@ import { Text as RNText } from 'react-native'
 import { OnboardingGate } from './OnboardingGate.js'
 import { ThemeProvider } from '../theme/ThemeProvider.js'
 
+const mockStore = new Map<string, string>()
+global.localStorage = {
+  clear: () => mockStore.clear(),
+  getItem: (key: string) => mockStore.get(key) ?? null,
+  setItem: (key: string, value: string) => mockStore.set(key, value),
+} as unknown as Storage
+
 afterEach(() => {
   localStorage.clear()
+  // Reset the onboarding module's in-memory flag by re-importing or just relying on localStorage
 })
 
 function render(): TestRenderer.ReactTestRenderer {

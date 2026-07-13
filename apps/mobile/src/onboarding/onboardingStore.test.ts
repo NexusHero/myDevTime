@@ -3,6 +3,13 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { hasOnboarded, markOnboarded } from './onboardingStore.js'
 
+const mockStore = new Map<string, string>()
+global.localStorage = {
+  clear: () => mockStore.clear(),
+  getItem: (key: string) => mockStore.get(key) ?? null,
+  setItem: (key: string, value: string) => mockStore.set(key, value),
+} as unknown as Storage
+
 afterEach(() => {
   localStorage.clear()
 })
