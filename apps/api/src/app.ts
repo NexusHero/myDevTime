@@ -23,6 +23,7 @@ export interface AppDeps {
  */
 export async function buildApp(deps: AppDeps): Promise<NestFastifyApplication> {
   const adapter = new FastifyAdapter({
+    trustProxy: true, // Essential for rate-limiting behind proxies/load balancers
     logger: {
       level: deps.config.LOG_LEVEL,
       // Never log secrets/PII (SKILL §4/§8).
