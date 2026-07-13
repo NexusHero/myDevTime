@@ -2,26 +2,29 @@
   "expo": {
     "name": "myDevTime",
     "slug": "mydevtime",
-    "version": "0.0.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "mydevtime",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "icon": "./assets/icon.svg",
+    "icon": "./assets/icon.png",
     "splash": {
-      "image": "./assets/splash.svg",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0a0c11"
     },
     "ios": {
       "supportsTablet": true,
-      "icon": "./assets/icon.svg"
+      "bundleIdentifier": "com.nexushero.mydevtime",
+      "icon": "./assets/icon.png"
     },
     "android": {
+      "package": "com.nexushero.mydevtime",
+      "versionCode": 1,
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.svg",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2563EB"
       }
     },
     "web": { "bundler": "metro", "output": "static" },
