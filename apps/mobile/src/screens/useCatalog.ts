@@ -1,4 +1,4 @@
-import { assembleCatalog, fetchCatalog } from '../api/tracking.js'
+import { fetchCatalog } from '../api/tracking.js'
 import { useAsync, type AsyncResource } from '../hooks/useAsync.js'
 import { CLIENTS, type Client } from './projectsData.js'
 import { apiBaseUrl } from '../config.js'

@@ -16,6 +16,13 @@ COPY scripts ./scripts
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
+# The API base URL is inlined into the static bundle at export time (EXPO_PUBLIC_*).
+# Default points at the web container's own origin, whose nginx proxies /api → api:3000,
+# so the built app talks to the real backend (not the demo path). Override at build:
+#   docker build --build-arg EXPO_PUBLIC_API_URL=https://api.example.com ...
+ARG EXPO_PUBLIC_API_URL=http://localhost:8080
+ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL
+
 # Export the Expo web app
 WORKDIR /app/apps/mobile
 RUN pnpm run export:web

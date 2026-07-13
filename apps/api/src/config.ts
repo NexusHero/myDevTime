@@ -15,7 +15,16 @@ const envSchema = z
     // Optional so the app can boot for unit tests / OpenAPI emit without a DB;
     // readiness checks and integration tests require it.
     DATABASE_URL: z.url().optional(),
+    // Redis backing for the global rate limiter (ADR-0050). Unset → the throttler
+    // falls back to per-instance in-memory counters (fine for tests/single-node).
     REDIS_URL: z.url().optional(),
+    // Whether to trust `X-Forwarded-*` headers for the client IP the rate limiter
+    // keys on (ADR-0050). Only enable behind a trusted proxy (nginx/LB) — trusting
+    // it on a directly-reachable API lets clients spoof their IP. Default off.
+    TRUST_PROXY: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform(v => v === 'true'),
 
     // Auth (ADR-0007/0017). Secret + base URL are required in production; in
     // dev/test the auth module falls back to a fixed dev value so the app boots.
@@ -46,11 +55,6 @@ const envSchema = z
     STRIPE_WEBHOOK_SECRET: z.string().optional(),
     // The Stripe Price id for the Pro subscription (test/live), used by Checkout.
     STRIPE_PRICE_PRO: z.string().optional(),
-    // PowerSync client auth (ADR-0043): the private signing key (a JWK JSON string)
-    // for the device tokens, and the token issuer. Unset → the token/JWKS endpoints
-    // are off (standalone/offline needs neither). Never commit a real key.
-    POWERSYNC_JWT_PRIVATE_JWK: z.string().optional(),
-    POWERSYNC_JWT_ISSUER: z.string().optional(),
   })
   .superRefine((cfg, ctx) => {
     if (cfg.NODE_ENV === 'production' && !cfg.AUTH_SECRET) {

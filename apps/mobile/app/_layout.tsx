@@ -9,6 +9,7 @@ import { AuthGate } from '../src/shell/AuthGate'
 import { OnboardingGate } from '../src/onboarding/OnboardingGate'
 import { TimerProvider } from '../src/timer/TimerContext'
 import { makeQueryClient } from '../src/query/queryClient'
+import { registerPwa } from '../src/web/registerPwa'
 
 /**
  * Expo Router root layout (ADR-0045) — the app's single entry, replacing the old
@@ -35,7 +36,12 @@ export default function RootLayout(): React.JSX.Element | null {
     JetBrainsMono_700Bold: require('@expo-google-fonts/jetbrains-mono/700Bold/JetBrainsMono_700Bold.ttf'),
   })
 
-  // Web/PWA: Removed offline service worker registration.
+  // Web/PWA: link the manifest + register the app-shell service worker (installable
+  // web build, #199). This caches the shell only — it does not restore offline
+  // *data* (removed in ADR-0049); a client-side effect, no-op on native / during SSR.
+  useEffect(() => {
+    registerPwa()
+  }, [])
 
   // One QueryClient for the app's lifetime (ADR-0047), created lazily so it is
   // stable across re-renders.

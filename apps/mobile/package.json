@@ -11,6 +11,7 @@
     "start": "expo start",
     "android": "pnpm run build:deps && expo start --android",
     "ios": "pnpm run build:deps && expo start --ios",
+    "web": "pnpm run build:deps && expo start --web",
     "export:web": "pnpm run build:deps && expo export -p web",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -42,6 +43,7 @@
     "expo-system-ui": "~4.0.7"
   },
   "devDependencies": {
+    "@types/node": "^26.1.0",
     "@types/react": "~18.3.12",
     "typescript": "~5.6.3"
   }

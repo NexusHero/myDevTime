@@ -49,9 +49,9 @@ export function usePreferences(): PreferencesResource {
         .finally(() => {
           if (alive) setLoading(false)
         })
-      return () => {
-        alive = false
-      }
+    }
+    return () => {
+      alive = false
     }
   }, [base])
 

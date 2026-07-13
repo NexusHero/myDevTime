@@ -1,37 +1,59 @@
-# 49. Abandon Offline-First Architecture
-
-Date: 2026-07-13
+# ADR 0049: Abandon the offline-first architecture (online-only)
 
 ## Status
 
-Accepted
+Accepted (owner decision) — **supersedes the offline-first line: ADR-0040
+(local store as sync client), ADR-0042 (offline money path), ADR-0043 (PowerSync),
+and ADR-0046 (Drizzle on the client)**. The deterministic core
+([ADR-0005](0005-deterministic-core-llm-assist.md)) and the server tracking/billing
+modules are untouched; this only removes the *client* offline stack and the server
+`sync` module that existed to serve it.
 
 ## Context
 
-We previously adopted an offline-first architecture (ADR-0040, ADR-0043, ADR-0046) using `expo-sqlite`, `PowerSync`, and a local Drizzle ORM store (`@mydevtime/local-db`) to allow the mobile app to function without an internet connection and synchronize in the background.
+We adopted an offline-first client (ADR-0040/0042/0043/0046): a local SQLite
+store (`@mydevtime/local-db`), a second data path in every hook, offline money
+computed in the core, and PowerSync as the sync transport. In practice the cost
+outran the value for the MVP:
 
-However, during implementation and testing, it became clear that this approach added significant complexity:
-- The dual-mode data fetching (online vs offline) complicated the frontend hooks significantly.
-- Maintaining schema parity and sync logic between the server and the local SQLite database increased development overhead.
-- Testing the frontend required extensive mocking of the local persistence layer (`localStorage` in JSDOM, SQLite in React Native).
-- The offline requirement was determined to be a "nice-to-have" rather than a core requirement for the initial MVP, making the architectural cost disproportionate to the user value.
+- Every data hook carried a **dual online/offline branch**, roughly doubling its
+  surface and its failure modes.
+- Keeping the local schema, its migrations, and the sync/conflict story in parity
+  with the server was ongoing overhead.
+- Testing the client meant mocking SQLite/`localStorage` persistence on top of the
+  render tests.
+- Offline was a *nice-to-have*, not a 1.0 requirement — the architectural weight
+  was disproportionate.
 
-Additionally, to verify the simplified online-only architecture in a production-like environment, we needed a reliable way to deploy both the API and the web build locally.
+Separately, to validate the simplified client against the real backend, we wanted
+a one-command local production-like environment.
 
 ## Decision
 
-1. **Remove Offline-First Logic**: We are abandoning the offline-first approach and the local database. The application will return to a strictly online-only architecture where the frontend communicates directly with the backend API.
-2. **Purge Dependencies**: We have removed `expo-sqlite`, `wa-sqlite`, `@powersync/react-native`, and the internal `@mydevtime/local-db` package.
-3. **Remove Sync Backend**: The `SyncModule` and all PowerSync-related synchronization logic have been removed from the NestJS backend.
-4. **Local Production Environment**: To properly test the online-only frontend against the backend locally, we introduced Dockerfiles for both the API (`node:22-alpine`) and the Web build (`nginx:alpine`), orchestrated via `docker-compose.yml`.
+1. **Online-only client.** Remove `@mydevtime/local-db` and the client's
+   `src/localDb/*`; each data hook now talks straight to the API, or falls back to
+   the clearly-labeled **demo** path when no API URL is configured (unchanged).
+   Server state is managed by TanStack Query ([ADR-0047](0047-tanstack-query-server-state.md)).
+2. **Remove the server `sync` module** and its PowerSync device-token/JWKS
+   endpoints (`SyncModule`, `powersync-auth`, `jose`); the pure conflict engine in
+   `packages/domain/src/sync/*` and the server `sync` tables are left dormant in
+   place (no destructive migration) as the documented re-entry point should
+   offline ever return.
+3. **Keep the installable PWA app-shell** ([#199](https://github.com/NexusHero/myDevTime/issues/199)):
+   the service worker caches the *shell*, which is orthogonal to offline *data*.
+4. **Local production-like env.** Dockerfiles for the API (`node:22-alpine`,
+   migrate-on-start) and the web build (`nginx:alpine`, static + `/api` proxy),
+   orchestrated by `docker-compose` (Postgres + Redis + api + web); `pnpm docker`.
 
 ## Consequences
 
-- **Pros**: 
-  - Massive reduction in code complexity and bundle size.
-  - Faster feature development since state is no longer synchronized locally.
-  - Easier testability (standard HTTP mocking instead of SQLite/Sync mocking).
-  - Clean local production-like test environment via Docker Compose.
-- **Cons**: 
-  - The application will not function without an active internet connection.
-  - We lose optimistic UI updates that were provided "for free" by the local database, requiring us to manage loading states and optimistic updates via TanStack Query (ADR-0047).
+- **Pros:** large drop in client complexity and bundle size; a single data path;
+  standard HTTP mocking in tests; a clean `docker compose` test environment.
+- **Cons:** the app needs a network (and a configured `EXPO_PUBLIC_API_URL`) to
+  show real data — **a native/web build without a backend is now the demo app**,
+  not a persistent one. Optimistic UI that the local store gave "for free" is now
+  TanStack Query's responsibility ([ADR-0047](0047-tanstack-query-server-state.md)).
+- **Correction to an earlier draft:** `wa-sqlite`/`@powersync/react-native` were
+  never actually installed (PowerSync-web proved incompatible with Metro, #193), so
+  there was nothing to uninstall there; what is removed is `expo-sqlite`,
+  `@mydevtime/local-db`, `jose`, and the `sync` module.
