@@ -10,6 +10,7 @@ import {
   Card,
   DayBlock,
   Icon,
+  LiveButton,
   MoodCheck,
   OverflowShelf,
   ReanimatedTimer,
@@ -94,6 +95,9 @@ export function TodayScreen(): React.JSX.Element {
   const [task, setTask] = useState('Sync engine: conflict resolution')
   const [idleHint, setIdleHint] = useState(true)
   const [dismissed, setDismissed] = useState<readonly number[]>([])
+  // Punch-out mood is asked once, in the moment of stamping out — never a standing
+  // widget (design v4 / OLBI rationale). Set on punch-out, cleared by the row itself.
+  const [askMood, setAskMood] = useState(false)
   const timer = useTimerContext()
   // The Co-Planner on Today is the real persisted plan (M5): its blocks, accept and
   // replan all go through the planner service — no local ghost constants.
@@ -261,45 +265,57 @@ export function TodayScreen(): React.JSX.Element {
           )}
         </Pressable>
       )}
-      <Pressable
-        onPress={() => (active ? timer.punchOut() : timer.punchIn())}
-        disabled={timer.busy}
-        accessibilityRole="button"
-        accessibilityLabel={active ? 'Stop' : 'Start'}
-        style={{
-          width: 64,
-          height: 64,
-          borderRadius: 32,
-          backgroundColor: active ? t.color.live : t.color.accent,
-          alignItems: 'center',
-          justifyContent: 'center',
-          // Coloured glow under the Stempel button, matching the design
-          // (box-shadow 0 10px 28px -8px, tinted live/accent).
-          shadowColor: active ? t.color.live : t.color.accent,
-          shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: 0.5,
-          shadowRadius: 14,
-          elevation: 8,
-        }}
-      >
-        {active ? (
-          <View style={{ width: 20, height: 20, borderRadius: 5, backgroundColor: '#fff' }} />
-        ) : (
-          <View
-            style={{
-              marginLeft: 5,
-              width: 0,
-              height: 0,
-              borderTopWidth: 13,
-              borderBottomWidth: 13,
-              borderLeftWidth: 22,
-              borderTopColor: 'transparent',
-              borderBottomColor: 'transparent',
-              borderLeftColor: '#fff',
-            }}
-          />
-        )}
-      </Pressable>
+      {/* The primary Stempel button breathes + emits pulse waves while active
+          (design v4 motion pass); LiveButton is a no-op when idle or reduced-motion. */}
+      <LiveButton active={active} color={active ? t.color.live : t.color.accent} size={64}>
+        <Pressable
+          onPress={() => {
+            if (active) {
+              timer.punchOut()
+              setAskMood(true)
+            } else {
+              timer.punchIn()
+              setAskMood(false)
+            }
+          }}
+          disabled={timer.busy}
+          accessibilityRole="button"
+          accessibilityLabel={active ? 'Stop' : 'Start'}
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: 32,
+            backgroundColor: active ? t.color.live : t.color.accent,
+            alignItems: 'center',
+            justifyContent: 'center',
+            // Coloured glow under the Stempel button, matching the design
+            // (box-shadow 0 10px 28px -8px, tinted live/accent).
+            shadowColor: active ? t.color.live : t.color.accent,
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: 0.5,
+            shadowRadius: 14,
+            elevation: 8,
+          }}
+        >
+          {active ? (
+            <View style={{ width: 20, height: 20, borderRadius: 5, backgroundColor: '#fff' }} />
+          ) : (
+            <View
+              style={{
+                marginLeft: 5,
+                width: 0,
+                height: 0,
+                borderTopWidth: 13,
+                borderBottomWidth: 13,
+                borderLeftWidth: 22,
+                borderTopColor: 'transparent',
+                borderBottomColor: 'transparent',
+                borderLeftColor: '#fff',
+              }}
+            />
+          )}
+        </Pressable>
+      </LiveButton>
     </View>
   )
 
@@ -563,7 +579,7 @@ export function TodayScreen(): React.JSX.Element {
 
         {heroBar}
 
-        <MoodCheck />
+        {askMood && <MoodCheck onDone={() => setAskMood(false)} />}
 
         <NlQuickAdd />
 
