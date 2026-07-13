@@ -1,12 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-  getRunningEntry,
-  startEntry,
-  stopRunningEntry,
-  type LocalTimeEntry,
-} from '@mydevtime/local-db'
 import { apiBaseUrl } from '../config.js'
-import { LOCAL_WORKSPACE_ID, useLocalDb } from '../localDb/context.js'
 import {
   entryDurationMs,
   formatStopwatch,
@@ -57,24 +50,9 @@ export interface TimerResource {
   readonly resume: () => void
 }
 
-/** Map a stored local entry onto the client `TimeEntry` shape (drops workspace id). */
-function toTimeEntry(entry: LocalTimeEntry): TimeEntry {
-  return {
-    id: entry.id,
-    projectId: entry.projectId,
-    taskId: entry.taskId,
-    startedAt: entry.startedAt,
-    endedAt: entry.endedAt,
-    billable: entry.billable,
-    source: entry.source,
-    note: entry.note,
-  }
-}
-
 export function useTimer(): TimerResource {
   const base = apiBaseUrl
   const live = base !== null
-  const db = useLocalDb()
   const [running, setRunning] = useState<TimeEntry | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -89,14 +67,7 @@ export function useTimer(): TimerResource {
   useEffect(() => {
     let alive = true
     setLoading(true)
-    const load: Promise<TimeEntry | null> =
-      base !== null
-        ? getRunning(base)
-        : db !== null
-          ? getRunningEntry(db, LOCAL_WORKSPACE_ID).then(entry =>
-              entry === null ? null : toTimeEntry(entry),
-            )
-          : Promise.resolve(null)
+    const load: Promise<TimeEntry | null> = base !== null ? getRunning(base) : Promise.resolve(null)
     load
       .then(entry => {
         if (alive) {
@@ -113,7 +84,7 @@ export function useTimer(): TimerResource {
     return () => {
       alive = false
     }
-  }, [base, db])
+  }, [base])
 
   // Start a segment (optimistic, then reconcile with the server or the local store).
   const beginEntry = useCallback(
@@ -133,26 +104,9 @@ export function useTimer(): TimerResource {
           .finally(() => {
             setBusy(false)
           })
-        return
-      }
-      // Offline: persist locally so the running timer survives a reload.
-      if (db !== null) {
-        startEntry(db, LOCAL_WORKSPACE_ID, {
-          projectId: input.projectId ?? null,
-          taskId: input.taskId ?? null,
-          note: input.note ?? null,
-          billable: input.billable ?? true,
-        })
-          .then(entry => {
-            setRunning(toTimeEntry(entry))
-          })
-          .catch((cause: unknown) => {
-            setRunning(null)
-            setError(cause instanceof Error ? cause : new Error(String(cause)))
-          })
       }
     },
-    [base, db],
+    [base],
   )
 
   const punchIn = useCallback(
@@ -186,16 +140,10 @@ export function useTimer(): TimerResource {
           .finally(() => {
             setBusy(false)
           })
-      } else if (db !== null) {
-        stopRunningEntry(db, LOCAL_WORKSPACE_ID)
-          .then(() => {
-            setError(null)
-          })
-          .catch(rollback)
       }
       return null // optimistic pause: no running segment
     })
-  }, [base, db])
+  }, [base])
 
   const resume = useCallback(() => {
     if (pausedInput === null) return
@@ -221,15 +169,10 @@ export function useTimer(): TimerResource {
           .finally(() => {
             setBusy(false)
           })
-      } else if (db !== null) {
-        stopRunningEntry(db, LOCAL_WORKSPACE_ID).catch((cause: unknown) => {
-          setRunning(previous)
-          setError(cause instanceof Error ? cause : new Error(String(cause)))
-        })
       }
       return null // optimistic clear
     })
-  }, [base, db])
+  }, [base])
 
   const elapsed = formatStopwatch(sessionElapsedMs(accumulatedMs, running, new Date()))
   const paused = pausedInput !== null

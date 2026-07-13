@@ -10,14 +10,55 @@ services:
       POSTGRES_PASSWORD: mydevtime
       POSTGRES_DB: mydevtime
     ports:
-      - '5432:5432'
+      - '5433:5432'
     volumes:
       - mydevtime-pg:/var/lib/postgresql/data
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U mydevtime']
       interval: 5s
       timeout: 5s
+    retries: 10
+
+  redis:
+    image: redis:7-alpine
+    # Not published to the host — only the api service needs it, over the compose network.
+    volumes:
+      - mydevtime-redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
       retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgres://mydevtime:mydevtime@postgres:5432/mydevtime
+      REDIS_URL: redis://redis:6379
+      PORT: 3000
+      # The API sits behind the web container's nginx, so trust its X-Forwarded-* for the
+      # rate limiter's client IP (ADR-0050). Never enable when the API is directly reachable.
+      TRUST_PROXY: 'true'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/mobile/Dockerfile
+      args:
+        # Same origin as the published port below; nginx proxies /api to the api service.
+        EXPO_PUBLIC_API_URL: http://localhost:8080
+    ports:
+      - '8080:80'
+    depends_on:
+      - api
 
 volumes:
   mydevtime-pg:
+  mydevtime-redis:

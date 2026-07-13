@@ -21,7 +21,8 @@
     "check:docs": "node scripts/check-docs.mjs",
     "check:purity": "node scripts/check-domain-purity.mjs",
     "gate": "./test.sh",
-    "prepare": "node scripts/install-hooks.mjs"
+    "prepare": "node scripts/install-hooks.mjs",
+    "docker": "./scripts/docker.sh"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

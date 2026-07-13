@@ -12,7 +12,7 @@
     "android": "pnpm run build:deps && expo start --android",
     "ios": "pnpm run build:deps && expo start --ios",
     "web": "pnpm run build:deps && expo start --web",
-    "export:web": "pnpm run build:deps && expo export --platform web",
+    "export:web": "pnpm run build:deps && expo export -p web",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -30,7 +30,6 @@
     "expo-font": "~13.0.4",
     "expo-linking": "~7.0.5",
     "expo-router": "~4.0.21",
-    "expo-sqlite": "~15.0.6",
     "expo-status-bar": "~2.0.0",
     "react-native-screens": "~4.4.0",
     "react": "18.3.1",
@@ -40,11 +39,11 @@
     "react-native-safe-area-context": "~4.12.0",
     "react-native-svg": "15.8.0",
     "react-native-web": "~0.19.13",
-    "@mydevtime/local-db": "workspace:*",
     "@tanstack/react-query": "^5.62.7",
     "expo-system-ui": "~4.0.7"
   },
   "devDependencies": {
+    "@types/node": "^26.1.0",
     "@types/react": "~18.3.12",
     "typescript": "~5.6.3"
   }

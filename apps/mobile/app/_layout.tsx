@@ -8,7 +8,6 @@ import { ShellChrome } from '../src/shell/ShellChrome'
 import { AuthGate } from '../src/shell/AuthGate'
 import { OnboardingGate } from '../src/onboarding/OnboardingGate'
 import { TimerProvider } from '../src/timer/TimerContext'
-import { LocalDbProvider } from '../src/localDb/LocalDbProvider'
 import { makeQueryClient } from '../src/query/queryClient'
 import { registerPwa } from '../src/web/registerPwa'
 
@@ -37,9 +36,9 @@ export default function RootLayout(): React.JSX.Element | null {
     JetBrainsMono_700Bold: require('@expo-google-fonts/jetbrains-mono/700Bold/JetBrainsMono_700Bold.ttf'),
   })
 
-  // Web/PWA: link the manifest + register the offline service worker. In an effect
-  // so it only runs client-side (never during the static web prerender); a no-op
-  // on native and where the browser APIs are absent.
+  // Web/PWA: link the manifest + register the app-shell service worker (installable
+  // web build, #199). This caches the shell only — it does not restore offline
+  // *data* (removed in ADR-0049); a client-side effect, no-op on native / during SSR.
   useEffect(() => {
     registerPwa()
   }, [])
@@ -53,18 +52,16 @@ export default function RootLayout(): React.JSX.Element | null {
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
-        <LocalDbProvider>
-          <ThemeProvider>
-            <StatusBar style="auto" />
-            <AuthGate>
-              <OnboardingGate>
-                <TimerProvider>
-                  <ShellChrome />
-                </TimerProvider>
-              </OnboardingGate>
-            </AuthGate>
-          </ThemeProvider>
-        </LocalDbProvider>
+        <ThemeProvider>
+          <StatusBar style="auto" />
+          <AuthGate>
+            <OnboardingGate>
+              <TimerProvider>
+                <ShellChrome />
+              </TimerProvider>
+            </OnboardingGate>
+          </AuthGate>
+        </ThemeProvider>
       </QueryClientProvider>
     </SafeAreaProvider>
   )

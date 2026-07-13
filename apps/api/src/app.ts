@@ -23,6 +23,9 @@ export interface AppDeps {
  */
 export async function buildApp(deps: AppDeps): Promise<NestFastifyApplication> {
   const adapter = new FastifyAdapter({
+    // Trust X-Forwarded-* for the rate limiter's client IP only behind a trusted
+    // proxy (ADR-0050); default off so a directly-reachable API can't be spoofed.
+    trustProxy: deps.config.TRUST_PROXY,
     logger: {
       level: deps.config.LOG_LEVEL,
       // Never log secrets/PII (SKILL §4/§8).
