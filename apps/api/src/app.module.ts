@@ -33,7 +33,9 @@ export class AppModule {
           inject: [CONFIG],
           useFactory: (config: Config) => ({
             throttlers: [{ ttl: 60000, limit: 100 }],
-            storage: config.REDIS_URL ? new ThrottlerStorageRedisService(config.REDIS_URL) : undefined,
+            storage: config.REDIS_URL
+              ? new ThrottlerStorageRedisService(config.REDIS_URL)
+              : undefined,
           }),
         }),
         CoreModule.forRoot(deps),
