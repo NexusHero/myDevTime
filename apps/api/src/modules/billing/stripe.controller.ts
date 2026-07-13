@@ -1,4 +1,5 @@
 import { Controller, Inject, Post, Req, UseGuards, type RawBodyRequest } from '@nestjs/common'
+import { SkipThrottle } from '@nestjs/throttler'
 import { ApiTags } from '@nestjs/swagger'
 import type { FastifyRequest } from 'fastify'
 import { CONFIG, type ConfigToken } from '../../core/tokens.js'
@@ -62,6 +63,10 @@ export class StripeController {
     return { url }
   }
 
+  // Stripe delivers (and retries) webhooks from a small pool of IPs; a global
+  // rate limit would drop legitimate payment events. Authenticated by signature,
+  // not the session, so it is safe to exempt from throttling (ADR-0050).
+  @SkipThrottle()
   @Post('stripe/webhook')
   async webhook(@Req() request: RawBodyRequest<FastifyRequest>): Promise<{ received: boolean }> {
     const gateway = this.requireGateway()

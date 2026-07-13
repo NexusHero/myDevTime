@@ -5,7 +5,6 @@
 export const MODULE_NAMES = [
   'auth',
   'tracking',
-  'sync',
   'automation',
   'ai',
   'billing',

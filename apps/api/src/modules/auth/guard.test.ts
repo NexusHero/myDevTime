@@ -13,7 +13,7 @@ describe('auth guard wiring', () => {
   it('ProtectedRoutes_Unauthenticated_Return401ProblemJson', async () => {
     const app = await buildApp({ config: loadConfig({ LOG_LEVEL: 'silent' }), db: null })
 
-    for (const url of ['/api/tracking/clients', '/api/sync/pull', '/api/billing/rates']) {
+    for (const url of ['/api/tracking/clients', '/api/billing/rates']) {
       const res = await app.inject({ method: 'GET', url })
       expect(res.statusCode).toBe(401)
       expect(res.headers['content-type']).toContain('application/problem+json')
