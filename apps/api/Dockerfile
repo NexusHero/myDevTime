@@ -18,6 +18,7 @@ RUN pnpm install --frozen-lockfile
 
 # Build the API and its dependencies (@mydevtime/domain, @mydevtime/shared)
 RUN pnpm --filter @mydevtime/api... build
+RUN cp -r apps/api/src/db/migrations apps/api/dist/db/migrations
 
 # Deploy only the API and its prod dependencies into a clean directory
 RUN pnpm deploy --legacy --filter @mydevtime/api --prod /prod/api
@@ -32,4 +33,4 @@ COPY --from=builder /prod/api .
 
 EXPOSE 3000
 
-CMD ["node", "dist/main.js"]
+CMD ["sh", "-c", "node dist/db/migrate.js && node dist/main.js"]
