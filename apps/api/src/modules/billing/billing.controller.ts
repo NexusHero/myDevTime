@@ -15,6 +15,7 @@ import type { FastifyReply } from 'fastify'
 import type { RoundingIncrementMinutes } from '@mydevtime/domain'
 import { AuthGuard, CurrentUser, type AuthenticatedUser } from '../auth/contract.js'
 import * as svc from './service.js'
+import * as invoicing from './invoice-service.js'
 import * as entitlements from './entitlements-service.js'
 import * as credits from './credits-service.js'
 import { loadTimesheet } from './export/timesheet-source.js'
@@ -31,6 +32,8 @@ import {
   ExportQueryDto,
   GrantDto,
   IdParamDto,
+  InvoicePreviewQueryDto,
+  IssueInvoiceDto,
   LedgerQueryDto,
   RecordEntitlementEventDto,
   UsageQueryDto,
@@ -137,6 +140,45 @@ export class BillingController {
       to: query.to,
       asOf: query.asOf ?? new Date(),
     })
+  }
+
+  // ── Invoicing / "Abrechnung" (design v6, REQ-005/009) ────────────────────
+  @Get('invoices')
+  async listInvoices(@CurrentUser() user: AuthenticatedUser) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    return invoicing.listInvoices(db, workspaceId)
+  }
+
+  @Get('invoices/preview')
+  async previewInvoice(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: InvoicePreviewQueryDto,
+  ) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    return invoicing.previewInvoice(db, workspaceId, {
+      clientId: query.clientId,
+      from: query.from,
+      to: query.to,
+    })
+  }
+
+  @Post('invoices')
+  @HttpCode(201)
+  async issueInvoice(@CurrentUser() user: AuthenticatedUser, @Body() body: IssueInvoiceDto) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    return invoicing.issueInvoice(db, workspaceId, {
+      clientId: body.clientId,
+      from: body.from,
+      to: body.to,
+      entryIds: body.entryIds,
+    })
+  }
+
+  @Delete('invoices/:id')
+  @HttpCode(204)
+  async voidInvoice(@CurrentUser() user: AuthenticatedUser, @Param() params: IdParamDto) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    await invoicing.voidInvoice(db, workspaceId, params.id)
   }
 
   // ── AI-credit ledger (REQ-027, ADR-0008) ─────────────────────────────────

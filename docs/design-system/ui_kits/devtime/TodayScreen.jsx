@@ -21,7 +21,8 @@ function TodayScreen({ theme, running, setRunning, paused, setPaused, secs, fmt 
   const [planning, setPlanning] = React.useState(false);
   const [driftEvent, setDriftEvent] = React.useState(true);
   const [task, setTask] = React.useState('Sync engine: conflict resolution');
-  const [idleHint, setIdleHint] = React.useState(true);
+  const [billable, setBillable] = React.useState(true); // B5
+  const [idle, setIdle] = React.useState(true); // B7: mock — Nutzer kam nach 40 min zurück
   const [nl, setNl] = React.useState('');
   const [nlDone, setNlDone] = React.useState(false);
 
@@ -110,6 +111,7 @@ function TodayScreen({ theme, running, setRunning, paused, setPaused, secs, fmt 
           <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--project-2)', flexShrink: 0 }}></span>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>Sync engine</span>
         </span>
+        <span title="Billable — Eintrag geht in die Abrechnung (78€/h)" onClick={() => setBillable((b) => !b)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: '50%', cursor: 'pointer', flexShrink: 0, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, border: billable ? '1.5px solid var(--accent)' : '1.5px solid var(--border-strong)', background: billable ? 'color-mix(in srgb, var(--accent) 10%, var(--surface))' : 'var(--surface)', color: billable ? 'var(--accent)' : 'var(--ink-3)', transition: 'all var(--dur-fast) var(--ease-out)', userSelect: 'none' }}>€</span>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xl)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: running ? (paused ? 'var(--warn)' : 'var(--live)') : 'var(--ink-3)', textAlign: 'right', flexShrink: 0, transition: 'color var(--dur-med) var(--ease-out)' }}>{fmt(secs)}</span>
         {running && (
           <span style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
@@ -151,6 +153,18 @@ function TodayScreen({ theme, running, setRunning, paused, setPaused, secs, fmt 
 
       {/* Arbeitsfläche — einziger Scrollbereich; Titel + Tracker stehen fest */}
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', margin: '0 -28px', padding: '4px 28px 28px' }}>
+      {/* ---- B7: Idle-Detection — erscheint beim Zurückkommen nach Inaktivität ---- */}
+      {idle && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12, padding: '12px 16px', borderRadius: 'var(--radius-lg)', background: 'var(--warn-soft)', border: '1px solid color-mix(in srgb, var(--warn) 35%, transparent)', animation: 'dt-ghost-in var(--dur-med) var(--ease-out)' }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--warn)', flexShrink: 0 }}></span>
+          <span style={{ flex: 1, fontSize: 'var(--fs-xs)', color: 'var(--ink)', minWidth: 0 }}><b>40 min inaktiv</b> <span style={{ color: 'var(--ink-2)' }}>(12:20–13:00) — Timer lief weiter. Was soll damit passieren?</span></span>
+          <span style={{ display: 'inline-flex', gap: 8, flexShrink: 0 }}>
+            <button onClick={() => { setIdle(false); window.dtToast && window.dtToast('40 min behalten — auf Sync engine gebucht', () => setIdle(true)); }} style={{ border: '1px solid var(--border-strong)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 'var(--fs-2xs)', fontWeight: 600, borderRadius: 999, padding: '5px 12px', cursor: 'pointer' }}>Behalten</button>
+            <button onClick={() => { setIdle(false); window.dtToast && window.dtToast('40 min als Pause markiert', () => setIdle(true)); }} style={{ border: '1px solid var(--border-strong)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 'var(--fs-2xs)', fontWeight: 600, borderRadius: 999, padding: '5px 12px', cursor: 'pointer' }}>Als Pause</button>
+            <button onClick={() => { setIdle(false); window.dtToast && window.dtToast('40 min verworfen — Timer um 12:20 gekürzt', () => setIdle(true)); }} style={{ border: 'none', background: 'var(--warn)', color: '#fff', fontSize: 'var(--fs-2xs)', fontWeight: 700, borderRadius: 999, padding: '6px 12px', cursor: 'pointer' }}>Verwerfen</button>
+          </span>
+        </div>
+      )}
       {/* ---- Punch-out mood — erscheint nur im Moment des Ausstempelns, verschwindet nach dem Tap ---- */}
       {askMood && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12, padding: '10px 16px', borderRadius: 'var(--radius-lg)', background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
@@ -205,17 +219,7 @@ function TodayScreen({ theme, running, setRunning, paused, setPaused, secs, fmt 
         )}
       </div>
 
-      {/* ---- Idle-detection hint (REQ-033) ---- */}
-      {running && idleHint && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', marginBottom: 24, border: '1.5px dashed var(--border-strong)', borderRadius: 'var(--radius-card)', background: 'var(--surface)' }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--warn)', flexShrink: 0 }}></span>
-          <span style={{ flex: 1, fontSize: 'var(--fs-xs)', color: 'var(--ink-2)' }}>
-            <b style={{ color: 'var(--ink)', fontWeight: 600 }}>14 min ohne Aktivität</b> (12:04–12:18) — Timer um die Lücke kürzen?
-          </span>
-          <Button size="sm" variant="secondary" onClick={() => setIdleHint(false)}>Kürzen</Button>
-          <Button size="sm" variant="ghost" onClick={() => setIdleHint(false)}>Behalten</Button>
-        </div>
-      )}
+      {/* Alte Idle-Hint-Karte entfernt — B7-Karte oben ist der einzige Idle-Moment */}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(340px, 100%), 1fr))', gap: 24, alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
