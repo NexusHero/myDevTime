@@ -12,6 +12,7 @@ import { Badge, BudgetRing, Card, Row } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
 import { SubScreenHeader } from './SubScreenHeader'
 import { findProject } from './projectsData'
+import { useCatalog } from './useCatalog'
 
 /**
  * Project detail (REQ-001/005, ux-vision §3) — the drill-down from the Projects
@@ -53,9 +54,16 @@ export function ProjectScreen({
   onBack: () => void
 }): React.JSX.Element {
   const t = useTheme()
-  const found = findProject(projectId)
+  const catalog = useCatalog()
+  const found = findProject(catalog.data ?? [], projectId)
 
   if (!found) {
+    const message =
+      catalog.loading && catalog.data === null
+        ? 'Loading project…'
+        : catalog.error
+          ? `Couldn’t load the project — ${catalog.error.message}`
+          : 'This project could not be found.'
     return (
       <ScrollView
         style={{ flex: 1, backgroundColor: t.color.bg }}
@@ -63,7 +71,7 @@ export function ProjectScreen({
       >
         <SubScreenHeader title="Project" backLabel="Projects" onBack={onBack} />
         <Card>
-          <Text style={{ color: t.color.ink2 }}>This project could not be found.</Text>
+          <Text style={{ color: catalog.error ? t.color.crit : t.color.ink2 }}>{message}</Text>
         </Card>
       </ScrollView>
     )

@@ -466,18 +466,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
                   return (
                     <Pressable
                       key={src}
-                      onPress={() => {
-                        setImported(src)
-                        setProjects(ps =>
-                          ps.length
-                            ? ps
-                            : [
-                                { name: 'Finanzo AG', color: colors[0] ?? t.color.accent },
-                                { name: 'Sync engine', color: colors[1] ?? t.color.accent },
-                                { name: 'Nordwind GmbH', color: colors[2] ?? t.color.accent },
-                              ],
-                        )
-                      }}
+                      onPress={() => setImported(on ? null : src)}
                       style={{
                         paddingVertical: 8,
                         paddingHorizontal: 16,
@@ -501,8 +490,9 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
                 })}
               </View>
               {imported !== null && (
-                <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.good, marginTop: 10 }}>
-                  3 Projekte aus {imported} importiert — Zeiten folgen im Hintergrund.
+                <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3, marginTop: 10 }}>
+                  Import aus {imported} kommt bald. Leg solange oben dein erstes Projekt an — das
+                  reicht für den Start.
                 </Text>
               )}
             </View>

@@ -1,17 +1,15 @@
 import { fetchCatalog } from '../api/tracking.js'
 import { useAsync, type AsyncResource } from '../hooks/useAsync.js'
-import { CLIENTS, type Client } from './projectsData.js'
+import { type Client } from './projectsData.js'
 import { apiBaseUrl } from '../config.js'
 
 /**
- * The Projects data source (issue #11). Three modes behind one `Client[]` shape:
- * - **API** (`apiBaseUrl` set): fetch + assemble the live catalog.
- * - **Offline** (`apiBaseUrl` null, local DB open): assemble the catalog from the
- *   local SQLite store (ADR-0040), reusing the same tested `assembleCatalog`.
- * - **Demo** (no DB open yet, e.g. the test gate): the illustrative fixtures.
- * The catalog carries structure + rates only; spent/budget figures are a Reports
- * concern (computed via `packages/domain`), so this hook fabricates no numbers.
- * `live` lets the UI flag non-API data.
+ * The Projects data source (issue #11). The catalog is the live tracking catalog
+ * when an API is configured, else **empty** — the app fabricates no clients or
+ * projects. Production runs on real data only; with no backend a screen shows its
+ * honest empty state. The catalog carries structure + rates only; spent/budget
+ * figures are a Reports concern (computed via `packages/domain`). `live` lets the
+ * UI flag that the data is API-backed.
  */
 export interface CatalogResource extends AsyncResource<Client[]> {
   readonly live: boolean
@@ -20,11 +18,8 @@ export interface CatalogResource extends AsyncResource<Client[]> {
 export function useCatalog(): CatalogResource {
   const base = apiBaseUrl
   const resource = useAsync<Client[]>(
-    () => {
-      if (base !== null) return fetchCatalog(base)
-      return Promise.resolve([...CLIENTS])
-    },
-    `catalog:${base ?? 'demo'}`,
+    () => (base !== null ? fetchCatalog(base) : Promise.resolve<Client[]>([])),
+    `catalog:${base ?? 'empty'}`,
   )
   return { ...resource, live: base !== null }
 }

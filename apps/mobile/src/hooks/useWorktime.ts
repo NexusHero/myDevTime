@@ -16,14 +16,12 @@ import {
  * it loads the open shift, this week's shifts (with their server-computed ArbZG §4
  * break shortfall) and the overtime balance, and drives clock-in/out through the
  * `worktime` routes; otherwise — the default in local dev and the test gate — it
- * runs a local demo so the screen still works without a backend. Clock-in/out
+ * starts **empty** (no shifts, zero overtime): the app fabricates no attendance,
+ * though clock-in/out still work locally so the screen is usable. Clock-in/out
  * update optimistically and reconcile with (or roll back to) the server. `elapsed`
  * ticks once a second while clocked in, formatted by the pure `formatStopwatch`
  * (ADR-0005 keeps duration math out of the view).
  */
-const H = 3_600_000
-const M = 60_000
-
 export interface WorktimeResource {
   readonly running: Shift | null
   readonly elapsed: string
@@ -35,24 +33,6 @@ export interface WorktimeResource {
   readonly busy: boolean
   readonly clockIn: () => void
   readonly clockOut: () => void
-}
-
-function demoShifts(): Shift[] {
-  const day = (iso: string, h: number, breakMin: number, shortfallMin = 0): Shift => ({
-    id: iso,
-    startedAt: `${iso}T08:00:00.000Z`,
-    endedAt: `${iso}T${String(8 + h).padStart(2, '0')}:00:00.000Z`,
-    breakMs: breakMin * M,
-    source: 'manual',
-    breakShortfallMs: shortfallMin * M,
-  })
-  return [
-    day('2026-07-10', 9, 30),
-    day('2026-07-09', 9, 10, 20),
-    day('2026-07-08', 8, 30),
-    day('2026-07-07', 8, 30),
-    day('2026-07-06', 8, 30),
-  ]
 }
 
 /** The trailing 7-day window ending at the next UTC midnight. */
@@ -85,8 +65,8 @@ export function useWorktime(): WorktimeResource {
       base === null
         ? Promise.resolve({
             running: null,
-            shifts: demoShifts(),
-            overtime: { workedMs: 42 * H, targetMs: 40 * H, balanceMs: 9 * H + 30 * M },
+            shifts: [],
+            overtime: { workedMs: 0, targetMs: 0, balanceMs: 0 },
           })
         : Promise.all([
             getRunningShift(base),

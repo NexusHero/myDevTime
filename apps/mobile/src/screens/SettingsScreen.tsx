@@ -15,8 +15,6 @@ import type { AccentTheme, Density } from '@mydevtime/design'
  * flows will own. Consent and data-ownership items are surfaced explicitly
  * (REQ-025 / GDPR), not buried.
  */
-const CHEVRON = '›'
-
 function SectionLabel({ children }: { children: string }): React.JSX.Element {
   const t = useTheme()
   return (
@@ -44,7 +42,9 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
   // Persisted per user + workspace (M10); optimistic, saved via the preferences API.
   const { prefs, setPref: setToggle, live: prefsLive } = usePreferences()
 
-  const chevron = <Text style={{ color: t.color.ink3, fontSize: t.fontSize.lg }}>{CHEVRON}</Text>
+  // Entry points whose flow isn't built yet: shown honestly as "coming soon" rather
+  // than as a tappable chevron that does nothing (audit M-4).
+  const soon = <Badge tone="neutral">Bald verfügbar</Badge>
 
   return (
     <ScreenScaffold
@@ -202,12 +202,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
               />
             }
           />
-          <Row
-            title="AI credits"
-            subtitle="Balance, ledger & packs"
-            trailing={chevron}
-            onPress={() => undefined}
-          />
+          <Row title="AI credits" subtitle="Balance, ledger & packs" trailing={soon} />
         </Card>
       </View>
 
@@ -222,8 +217,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
           <Row
             title="Manage subscription"
             subtitle="Payment method, invoices, cancel"
-            trailing={chevron}
-            onPress={() => undefined}
+            trailing={soon}
           />
         </Card>
       </View>
@@ -231,20 +225,8 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
       <View>
         <SectionLabel>Data & privacy</SectionLabel>
         <Card>
-          <Row
-            title="Export my data"
-            subtitle="Entries, transcripts & reports"
-            trailing={chevron}
-            onPress={() => undefined}
-          />
-          <Row
-            title="Delete account"
-            subtitle="Erases your workspace and data"
-            trailing={
-              <Text style={{ color: t.color.crit, fontSize: t.fontSize.lg }}>{CHEVRON}</Text>
-            }
-            onPress={() => undefined}
-          />
+          <Row title="Export my data" subtitle="Entries, transcripts & reports" trailing={soon} />
+          <Row title="Delete account" subtitle="Erases your workspace and data" trailing={soon} />
         </Card>
       </View>
 
