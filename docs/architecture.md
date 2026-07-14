@@ -327,7 +327,7 @@ Verification runs in four tiers, cheapest-and-fastest first (ADR-0014/0027/0052/
 
 1. **Local gate** (`./test.sh` = CI): build · format · lint · typecheck · unit tests +
    coverage (≥90 % on `domain`/`design`) · domain purity · docs staleness · requirements
-   coverage.
+   coverage · design adherence (no new raw-hex colours in the client, ADR-0054).
 2. **API integration**: the real NestJS app booted in-process against a real Postgres service
    container, driven via `app.inject()`, incl. negative workspace-isolation tests.
 3. **Container smoke** (ADR-0052): black-box HTTP checks against the shipped production images.

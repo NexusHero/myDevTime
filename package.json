@@ -21,6 +21,7 @@
     "check:docs": "node scripts/check-docs.mjs",
     "check:purity": "node scripts/check-domain-purity.mjs",
     "check:req-coverage": "node scripts/check-req-coverage.mjs",
+    "check:adherence": "node scripts/check-design-adherence.mjs",
     "gate": "./test.sh",
     "prepare": "node scripts/install-hooks.mjs",
     "docker": "./scripts/docker.sh"
