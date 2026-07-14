@@ -78,6 +78,14 @@ export class ExportQueryDto extends createZodDto(
   }),
 ) {}
 
+// ── Invoice export ───────────────────────────────────────────────────────────
+export class InvoiceExportQueryDto extends createZodDto(
+  z.object({
+    format: z.enum(['csv', 'pdf']).default('csv'),
+    locale: z.enum(['en', 'de']).default('de'),
+  }),
+) {}
+
 // ── Entitlements ─────────────────────────────────────────────────────────────
 export class RecordEntitlementEventDto extends createZodDto(
   z.object({

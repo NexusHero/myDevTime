@@ -18,6 +18,8 @@ export interface InvoiceExportLine {
 
 export interface InvoiceExport {
   readonly id: string
+  /** The issuer — the workspace the invoice was billed from (PDF sender line). */
+  readonly senderName: string
   readonly clientName: string | null
   readonly periodStart: Date
   readonly periodEnd: Date

@@ -9,8 +9,19 @@ import { buildApp } from '../../app.js'
 import { resolveWorkspaceId } from '../../core/workspace.js'
 import { createClient, createProject } from '../tracking/service.js'
 import { createManualEntry } from '../tracking/entries-service.js'
+import { PDFParse } from 'pdf-parse'
 import * as billing from './service.js'
 import * as invoicing from './invoice-service.js'
+import { invoiceToPdf } from './export/invoice-pdf.js'
+
+async function extractPdfText(buffer: Buffer): Promise<{ text: string }> {
+  const parser = new PDFParse({ data: new Uint8Array(buffer) })
+  try {
+    return { text: (await parser.getText()).text }
+  } finally {
+    await parser.destroy()
+  }
+}
 
 /**
  * Invoicing / "Abrechnung" against a REAL Postgres (SKILL §3.3): a preview lists
@@ -174,6 +185,7 @@ describe.skipIf(!databaseUrl)('invoicing (integration)', () => {
     const exported = await invoicing.getInvoiceExport(db, wsA, invoice.id)
     expect(exported).toMatchObject({
       id: invoice.id,
+      senderName: "A's workspace",
       clientName: 'Finanzo AG',
       currencyCode: 'EUR',
       totalMinor: 30_000,
@@ -181,6 +193,18 @@ describe.skipIf(!databaseUrl)('invoicing (integration)', () => {
     })
     expect(exported.lines.map(l => l.amountMinor).sort((a, b) => a - b)).toEqual([10_000, 20_000])
     expect(exported.lines.every(l => l.projectName === 'Website')).toBe(true)
+  })
+
+  it('getInvoiceExport_rendersToPdfWithTheFrozenTotal', async () => {
+    const { clientId, ids } = await seed(wsA, idA)
+    const invoice = await invoicing.issueInvoice(db, wsA, { clientId, from, to, entryIds: ids })
+    const exported = await invoicing.getInvoiceExport(db, wsA, invoice.id)
+    // The DB-derived export renders through the real PDF adapter (design v7).
+    const { text } = await extractPdfText(await invoiceToPdf(exported, 'de'))
+    expect(text).toContain('Rechnung')
+    expect(text).toContain('Finanzo AG') // the billed client
+    expect(text).toContain("A's workspace") // the sender = workspace
+    expect(text).toContain('300,00') // frozen total, German-formatted
   })
 
   it('getInvoiceExport_isWorkspaceScoped', async () => {

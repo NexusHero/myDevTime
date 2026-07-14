@@ -21,6 +21,7 @@ import * as credits from './credits-service.js'
 import { loadTimesheet } from './export/timesheet-source.js'
 import { timesheetToCsv } from './export/csv.js'
 import { invoiceToCsv } from './export/invoice-csv.js'
+import { invoiceToPdf } from './export/invoice-pdf.js'
 import { timesheetToXlsx } from './export/xlsx.js'
 import { timesheetToPdf } from './export/pdf.js'
 import { BillingContext } from './billing.context.js'
@@ -31,6 +32,7 @@ import {
   CreateRateDto,
   DebitDto,
   ExportQueryDto,
+  InvoiceExportQueryDto,
   GrantDto,
   IdParamDto,
   InvoicePreviewQueryDto,
@@ -192,11 +194,20 @@ export class BillingController {
   async exportInvoice(
     @CurrentUser() user: AuthenticatedUser,
     @Param() params: IdParamDto,
+    @Query() query: InvoiceExportQueryDto,
     @Res() reply: FastifyReply,
   ): Promise<void> {
     const { db, workspaceId } = await this.ctx.workspaceOf(user)
     const invoice = await invoicing.getInvoiceExport(db, workspaceId, params.id)
     const base = `invoice-${invoice.id}`.replace(/[^\w.-]+/g, '_')
+    if (query.format === 'pdf') {
+      const buffer = await invoiceToPdf(invoice, query.locale)
+      await reply
+        .header('content-disposition', `attachment; filename="${base}.pdf"`)
+        .type('application/pdf')
+        .send(buffer)
+      return
+    }
     await reply
       .header('content-disposition', `attachment; filename="${base}.csv"`)
       .type('text/csv; charset=utf-8')
