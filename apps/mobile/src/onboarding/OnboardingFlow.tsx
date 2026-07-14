@@ -3,6 +3,8 @@ import { Pressable, ScrollView, TextInput, View } from 'react-native'
 import { Text } from '../components/core/Text'
 import { Button, Switch } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
+import { apiBaseUrl } from '../config'
+import { createRate, eurosToMinor } from '../api/rates'
 
 /**
  * First-run onboarding (design v3) — the moment users decide to stay.
@@ -40,6 +42,23 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
   }
 
   const [tracker, setTracker] = useState<boolean | null>(null)
+  const [rate, setRate] = useState('')
+
+  // On finish, persist the typed default hourly rate as the workspace-level rate
+  // (REQ-005) — best-effort, so onboarding never blocks on the network; the Rates
+  // screen is the durable place to manage rates. Only runs when an API is wired.
+  const finish = (): void => {
+    const minor = eurosToMinor(rate)
+    if (minor !== null && minor > 0 && apiBaseUrl !== null) {
+      void createRate(apiBaseUrl, {
+        level: 'workspace',
+        scopeId: null,
+        amountMinorPerHour: minor,
+        effectiveFrom: new Date().toISOString(),
+      }).catch(() => undefined)
+    }
+    onDone()
+  }
 
   const next = (): void => setStep(s => Math.min(last, s + 1))
   const back = (): void => setStep(s => Math.max(0, s - 1))
@@ -339,6 +358,30 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
                 Anlegen
               </Button>
             </View>
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, marginBottom: 6 }}>
+                Standard-Stundensatz (€/h) — optional, später pro Kunde & Projekt änderbar
+              </Text>
+              <TextInput
+                value={rate}
+                onChangeText={setRate}
+                placeholder="z. B. 90"
+                placeholderTextColor={t.color.ink3}
+                keyboardType="numeric"
+                accessibilityLabel="Standard-Stundensatz"
+                style={{
+                  paddingVertical: 11,
+                  paddingHorizontal: 14,
+                  borderRadius: t.radius.block,
+                  borderWidth: 1,
+                  borderColor: t.color.borderStrong,
+                  backgroundColor: t.color.surface,
+                  color: t.color.ink,
+                  fontFamily: t.fontFamily.numeric,
+                  fontSize: t.fontSize.sm,
+                }}
+              />
+            </View>
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
               {colors.map((c, i) => (
                 <Pressable
@@ -598,7 +641,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
                 </View>
               ))}
             </View>
-            <Button size="lg" onPress={onDone}>
+            <Button size="lg" onPress={finish}>
               Zum Workspace
             </Button>
           </View>
