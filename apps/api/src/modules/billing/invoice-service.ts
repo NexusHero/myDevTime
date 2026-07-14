@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, isNull, lt } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, isNull, lt } from 'drizzle-orm'
 import { invoiceLines, summarizeInvoice, type InvoiceLine, type TimeEntry } from '@mydevtime/domain'
 import type { Db } from '../../db/client.js'
 import { clients, invoices, projects, timeEntries, workspaces } from '../../db/schema.js'
@@ -203,7 +203,7 @@ export function listInvoices(db: Db, workspaceId: string): Promise<IssuedInvoice
     })
     .from(invoices)
     .where(eq(invoices.workspaceId, workspaceId))
-    .orderBy(invoices.issuedAt)
+    .orderBy(desc(invoices.issuedAt)) // newest first (matches the documented contract)
 }
 
 /** Open (un-invoiced) billable hours + money per client — the Projects header
