@@ -73,10 +73,14 @@ export {
   priorityWeight,
   dayLoad,
   loadTone,
+  assignLanes,
+  maxConcurrency,
   type BlockRect,
   type Priority,
   type TaskLoad,
   type LoadTone,
+  type Interval,
+  type LanePlacement,
 } from './planner.js'
 export { monthGrid, daysInMonth, weekdayHeaders, type DayCell } from './calendar.js'
 
