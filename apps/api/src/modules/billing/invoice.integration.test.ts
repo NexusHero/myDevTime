@@ -157,6 +157,17 @@ describe.skipIf(!databaseUrl)('invoicing (integration)', () => {
     expect(a.ids).toHaveLength(2)
   })
 
+  it('openBillableByClient_sumsUninvoicedBillablePerClient', async () => {
+    const { clientId, ids } = await seed(wsA, idA)
+    const before = await invoicing.openBillableByClient(db, wsA)
+    expect(before.clients).toEqual([{ clientId, openMs: 3 * 3_600_000, openMinor: 30_000 }])
+
+    // Billing one entry drops it out of the open pool.
+    await invoicing.issueInvoice(db, wsA, { clientId, from, to, entryIds: [ids[0]!] })
+    const after = await invoicing.openBillableByClient(db, wsA)
+    expect(after.clients).toEqual([{ clientId, openMs: 1 * 3_600_000, openMinor: 10_000 }])
+  })
+
   it('endpoint_requiresAuth', async () => {
     const app = await buildApp({
       config: loadConfig({ LOG_LEVEL: 'silent', AUTH_SECRET: 'x'.repeat(32) }),
