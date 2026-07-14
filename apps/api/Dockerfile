@@ -19,6 +19,8 @@ RUN pnpm install --frozen-lockfile
 # Build the API and its dependencies (@mydevtime/domain, @mydevtime/shared)
 RUN pnpm --filter @mydevtime/api... build
 RUN cp -r apps/api/src/db/migrations apps/api/dist/db/migrations
+# Ship the invoice PDF fonts next to the compiled module (tsc doesn't copy assets).
+RUN cp -r apps/api/src/modules/billing/export/fonts apps/api/dist/modules/billing/export/fonts
 
 # Deploy only the API and its prod dependencies into a clean directory
 RUN pnpm deploy --legacy --filter @mydevtime/api --prod /prod/api
