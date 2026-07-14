@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   assignLanes,
   dayLoad,
+  dropTarget,
   findFreeSlot,
   loadTone,
   maxConcurrency,
@@ -206,6 +207,43 @@ describe('assignLanes', () => {
 
   it('EmptyInput_IsEmpty', () => {
     expect(assignLanes([])).toEqual([])
+  })
+})
+
+describe('dropTarget', () => {
+  const OPTS = { colWidth: 100, minPerPx: 1, dayCount: 5, spanMin: 600, gridMin: 15 }
+  const FROM = { day: 1, startMin: 120, lenMin: 60 }
+
+  it('NoDelta_StaysPut', () => {
+    expect(dropTarget(0, 0, FROM, OPTS)).toEqual({ day: 1, startMin: 120 })
+  })
+
+  it('HorizontalDelta_MovesWholeDaySteps', () => {
+    // +250px over a 100px column → round(2.5)=3 (banker-agnostic Math.round → 3) day steps → day 4.
+    expect(dropTarget(250, 0, FROM, OPTS).day).toBe(4)
+    // −100px → one day left → day 0.
+    expect(dropTarget(-100, 0, FROM, OPTS).day).toBe(0)
+  })
+
+  it('DayStep_ClampsToTheWeek', () => {
+    expect(dropTarget(1000, 0, FROM, OPTS).day).toBe(4)
+    expect(dropTarget(-1000, 0, FROM, OPTS).day).toBe(0)
+  })
+
+  it('VerticalDelta_SnapsStartToTheGrid', () => {
+    // +52px at 1 min/px → 120+52=172 → nearest 15 = 165.
+    expect(dropTarget(0, 52, FROM, OPTS).startMin).toBe(165)
+  })
+
+  it('Start_ClampsSoTheBlockStaysInsideTheDay', () => {
+    // A huge downward drag can't push a 60-min block past 540 (600−60).
+    expect(dropTarget(0, 10_000, FROM, OPTS).startMin).toBe(540)
+    // A huge upward drag floors the start at 0.
+    expect(dropTarget(0, -10_000, FROM, OPTS).startMin).toBe(0)
+  })
+
+  it('ZeroColumnWidth_KeepsTheDay', () => {
+    expect(dropTarget(500, 0, FROM, { ...OPTS, colWidth: 0 }).day).toBe(1)
   })
 })
 
