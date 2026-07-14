@@ -1,0 +1,12 @@
+# Keep host build outputs and dependencies out of the image build context, so
+# container builds are reproducible and match CI. A stale host `dist/` copied in
+# would mask a broken in-image build (exactly what hid the web Dockerfile's missing
+# packages build until the container-smoke job — ADR-0052 — ran on a clean checkout).
+**/node_modules
+**/dist
+**/.expo
+**/.turbo
+**/coverage
+**/*.log
+.git
+.github
