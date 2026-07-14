@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { plannerBlockRect, plannerTotalHours } from './planner.js'
+import {
+  assignLanes,
+  dayLoad,
+  loadTone,
+  maxConcurrency,
+  plannerBlockRect,
+  plannerTotalHours,
+  priorityWeight,
+} from './planner.js'
 
 /**
  * The planner geometry is deterministic layout math (ADR-0005), so it is pinned
@@ -59,5 +67,157 @@ describe('plannerTotalHours', () => {
 
   it('EmptyDay_IsZero', () => {
     expect(plannerTotalHours([])).toBe(0)
+  })
+})
+
+describe('priorityWeight', () => {
+  it('HighPriorityWeighsHeavier', () => {
+    expect(priorityWeight(1)).toBe(1.4)
+    expect(priorityWeight(2)).toBe(1)
+    expect(priorityWeight(3)).toBe(0.7)
+  })
+})
+
+describe('dayLoad', () => {
+  it('SumsPrioWeightedEstimates', () => {
+    // 3h @ P1 (×1.4) + 2h @ P2 (×1) + 1h @ P3 (×0.7) = 4.2 + 2 + 0.7 = 6.9
+    expect(
+      dayLoad([
+        { prio: 1, estHours: 3 },
+        { prio: 2, estHours: 2 },
+        { prio: 3, estHours: 1 },
+      ]),
+    ).toBeCloseTo(6.9, 10)
+  })
+
+  it('EmptyDay_IsZero', () => {
+    expect(dayLoad([])).toBe(0)
+  })
+
+  it('NegativeEstimate_IsFlooredAtZero', () => {
+    expect(dayLoad([{ prio: 1, estHours: -5 }])).toBe(0)
+  })
+})
+
+describe('loadTone', () => {
+  const SOLL = 8
+  it('NoLoad_IsIdle', () => {
+    expect(loadTone(0, SOLL)).toBe('idle')
+  })
+  it('UpTo85Percent_IsGood', () => {
+    expect(loadTone(SOLL * 0.85, SOLL)).toBe('good')
+  })
+  it('Between85AndSoll_IsWarn', () => {
+    expect(loadTone(SOLL * 0.95, SOLL)).toBe('warn')
+    expect(loadTone(SOLL, SOLL)).toBe('warn')
+  })
+  it('OverSoll_IsCrit', () => {
+    expect(loadTone(SOLL + 0.1, SOLL)).toBe('crit')
+  })
+  it('NonPositiveSoll_WithLoad_IsCrit', () => {
+    expect(loadTone(3, 0)).toBe('crit')
+  })
+})
+
+describe('assignLanes', () => {
+  it('NonOverlappingBlocks_AreAllFullWidth', () => {
+    const p = assignLanes([
+      { startMin: 0, lenMin: 60 },
+      { startMin: 60, lenMin: 60 },
+      { startMin: 120, lenMin: 60 },
+    ])
+    expect(p).toEqual([
+      { lane: 0, lanes: 1 },
+      { lane: 0, lanes: 1 },
+      { lane: 0, lanes: 1 },
+    ])
+  })
+
+  it('TwoOverlappingBlocks_SplitIntoTwoLanes', () => {
+    // Both 09:00–10:00-ish overlap → cluster of 2 lanes.
+    const p = assignLanes([
+      { startMin: 0, lenMin: 60 },
+      { startMin: 30, lenMin: 60 },
+    ])
+    expect(p).toEqual([
+      { lane: 0, lanes: 2 },
+      { lane: 1, lanes: 2 },
+    ])
+  })
+
+  it('PreservesInputOrder_RegardlessOfStartOrder', () => {
+    // Later-starting block passed first; placement array still aligns to input.
+    const p = assignLanes([
+      { startMin: 30, lenMin: 60 },
+      { startMin: 0, lenMin: 60 },
+    ])
+    // Input[1] starts first → lane 0; input[0] → lane 1. Both in a 2-lane cluster.
+    expect(p).toEqual([
+      { lane: 1, lanes: 2 },
+      { lane: 0, lanes: 2 },
+    ])
+  })
+
+  it('FreedLaneIsReused_WhenAnEarlierBlockHasEnded', () => {
+    // A: 0–120 (lane 0). B: 0–60 (lane 1). C: 60–120 reuses lane 1 (B ended).
+    const p = assignLanes([
+      { startMin: 0, lenMin: 120 },
+      { startMin: 0, lenMin: 60 },
+      { startMin: 60, lenMin: 60 },
+    ])
+    expect(p).toEqual([
+      { lane: 0, lanes: 2 },
+      { lane: 1, lanes: 2 },
+      { lane: 1, lanes: 2 },
+    ])
+  })
+
+  it('TouchingBlocks_DoNotOverlap', () => {
+    const p = assignLanes([
+      { startMin: 0, lenMin: 60 },
+      { startMin: 60, lenMin: 60 },
+    ])
+    expect(p).toEqual([
+      { lane: 0, lanes: 1 },
+      { lane: 0, lanes: 1 },
+    ])
+  })
+
+  it('EmptyInput_IsEmpty', () => {
+    expect(assignLanes([])).toEqual([])
+  })
+})
+
+describe('maxConcurrency', () => {
+  it('NoBlocks_IsZero', () => {
+    expect(maxConcurrency([])).toBe(0)
+  })
+
+  it('SequentialBlocks_PeakIsOne', () => {
+    expect(
+      maxConcurrency([
+        { startMin: 0, lenMin: 60 },
+        { startMin: 60, lenMin: 60 },
+      ]),
+    ).toBe(1)
+  })
+
+  it('ThreeWayOverlap_PeaksAtThree', () => {
+    expect(
+      maxConcurrency([
+        { startMin: 0, lenMin: 120 },
+        { startMin: 30, lenMin: 60 },
+        { startMin: 45, lenMin: 60 },
+      ]),
+    ).toBe(3)
+  })
+
+  it('ZeroLengthBlocks_DoNotCount', () => {
+    expect(
+      maxConcurrency([
+        { startMin: 0, lenMin: 0 },
+        { startMin: 0, lenMin: 60 },
+      ]),
+    ).toBe(1)
   })
 })

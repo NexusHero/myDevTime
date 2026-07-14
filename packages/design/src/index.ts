@@ -67,7 +67,21 @@ export {
 } from './format.js'
 export { ringDashOffset, gaugeAngle, polarToCartesian, sparklinePoints } from './instruments.js'
 export { clamp01, easeOutCubic, easeTo } from './motion.js'
-export { plannerBlockRect, plannerTotalHours, type BlockRect } from './planner.js'
+export {
+  plannerBlockRect,
+  plannerTotalHours,
+  priorityWeight,
+  dayLoad,
+  loadTone,
+  assignLanes,
+  maxConcurrency,
+  type BlockRect,
+  type Priority,
+  type TaskLoad,
+  type LoadTone,
+  type Interval,
+  type LanePlacement,
+} from './planner.js'
 export { monthGrid, daysInMonth, weekdayHeaders, type DayCell } from './calendar.js'
 
 // App shell (#11): the navigation route map (deep-link build/parse for every

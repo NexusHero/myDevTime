@@ -1,8 +1,26 @@
 import { useState } from 'react'
 import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
-import { formatDuration, plannerBlockRect, projectColor, type Theme } from '@mydevtime/design'
+import {
+  assignLanes,
+  formatDuration,
+  maxConcurrency,
+  plannerBlockRect,
+  projectColor,
+  type LanePlacement,
+  type Theme,
+} from '@mydevtime/design'
 import { Text } from '../components/core/Text'
-import { AICallout, AIAskBar, Badge, Button, Card, Icon } from '../components/index'
+import {
+  AICallout,
+  AIAskBar,
+  Badge,
+  Button,
+  Card,
+  Icon,
+  SegmentedControl,
+} from '../components/index'
+import { PlannerMonthView } from '../components/planner/PlannerMonthView'
+import { PlannerYearView } from '../components/planner/PlannerYearView'
 import { useTheme } from '../theme/ThemeProvider'
 import { usePlanner } from '../hooks/usePlanner'
 import type { PlanBlock } from '../api/planner'
@@ -34,6 +52,8 @@ const STACK_BREAKPOINT = 860
 const NOW_MIN = (14 - START_HOUR) * 60 + 20
 
 type CanvasKind = 'actual' | 'meeting' | 'ghost' | 'break'
+/** Calendar RSVP for a meeting: accepted (solid), tentative (hatched), fyi (dimmed, not counted). */
+type Rsvp = 'accepted' | 'tentative' | 'fyi'
 
 interface CanvasBlock {
   readonly day: number
@@ -45,6 +65,12 @@ interface CanvasBlock {
   readonly kind: CanvasKind
   /** Project id for a deterministic color; omit for breaks / absence. */
   readonly project?: string
+  /** RSVP for a synced meeting; drives the hatch / dim + badge (design v6). */
+  readonly rsvp?: Rsvp
+  /** External source label, e.g. "Outlook" → the ⇄ OL badge. */
+  readonly ext?: string
+  /** Recurring meeting → the ↻ glyph. */
+  readonly rec?: boolean
 }
 
 interface DemoDay {
@@ -64,14 +90,22 @@ const DEMO_DAYS: readonly DemoDay[] = [
 
 /** day 0–4 · start/len in minutes from 08:00 · kind + project id for the color. */
 const DEMO_BLOCKS: readonly CanvasBlock[] = [
-  { day: 0, start: 60, len: 15, label: 'Standup', kind: 'meeting', project: 'finanzo' },
+  { day: 0, start: 60, len: 15, label: 'Standup', kind: 'meeting', project: 'finanzo', rec: true },
   { day: 0, start: 90, len: 150, label: 'Finanzo API', kind: 'actual', project: 'finanzo' },
   { day: 0, start: 270, len: 30, label: 'Pause', kind: 'break' },
   { day: 0, start: 300, len: 120, label: 'Sync engine', kind: 'actual', project: 'sync-engine' },
   { day: 0, start: 450, len: 90, label: 'Code review', kind: 'actual', project: 'reviews' },
-  { day: 1, start: 60, len: 15, label: 'Standup', kind: 'meeting', project: 'finanzo' },
+  { day: 1, start: 60, len: 15, label: 'Standup', kind: 'meeting', project: 'finanzo', rec: true },
   { day: 1, start: 90, len: 90, label: 'Finanzo Review', kind: 'actual', project: 'finanzo' },
-  { day: 1, start: 195, len: 45, label: 'Nordwind Call', kind: 'meeting', project: 'nordwind' },
+  {
+    day: 1,
+    start: 195,
+    len: 45,
+    label: 'Nordwind Call',
+    kind: 'meeting',
+    project: 'nordwind',
+    ext: 'Outlook',
+  },
   { day: 1, start: 240, len: 45, label: 'Pause', kind: 'break' },
   {
     day: 1,
@@ -82,14 +116,63 @@ const DEMO_BLOCKS: readonly CanvasBlock[] = [
     project: 'sync-engine',
   },
   { day: 1, start: 435, len: 45, label: 'Review backlog', kind: 'ghost', project: 'reviews' },
+  // Wed (day 2) is the overbooking day: three meetings overlap around 10:00 — two
+  // active RSVPs (a "2×"/"3×" conflict) plus a later FYI that must NOT count.
   { day: 2, start: 60, len: 120, label: 'Nordwind Sprint', kind: 'actual', project: 'nordwind' },
-  { day: 2, start: 210, len: 60, label: 'Pairing', kind: 'meeting', project: 'sync-engine' },
+  {
+    day: 2,
+    start: 120,
+    len: 60,
+    label: 'Arch Sync',
+    kind: 'meeting',
+    project: 'reviews',
+    rsvp: 'tentative',
+    ext: 'Outlook',
+  },
+  {
+    day: 2,
+    start: 135,
+    len: 45,
+    label: 'HR 1:1',
+    kind: 'meeting',
+    project: 'finanzo',
+    rsvp: 'accepted',
+    ext: 'Outlook',
+  },
+  {
+    day: 2,
+    start: 210,
+    len: 60,
+    label: 'Pairing',
+    kind: 'meeting',
+    project: 'sync-engine',
+    rsvp: 'accepted',
+  },
   { day: 2, start: 270, len: 30, label: 'Pause', kind: 'break' },
   { day: 2, start: 330, len: 180, label: 'Deep work', kind: 'ghost', project: 'sync-engine' },
-  { day: 3, start: 60, len: 15, label: 'Standup', kind: 'meeting', project: 'finanzo' },
+  {
+    day: 2,
+    start: 360,
+    len: 90,
+    label: 'All-Hands',
+    kind: 'meeting',
+    project: 'nordwind',
+    rsvp: 'fyi',
+    ext: 'Outlook',
+  },
+  { day: 3, start: 60, len: 15, label: 'Standup', kind: 'meeting', project: 'finanzo', rec: true },
   { day: 3, start: 120, len: 180, label: 'Finanzo API', kind: 'ghost', project: 'finanzo' },
   { day: 3, start: 270, len: 45, label: 'Pause', kind: 'break' },
-  { day: 3, start: 360, len: 60, label: 'Client call', kind: 'meeting', project: 'nordwind' },
+  {
+    day: 3,
+    start: 360,
+    len: 60,
+    label: 'Client call',
+    kind: 'meeting',
+    project: 'nordwind',
+    rsvp: 'tentative',
+    ext: 'Outlook',
+  },
   { day: 3, start: 450, len: 120, label: 'Sync engine', kind: 'ghost', project: 'sync-engine' },
   { day: 4, start: 60, len: 480, label: 'Urlaub', kind: 'ghost' },
 ]
@@ -120,8 +203,45 @@ function clock(minFromStart: number): string {
   return `${p(Math.floor(m / 60))}:${p(m % 60)}`
 }
 
-/** One absolutely-positioned block on a day column (canvas geometry, ADR-0005). */
-function CanvasBlockView({ block }: { readonly block: CanvasBlock }): React.JSX.Element {
+/** A tiny outlined glyph badge inside a block (↻ recurring, ⇄ OL, ? tentative, FYI). */
+function BlockBadge({
+  label,
+  color,
+  dotted = false,
+}: {
+  readonly label: string
+  readonly color: string
+  readonly dotted?: boolean
+}): React.JSX.Element {
+  return (
+    <View
+      style={{
+        borderWidth: 1,
+        borderStyle: dotted ? 'dotted' : 'solid',
+        borderColor: color,
+        borderRadius: 3,
+        paddingHorizontal: 3,
+        marginRight: 4,
+      }}
+    >
+      <Text style={{ fontSize: 8, fontWeight: '800', color }}>{label}</Text>
+    </View>
+  )
+}
+
+/**
+ * One absolutely-positioned block on a day column (canvas geometry, ADR-0005).
+ * `placement` splits the column into lanes when blocks overlap (design v6
+ * "Überbuchung"); meetings carry their RSVP state — tentative reads hollow, FYI
+ * dims out and never counts — plus recurring (↻) and Outlook (⇄ OL) markers.
+ */
+function CanvasBlockView({
+  block,
+  placement,
+}: {
+  readonly block: CanvasBlock
+  readonly placement: LanePlacement
+}): React.JSX.Element {
   const t = useTheme()
   const rect = plannerBlockRect(block.start, block.len, SPAN)
   const color = canvasBlockColor(t, block)
@@ -129,49 +249,95 @@ function CanvasBlockView({ block }: { readonly block: CanvasBlock }): React.JSX.
   const isGhost = block.kind === 'ghost'
   const isMeeting = block.kind === 'meeting'
   const isBreak = block.kind === 'break'
+  const tentative = isMeeting && block.rsvp === 'tentative'
+  const fyi = isMeeting && block.rsvp === 'fyi'
+  // A solid (accepted/plain) meeting fills; tentative/fyi read hollow.
+  const solidMeeting = isMeeting && !tentative && !fyi
 
-  const labelColor = isMeeting ? '#ffffff' : isGhost ? color : isBreak ? t.color.ink3 : t.color.ink
-  const timeColor = isMeeting ? 'rgba(255,255,255,0.85)' : isGhost ? color : t.color.ink2
+  // Lane geometry: full width for a lone block, else an equal share with a small gap.
+  const GUTTER_PAD = 4
+  const laneStyle =
+    placement.lanes <= 1
+      ? { left: GUTTER_PAD, right: GUTTER_PAD }
+      : {
+          left: `${(placement.lane / placement.lanes) * 100}%` as const,
+          width: `${100 / placement.lanes}%` as const,
+        }
+
+  const labelColor = solidMeeting
+    ? '#ffffff'
+    : fyi
+      ? t.color.ink3
+      : isGhost || tentative
+        ? color
+        : isBreak
+          ? t.color.ink3
+          : t.color.ink
+  const timeColor = solidMeeting ? 'rgba(255,255,255,0.85)' : isGhost ? color : t.color.ink2
+  const badgeColor = solidMeeting ? 'rgba(255,255,255,0.85)' : labelColor
 
   return (
     <View
       style={{
         position: 'absolute',
-        left: 4,
-        right: 4,
         top: rect.top * BODY_HEIGHT + 1,
         height: px,
+        marginHorizontal: placement.lanes > 1 ? 1 : 0,
+        ...laneStyle,
         borderRadius: t.radius.chip,
         paddingHorizontal: 7,
         paddingVertical: px >= 26 ? 4 : 0,
         justifyContent: 'center',
         overflow: 'hidden',
-        borderWidth: isGhost ? 1.5 : isBreak ? 1 : 0,
-        borderStyle: isGhost || isBreak ? 'dashed' : 'solid',
-        borderColor: isGhost ? color : isBreak ? t.color.borderStrong : 'transparent',
-        borderLeftWidth: block.kind === 'actual' ? 3 : isGhost ? 1.5 : isBreak ? 1 : 0,
-        borderLeftColor: block.kind === 'actual' ? color : isGhost ? color : t.color.borderStrong,
-        backgroundColor: isMeeting
+        borderWidth: isGhost ? 1.5 : isBreak ? 1 : tentative ? 1.5 : fyi ? 1 : 0,
+        borderStyle: isGhost || isBreak ? 'dashed' : fyi ? 'dotted' : 'solid',
+        borderColor: isGhost
+          ? color
+          : isBreak
+            ? t.color.borderStrong
+            : tentative
+              ? color
+              : fyi
+                ? t.color.borderStrong
+                : 'transparent',
+        borderLeftWidth: block.kind === 'actual' ? 3 : isGhost ? 1.5 : isBreak ? 1 : undefined,
+        borderLeftColor:
+          block.kind === 'actual'
+            ? color
+            : isGhost
+              ? color
+              : isBreak
+                ? t.color.borderStrong
+                : undefined,
+        backgroundColor: solidMeeting
           ? color
           : block.kind === 'actual'
             ? `${color}22`
-            : isBreak
+            : isBreak || fyi
               ? t.color.sunk
               : 'transparent',
+        opacity: fyi ? 0.85 : 1,
       }}
     >
       {px >= 24 && (
-        <Text
-          numberOfLines={1}
-          style={{
-            fontSize: t.fontSize['2xs'],
-            fontWeight: '600',
-            color: labelColor,
-            fontStyle: isGhost ? 'italic' : 'normal',
-          }}
-        >
-          {isGhost ? `◇ ${block.label}` : block.label}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {block.rec === true && <BlockBadge label="↻" color={badgeColor} />}
+          {block.ext !== undefined && <BlockBadge label="⇄ OL" color={badgeColor} />}
+          {tentative && <BlockBadge label="?" color={badgeColor} />}
+          {fyi && <BlockBadge label="FYI" color={badgeColor} dotted />}
+          <Text
+            numberOfLines={1}
+            style={{
+              flex: 1,
+              fontSize: t.fontSize['2xs'],
+              fontWeight: '600',
+              color: labelColor,
+              fontStyle: isGhost ? 'italic' : 'normal',
+            }}
+          >
+            {isGhost ? `◇ ${block.label}` : block.label}
+          </Text>
+        </View>
       )}
       {px >= 40 && !isBreak && (
         <Text
@@ -232,6 +398,15 @@ function DayColumn({
   const t = useTheme()
   const hours: number[] = []
   for (let h = START_HOUR + 1; h < END_HOUR; h++) hours.push(h)
+  const dayBlocks = DEMO_BLOCKS.filter(b => b.day === index)
+  // Lanes split the column when blocks overlap; the badge counts real conflicts —
+  // breaks and FYI meetings never count (design v6).
+  const placements = assignLanes(dayBlocks.map(b => ({ startMin: b.start, lenMin: b.len })))
+  const conflictPeak = maxConcurrency(
+    dayBlocks
+      .filter(b => b.kind !== 'break' && b.rsvp !== 'fyi')
+      .map(b => ({ startMin: b.start, lenMin: b.len })),
+  )
   return (
     <View style={flex ? { flex: 1 } : { width: COL_WIDTH }}>
       <View
@@ -259,6 +434,20 @@ function DayColumn({
           {day.name}
         </Text>
         <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>{day.date}</Text>
+        {conflictPeak >= 2 && (
+          <View
+            style={{
+              paddingHorizontal: 6,
+              paddingVertical: 1,
+              borderRadius: t.radius.pill,
+              backgroundColor: t.color.warnSoft,
+            }}
+          >
+            <Text style={{ fontSize: 9, fontWeight: '800', color: t.color.warn }}>
+              {conflictPeak}×
+            </Text>
+          </View>
+        )}
         <Text
           style={{
             marginLeft: 'auto',
@@ -293,8 +482,12 @@ function DayColumn({
             }}
           />
         ))}
-        {DEMO_BLOCKS.filter(b => b.day === index).map((b, i) => (
-          <CanvasBlockView key={`${b.label}-${String(i)}`} block={b} />
+        {dayBlocks.map((b, i) => (
+          <CanvasBlockView
+            key={`${b.label}-${String(i)}`}
+            block={b}
+            placement={placements[i] ?? { lane: 0, lanes: 1 }}
+          />
         ))}
         {day.today && (
           <View
@@ -711,6 +904,7 @@ export function PlannerScreen(): React.JSX.Element {
   const { width } = useWindowDimensions()
   const stacked = width < STACK_BREAKPOINT
   const [week, setWeek] = useState(28)
+  const [view, setView] = useState<'Woche' | 'Monat' | 'Jahr'>('Woche')
   const [scope, setScope] = useState<'Zeiten' | 'Budgets'>('Zeiten')
   const [ask, setAsk] = useState('')
   const [answer, setAnswer] = useState<string | null>(null)
@@ -778,124 +972,175 @@ export function PlannerScreen(): React.JSX.Element {
         >
           Planner
         </Text>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 4,
-            borderWidth: 1,
-            borderColor: t.color.border,
-            borderRadius: t.radius.pill,
-            paddingVertical: 4,
-            paddingHorizontal: 6,
-            backgroundColor: t.color.surface,
-          }}
-        >
-          <Pressable
-            onPress={() => setWeek(w => w - 1)}
-            accessibilityRole="button"
-            accessibilityLabel="Vorherige Woche"
-            style={{ padding: 2 }}
-          >
-            <Icon name="chevronLeft" size={16} color={t.color.ink2} />
-          </Pressable>
-          <Text
-            style={{
-              fontSize: t.fontSize.xs,
-              fontWeight: '600',
-              color: t.color.ink,
-              minWidth: 46,
-              textAlign: 'center',
-            }}
-          >
-            KW {week}
-          </Text>
-          <Pressable
-            onPress={() => setWeek(w => w + 1)}
-            accessibilityRole="button"
-            accessibilityLabel="Nächste Woche"
-            style={{ padding: 2 }}
-          >
-            <Icon name="chevronRight" size={16} color={t.color.ink2} />
-          </Pressable>
+        <View style={{ maxWidth: 260, minWidth: 200, flexGrow: 1 }}>
+          <SegmentedControl
+            segments={[
+              { value: 'Woche', label: 'Woche' },
+              { value: 'Monat', label: 'Monat' },
+              { value: 'Jahr', label: 'Jahr' },
+            ]}
+            active={view}
+            onChange={setView}
+          />
         </View>
-        <Text
-          style={{ fontFamily: t.fontFamily.numeric, fontSize: t.fontSize.xs, color: t.color.ink2 }}
-        >
-          <Text style={{ color: t.color.ink, fontWeight: '600' }}>26,1h</Text> / 41:40h
-        </Text>
-        <Button size="sm">Woche planen</Button>
-      </View>
-
-      {/* AI in context — reachable here, not only in the Assistant tab */}
-      <View style={{ gap: t.spacing.s2, maxWidth: 680 }}>
-        <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
-          {scopeChip('Zeiten')}
-          {scopeChip('Budgets')}
-        </View>
-        <AIAskBar
-          value={ask}
-          onChange={setAsk}
-          onSubmit={() => submitAsk(ask)}
-          placeholder="Frag zu deiner Woche …"
-        />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s2 }}>
-          {DEMO_ASK.map(s => (
-            <Pressable
-              key={s.q}
-              onPress={() => {
-                setAsk(s.q)
-                setAnswer(s.a)
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={s.q}
+        {view === 'Woche' && (
+          <>
+            <View
               style={{
-                paddingVertical: 4,
-                paddingHorizontal: 10,
-                borderRadius: t.radius.pill,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
                 borderWidth: 1,
                 borderColor: t.color.border,
+                borderRadius: t.radius.pill,
+                paddingVertical: 4,
+                paddingHorizontal: 6,
                 backgroundColor: t.color.surface,
               }}
             >
-              <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>{s.q}</Text>
-            </Pressable>
-          ))}
-        </View>
-        {answer !== null && <AICallout title="✦ Assistent">{answer}</AICallout>}
+              <Pressable
+                onPress={() => setWeek(w => w - 1)}
+                accessibilityRole="button"
+                accessibilityLabel="Vorherige Woche"
+                style={{ padding: 2 }}
+              >
+                <Icon name="chevronLeft" size={16} color={t.color.ink2} />
+              </Pressable>
+              <Text
+                style={{
+                  fontSize: t.fontSize.xs,
+                  fontWeight: '600',
+                  color: t.color.ink,
+                  minWidth: 46,
+                  textAlign: 'center',
+                }}
+              >
+                KW {week}
+              </Text>
+              <Pressable
+                onPress={() => setWeek(w => w + 1)}
+                accessibilityRole="button"
+                accessibilityLabel="Nächste Woche"
+                style={{ padding: 2 }}
+              >
+                <Icon name="chevronRight" size={16} color={t.color.ink2} />
+              </Pressable>
+            </View>
+            <Text
+              style={{
+                fontFamily: t.fontFamily.numeric,
+                fontSize: t.fontSize.xs,
+                color: t.color.ink2,
+              }}
+            >
+              <Text style={{ color: t.color.ink, fontWeight: '600' }}>26,1h</Text> / 41:40h
+            </Text>
+          </>
+        )}
+        <Button size="sm">
+          {view === 'Jahr' ? 'Jahr planen' : view === 'Monat' ? 'Monat planen' : 'Woche planen'}
+        </Button>
       </View>
 
-      {/* Week canvas — plan (dashed) and actuals share one surface per day */}
-      <Card padding={false}>
-        <View style={{ flexDirection: 'row' }}>
-          <HourGutter />
-          {stacked ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={{ flexDirection: 'row' }}>
-                {DEMO_DAYS.map((day, di) => (
-                  <DayColumn key={day.name} day={day} index={di} flex={false} />
-                ))}
-              </View>
-            </ScrollView>
-          ) : (
-            <View style={{ flexDirection: 'row', flex: 1 }}>
-              {DEMO_DAYS.map((day, di) => (
-                <DayColumn key={day.name} day={day} index={di} flex />
+      {view === 'Monat' && (
+        <>
+          <Card padding={false}>
+            <PlannerMonthView />
+          </Card>
+          <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, lineHeight: 18 }}>
+            Gefüllte Chips sind geplante Aufgaben (Prio-Punkt · zählen in die Tages-Schwere);
+            gestrichelte Wimpel-Banner sind Events — sie zählen nie. Der Balken unten misst die
+            prio-gewichtete Last gegen dein Tagessoll. Vorschau-Daten.
+          </Text>
+        </>
+      )}
+
+      {view === 'Jahr' && (
+        <>
+          <PlannerYearView />
+          <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, lineHeight: 18 }}>
+            Jede Kachel zeigt die Wochen-Intensität eines Monats; die Wimpel-Reihe zählt die Events.
+            Der laufende Monat ist orange umrandet. Vorschau-Daten.
+          </Text>
+        </>
+      )}
+
+      {view === 'Woche' && (
+        <>
+          {/* AI in context — reachable here, not only in the Assistant tab */}
+          <View style={{ gap: t.spacing.s2, maxWidth: 680 }}>
+            <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
+              {scopeChip('Zeiten')}
+              {scopeChip('Budgets')}
+            </View>
+            <AIAskBar
+              value={ask}
+              onChange={setAsk}
+              onSubmit={() => submitAsk(ask)}
+              placeholder="Frag zu deiner Woche …"
+            />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s2 }}>
+              {DEMO_ASK.map(s => (
+                <Pressable
+                  key={s.q}
+                  onPress={() => {
+                    setAsk(s.q)
+                    setAnswer(s.a)
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={s.q}
+                  style={{
+                    paddingVertical: 4,
+                    paddingHorizontal: 10,
+                    borderRadius: t.radius.pill,
+                    borderWidth: 1,
+                    borderColor: t.color.border,
+                    backgroundColor: t.color.surface,
+                  }}
+                >
+                  <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>{s.q}</Text>
+                </Pressable>
               ))}
             </View>
-          )}
-        </View>
-      </Card>
+            {answer !== null && <AICallout title="✦ Assistent">{answer}</AICallout>}
+          </View>
 
-      <Legend />
+          {/* Week canvas — plan (dashed) and actuals share one surface per day */}
+          <Card padding={false}>
+            <View style={{ flexDirection: 'row' }}>
+              <HourGutter />
+              {stacked ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={{ flexDirection: 'row' }}>
+                    {DEMO_DAYS.map((day, di) => (
+                      <DayColumn key={day.name} day={day} index={di} flex={false} />
+                    ))}
+                  </View>
+                </ScrollView>
+              ) : (
+                <View style={{ flexDirection: 'row', flex: 1 }}>
+                  {DEMO_DAYS.map((day, di) => (
+                    <DayColumn key={day.name} day={day} index={di} flex />
+                  ))}
+                </View>
+              )}
+            </View>
+          </Card>
 
-      {/* TODO(design): drag-drop tracked in #117 */}
-      <CoPlannerProposal />
+          <Legend />
 
-      <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, lineHeight: 18 }}>
-        Gestrichelte Blöcke sind Co-Planner-Vorschläge — ein Tippen übernimmt, verwerfen entfernt
-        sie. Blöcke ziehen über Tage und Zeiten kommt mit der Interaktions-Spezifikation (#39).
-      </Text>
+          {/* TODO(design): drag-drop tracked in #117 */}
+          <CoPlannerProposal />
+
+          <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, lineHeight: 18 }}>
+            Gestrichelte Blöcke sind Co-Planner-Vorschläge — ein Tippen übernimmt, verwerfen
+            entfernt sie. Überlappende Blöcke teilen sich die Spalte (Lanes); der „N×"-Chip im
+            Tageskopf zählt echte Konflikte (Pausen &amp; FYI zählen nicht). ↻ wiederkehrend · ⇄ OL
+            = Outlook · ? = Vorbehalt · FYI = ohne Teilnahme. Blöcke ziehen/Resize kommt mit der
+            Interaktions-Spezifikation (#39).
+          </Text>
+        </>
+      )}
     </ScrollView>
   )
 }
