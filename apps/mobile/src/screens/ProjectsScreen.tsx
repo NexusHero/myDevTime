@@ -13,6 +13,7 @@ import { useTheme } from '../theme/ThemeProvider'
 import { Badge, BudgetRing, Button, Card, ScreenScaffold, Sparkline } from '../components/index'
 import type { Client, Project } from './projectsData'
 import { useCatalog } from './useCatalog'
+import { useClientsOpen } from '../hooks/useClientsOpen'
 
 /**
  * Projects — clients → projects → tasks with budget consumption and rates
@@ -229,6 +230,12 @@ export function ProjectsScreen({
   const catalog = useCatalog()
   const clients: readonly Client[] = catalog.data ?? []
 
+  // Open (un-invoiced) billable work, live from the invoicing rollup (design v6,
+  // ADR-0051) — the freelancer's "was ist noch abzurechnen?" at a glance.
+  const open = useClientsOpen()
+  const openMinor = (open.data?.clients ?? []).reduce((s, c) => s + c.openMinor, 0)
+  const openMs = (open.data?.clients ?? []).reduce((s, c) => s + c.openMs, 0)
+
   // Bounded screen (design v1): one flat list sorted by budget risk, the top few
   // visible and the rest behind a "+N weitere" drill-in — scroll depth never
   // grows with the project count. The limit follows the column count.
@@ -284,6 +291,33 @@ export function ProjectsScreen({
 
   return (
     <ScreenScaffold header={header}>
+      {open.live && openMs > 0 && (
+        <Card>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'baseline',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Text style={{ fontSize: t.fontSize.sm, fontWeight: '600', color: t.color.ink2 }}>
+              Offen abrechenbar
+            </Text>
+            <Text
+              style={{
+                fontFamily: t.fontFamily.numeric,
+                fontSize: t.fontSize.md,
+                fontWeight: '700',
+                color: t.color.ink,
+              }}
+            >
+              {formatDuration(openMs)} h ·{' '}
+              {formatMoneyMinor(openMinor, open.data?.currencyCode ?? 'EUR')}
+            </Text>
+          </View>
+        </Card>
+      )}
+
       {catalog.loading && catalog.data === null && <Notice title="Loading projects…" />}
 
       {catalog.error && (
