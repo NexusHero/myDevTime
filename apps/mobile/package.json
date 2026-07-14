@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@babel/core": "7.29.7",
-    "@babel/runtime": "7.29.7",
+    "@babel/runtime": "8.0.0",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/jetbrains-mono": "^0.4.1",
     "@expo-google-fonts/space-grotesk": "^0.4.1",
