@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Pitch Deck" description="8 Slides, 16:9 — myDevTime-Investor/Produkt-Pitch im Brand-Look: dunkle Navy-Bookends, Live-Orange als Signal, Day-Canvas-Visual." -->
+<helmet>
+  <script src="./ds-base.js"></script>
+</helmet>
+<x-import component-from-global-scope="deck-stage" from="./deck-stage.js" width="1920" height="1080" hint-size="100%,100%">
+
+  <!-- ══ 1 · Titel ══ -->
+  <section data-label="Titel" data-screen-label="01 Titel" style="box-sizing:border-box; width:1920px; height:1080px; background:radial-gradient(120% 150% at 20% 0%, #1a2c6e 0%, #0e1638 55%, #0a0c14 100%); display:flex; flex-direction:column; justify-content:center; padding:0 160px; position:relative; overflow:hidden; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+    <div style="position:absolute; top:0; bottom:0; left:62%; width:4px; background:#ff5320; box-shadow:0 0 22px rgba(255,83,32,0.75); border-radius:2px;"></div>
+    <div style="position:absolute; top:80px; left:calc(62% - 7px); width:18px; height:18px; border-radius:50%; background:#ff5320;"></div>
+    <img src="../../assets/logo/icon.svg" alt="myDevTime" style="width:120px; height:120px; border-radius:28px; box-shadow:0 24px 60px -16px rgba(61,92,245,0.6);">
+    <div style="margin-top:56px; font-family:'JetBrains Mono', monospace; font-size:26px; letter-spacing:0.14em; color:#ff5320; text-transform:uppercase;">myDevTime · Pitch · Juli 2026</div>
+    <h1 style="margin:22px 0 0; font-family:'Space Grotesk', sans-serif; font-weight:700; letter-spacing:-0.03em; font-size:118px; line-height:1.02; color:#ffffff; max-width:1150px;">Dein Tag, geplant.<br>Dein Jetzt, sichtbar.</h1>
+    <div style="margin-top:48px; display:flex; gap:36px; color:rgba(255,255,255,0.55); font-size:28px;"><span style="color:#ffffff; font-weight:600;">Suhay Sevinc</span><span>Gründer &amp; Entwickler</span></div>
+  </section>
+
+  <!-- ══ 2 · Problem ══ -->
+  <section data-label="Problem" data-screen-label="02 Problem" style="box-sizing:border-box; width:1920px; height:1080px; background:#f6f8fc; display:flex; flex-direction:column; justify-content:center; padding:0 160px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+    <div style="font-family:'JetBrains Mono', monospace; font-size:24px; letter-spacing:0.14em; color:#ff5320; text-transform:uppercase;">Das Problem</div>
+    <h2 style="margin:18px 0 0; font-family:'Space Grotesk', sans-serif; font-weight:700; letter-spacing:-0.025em; font-size:76px; line-height:1.08; color:#12141c; max-width:1300px;">Zeiterfassung schaut zurück. Dein Tag passiert jetzt.</h2>
+    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:32px; margin-top:72px;">
+      <div style="background:#ffffff; border:1px solid #e5e9ef; border-radius:24px; padding:44px 40px; box-shadow:0 10px 30px -18px rgba(10,14,40,0.18);">
+        <div style="font-family:'JetBrains Mono', monospace; font-size:24px; color:#3654E0; font-weight:600;">01</div>
+        <div style="margin-top:16px; font-family:'Space Grotesk', sans-serif; font-size:34px; font-weight:700; color:#12141c;">Stempeln ist Pflicht — und lästig</div>
+        <p style="margin:14px 0 0; font-size:26px; line-height:1.5; color:#5a6072;">Freitags werden Zeiten aus dem Gedächtnis nachgetragen. Die Daten sind da — aber falsch.</p>
+      </div>
+      <div style="background:#ffffff; border:1px solid #e5e9ef; border-radius:24px; padding:44px 40px; box-shadow:0 10px 30px -18px rgba(10,14,40,0.18);">
+        <div style="font-family:'JetBrains Mono', monospace; font-size:24px; color:#3654E0; font-weight:600;">02</div>
+        <div style="margin-top:16px; font-family:'Space Grotesk', sans-serif; font-size:34px; font-weight:700; color:#12141c;">Planung lebt woanders</div>
+        <p style="margin:14px 0 0; font-size:26px; line-height:1.5; color:#5a6072;">Kalender, Jira, Timer — drei Tools, drei Wahrheiten. Plan und Realität treffen sich nie.</p>
+      </div>
+      <div style="background:#ffffff; border:1px solid #e5e9ef; border-radius:24px; padding:44px 40px; box-shadow:0 10px 30px -18px rgba(10,14,40,0.18);">
+        <div style="font-family:'JetBrains Mono', monospace; font-size:24px; color:#3654E0; font-weight:600;">03</div>
+        <div style="margin-top:16px; font-family:'Space Grotesk', sans-serif; font-size:34px; font-weight:700; color:#12141c;">Überlastung sieht keiner kommen</div>
+        <p style="margin:14px 0 0; font-size:26px; line-height:1.5; color:#5a6072;">Überstunden fallen erst im Monatsreport auf — wenn die Erschöpfung längst da ist.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 3 · Lösung ══ -->
+  <section data-label="Lösung" data-screen-label="03 Lösung" style="box-sizing:border-box; width:1920px; height:1080px; background:radial-gradient(120% 150% at 80% 0%, #1a2c6e 0%, #0e1638 55%, #0a0c14 100%); display:flex; flex-direction:column; justify-content:center; padding:0 160px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+    <div style="font-family:'JetBrains Mono', monospace; font-size:24px; letter-spacing:0.14em; color:#ff5320; text-transform:uppercase;">Die Lösung</div>
+    <h2 style="margin:18px 0 0; font-family:'Space Grotesk', sans-serif; font-weight:700; letter-spacing:-0.025em; font-size:76px; line-height:1.08; color:#ffffff; max-width:1250px;">Plan und Realität auf einer Fläche.</h2>
+    <p style="margin:26px 0 0; font-size:30px; line-height:1.5; color:rgba(255,255,255,0.6); max-width:1000px;">Der Day Canvas zeigt deinen Tag als Material: Gebuchtes ist fest, Vorschläge des Co-Planners sind Ghost-Blocks — und der orangene Playhead ist immer <span style="color:#ff5320; font-weight:600;">jetzt</span>.</p>
+    <div style="position:relative; margin-top:70px; height:190px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); border-radius:26px; padding:28px;">
+      <div style="position:relative; height:100%;">
+        <span style="position:absolute; left:0%; top:0; width:16%; height:58px; border-radius:14px; background:#5B8DEF;"></span>
+        <span style="position:absolute; left:18%; top:0; width:24%; height:58px; border-radius:14px; background:#2BB673;"></span>
+        <span style="position:absolute; left:44%; top:0; width:11%; height:58px; border-radius:14px; background:#9B6EF3;"></span>
+        <span style="position:absolute; left:7%; top:74px; width:21%; height:58px; border-radius:14px; background:#E05B8D;"></span>
+        <span style="position:absolute; left:60%; top:74px; width:24%; height:58px; border-radius:14px; border:3px dashed rgba(255,255,255,0.5);"></span>
+        <span style="position:absolute; left:57%; top:-40px; bottom:-40px; width:4px; border-radius:2px; background:#ff5320; box-shadow:0 0 18px rgba(255,83,32,0.8);"></span>
+        <span style="position:absolute; left:calc(57% - 6px); top:-52px; width:16px; height:16px; border-radius:50%; background:#ff5320;"></span>
+      </div>
+    </div>
+    <div style="display:flex; gap:44px; margin-top:44px; color:rgba(255,255,255,0.55); font-size:25px;">
+      <span style="display:inline-flex; align-items:center; gap:12px;"><span style="width:22px; height:14px; border-radius:4px; background:#2BB673;"></span> Gebucht / Realität</span>
+      <span style="display:inline-flex; align-items:center; gap:12px;"><span style="width:22px; height:14px; border-radius:4px; border:2.5px dashed rgba(255,255,255,0.5); box-sizing:border-box;"></span> Ghost — Vorschlag des Co-Planners</span>
+      <span style="display:inline-flex; align-items:center; gap:12px;"><span style="width:22px; height:4px; border-radius:2px; background:#ff5320;"></span> Jetzt</span>
+    </div>
+  </section>
+
+  <!-- ══ 4 · Produkt ══ -->
+  <section data-label="Produkt" data-screen-label="04 Produkt" style="box-sizing:border-box; width:1920px; height:1080px; background:#ffffff; display:flex; flex-direction:column; justify-content:center; padding:0 160px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+    <div style="font-family:'JetBrains Mono', monospace; font-size:24px; letter-spacing:0.14em; color:#ff5320; text-transform:uppercase;">Das Produkt</div>
+    <h2 style="margin:18px 0 0; font-family:'Space Grotesk', sans-serif; font-weight:700; letter-spacing:-0.025em; font-size:76px; line-height:1.08; color:#12141c;">Vier Dinge, die zusammen keiner hat.</h2>
+    <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:28px; margin-top:64px;">
+      <div style="border:1px solid #e5e9ef; border-radius:24px; padding:40px 44px; background:#f6f8fc;">
+        <div style="display:flex; align-items:center; gap:16px;"><span style="width:14px; height:14px; border-radius:50%; background:#ff5320;"></span><span style="font-family:'Space Grotesk', sans-serif; font-size:34px; font-weight:700; color:#12141c;">Stempeluhr &amp; Island</span></div>
+        <p style="margin:14px 0 0; font-size:26px; line-height:1.5; color:#5a6072;">Ein Klick, immer sichtbar — die Island dockt in der Navigation und pulsiert, solange du eingestempelt bist. Pausen inklusive.</p>
+      </div>
+      <div style="border:1px solid #e5e9ef; border-radius:24px; padding:40px 44px; background:#f6f8fc;">
+        <div style="display:flex; align-items:center; gap:16px;"><span style="width:14px; height:14px; border-radius:50%; background:#3654E0;"></span><span style="font-family:'Space Grotesk', sans-serif; font-size:34px; font-weight:700; color:#12141c;">Auto-Tracker</span></div>
+        <p style="margin:14px 0 0; font-size:26px; line-height:1.5; color:#5a6072;">Erfasst während der Session automatisch, welche Apps du wie lange nutzt — die Zeiten stimmen, ohne Nachtragen.</p>
+      </div>
+      <div style="border:1px solid #e5e9ef; border-radius:24px; padding:40px 44px; background:#f6f8fc;">
+        <div style="display:flex; align-items:center; gap:16px;"><span style="width:14px; height:14px; border-radius:50%; background:#2BB673;"></span><span style="font-family:'Space Grotesk', sans-serif; font-size:34px; font-weight:700; color:#12141c;">Planner-Gantt &amp; Co-Planner</span></div>
+        <p style="margin:14px 0 0; font-size:26px; line-height:1.5; color:#5a6072;">Die Woche als Gantt mit Jetzt-Linie. Der KI-Co-Planner schlägt Blöcke vor — du nimmst an oder verwirfst.</p>
+      </div>
+      <div style="border:1px solid #e5e9ef; border-radius:24px; padding:40px 44px; background:#f6f8fc;">
+        <div style="display:flex; align-items:center; gap:16px;"><span style="width:14px; height:14px; border-radius:50%; background:#9B6EF3;"></span><span style="font-family:'Space Grotesk', sans-serif; font-size:34px; font-weight:700; color:#12141c;">Balance</span></div>
+        <p style="margin:14px 0 0; font-size:26px; line-height:1.5; color:#5a6072;">Auslastung, Stress-Check-in und Frühwarnzeichen aus deinen eigenen Daten — die App managt mit dir, nicht gegen dich.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 5 · Wettbewerb ══ -->
+  <section data-label="Wettbewerb" data-screen-label="05 Wettbewerb" style="box-sizing:border-box; width:1920px; height:1080px; background:#f6f8fc; display:flex; flex-direction:column; justify-content:center; padding:0 160px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+    <div style="font-family:'JetBrains Mono', monospace; font-size:24px; letter-spacing:0.14em; color:#ff5320; text-transform:uppercase;">Wettbewerb</div>
+    <h2 style="margin:18px 0 0; font-family:'Space Grotesk', sans-serif; font-weight:700; letter-spacing:-0.025em; font-size:76px; line-height:1.08; color:#12141c;">Alle tracken die Vergangenheit.</h2>
+    <div style="margin-top:60px; background:#ffffff; border:1px solid #e5e9ef; border-radius:24px; overflow:hidden; box-shadow:0 10px 30px -18px rgba(10,14,40,0.18);">
+      <div style="display:grid; grid-template-columns:1.6fr 1fr 1fr 1fr 1fr; padding:26px 44px; border-bottom:1px solid #e5e9ef; font-size:24px; font-weight:600; color:#5a6072;">
+        <span></span><span>Tracking</span><span>Planung</span><span>Live-Jetzt</span><span>Balance</span>
+      </div>
+      <div style="display:grid; grid-template-columns:1.6fr 1fr 1fr 1fr 1fr; padding:24px 44px; border-bottom:1px solid #e5e9ef; font-size:27px; color:#12141c; align-items:center;">
+        <span style="font-weight:600;">Toggl Track</span><span style="color:#2BB673; font-weight:700;">✓</span><span style="color:#c2c9d6;">—</span><span style="color:#c2c9d6;">—</span><span style="color:#c2c9d6;">—</span>
+      </div>
+      <div style="display:grid; grid-template-columns:1.6fr 1fr 1fr 1fr 1fr; padding:24px 44px; border-bottom:1px solid #e5e9ef; font-size:27px; color:#12141c; align-items:center;">
+        <span style="font-weight:600;">Clockify</span><span style="color:#2BB673; font-weight:700;">✓</span><span style="color:#b9a63a; font-weight:600;">teils</span><span style="color:#c2c9d6;">—</span><span style="color:#c2c9d6;">—</span>
+      </div>
+      <div style="display:grid; grid-template-columns:1.6fr 1fr 1fr 1fr 1fr; padding:24px 44px; border-bottom:1px solid #e5e9ef; font-size:27px; color:#12141c; align-items:center;">
+        <span style="font-weight:600;">Awork</span><span style="color:#2BB673; font-weight:700;">✓</span><span style="color:#2BB673; font-weight:700;">✓</span><span style="color:#c2c9d6;">—</span><span style="color:#c2c9d6;">—</span>
+      </div>
+      <div style="display:grid; grid-template-columns:1.6fr 1fr 1fr 1fr 1fr; padding:26px 44px; font-size:27px; align-items:center; background:rgba(54,84,224,0.06);">
+        <span style="font-weight:700; color:#3654E0;">myDevTime</span><span style="color:#2BB673; font-weight:700;">✓</span><span style="color:#2BB673; font-weight:700;">✓</span><span style="color:#ff5320; font-weight:700;">✓</span><span style="color:#ff5320; font-weight:700;">✓</span>
+      </div>
+    </div>
+    <p style="margin:34px 0 0; font-size:26px; line-height:1.5; color:#5a6072; max-width:1200px;">Unsere Lücke: die Verbindung aus Live-Planung („Jetzt" als erste Klasse) und einer Gesundheits-Komponente, die aus echten Arbeitsdaten gespeist wird.</p>
+  </section>
+
+  <!-- ══ 6 · Balance ══ -->
+  <section data-label="Balance" data-screen-label="06 Balance" style="box-sizing:border-box; width:1920px; height:1080px; background:#ffffff; display:flex; align-items:center; gap:100px; padding:0 160px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+    <div style="flex:1;">
+      <div style="font-family:'JetBrains Mono', monospace; font-size:24px; letter-spacing:0.14em; color:#ff5320; text-transform:uppercase;">Differenzierer</div>
+      <h2 style="margin:18px 0 0; font-family:'Space Grotesk', sans-serif; font-weight:700; letter-spacing:-0.025em; font-size:76px; line-height:1.08; color:#12141c;">Die App, die auf dich achtet.</h2>
+      <p style="margin:26px 0 0; font-size:28px; line-height:1.55; color:#5a6072;">Überstunden-Trend, Pausen-Verhalten und dein täglicher Stress-Check-in ergeben ein Belastungsbild — keine Diagnose, sondern Frühwarnzeichen. Der Co-Planner reagiert darauf: schlägt Pausen vor, verschiebt Unwichtiges, schützt Fokuszeit.</p>
+    </div>
+    <div style="flex:0 0 560px; background:#f6f8fc; border:1px solid #e5e9ef; border-radius:28px; padding:52px;">
+      <div style="font-size:24px; font-weight:600; color:#5a6072;">Balance · diese Woche</div>
+      <div style="margin-top:24px; display:flex; align-items:baseline; gap:14px;"><span style="font-family:'JetBrains Mono', monospace; font-size:72px; font-weight:600; color:#12141c;">62</span><span style="font-size:26px; color:#2BB673; font-weight:600;">im grünen Bereich</span></div>
+      <div style="margin-top:22px; height:14px; border-radius:999px; background:#e5e9ef; overflow:hidden;"><div style="width:62%; height:100%; border-radius:999px; background:linear-gradient(90deg, #2BB673, #b9a63a);"></div></div>
+      <div style="margin-top:34px; display:flex; flex-direction:column; gap:16px; font-size:25px; color:#12141c;">
+        <div style="display:flex; justify-content:space-between;"><span style="color:#5a6072;">Überstunden-Trend</span><span style="font-family:'JetBrains Mono', monospace; font-weight:600;">+1,5h</span></div>
+        <div style="display:flex; justify-content:space-between;"><span style="color:#5a6072;">Pausen eingehalten</span><span style="font-family:'JetBrains Mono', monospace; font-weight:600;">4/5</span></div>
+        <div style="display:flex; justify-content:space-between;"><span style="color:#5a6072;">Stress-Check-in</span><span style="font-weight:600; color:#b9a63a;">angespannt</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 7 · Roadmap ══ -->
+  <section data-label="Roadmap" data-screen-label="07 Roadmap" style="box-sizing:border-box; width:1920px; height:1080px; background:#f6f8fc; display:flex; flex-direction:column; justify-content:center; padding:0 160px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+    <div style="font-family:'JetBrains Mono', monospace; font-size:24px; letter-spacing:0.14em; color:#ff5320; text-transform:uppercase;">Roadmap</div>
+    <h2 style="margin:18px 0 0; font-family:'Space Grotesk', sans-serif; font-weight:700; letter-spacing:-0.025em; font-size:76px; line-height:1.08; color:#12141c;">Design steht. Jetzt bauen.</h2>
+    <div style="position:relative; margin-top:90px;">
+      <div style="position:absolute; top:10px; left:2%; right:2%; height:4px; border-radius:2px; background:#e5e9ef;"></div>
+      <div style="position:absolute; top:10px; left:2%; width:24%; height:4px; border-radius:2px; background:#ff5320;"></div>
+      <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:32px;">
+        <div style="position:relative; padding-top:52px;">
+          <span style="position:absolute; top:0; left:0; width:24px; height:24px; border-radius:50%; background:#ff5320; box-shadow:0 0 0 6px rgba(255,83,32,0.18);"></span>
+          <div style="font-family:'Space Grotesk', sans-serif; font-size:32px; font-weight:700; color:#12141c;">Design-System 1.0</div>
+          <p style="margin:10px 0 0; font-size:25px; line-height:1.5; color:#5a6072;">Fertig — Tokens, 26 Komponenten, 7 Screens, Mobile. Handoff an die Umsetzung läuft.</p>
+        </div>
+        <div style="position:relative; padding-top:52px;">
+          <span style="position:absolute; top:0; left:0; width:24px; height:24px; border-radius:50%; background:#ffffff; border:4px solid #3654E0; box-sizing:border-box;"></span>
+          <div style="font-family:'Space Grotesk', sans-serif; font-size:32px; font-weight:700; color:#12141c;">Beta</div>
+          <p style="margin:10px 0 0; font-size:25px; line-height:1.5; color:#5a6072;">Kern-App: Stempeluhr, Day Canvas, Planner, Reports — mit echten Nutzern testen.</p>
+        </div>
+        <div style="position:relative; padding-top:52px;">
+          <span style="position:absolute; top:0; left:0; width:24px; height:24px; border-radius:50%; background:#ffffff; border:4px solid #c2c9d6; box-sizing:border-box;"></span>
+          <div style="font-family:'Space Grotesk', sans-serif; font-size:32px; font-weight:700; color:#12141c;">Auto-Tracker &amp; Mobile</div>
+          <p style="margin:10px 0 0; font-size:25px; line-height:1.5; color:#5a6072;">App-Erfassung auf dem Desktop, die Phone-App zum Stempeln unterwegs.</p>
+        </div>
+        <div style="position:relative; padding-top:52px;">
+          <span style="position:absolute; top:0; left:0; width:24px; height:24px; border-radius:50%; background:#ffffff; border:4px solid #c2c9d6; box-sizing:border-box;"></span>
+          <div style="font-family:'Space Grotesk', sans-serif; font-size:32px; font-weight:700; color:#12141c;">Integrationen</div>
+          <p style="margin:10px 0 0; font-size:25px; line-height:1.5; color:#5a6072;">Jira, GitHub &amp; Kalender als Task-Quellen — der Co-Planner plant direkt aus deinem Backlog.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 8 · Schluss ══ -->
+  <section data-label="Schluss" data-screen-label="08 Schluss" style="box-sizing:border-box; width:1920px; height:1080px; background:radial-gradient(120% 150% at 50% 0%, #1a2c6e 0%, #0e1638 55%, #0a0c14 100%); display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:0 160px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+    <img src="../../assets/logo/icon.svg" alt="myDevTime" style="width:110px; height:110px; border-radius:26px; box-shadow:0 24px 60px -16px rgba(61,92,245,0.6);">
+    <h2 style="margin:52px 0 0; font-family:'Space Grotesk', sans-serif; font-weight:700; letter-spacing:-0.03em; font-size:100px; line-height:1.05; color:#ffffff;">Dein <span style="color:#ff5320;">Jetzt</span>, sichtbar.</h2>
+    <p style="margin:30px 0 0; font-size:30px; color:rgba(255,255,255,0.6);">myDevTime · Suhay Sevinc</p>
+  </section>
+
+</x-import>
+
+</x-dc>
+</body>
+</html>
