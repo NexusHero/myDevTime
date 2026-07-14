@@ -19,5 +19,6 @@ export const SCREEN_TITLES: Record<Screen, string> = {
   absences: 'Absences',
   settings: 'Settings',
   credits: 'Credits',
+  rates: 'Hourly rates',
   assistant: 'Assistant',
 }

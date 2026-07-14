@@ -341,6 +341,12 @@ export function ProfileScreen({
         }
       />
       <Row
+        title="Stundensätze"
+        subtitle="€/Std. pro Workspace, Kunde & Projekt"
+        trailing={chevron}
+        onPress={() => onNavigate('rates')}
+      />
+      <Row
         title="Alle Einstellungen"
         subtitle="Präferenzen, Abo, Daten & Datenschutz"
         trailing={chevron}
