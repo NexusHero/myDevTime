@@ -32,6 +32,14 @@ const envSchema = z
     AUTH_BASE_URL: z.url().optional(),
     // Comma-separated list of origins allowed to send credentialed auth requests.
     TRUSTED_ORIGINS: z.string().optional(),
+    // Whether a fresh email/password account must verify its email before it can
+    // sign in. On by default and **forced on in production** (refine below); only a
+    // non-prod E2E/dev stack may set 'false', so automated acceptance tests can
+    // sign up and sign in without a mailbox (ADR-0053).
+    AUTH_REQUIRE_EMAIL_VERIFICATION: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform(v => v === 'true'),
 
     // Transactional email (verification, password reset, account-deletion). When
     // SMTP_URL is set the SMTP transport is used; otherwise emails are logged
@@ -62,6 +70,15 @@ const envSchema = z
         code: 'custom',
         path: ['AUTH_SECRET'],
         message: 'AUTH_SECRET (>=32 chars) is required in production',
+      })
+    }
+    // Email verification can never be disabled in production — the E2E escape
+    // hatch is a non-prod concession only (ADR-0053).
+    if (cfg.NODE_ENV === 'production' && !cfg.AUTH_REQUIRE_EMAIL_VERIFICATION) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['AUTH_REQUIRE_EMAIL_VERIFICATION'],
+        message: 'AUTH_REQUIRE_EMAIL_VERIFICATION cannot be false in production',
       })
     }
   })

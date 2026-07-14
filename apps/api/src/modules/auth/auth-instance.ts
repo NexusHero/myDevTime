@@ -58,7 +58,9 @@ export function createAuth({ db, config, email }: CreateAuthDeps) {
     }),
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: true,
+      // Forced on in production (config refine); a non-prod E2E/dev stack may turn
+      // it off so automated acceptance tests can sign up + sign in (ADR-0053).
+      requireEmailVerification: config.AUTH_REQUIRE_EMAIL_VERIFICATION,
       sendResetPassword: ({ user: u, url }) =>
         email.send({ to: u.email, subject: 'Reset your myDevTime password', text: url }),
     },
