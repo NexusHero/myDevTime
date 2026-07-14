@@ -37,9 +37,12 @@ must be impossible to bill foreign, non-billable, or already-invoiced time.
 3. **Server-authoritative service** (billing module): `preview` (compute, persist
    nothing), `issue` (recompute eligible lines server-side, intersect with the
    client's selection, freeze totals + stamp entries **in one transaction**),
-   `void` (undo), `list`, and `open-billable-per-client` (the Projects header
-   figures). Every query is workspace-scoped (ADR-0015). Endpoints under
-   `/api/billing/invoices` + `/api/billing/clients/open`, behind `AuthGuard`.
+   `void` (undo), `list`, `export` (a frozen invoice's lines re-derived by the
+   same core and streamed as a byte-reproducible CSV attachment via a dedicated
+   `invoiceToCsv` serializer — `GET /api/billing/invoices/:id/export`), and
+   `open-billable-per-client` (the Projects header figures). Every query is
+   workspace-scoped (ADR-0015). Endpoints under `/api/billing/invoices` +
+   `/api/billing/clients/open`, behind `AuthGuard`.
 
 4. **No new entity for the billable toggle**: the v6 € toggle just flips an
    entry's existing `billable` via `PATCH /api/tracking/entries/:id`.
@@ -47,8 +50,9 @@ must be impossible to bill foreign, non-billable, or already-invoiced time.
 ## Consequences
 
 - **Pros**: real freelancer billing on top of the existing catalog + rates, with
-  the same trustworthy numbers; atomic, reversible, workspace-isolated; the PDF/CSV
-  export reuses the timesheet serializers (REQ-009).
+  the same trustworthy numbers; atomic, reversible, workspace-isolated; a frozen
+  invoice exports to CSV (its own locale-neutral serializer, alongside the
+  timesheet ones — REQ-009).
 - **Cons / limits**: the `invoice_id` marker carries **no hard FK** (it would form
   a schema cycle catalog→invoices→catalog) — integrity is enforced by the
   workspace-scoped service, consistent with the polymorphic `rates.scope_id`. A
