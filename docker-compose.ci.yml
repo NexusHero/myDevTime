@@ -1,0 +1,10 @@
+# CI-only overlay for the container smoke test (ADR-0052). Layered on top of
+# docker-compose.yml, it publishes the api's port so the smoke script can hit the
+# readiness probe (`/health/ready`, not proxied by nginx) directly from the runner:
+#   docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
+# Never used in production — the prod compose keeps the api unpublished, reachable
+# only through the web container's nginx.
+services:
+  api:
+    ports:
+      - '3000:3000'
