@@ -82,7 +82,7 @@ export class ExportQueryDto extends createZodDto(
 export class InvoiceExportQueryDto extends createZodDto(
   z.object({
     format: z.enum(['csv', 'pdf']).default('csv'),
-    locale: z.enum(['en', 'de']).default('de'),
+    locale: z.enum(['en', 'de']).default('en'),
   }),
 ) {}
 
