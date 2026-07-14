@@ -2,7 +2,17 @@ import { useState } from 'react'
 import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import { formatDuration, plannerBlockRect, projectColor, type Theme } from '@mydevtime/design'
 import { Text } from '../components/core/Text'
-import { AICallout, AIAskBar, Badge, Button, Card, Icon } from '../components/index'
+import {
+  AICallout,
+  AIAskBar,
+  Badge,
+  Button,
+  Card,
+  Icon,
+  SegmentedControl,
+} from '../components/index'
+import { PlannerMonthView } from '../components/planner/PlannerMonthView'
+import { PlannerYearView } from '../components/planner/PlannerYearView'
 import { useTheme } from '../theme/ThemeProvider'
 import { usePlanner } from '../hooks/usePlanner'
 import type { PlanBlock } from '../api/planner'
@@ -711,6 +721,7 @@ export function PlannerScreen(): React.JSX.Element {
   const { width } = useWindowDimensions()
   const stacked = width < STACK_BREAKPOINT
   const [week, setWeek] = useState(28)
+  const [view, setView] = useState<'Woche' | 'Monat' | 'Jahr'>('Woche')
   const [scope, setScope] = useState<'Zeiten' | 'Budgets'>('Zeiten')
   const [ask, setAsk] = useState('')
   const [answer, setAnswer] = useState<string | null>(null)
@@ -778,124 +789,173 @@ export function PlannerScreen(): React.JSX.Element {
         >
           Planner
         </Text>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 4,
-            borderWidth: 1,
-            borderColor: t.color.border,
-            borderRadius: t.radius.pill,
-            paddingVertical: 4,
-            paddingHorizontal: 6,
-            backgroundColor: t.color.surface,
-          }}
-        >
-          <Pressable
-            onPress={() => setWeek(w => w - 1)}
-            accessibilityRole="button"
-            accessibilityLabel="Vorherige Woche"
-            style={{ padding: 2 }}
-          >
-            <Icon name="chevronLeft" size={16} color={t.color.ink2} />
-          </Pressable>
-          <Text
-            style={{
-              fontSize: t.fontSize.xs,
-              fontWeight: '600',
-              color: t.color.ink,
-              minWidth: 46,
-              textAlign: 'center',
-            }}
-          >
-            KW {week}
-          </Text>
-          <Pressable
-            onPress={() => setWeek(w => w + 1)}
-            accessibilityRole="button"
-            accessibilityLabel="Nächste Woche"
-            style={{ padding: 2 }}
-          >
-            <Icon name="chevronRight" size={16} color={t.color.ink2} />
-          </Pressable>
+        <View style={{ maxWidth: 260, minWidth: 200, flexGrow: 1 }}>
+          <SegmentedControl
+            segments={[
+              { value: 'Woche', label: 'Woche' },
+              { value: 'Monat', label: 'Monat' },
+              { value: 'Jahr', label: 'Jahr' },
+            ]}
+            active={view}
+            onChange={setView}
+          />
         </View>
-        <Text
-          style={{ fontFamily: t.fontFamily.numeric, fontSize: t.fontSize.xs, color: t.color.ink2 }}
-        >
-          <Text style={{ color: t.color.ink, fontWeight: '600' }}>26,1h</Text> / 41:40h
-        </Text>
-        <Button size="sm">Woche planen</Button>
-      </View>
-
-      {/* AI in context — reachable here, not only in the Assistant tab */}
-      <View style={{ gap: t.spacing.s2, maxWidth: 680 }}>
-        <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
-          {scopeChip('Zeiten')}
-          {scopeChip('Budgets')}
-        </View>
-        <AIAskBar
-          value={ask}
-          onChange={setAsk}
-          onSubmit={() => submitAsk(ask)}
-          placeholder="Frag zu deiner Woche …"
-        />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s2 }}>
-          {DEMO_ASK.map(s => (
-            <Pressable
-              key={s.q}
-              onPress={() => {
-                setAsk(s.q)
-                setAnswer(s.a)
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={s.q}
+        {view === 'Woche' && (
+          <>
+            <View
               style={{
-                paddingVertical: 4,
-                paddingHorizontal: 10,
-                borderRadius: t.radius.pill,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
                 borderWidth: 1,
                 borderColor: t.color.border,
+                borderRadius: t.radius.pill,
+                paddingVertical: 4,
+                paddingHorizontal: 6,
                 backgroundColor: t.color.surface,
               }}
             >
-              <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>{s.q}</Text>
-            </Pressable>
-          ))}
-        </View>
-        {answer !== null && <AICallout title="✦ Assistent">{answer}</AICallout>}
+              <Pressable
+                onPress={() => setWeek(w => w - 1)}
+                accessibilityRole="button"
+                accessibilityLabel="Vorherige Woche"
+                style={{ padding: 2 }}
+              >
+                <Icon name="chevronLeft" size={16} color={t.color.ink2} />
+              </Pressable>
+              <Text
+                style={{
+                  fontSize: t.fontSize.xs,
+                  fontWeight: '600',
+                  color: t.color.ink,
+                  minWidth: 46,
+                  textAlign: 'center',
+                }}
+              >
+                KW {week}
+              </Text>
+              <Pressable
+                onPress={() => setWeek(w => w + 1)}
+                accessibilityRole="button"
+                accessibilityLabel="Nächste Woche"
+                style={{ padding: 2 }}
+              >
+                <Icon name="chevronRight" size={16} color={t.color.ink2} />
+              </Pressable>
+            </View>
+            <Text
+              style={{
+                fontFamily: t.fontFamily.numeric,
+                fontSize: t.fontSize.xs,
+                color: t.color.ink2,
+              }}
+            >
+              <Text style={{ color: t.color.ink, fontWeight: '600' }}>26,1h</Text> / 41:40h
+            </Text>
+          </>
+        )}
+        <Button size="sm">
+          {view === 'Jahr' ? 'Jahr planen' : view === 'Monat' ? 'Monat planen' : 'Woche planen'}
+        </Button>
       </View>
 
-      {/* Week canvas — plan (dashed) and actuals share one surface per day */}
-      <Card padding={false}>
-        <View style={{ flexDirection: 'row' }}>
-          <HourGutter />
-          {stacked ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={{ flexDirection: 'row' }}>
-                {DEMO_DAYS.map((day, di) => (
-                  <DayColumn key={day.name} day={day} index={di} flex={false} />
-                ))}
-              </View>
-            </ScrollView>
-          ) : (
-            <View style={{ flexDirection: 'row', flex: 1 }}>
-              {DEMO_DAYS.map((day, di) => (
-                <DayColumn key={day.name} day={day} index={di} flex />
+      {view === 'Monat' && (
+        <>
+          <Card padding={false}>
+            <PlannerMonthView />
+          </Card>
+          <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, lineHeight: 18 }}>
+            Gefüllte Chips sind geplante Aufgaben (Prio-Punkt · zählen in die Tages-Schwere);
+            gestrichelte Wimpel-Banner sind Events — sie zählen nie. Der Balken unten misst die
+            prio-gewichtete Last gegen dein Tagessoll. Vorschau-Daten.
+          </Text>
+        </>
+      )}
+
+      {view === 'Jahr' && (
+        <>
+          <PlannerYearView />
+          <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, lineHeight: 18 }}>
+            Jede Kachel zeigt die Wochen-Intensität eines Monats; die Wimpel-Reihe zählt die Events.
+            Der laufende Monat ist orange umrandet. Vorschau-Daten.
+          </Text>
+        </>
+      )}
+
+      {view === 'Woche' && (
+        <>
+          {/* AI in context — reachable here, not only in the Assistant tab */}
+          <View style={{ gap: t.spacing.s2, maxWidth: 680 }}>
+            <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
+              {scopeChip('Zeiten')}
+              {scopeChip('Budgets')}
+            </View>
+            <AIAskBar
+              value={ask}
+              onChange={setAsk}
+              onSubmit={() => submitAsk(ask)}
+              placeholder="Frag zu deiner Woche …"
+            />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s2 }}>
+              {DEMO_ASK.map(s => (
+                <Pressable
+                  key={s.q}
+                  onPress={() => {
+                    setAsk(s.q)
+                    setAnswer(s.a)
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={s.q}
+                  style={{
+                    paddingVertical: 4,
+                    paddingHorizontal: 10,
+                    borderRadius: t.radius.pill,
+                    borderWidth: 1,
+                    borderColor: t.color.border,
+                    backgroundColor: t.color.surface,
+                  }}
+                >
+                  <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>{s.q}</Text>
+                </Pressable>
               ))}
             </View>
-          )}
-        </View>
-      </Card>
+            {answer !== null && <AICallout title="✦ Assistent">{answer}</AICallout>}
+          </View>
 
-      <Legend />
+          {/* Week canvas — plan (dashed) and actuals share one surface per day */}
+          <Card padding={false}>
+            <View style={{ flexDirection: 'row' }}>
+              <HourGutter />
+              {stacked ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={{ flexDirection: 'row' }}>
+                    {DEMO_DAYS.map((day, di) => (
+                      <DayColumn key={day.name} day={day} index={di} flex={false} />
+                    ))}
+                  </View>
+                </ScrollView>
+              ) : (
+                <View style={{ flexDirection: 'row', flex: 1 }}>
+                  {DEMO_DAYS.map((day, di) => (
+                    <DayColumn key={day.name} day={day} index={di} flex />
+                  ))}
+                </View>
+              )}
+            </View>
+          </Card>
 
-      {/* TODO(design): drag-drop tracked in #117 */}
-      <CoPlannerProposal />
+          <Legend />
 
-      <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, lineHeight: 18 }}>
-        Gestrichelte Blöcke sind Co-Planner-Vorschläge — ein Tippen übernimmt, verwerfen entfernt
-        sie. Blöcke ziehen über Tage und Zeiten kommt mit der Interaktions-Spezifikation (#39).
-      </Text>
+          {/* TODO(design): drag-drop tracked in #117 */}
+          <CoPlannerProposal />
+
+          <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, lineHeight: 18 }}>
+            Gestrichelte Blöcke sind Co-Planner-Vorschläge — ein Tippen übernimmt, verwerfen
+            entfernt sie. Blöcke ziehen über Tage und Zeiten kommt mit der
+            Interaktions-Spezifikation (#39).
+          </Text>
+        </>
+      )}
     </ScrollView>
   )
 }

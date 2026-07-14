@@ -37,3 +37,42 @@ export function plannerBlockRect(startMin: number, lengthMin: number, spanMin: n
 export function plannerTotalHours(lengthsMin: readonly number[]): number {
   return lengthsMin.reduce((sum, m) => sum + m, 0) / 60
 }
+
+/**
+ * Task priority (design v6 Monat/Jahr): P1 (highest) … P3 (lowest). Only *tasks*
+ * carry a priority and count toward day load; *events* (holiday, company event,
+ * info) never do — they are surfaced but weigh nothing (planner ground law).
+ */
+export type Priority = 1 | 2 | 3
+
+/** The priority weight in the day-load sum: high priority weighs heavier. */
+export function priorityWeight(prio: Priority): number {
+  return prio === 1 ? 1.4 : prio === 2 ? 1 : 0.7
+}
+
+/** A planned task's contribution to day load: its priority and estimate in hours. */
+export interface TaskLoad {
+  readonly prio: Priority
+  readonly estHours: number
+}
+
+/**
+ * Prio-weighted day load in hours (design v6): each task's estimate scaled by its
+ * priority weight, summed. Negative estimates are floored at 0 so a bad datum
+ * can't pull the load down. This is the number the day's "Schwere" bar and the
+ * month heat compare against the daily target (`soll`).
+ */
+export function dayLoad(tasks: readonly TaskLoad[]): number {
+  return tasks.reduce((sum, t) => sum + Math.max(t.estHours, 0) * priorityWeight(t.prio), 0)
+}
+
+/** Load tone vs the daily target: idle (nothing), good (≤85%), warn (≤100%), crit (over). */
+export type LoadTone = 'idle' | 'good' | 'warn' | 'crit'
+
+export function loadTone(load: number, soll: number): LoadTone {
+  if (!(load > 0)) return 'idle'
+  if (!(soll > 0)) return 'crit'
+  if (load <= soll * 0.85) return 'good'
+  if (load <= soll) return 'warn'
+  return 'crit'
+}
