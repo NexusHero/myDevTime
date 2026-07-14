@@ -4,6 +4,7 @@ import {
   entryDurationMs,
   formatStopwatch,
   getRunning,
+  patchEntryBillable,
   provisionalEntry,
   resumeInput,
   sessionElapsedMs,
@@ -42,12 +43,23 @@ export interface TimerResource {
   readonly busy: boolean
   /** True while the session is paused (no running segment, but time is banked to resume). */
   readonly paused: boolean
+  /**
+   * Whether the current (or next) session is billable — the running entry's flag
+   * when one is active, else the default the next punch-in will carry (design v6 B5).
+   */
+  readonly billable: boolean
   readonly punchIn: (input?: StartTimerInput) => void
   readonly punchOut: () => void
   /** Stop the running segment (persisting it) and hold the context to resume. */
   readonly pause: () => void
   /** Start a fresh segment from the paused context; the total keeps climbing. */
   readonly resume: () => void
+  /**
+   * Flip billable: patches the running entry live (server-authoritative money,
+   * ADR-0005) and sets the default for the next start. Optimistic; rolls back the
+   * running entry on failure.
+   */
+  readonly setBillable: (next: boolean) => void
 }
 
 export function useTimer(): TimerResource {
@@ -61,6 +73,8 @@ export function useTimer(): TimerResource {
   // `pausedInput` is set the session is paused (no running segment) and can resume.
   const [accumulatedMs, setAccumulatedMs] = useState(0)
   const [pausedInput, setPausedInput] = useState<StartTimerInput | null>(null)
+  // The billable default the next punch-in carries; a running entry's own flag wins.
+  const [billableDefault, setBillableDefault] = useState(true)
 
   // Load the running entry once. API → server; offline → the local store (restores
   // a running timer after a reload); demo → idle.
@@ -89,11 +103,13 @@ export function useTimer(): TimerResource {
   // Start a segment (optimistic, then reconcile with the server or the local store).
   const beginEntry = useCallback(
     (input: StartTimerInput) => {
-      setRunning(provisionalEntry(input, new Date()))
+      // The running entry carries the billable default unless the caller set one.
+      const withBillable: StartTimerInput = { billable: billableDefault, ...input }
+      setRunning(provisionalEntry(withBillable, new Date()))
       setError(null)
       if (base !== null) {
         setBusy(true)
-        startTimer(base, input)
+        startTimer(base, withBillable)
           .then(entry => {
             setRunning(entry)
           })
@@ -105,6 +121,30 @@ export function useTimer(): TimerResource {
             setBusy(false)
           })
       }
+    },
+    [base, billableDefault],
+  )
+
+  // Flip billable: set the next-start default and, if a real entry is running,
+  // patch it live (optimistic; roll back on failure). A provisional ('pending')
+  // entry isn't patched — its start already carries the new default.
+  const setBillable = useCallback(
+    (next: boolean) => {
+      setBillableDefault(next)
+      setRunning(previous => {
+        if (previous === null) return null
+        if (base !== null && previous.id !== 'pending') {
+          patchEntryBillable(base, previous.id, next).catch((cause: unknown) => {
+            setRunning(current =>
+              current !== null && current.id === previous.id
+                ? { ...current, billable: previous.billable }
+                : current,
+            )
+            setError(cause instanceof Error ? cause : new Error(String(cause)))
+          })
+        }
+        return { ...previous, billable: next }
+      })
     },
     [base],
   )
@@ -176,6 +216,7 @@ export function useTimer(): TimerResource {
 
   const elapsed = formatStopwatch(sessionElapsedMs(accumulatedMs, running, new Date()))
   const paused = pausedInput !== null
+  const billable = running?.billable ?? billableDefault
 
   return {
     running,
@@ -186,9 +227,11 @@ export function useTimer(): TimerResource {
     live,
     busy,
     paused,
+    billable,
     punchIn,
     punchOut,
     pause,
     resume,
+    setBillable,
   }
 }

@@ -121,6 +121,25 @@ export async function putJson(
   )
 }
 
+/** PATCH a JSON body and read the JSON response (same credentialed transport as PUT). */
+export async function patchJson(
+  baseUrl: string,
+  path: string,
+  body: unknown,
+  fetchImpl: typeof fetch = fetch,
+): Promise<unknown> {
+  return send(
+    `${baseUrl}${path}`,
+    {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { accept: 'application/json', 'content-type': 'application/json' },
+      body: JSON.stringify(body ?? {}),
+    },
+    fetchImpl,
+  )
+}
+
 /**
  * Wrap a `fetch` so a request that stalls longer than `ms` is aborted (`fetch`
  * has no default timeout — a black-holed connection hangs forever otherwise). The

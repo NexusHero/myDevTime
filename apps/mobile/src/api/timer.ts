@@ -1,4 +1,4 @@
-import { getJson, postJson } from './http.js'
+import { getJson, patchJson, postJson } from './http.js'
 import { nullableStr, parseArray, record, str } from './parse.js'
 
 /**
@@ -100,6 +100,22 @@ export async function stopTimer(
     endedAt === undefined ? {} : { endedAt },
     fetchImpl,
   )
+  return parseEntry(body)
+}
+
+/**
+ * Toggle an entry's `billable` flag (design v6, B5): `PATCH /entries/:id`. Money is
+ * server-authoritative — the `billing` module only prices billable entries at the
+ * rate in effect (ADR-0005) — so this just flips the flag and returns the updated
+ * entry; the running € toggle drives it live.
+ */
+export async function patchEntryBillable(
+  baseUrl: string,
+  id: string,
+  billable: boolean,
+  fetchImpl: typeof fetch = fetch,
+): Promise<TimeEntry> {
+  const body = await patchJson(baseUrl, `/api/tracking/entries/${id}`, { billable }, fetchImpl)
   return parseEntry(body)
 }
 
