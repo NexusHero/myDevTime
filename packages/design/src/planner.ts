@@ -153,6 +153,32 @@ export function assignLanes(items: readonly Interval[]): LanePlacement[] {
 }
 
 /**
+ * Find the earliest free slot of `lenMin` minutes in `[windowStart, windowEnd)`
+ * that clears every occupied interval (design v6 "Planen" — the Co-Planner drops a
+ * ghost in the next gap). Scans left-to-right, jumping past each clash to its end;
+ * `notBefore` skips already-elapsed time on the current day. Returns the slot's
+ * start minute, or `null` when the day can't hold it. Pure (ADR-0005).
+ */
+export function findFreeSlot(
+  occupied: readonly Interval[],
+  lenMin: number,
+  windowStart: number,
+  windowEnd: number,
+  notBefore = windowStart,
+): number | null {
+  const sorted = [...occupied]
+    .map(o => ({ start: o.startMin, end: o.startMin + Math.max(o.lenMin, 0) }))
+    .sort((a, b) => a.start - b.start)
+  let s = Math.max(windowStart, notBefore)
+  while (s + lenMin <= windowEnd) {
+    const clash = sorted.find(o => s < o.end && s + lenMin > o.start)
+    if (!clash) return s
+    s = clash.end
+  }
+  return null
+}
+
+/**
  * The maximum number of intervals overlapping at any instant (design v6 day-head
  * "N×" overbooking badge). 1 (or 0) means no conflict. A sweep over sorted
  * start/end events; zero-length intervals never add to the peak.

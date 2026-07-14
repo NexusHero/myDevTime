@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { PanResponder, Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import {
   assignLanes,
+  findFreeSlot,
   formatDuration,
   maxConcurrency,
   plannerBlockRect,
@@ -22,9 +23,11 @@ import {
 } from '../components/index'
 import { PlannerMonthView } from '../components/planner/PlannerMonthView'
 import { PlannerYearView } from '../components/planner/PlannerYearView'
+import { TaskInbox } from '../components/planner/TaskInbox'
 import { useTheme } from '../theme/ThemeProvider'
 import { usePlanner } from '../hooks/usePlanner'
 import type { PlanBlock } from '../api/planner'
+import { INBOX_PROJECTS, INBOX_TASKS, type InboxTask } from './plannerInboxData'
 
 /**
  * Planner — the week view of day canvases (ux-vision §2.1/§3, issue #11), ported
@@ -953,6 +956,42 @@ export function PlannerScreen(): React.JSX.Element {
   const [blocks, setBlocks] = useState<readonly CanvasBlock[]>(DEMO_BLOCKS)
   const resizeBlock = (globalIndex: number, lenMin: number): void =>
     setBlocks(bs => bs.map((b, i) => (i === globalIndex ? { ...b, len: lenMin } : b)))
+
+  // Task-Inbox (design v6): assigned tickets; "Planen" drops one into the next free
+  // slot as a ghost proposal (deterministic `findFreeSlot` — ADR-0005), never onto a
+  // busy slot; a full week says so honestly instead of silently dropping the task.
+  const [tasks, setTasks] = useState<readonly InboxTask[]>(INBOX_TASKS)
+  const [inboxOpen, setInboxOpen] = useState(true)
+  const [inboxNote, setInboxNote] = useState<string | null>(null)
+  const doneTask = (task: InboxTask): void => setTasks(ts => ts.filter(x => x.key !== task.key))
+  const planTask = (task: InboxTask): void => {
+    const lenMin = Math.round(task.est * 60)
+    for (let day = 0; day < DEMO_DAYS.length; day++) {
+      const occupied = blocks
+        .filter(b => b.day === day)
+        .map(b => ({ startMin: b.start, lenMin: b.len }))
+      // On today (day 1), don't propose a slot that has already elapsed.
+      const notBefore = DEMO_DAYS[day]?.today === true ? NOW_MIN : 0
+      const start = findFreeSlot(occupied, lenMin, 0, SPAN, notBefore)
+      if (start !== null) {
+        setBlocks(bs => [
+          ...bs,
+          {
+            day,
+            start,
+            len: lenMin,
+            label: `${task.key} · ${task.title}`,
+            kind: 'ghost',
+            project: INBOX_PROJECTS[task.project]?.id ?? task.key,
+          },
+        ])
+        setTasks(ts => ts.filter(x => x.key !== task.key))
+        setInboxNote(`${task.key} eingeplant — ${DEMO_DAYS[day]?.name ?? ''} ${clock(start)}.`)
+        return
+      }
+    }
+    setInboxNote(`Kein freier Slot in KW ${String(week)} — „${task.key}" bleibt in der Inbox.`)
+  }
   const [scope, setScope] = useState<'Zeiten' | 'Budgets'>('Zeiten')
   const [ask, setAsk] = useState('')
   const [answer, setAnswer] = useState<string | null>(null)
@@ -1085,6 +1124,15 @@ export function PlannerScreen(): React.JSX.Element {
             </Text>
           </>
         )}
+        {view === 'Woche' && (
+          <Button
+            size="sm"
+            variant={inboxOpen ? 'primary' : 'ghost'}
+            onPress={() => setInboxOpen(o => !o)}
+          >
+            {`Inbox · ${String(tasks.length)}`}
+          </Button>
+        )}
         <Button size="sm">
           {view === 'Jahr' ? 'Jahr planen' : view === 'Monat' ? 'Monat planen' : 'Woche planen'}
         </Button>
@@ -1153,41 +1201,74 @@ export function PlannerScreen(): React.JSX.Element {
             {answer !== null && <AICallout title="✦ Assistent">{answer}</AICallout>}
           </View>
 
-          {/* Week canvas — plan (dashed) and actuals share one surface per day */}
-          <Card padding={false}>
-            <View style={{ flexDirection: 'row' }}>
-              <HourGutter />
-              {stacked ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={{ flexDirection: 'row' }}>
+          {inboxNote !== null && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: t.spacing.s2,
+                paddingVertical: t.spacing.s2,
+                paddingHorizontal: t.spacing.s3,
+                borderRadius: t.radius.block,
+                borderWidth: 1,
+                borderColor: t.color.border,
+                backgroundColor: t.color.surface,
+              }}
+            >
+              <Text style={{ flex: 1, fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>
+                ✦ {inboxNote}
+              </Text>
+              <Button size="sm" variant="ghost" onPress={() => setInboxNote(null)}>
+                OK
+              </Button>
+            </View>
+          )}
+
+          {/* Week canvas + Task-Inbox rail — plan (dashed) and actuals share one
+              surface per day; the inbox sits beside it on wide screens. */}
+          <View
+            style={{
+              flexDirection: stacked ? 'column' : 'row',
+              gap: t.spacing.s4,
+              alignItems: 'flex-start',
+            }}
+          >
+            <Card padding={false} style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}>
+              <View style={{ flexDirection: 'row' }}>
+                <HourGutter />
+                {stacked ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={{ flexDirection: 'row' }}>
+                      {DEMO_DAYS.map((day, di) => (
+                        <DayColumn
+                          key={day.name}
+                          day={day}
+                          index={di}
+                          flex={false}
+                          blocks={blocks}
+                          onResizeBlock={resizeBlock}
+                        />
+                      ))}
+                    </View>
+                  </ScrollView>
+                ) : (
+                  <View style={{ flexDirection: 'row', flex: 1 }}>
                     {DEMO_DAYS.map((day, di) => (
                       <DayColumn
                         key={day.name}
                         day={day}
                         index={di}
-                        flex={false}
+                        flex
                         blocks={blocks}
                         onResizeBlock={resizeBlock}
                       />
                     ))}
                   </View>
-                </ScrollView>
-              ) : (
-                <View style={{ flexDirection: 'row', flex: 1 }}>
-                  {DEMO_DAYS.map((day, di) => (
-                    <DayColumn
-                      key={day.name}
-                      day={day}
-                      index={di}
-                      flex
-                      blocks={blocks}
-                      onResizeBlock={resizeBlock}
-                    />
-                  ))}
-                </View>
-              )}
-            </View>
-          </Card>
+                )}
+              </View>
+            </Card>
+            {inboxOpen && <TaskInbox tasks={tasks} onPlan={planTask} onDone={doneTask} />}
+          </View>
 
           <Legend />
 

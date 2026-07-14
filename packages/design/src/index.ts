@@ -76,6 +76,7 @@ export {
   assignLanes,
   maxConcurrency,
   snapDurationMin,
+  findFreeSlot,
   type BlockRect,
   type Priority,
   type TaskLoad,
