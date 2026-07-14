@@ -59,8 +59,12 @@ jobs:
 
       - name: Install E2E deps + browser
         working-directory: e2e
+        # --ignore-workspace: e2e/ lives outside the pnpm workspace, so a plain
+        # `pnpm install` here walks up to the root pnpm-workspace.yaml and installs
+        # the 6 workspace projects instead of e2e's own deps (Playwright never
+        # lands). Ignoring the workspace installs e2e/package.json in isolation.
         run: |
-          pnpm install --no-frozen-lockfile
+          pnpm install --ignore-workspace --no-frozen-lockfile
           pnpm exec playwright install --with-deps chromium
 
       - name: Run acceptance tests
