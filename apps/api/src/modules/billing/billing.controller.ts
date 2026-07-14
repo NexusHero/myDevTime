@@ -143,6 +143,12 @@ export class BillingController {
   }
 
   // ── Invoicing / "Abrechnung" (design v6, REQ-005/009) ────────────────────
+  @Get('clients/open')
+  async openBillableByClient(@CurrentUser() user: AuthenticatedUser) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    return invoicing.openBillableByClient(db, workspaceId)
+  }
+
   @Get('invoices')
   async listInvoices(@CurrentUser() user: AuthenticatedUser) {
     const { db, workspaceId } = await this.ctx.workspaceOf(user)
