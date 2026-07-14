@@ -29,7 +29,7 @@ pnpm install     # installs deps AND wires the git hooks (core.hooksPath)
 ```
 
 The gate runs, in order: build packages → `format:check` → `lint` → `typecheck` → `coverage` →
-`check:purity` → `check:docs` → `check:req-coverage`. Individual commands (`pnpm lint`,
+`check:purity` → `check:docs` → `check:req-coverage` → `check:adherence`. Individual commands (`pnpm lint`,
 `pnpm test`, `pnpm coverage`, `pnpm typecheck`, `pnpm check:docs`, `pnpm build`) and the full
 gate table are in
 [`skills/ultimate-dev-process/SKILL.md`](skills/ultimate-dev-process/SKILL.md) → Appendix.
