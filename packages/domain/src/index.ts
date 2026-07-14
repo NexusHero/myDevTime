@@ -88,6 +88,11 @@ export type {
 } from './reporting/finance.js'
 export { priceBillableEntries, budgetConsumptions } from './reporting/finance.js'
 
+// Invoicing / "Abrechnung" (design v6, REQ-005/009) — the deterministic freelancer
+// billing flow: priced invoice lines + a selectable draft total, same money math.
+export type { InvoiceLine, InvoiceDraft, InvoiceWindow } from './invoicing/invoice.js'
+export { invoiceLines, summarizeInvoice } from './invoicing/invoice.js'
+
 // Attendance work-day core (REQ-028, ADR-0010) — punch-pair math + overtime
 // balance against a weekly target + the ArbZG §4 break-rule check; deterministic,
 // LLM-free (ADR-0005).
