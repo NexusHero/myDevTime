@@ -54,7 +54,7 @@ smoke: ## Black-box HTTP smoke the running stack (ADR-0052)
 	./scripts/container-smoke.sh
 
 e2e-install: ## Install the Playwright deps + Chromium (once)
-	cd e2e && pnpm install && pnpm exec playwright install --with-deps chromium
+	cd e2e && pnpm install --ignore-workspace && pnpm exec playwright install --with-deps chromium
 
 e2e: ## Run the browser acceptance tests against an already-running stack
 	cd e2e && E2E_BASE_URL=$(BASE_URL) pnpm test
