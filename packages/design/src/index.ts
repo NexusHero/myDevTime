@@ -75,6 +75,7 @@ export {
   loadTone,
   assignLanes,
   maxConcurrency,
+  snapDurationMin,
   type BlockRect,
   type Priority,
   type TaskLoad,

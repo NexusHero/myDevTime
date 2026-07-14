@@ -77,6 +77,23 @@ export function loadTone(load: number, soll: number): LoadTone {
   return 'crit'
 }
 
+/**
+ * Snap a raw (drag-derived) duration to the planner's grid (design v6 resize):
+ * round to the nearest `gridMin` step, then clamp to `[minMin, maxMin]`. Pure so
+ * the gesture layer stays a thin wrapper and the 15-minute raster is deterministic
+ * (ADR-0005). `maxMin` guards a block from being dragged past the day window.
+ */
+export function snapDurationMin(
+  rawMin: number,
+  gridMin = 15,
+  minMin = 15,
+  maxMin = Number.POSITIVE_INFINITY,
+): number {
+  if (!(gridMin > 0)) throw new Error('gridMin must be positive')
+  const snapped = Math.round(rawMin / gridMin) * gridMin
+  return Math.min(Math.max(snapped, minMin), Math.max(minMin, maxMin))
+}
+
 /** A time interval on a day column, in minutes from the top of the window. */
 export interface Interval {
   readonly startMin: number
