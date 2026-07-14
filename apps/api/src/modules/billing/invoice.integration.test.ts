@@ -135,6 +135,24 @@ describe.skipIf(!databaseUrl)('invoicing (integration)', () => {
     expect(invoice.totalMinor).toBe(30_000)
   })
 
+  it('listInvoices_returnsNewestFirst', async () => {
+    const { clientId, ids } = await seed(wsA, idA)
+    // Two invoices from disjoint entry sets, then pin distinct issue instants so
+    // the ordering is deterministic (issuedAt defaults to now() otherwise).
+    const older = await invoicing.issueInvoice(db, wsA, { clientId, from, to, entryIds: [ids[0]!] })
+    const newer = await invoicing.issueInvoice(db, wsA, { clientId, from, to, entryIds: [ids[1]!] })
+    await db
+      .update(invoices)
+      .set({ issuedAt: d('2026-08-01T00:00:00Z') })
+      .where(eq(invoices.id, older.id))
+    await db
+      .update(invoices)
+      .set({ issuedAt: d('2026-08-02T00:00:00Z') })
+      .where(eq(invoices.id, newer.id))
+    const list = await invoicing.listInvoices(db, wsA)
+    expect(list.map(i => i.id)).toEqual([newer.id, older.id]) // newest first (contract)
+  })
+
   it('voidInvoice_returnsEntriesToTheOpenPool', async () => {
     const { clientId, ids } = await seed(wsA, idA)
     const invoice = await invoicing.issueInvoice(db, wsA, { clientId, from, to, entryIds: ids })

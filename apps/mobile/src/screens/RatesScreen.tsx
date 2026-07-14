@@ -55,27 +55,45 @@ export function RatesScreen({ onBack }: { onBack: () => void }): React.JSX.Eleme
   const [scopeId, setScopeId] = useState<string | null>(null)
   const [amount, setAmount] = useState('')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const needsScope = level === 'client' || level === 'project'
   const minor = eurosToMinor(amount)
   const canSave = !saving && minor !== null && (!needsScope || scopeId !== null)
   const options = level === 'client' ? clientOpts : level === 'project' ? projectOpts : []
 
+  const message = (e: unknown): string =>
+    e instanceof Error && e.message ? e.message : 'Rate could not be saved. Please try again.'
+
   const save = (): void => {
     if (minor === null || (needsScope && scopeId === null)) return
     setSaving(true)
-    void rates
+    setError(null)
+    rates
       .create({
         level,
         scopeId: needsScope ? scopeId : null,
         amountMinorPerHour: minor,
         effectiveFrom: new Date().toISOString(),
       })
-      .finally(() => {
-        setSaving(false)
+      .then(() => {
         setAmount('')
         setScopeId(null)
       })
+      .catch((e: unknown) => {
+        // Surface the failure — a silent write is worse than a visible error.
+        setError(message(e))
+      })
+      .finally(() => {
+        setSaving(false)
+      })
+  }
+
+  const removeRate = (id: string): void => {
+    setError(null)
+    rates.remove(id).catch((e: unknown) => {
+      setError(message(e))
+    })
   }
 
   const list = rates.data ?? []
@@ -171,6 +189,14 @@ export function RatesScreen({ onBack }: { onBack: () => void }): React.JSX.Eleme
           <Button onPress={save} disabled={!canSave}>
             {saving ? 'Saving…' : 'Save rate'}
           </Button>
+          {error !== null && (
+            <Text
+              accessibilityRole="alert"
+              style={{ fontSize: t.fontSize.sm, color: t.color.crit }}
+            >
+              {error}
+            </Text>
+          )}
           {!rates.live && (
             <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>
               Connect a workspace to save rates — this is a preview.
@@ -206,7 +232,7 @@ export function RatesScreen({ onBack }: { onBack: () => void }): React.JSX.Eleme
                           <IconButton
                             icon={<Icon name="x" size={16} color={t.color.ink3} />}
                             label={`Remove rate ${rateLabel(r)}`}
-                            onPress={() => void rates.remove(r.id)}
+                            onPress={() => removeRate(r.id)}
                           />
                         ) : undefined
                       }
