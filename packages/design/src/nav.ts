@@ -21,6 +21,7 @@ export type Screen =
   | 'absences'
   | 'settings'
   | 'credits'
+  | 'rates'
   | 'assistant'
 
 export interface RouteDef {
@@ -54,6 +55,7 @@ export const ROUTES: readonly RouteDef[] = [
   def('absences', '/profile/absences'),
   def('settings', '/profile/settings'),
   def('credits', '/profile/credits'),
+  def('rates', '/profile/rates'),
   def('assistant', '/assistant'),
 ]
 
