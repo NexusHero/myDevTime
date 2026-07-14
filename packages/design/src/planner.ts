@@ -77,6 +77,58 @@ export function loadTone(load: number, soll: number): LoadTone {
   return 'crit'
 }
 
+/**
+ * Snap a raw (drag-derived) duration to the planner's grid (design v6 resize):
+ * round to the nearest `gridMin` step, then clamp to `[minMin, maxMin]`. Pure so
+ * the gesture layer stays a thin wrapper and the 15-minute raster is deterministic
+ * (ADR-0005). `maxMin` guards a block from being dragged past the day window.
+ */
+export function snapDurationMin(
+  rawMin: number,
+  gridMin = 15,
+  minMin = 15,
+  maxMin = Number.POSITIVE_INFINITY,
+): number {
+  if (!(gridMin > 0)) throw new Error('gridMin must be positive')
+  const snapped = Math.round(rawMin / gridMin) * gridMin
+  return Math.min(Math.max(snapped, minMin), Math.max(minMin, maxMin))
+}
+
+/** Where a dragged block should land: a day index and a start minute. */
+export interface DropTarget {
+  readonly day: number
+  readonly startMin: number
+}
+
+/**
+ * Map a cross-day drag delta to a drop target (design v6): the horizontal delta
+ * over the column width is rounded to whole day steps and clamped to
+ * `[0, dayCount)`; the vertical delta (`minPerPx` minutes per pixel) shifts the
+ * start, snapped to `gridMin` and clamped so the block stays inside the day window
+ * (`spanMin`). Pure so the gesture layer stays thin and the mapping is
+ * deterministic (ADR-0005).
+ */
+export function dropTarget(
+  dxPx: number,
+  dyPx: number,
+  from: { readonly day: number; readonly startMin: number; readonly lenMin: number },
+  opts: {
+    readonly colWidth: number
+    readonly minPerPx: number
+    readonly dayCount: number
+    readonly spanMin: number
+    readonly gridMin?: number
+  },
+): DropTarget {
+  const grid = opts.gridMin ?? 15
+  const dayStep = opts.colWidth > 0 ? Math.round(dxPx / opts.colWidth) : 0
+  const day = Math.max(0, Math.min(opts.dayCount - 1, from.day + dayStep))
+  const rawStart = from.startMin + dyPx * opts.minPerPx
+  const maxStart = Math.max(0, opts.spanMin - from.lenMin)
+  const startMin = Math.max(0, Math.min(maxStart, Math.round(rawStart / grid) * grid))
+  return { day, startMin }
+}
+
 /** A time interval on a day column, in minutes from the top of the window. */
 export interface Interval {
   readonly startMin: number
@@ -133,6 +185,32 @@ export function assignLanes(items: readonly Interval[]): LanePlacement[] {
   }
   if (cluster.length > 0) flush()
   return out
+}
+
+/**
+ * Find the earliest free slot of `lenMin` minutes in `[windowStart, windowEnd)`
+ * that clears every occupied interval (design v6 "Planen" — the Co-Planner drops a
+ * ghost in the next gap). Scans left-to-right, jumping past each clash to its end;
+ * `notBefore` skips already-elapsed time on the current day. Returns the slot's
+ * start minute, or `null` when the day can't hold it. Pure (ADR-0005).
+ */
+export function findFreeSlot(
+  occupied: readonly Interval[],
+  lenMin: number,
+  windowStart: number,
+  windowEnd: number,
+  notBefore = windowStart,
+): number | null {
+  const sorted = [...occupied]
+    .map(o => ({ start: o.startMin, end: o.startMin + Math.max(o.lenMin, 0) }))
+    .sort((a, b) => a.start - b.start)
+  let s = Math.max(windowStart, notBefore)
+  while (s + lenMin <= windowEnd) {
+    const clash = sorted.find(o => s < o.end && s + lenMin > o.start)
+    if (!clash) return s
+    s = clash.end
+  }
+  return null
 }
 
 /**

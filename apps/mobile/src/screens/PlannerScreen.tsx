@@ -1,11 +1,14 @@
-import { useState } from 'react'
-import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
+import { useRef, useState } from 'react'
+import { PanResponder, Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import {
   assignLanes,
+  dropTarget,
+  findFreeSlot,
   formatDuration,
   maxConcurrency,
   plannerBlockRect,
   projectColor,
+  snapDurationMin,
   type LanePlacement,
   type Theme,
 } from '@mydevtime/design'
@@ -21,9 +24,11 @@ import {
 } from '../components/index'
 import { PlannerMonthView } from '../components/planner/PlannerMonthView'
 import { PlannerYearView } from '../components/planner/PlannerYearView'
+import { TaskInbox } from '../components/planner/TaskInbox'
 import { useTheme } from '../theme/ThemeProvider'
 import { usePlanner } from '../hooks/usePlanner'
 import type { PlanBlock } from '../api/planner'
+import { INBOX_PROJECTS, INBOX_TASKS, type InboxTask } from './plannerInboxData'
 
 /**
  * Planner — the week view of day canvases (ux-vision §2.1/§3, issue #11), ported
@@ -35,8 +40,8 @@ import type { PlanBlock } from '../api/planner'
  * Co-Planner proposal (deterministic core's ghost blocks — ADR-0005), and the
  * legend. Block geometry comes from the pure, tested `plannerBlockRect`; project
  * colors are deterministic per id. The AI never mutates state — every proposal
- * lands only on your tap. Cross-day drag arrives with the interaction spec (#39).
- * TODO(design): drag-drop tracked in #117.
+ * lands only on your tap. Blocks resize (bottom edge) and drag across days/times;
+ * both snap to the 15-min grid and lanes/overbooking recompute live (design v6).
  */
 
 // ---- Week-canvas geometry: 08:00–18:00, minutes from the top of the window ----
@@ -238,9 +243,18 @@ function BlockBadge({
 function CanvasBlockView({
   block,
   placement,
+  onResize,
+  onMove,
+  colWidth,
 }: {
   readonly block: CanvasBlock
   readonly placement: LanePlacement
+  /** Commit a new duration (minutes) when the bottom edge is dragged (design v6 A1). */
+  readonly onResize?: ((lenMin: number) => void) | undefined
+  /** Commit a new (day, startMin) when the block is dragged across days/times. */
+  readonly onMove?: ((day: number, startMin: number) => void) | undefined
+  /** One day column's on-screen width, to map a horizontal drag to day steps. */
+  readonly colWidth: number
 }): React.JSX.Element {
   const t = useTheme()
   const rect = plannerBlockRect(block.start, block.len, SPAN)
@@ -253,6 +267,61 @@ function CanvasBlockView({
   const fyi = isMeeting && block.rsvp === 'fyi'
   // A solid (accepted/plain) meeting fills; tentative/fyi read hollow.
   const solidMeeting = isMeeting && !tentative && !fyi
+
+  // Resize gesture (A1): drag the bottom edge → new duration on the 15-min grid.
+  // Live block start/len + callback are read through a ref so the PanResponder is
+  // created once and never loses an in-flight drag to a re-render; snapping is the
+  // pure `snapDurationMin` (ADR-0005). PanResponder works on web and native.
+  const live = useRef({ start: block.start, len: block.len, onResize })
+  live.current = { start: block.start, len: block.len, onResize }
+  const grantLen = useRef(block.len)
+  const responder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        grantLen.current = live.current.len
+      },
+      onPanResponderMove: (_e, g) => {
+        const deltaMin = (g.dy * SPAN) / BODY_HEIGHT
+        const next = snapDurationMin(grantLen.current + deltaMin, 15, 15, SPAN - live.current.start)
+        live.current.onResize?.(next)
+      },
+    }),
+  ).current
+
+  // Move gesture (cross-day drag): pick the block up and drop it on another day /
+  // time. The block translates by (dx, dy) while dragging — it stays in its column
+  // so React never remounts it mid-gesture — and on release maps the delta to a new
+  // (day, startMin): dx / colWidth → day steps, dy → minutes, both snapped to the
+  // 15-min grid and clamped to the week. Deterministic mapping (ADR-0005).
+  const moveLive = useRef({ day: block.day, start: block.start, len: block.len, colWidth, onMove })
+  moveLive.current = { day: block.day, start: block.start, len: block.len, colWidth, onMove }
+  const [dragXY, setDragXY] = useState<{ x: number; y: number } | null>(null)
+  const dragResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) =>
+        moveLive.current.onMove !== undefined && Math.abs(g.dx) + Math.abs(g.dy) > 6,
+      onPanResponderMove: (_e, g) => setDragXY({ x: g.dx, y: g.dy }),
+      onPanResponderRelease: (_e, g) => {
+        const m = moveLive.current
+        const { day, startMin } = dropTarget(
+          g.dx,
+          g.dy,
+          { day: m.day, startMin: m.start, lenMin: m.len },
+          {
+            colWidth: m.colWidth,
+            minPerPx: SPAN / BODY_HEIGHT,
+            dayCount: DEMO_DAYS.length,
+            spanMin: SPAN,
+          },
+        )
+        setDragXY(null)
+        if (day !== m.day || startMin !== m.start) m.onMove?.(day, startMin)
+      },
+      onPanResponderTerminate: () => setDragXY(null),
+    }),
+  ).current
 
   // Lane geometry: full width for a lone block, else an equal share with a small gap.
   const GUTTER_PAD = 4
@@ -278,12 +347,16 @@ function CanvasBlockView({
 
   return (
     <View
+      {...(onMove !== undefined ? dragResponder.panHandlers : {})}
       style={{
         position: 'absolute',
         top: rect.top * BODY_HEIGHT + 1,
         height: px,
         marginHorizontal: placement.lanes > 1 ? 1 : 0,
         ...laneStyle,
+        ...(dragXY !== null
+          ? { transform: [{ translateX: dragXY.x }, { translateY: dragXY.y }], zIndex: 30 }
+          : null),
         borderRadius: t.radius.chip,
         paddingHorizontal: 7,
         paddingVertical: px >= 26 ? 4 : 0,
@@ -316,7 +389,7 @@ function CanvasBlockView({
             : isBreak || fyi
               ? t.color.sunk
               : 'transparent',
-        opacity: fyi ? 0.85 : 1,
+        opacity: dragXY !== null ? 0.9 : fyi ? 0.85 : 1,
       }}
     >
       {px >= 24 && (
@@ -349,6 +422,13 @@ function CanvasBlockView({
         >
           {clock(block.start)}–{clock(block.start + block.len)}
         </Text>
+      )}
+      {onResize !== undefined && !isBreak && (
+        <View
+          {...responder.panHandlers}
+          accessibilityLabel={`Dauer ändern: ${block.label}`}
+          style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 10 }}
+        />
       )}
     </View>
   )
@@ -390,15 +470,30 @@ function DayColumn({
   day,
   index,
   flex,
+  blocks,
+  colWidth,
+  onResizeBlock,
+  onMoveBlock,
 }: {
   readonly day: DemoDay
   readonly index: number
   readonly flex: boolean
+  readonly blocks: readonly CanvasBlock[]
+  /** One day column's on-screen width, for the cross-day drag mapping. */
+  readonly colWidth: number
+  /** Commit a resized duration by the block's index in the shared list. */
+  readonly onResizeBlock: (globalIndex: number, lenMin: number) => void
+  /** Commit a moved (day, startMin) by the block's index in the shared list. */
+  readonly onMoveBlock: (globalIndex: number, day: number, startMin: number) => void
 }): React.JSX.Element {
   const t = useTheme()
   const hours: number[] = []
   for (let h = START_HOUR + 1; h < END_HOUR; h++) hours.push(h)
-  const dayBlocks = DEMO_BLOCKS.filter(b => b.day === index)
+  // Keep each block's index in the shared list so a resize maps back to it.
+  const dayEntries = blocks
+    .map((b, globalIndex) => ({ b, globalIndex }))
+    .filter(x => x.b.day === index)
+  const dayBlocks = dayEntries.map(x => x.b)
   // Lanes split the column when blocks overlap; the badge counts real conflicts —
   // breaks and FYI meetings never count (design v6).
   const placements = assignLanes(dayBlocks.map(b => ({ startMin: b.start, lenMin: b.len })))
@@ -482,11 +577,14 @@ function DayColumn({
             }}
           />
         ))}
-        {dayBlocks.map((b, i) => (
+        {dayEntries.map(({ b, globalIndex }, i) => (
           <CanvasBlockView
             key={`${b.label}-${String(i)}`}
             block={b}
             placement={placements[i] ?? { lane: 0, lanes: 1 }}
+            colWidth={colWidth}
+            onResize={len => onResizeBlock(globalIndex, len)}
+            onMove={(day, start) => onMoveBlock(globalIndex, day, start)}
           />
         ))}
         {day.today && (
@@ -905,6 +1003,52 @@ export function PlannerScreen(): React.JSX.Element {
   const stacked = width < STACK_BREAKPOINT
   const [week, setWeek] = useState(28)
   const [view, setView] = useState<'Woche' | 'Monat' | 'Jahr'>('Woche')
+  // The week canvas blocks are local, resizable state (design v6 A1) — dragging a
+  // block's bottom edge commits a new 15-min-snapped duration. Demo data for now.
+  const [blocks, setBlocks] = useState<readonly CanvasBlock[]>(DEMO_BLOCKS)
+  // One day column's on-screen width, measured from the columns row, so a horizontal
+  // drag maps to whole-day steps. Falls back to the fixed width on the phone canvas.
+  const [colWidth, setColWidth] = useState(COL_WIDTH)
+  const resizeBlock = (globalIndex: number, lenMin: number): void =>
+    setBlocks(bs => bs.map((b, i) => (i === globalIndex ? { ...b, len: lenMin } : b)))
+  const moveBlock = (globalIndex: number, day: number, startMin: number): void =>
+    setBlocks(bs => bs.map((b, i) => (i === globalIndex ? { ...b, day, start: startMin } : b)))
+
+  // Task-Inbox (design v6): assigned tickets; "Planen" drops one into the next free
+  // slot as a ghost proposal (deterministic `findFreeSlot` — ADR-0005), never onto a
+  // busy slot; a full week says so honestly instead of silently dropping the task.
+  const [tasks, setTasks] = useState<readonly InboxTask[]>(INBOX_TASKS)
+  const [inboxOpen, setInboxOpen] = useState(true)
+  const [inboxNote, setInboxNote] = useState<string | null>(null)
+  const doneTask = (task: InboxTask): void => setTasks(ts => ts.filter(x => x.key !== task.key))
+  const planTask = (task: InboxTask): void => {
+    const lenMin = Math.round(task.est * 60)
+    for (let day = 0; day < DEMO_DAYS.length; day++) {
+      const occupied = blocks
+        .filter(b => b.day === day)
+        .map(b => ({ startMin: b.start, lenMin: b.len }))
+      // On today (day 1), don't propose a slot that has already elapsed.
+      const notBefore = DEMO_DAYS[day]?.today === true ? NOW_MIN : 0
+      const start = findFreeSlot(occupied, lenMin, 0, SPAN, notBefore)
+      if (start !== null) {
+        setBlocks(bs => [
+          ...bs,
+          {
+            day,
+            start,
+            len: lenMin,
+            label: `${task.key} · ${task.title}`,
+            kind: 'ghost',
+            project: INBOX_PROJECTS[task.project]?.id ?? task.key,
+          },
+        ])
+        setTasks(ts => ts.filter(x => x.key !== task.key))
+        setInboxNote(`${task.key} eingeplant — ${DEMO_DAYS[day]?.name ?? ''} ${clock(start)}.`)
+        return
+      }
+    }
+    setInboxNote(`Kein freier Slot in KW ${String(week)} — „${task.key}" bleibt in der Inbox.`)
+  }
   const [scope, setScope] = useState<'Zeiten' | 'Budgets'>('Zeiten')
   const [ask, setAsk] = useState('')
   const [answer, setAnswer] = useState<string | null>(null)
@@ -1037,6 +1181,15 @@ export function PlannerScreen(): React.JSX.Element {
             </Text>
           </>
         )}
+        {view === 'Woche' && (
+          <Button
+            size="sm"
+            variant={inboxOpen ? 'primary' : 'ghost'}
+            onPress={() => setInboxOpen(o => !o)}
+          >
+            {`Inbox · ${String(tasks.length)}`}
+          </Button>
+        )}
         <Button size="sm">
           {view === 'Jahr' ? 'Jahr planen' : view === 'Monat' ? 'Monat planen' : 'Woche planen'}
         </Button>
@@ -1105,39 +1258,95 @@ export function PlannerScreen(): React.JSX.Element {
             {answer !== null && <AICallout title="✦ Assistent">{answer}</AICallout>}
           </View>
 
-          {/* Week canvas — plan (dashed) and actuals share one surface per day */}
-          <Card padding={false}>
-            <View style={{ flexDirection: 'row' }}>
-              <HourGutter />
-              {stacked ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={{ flexDirection: 'row' }}>
+          {inboxNote !== null && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: t.spacing.s2,
+                paddingVertical: t.spacing.s2,
+                paddingHorizontal: t.spacing.s3,
+                borderRadius: t.radius.block,
+                borderWidth: 1,
+                borderColor: t.color.border,
+                backgroundColor: t.color.surface,
+              }}
+            >
+              <Text style={{ flex: 1, fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>
+                ✦ {inboxNote}
+              </Text>
+              <Button size="sm" variant="ghost" onPress={() => setInboxNote(null)}>
+                OK
+              </Button>
+            </View>
+          )}
+
+          {/* Week canvas + Task-Inbox rail — plan (dashed) and actuals share one
+              surface per day; the inbox sits beside it on wide screens. */}
+          <View
+            style={{
+              flexDirection: stacked ? 'column' : 'row',
+              gap: t.spacing.s4,
+              alignItems: 'flex-start',
+            }}
+          >
+            <Card padding={false} style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}>
+              <View style={{ flexDirection: 'row' }}>
+                <HourGutter />
+                {stacked ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={{ flexDirection: 'row' }}>
+                      {DEMO_DAYS.map((day, di) => (
+                        <DayColumn
+                          key={day.name}
+                          day={day}
+                          index={di}
+                          flex={false}
+                          blocks={blocks}
+                          colWidth={COL_WIDTH}
+                          onResizeBlock={resizeBlock}
+                          onMoveBlock={moveBlock}
+                        />
+                      ))}
+                    </View>
+                  </ScrollView>
+                ) : (
+                  <View
+                    style={{ flexDirection: 'row', flex: 1 }}
+                    onLayout={e => {
+                      const w = e.nativeEvent.layout.width / DEMO_DAYS.length
+                      if (w > 0) setColWidth(w)
+                    }}
+                  >
                     {DEMO_DAYS.map((day, di) => (
-                      <DayColumn key={day.name} day={day} index={di} flex={false} />
+                      <DayColumn
+                        key={day.name}
+                        day={day}
+                        index={di}
+                        flex
+                        blocks={blocks}
+                        colWidth={colWidth}
+                        onResizeBlock={resizeBlock}
+                        onMoveBlock={moveBlock}
+                      />
                     ))}
                   </View>
-                </ScrollView>
-              ) : (
-                <View style={{ flexDirection: 'row', flex: 1 }}>
-                  {DEMO_DAYS.map((day, di) => (
-                    <DayColumn key={day.name} day={day} index={di} flex />
-                  ))}
-                </View>
-              )}
-            </View>
-          </Card>
+                )}
+              </View>
+            </Card>
+            {inboxOpen && <TaskInbox tasks={tasks} onPlan={planTask} onDone={doneTask} />}
+          </View>
 
           <Legend />
 
-          {/* TODO(design): drag-drop tracked in #117 */}
           <CoPlannerProposal />
 
           <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, lineHeight: 18 }}>
-            Gestrichelte Blöcke sind Co-Planner-Vorschläge — ein Tippen übernimmt, verwerfen
-            entfernt sie. Überlappende Blöcke teilen sich die Spalte (Lanes); der „N×"-Chip im
-            Tageskopf zählt echte Konflikte (Pausen &amp; FYI zählen nicht). ↻ wiederkehrend · ⇄ OL
-            = Outlook · ? = Vorbehalt · FYI = ohne Teilnahme. Blöcke ziehen/Resize kommt mit der
-            Interaktions-Spezifikation (#39).
+            Blöcke ziehen (über Tage &amp; Zeiten) oder an der Unterkante in der Dauer ändern —
+            beides rastet auf 15 min. Überlappende Blöcke teilen sich die Spalte (Lanes); der
+            „N×"-Chip im Tageskopf zählt echte Konflikte (Pausen &amp; FYI zählen nicht). ↻
+            wiederkehrend · ⇄ OL = Outlook · ? = Vorbehalt · FYI = ohne Teilnahme. Gestrichelte
+            Blöcke sind Co-Planner-Vorschläge.
           </Text>
         </>
       )}
