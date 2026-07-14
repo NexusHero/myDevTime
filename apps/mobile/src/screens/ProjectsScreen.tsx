@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pressable, View, useWindowDimensions } from 'react-native'
+import { Linking, Pressable, View, useWindowDimensions } from 'react-native'
 import { Text } from '../components/core/Text'
 import {
   boundedList,
@@ -23,7 +23,7 @@ import type { Client, Project } from './projectsData'
 import { useCatalog } from './useCatalog'
 import { useClientsOpen } from '../hooks/useClientsOpen'
 import { InvoiceDrawer, type DrawerClient } from '../components/invoicing/InvoiceDrawer'
-import { voidInvoice, type IssuedInvoiceDTO } from '../api/invoicing'
+import { invoiceExportUrl, voidInvoice, type IssuedInvoiceDTO } from '../api/invoicing'
 import { apiBaseUrl } from '../config'
 
 /**
@@ -263,6 +263,8 @@ export function ProjectsScreen({
   // "Minute 1" preview (design v6 C9): a header toggle that shows the first-start
   // empty state, so the first-run experience is one tap away without wiping data.
   const [preview, setPreview] = useState(false)
+  // Local narrowing of the module-level base URL for the export closure.
+  const exportBase = apiBaseUrl
 
   const onIssued = (invoice: IssuedInvoiceDTO): void => {
     setIssued(invoice)
@@ -402,6 +404,15 @@ export function ProjectsScreen({
             >
               Abgerechnet · {formatMoneyMinor(issued.totalMinor, issued.currencyCode)}
             </Text>
+            {exportBase !== null && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onPress={() => void Linking.openURL(invoiceExportUrl(exportBase, issued.id))}
+              >
+                CSV
+              </Button>
+            )}
             <Button size="sm" variant="ghost" onPress={undoIssue}>
               Rückgängig
             </Button>

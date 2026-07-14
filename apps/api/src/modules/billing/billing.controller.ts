@@ -20,6 +20,7 @@ import * as entitlements from './entitlements-service.js'
 import * as credits from './credits-service.js'
 import { loadTimesheet } from './export/timesheet-source.js'
 import { timesheetToCsv } from './export/csv.js'
+import { invoiceToCsv } from './export/invoice-csv.js'
 import { timesheetToXlsx } from './export/xlsx.js'
 import { timesheetToPdf } from './export/pdf.js'
 import { BillingContext } from './billing.context.js'
@@ -185,6 +186,21 @@ export class BillingController {
   async voidInvoice(@CurrentUser() user: AuthenticatedUser, @Param() params: IdParamDto) {
     const { db, workspaceId } = await this.ctx.workspaceOf(user)
     await invoicing.voidInvoice(db, workspaceId, params.id)
+  }
+
+  @Get('invoices/:id/export')
+  async exportInvoice(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param() params: IdParamDto,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    const invoice = await invoicing.getInvoiceExport(db, workspaceId, params.id)
+    const base = `invoice-${invoice.id}`.replace(/[^\w.-]+/g, '_')
+    await reply
+      .header('content-disposition', `attachment; filename="${base}.csv"`)
+      .type('text/csv; charset=utf-8')
+      .send(invoiceToCsv(invoice))
   }
 
   // ── AI-credit ledger (REQ-027, ADR-0008) ─────────────────────────────────

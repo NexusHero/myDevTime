@@ -4,6 +4,7 @@ import type { Db } from '../../db/client.js'
 import { clients, invoices, projects, timeEntries, workspaces } from '../../db/schema.js'
 import { NotFoundError, ValidationError } from '../../errors.js'
 import { listRates, toRule } from './service.js'
+import { type InvoiceExport } from './export/invoice-csv.js'
 
 /**
  * Invoicing / "Abrechnung" persistence (design v6, REQ-005/009). The money is
@@ -258,6 +259,71 @@ export async function openBillableByClient(
     .map(([clientId, v]) => ({ clientId, openMs: v.ms, openMinor: v.minor }))
     .sort((a, b) => b.openMinor - a.openMinor || a.clientId.localeCompare(b.clientId))
   return { clients, currencyCode: await workspaceCurrency(db, workspaceId) }
+}
+
+/**
+ * The frozen invoice + its priced lines for export (design v6, B4). Loads the
+ * entries stamped with this invoice and re-derives each line via the same
+ * deterministic core (rates are effective-dated, so the per-line amounts match
+ * what was frozen); the totals returned are the invoice's stored figures.
+ */
+export async function getInvoiceExport(
+  db: Db,
+  workspaceId: string,
+  id: string,
+): Promise<InvoiceExport> {
+  const invoice = (
+    await db
+      .select()
+      .from(invoices)
+      .where(and(eq(invoices.id, id), eq(invoices.workspaceId, workspaceId)))
+  )[0]
+  if (!invoice) throw new NotFoundError('invoice not found')
+
+  const projectRows = await db
+    .select({ id: projects.id, name: projects.name, clientId: projects.clientId })
+    .from(projects)
+    .where(and(eq(projects.workspaceId, workspaceId), isNull(projects.deletedAt)))
+  const nameByProject = new Map(projectRows.map(p => [p.id, p.name]))
+  const clientByProject = new Map<string, string | null>(projectRows.map(p => [p.id, p.clientId]))
+
+  const rows = await db
+    .select()
+    .from(timeEntries)
+    .where(and(eq(timeEntries.workspaceId, workspaceId), eq(timeEntries.invoiceId, id)))
+  const rules = (await listRates(db, workspaceId)).map(toRule)
+  const lines = invoiceLines(rows.map(toDomainEntry), clientByProject, rules, {
+    from: 0,
+    to: Number.MAX_SAFE_INTEGER,
+  })
+
+  const clientName =
+    invoice.clientId === null
+      ? null
+      : ((
+          await db
+            .select({ name: clients.name })
+            .from(clients)
+            .where(and(eq(clients.id, invoice.clientId), eq(clients.workspaceId, workspaceId)))
+        )[0]?.name ?? null)
+
+  return {
+    id: invoice.id,
+    clientName,
+    periodStart: invoice.periodStart,
+    periodEnd: invoice.periodEnd,
+    issuedAt: invoice.issuedAt,
+    currencyCode: invoice.currencyCode,
+    totalMs: invoice.totalMs,
+    totalMinor: invoice.totalMinor,
+    lines: lines.map(l => ({
+      projectName: nameByProject.get(l.projectId) ?? 'Projekt',
+      note: l.note,
+      start: l.start,
+      durationMs: l.durationMs,
+      amountMinor: l.amountMinor,
+    })),
+  }
 }
 
 async function assertClient(db: Db, workspaceId: string, clientId: string): Promise<void> {

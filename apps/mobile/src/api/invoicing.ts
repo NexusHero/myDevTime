@@ -132,3 +132,8 @@ export async function voidInvoice(
 ): Promise<void> {
   await deleteJson(baseUrl, `/api/billing/invoices/${id}`, fetchImpl)
 }
+
+/** The CSV download URL for an issued invoice (opened via the browser/OS). */
+export function invoiceExportUrl(baseUrl: string, id: string): string {
+  return `${baseUrl}/api/billing/invoices/${id}/export`
+}

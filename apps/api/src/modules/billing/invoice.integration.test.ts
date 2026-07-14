@@ -168,6 +168,33 @@ describe.skipIf(!databaseUrl)('invoicing (integration)', () => {
     expect(after.clients).toEqual([{ clientId, openMs: 1 * 3_600_000, openMinor: 10_000 }])
   })
 
+  it('getInvoiceExport_returnsFrozenTotalsAndPricedLines', async () => {
+    const { clientId, ids } = await seed(wsA, idA)
+    const invoice = await invoicing.issueInvoice(db, wsA, { clientId, from, to, entryIds: ids })
+    const exported = await invoicing.getInvoiceExport(db, wsA, invoice.id)
+    expect(exported).toMatchObject({
+      id: invoice.id,
+      clientName: 'Finanzo AG',
+      currencyCode: 'EUR',
+      totalMinor: 30_000,
+      totalMs: 3 * 3_600_000,
+    })
+    expect(exported.lines.map(l => l.amountMinor).sort((a, b) => a - b)).toEqual([10_000, 20_000])
+    expect(exported.lines.every(l => l.projectName === 'Website')).toBe(true)
+  })
+
+  it('getInvoiceExport_isWorkspaceScoped', async () => {
+    const b = await seed(wsB, idB)
+    const bInvoice = await invoicing.issueInvoice(db, wsB, {
+      clientId: b.clientId,
+      from,
+      to,
+      entryIds: b.ids,
+    })
+    // Workspace A cannot export B's invoice.
+    await expect(invoicing.getInvoiceExport(db, wsA, bInvoice.id)).rejects.toThrow(/not found/)
+  })
+
   it('endpoint_requiresAuth', async () => {
     const app = await buildApp({
       config: loadConfig({ LOG_LEVEL: 'silent', AUTH_SECRET: 'x'.repeat(32) }),
