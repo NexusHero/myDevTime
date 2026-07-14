@@ -33,6 +33,12 @@ export const timeEntries = pgTable(
     billable: boolean('billable').notNull().default(true),
     source: text('source').notNull(),
     note: text('note'),
+    // Invoicing (design v6, REQ-005): set when this entry is included in an issued
+    // invoice, so it leaves the "open billable" pool. Voiding the invoice clears
+    // both. `invoice_id` has no hard FK — the FK would create a schema cycle with
+    // invoices → clients → …; the service scopes every query by workspace_id.
+    invoiceId: uuid('invoice_id'),
+    invoicedAt: timestamp('invoiced_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     // Sync metadata (REQ-006, ADR-0019): monotonic version stamped by a DB

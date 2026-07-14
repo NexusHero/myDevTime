@@ -1,0 +1,226 @@
+import { and, eq, gte, inArray, isNull, lt } from 'drizzle-orm'
+import { invoiceLines, summarizeInvoice, type InvoiceLine, type TimeEntry } from '@mydevtime/domain'
+import type { Db } from '../../db/client.js'
+import { clients, invoices, projects, timeEntries, workspaces } from '../../db/schema.js'
+import { NotFoundError, ValidationError } from '../../errors.js'
+import { listRates, toRule } from './service.js'
+
+/**
+ * Invoicing / "Abrechnung" persistence (design v6, REQ-005/009). The money is
+ * computed by the deterministic `packages/domain/invoicing` core — this layer
+ * only loads the eligible entries, freezes an issued invoice's totals, and stamps
+ * the billed entries so they leave the "open" pool. Server-authoritative: a
+ * client's requested selection is intersected with the entries that are actually
+ * eligible, so no one can bill foreign, non-billable, or already-invoiced time.
+ * Every query is scoped by `workspace_id` (ADR-0015).
+ */
+
+export interface InvoicePreview {
+  readonly lines: readonly InvoiceLine[]
+  readonly currencyCode: string
+}
+
+export interface IssuedInvoice {
+  readonly id: string
+  readonly clientId: string | null
+  readonly periodStart: Date
+  readonly periodEnd: Date
+  readonly totalMs: number
+  readonly totalMinor: number
+  readonly currencyCode: string
+  readonly issuedAt: Date
+}
+
+interface InvoiceInput {
+  readonly clientId: string
+  readonly from: Date
+  readonly to: Date
+}
+
+/** Map a DB time-entry row into the domain `TimeEntry` (optional keys omitted). */
+function toDomainEntry(e: typeof timeEntries.$inferSelect): TimeEntry {
+  return {
+    id: e.id,
+    start: e.startedAt.getTime(),
+    end: e.endedAt ? e.endedAt.getTime() : null,
+    billable: e.billable,
+    source: e.source,
+    ...(e.projectId !== null ? { projectId: e.projectId } : {}),
+    ...(e.taskId !== null ? { taskId: e.taskId } : {}),
+    ...(e.note !== null ? { note: e.note } : {}),
+  }
+}
+
+/**
+ * The still-open, billable lines for a client's work in a window — priced by the
+ * deterministic core. Excludes already-invoiced entries (`invoiced_at IS NULL`).
+ */
+async function computeLines(
+  db: Db,
+  workspaceId: string,
+  input: InvoiceInput,
+): Promise<InvoiceLine[]> {
+  const projectRows = await db
+    .select({ id: projects.id })
+    .from(projects)
+    .where(
+      and(
+        eq(projects.workspaceId, workspaceId),
+        eq(projects.clientId, input.clientId),
+        isNull(projects.deletedAt),
+      ),
+    )
+  const projectIds = projectRows.map(p => p.id)
+  if (projectIds.length === 0) return []
+  const clientByProject = new Map<string, string | null>(projectIds.map(id => [id, input.clientId]))
+
+  const rows = await db
+    .select()
+    .from(timeEntries)
+    .where(
+      and(
+        eq(timeEntries.workspaceId, workspaceId),
+        isNull(timeEntries.deletedAt),
+        isNull(timeEntries.invoicedAt),
+        eq(timeEntries.billable, true),
+        inArray(timeEntries.projectId, projectIds),
+        gte(timeEntries.startedAt, input.from),
+        lt(timeEntries.startedAt, input.to),
+      ),
+    )
+
+  const rules = (await listRates(db, workspaceId)).map(toRule)
+  return [
+    ...invoiceLines(rows.map(toDomainEntry), clientByProject, rules, {
+      from: input.from.getTime(),
+      to: input.to.getTime(),
+    }),
+  ]
+}
+
+async function workspaceCurrency(db: Db, workspaceId: string): Promise<string> {
+  const row = (
+    await db
+      .select({ c: workspaces.currencyCode })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId))
+  )[0]
+  if (!row) throw new NotFoundError('workspace not found')
+  return row.c
+}
+
+/** Preview: the open billable lines for the client + window, nothing persisted. */
+export async function previewInvoice(
+  db: Db,
+  workspaceId: string,
+  input: InvoiceInput,
+): Promise<InvoicePreview> {
+  await assertClient(db, workspaceId, input.clientId)
+  return {
+    lines: await computeLines(db, workspaceId, input),
+    currencyCode: await workspaceCurrency(db, workspaceId),
+  }
+}
+
+/**
+ * Issue an invoice for the selected entries: recompute the eligible lines
+ * server-side, freeze the selected subset's totals, and stamp those entries as
+ * invoiced — all in one transaction so a partial write can never leave hours
+ * half-billed.
+ */
+export async function issueInvoice(
+  db: Db,
+  workspaceId: string,
+  input: InvoiceInput & { entryIds: readonly string[] },
+): Promise<IssuedInvoice> {
+  await assertClient(db, workspaceId, input.clientId)
+  const currencyCode = await workspaceCurrency(db, workspaceId)
+  return db.transaction(async tx => {
+    const lines = await computeLines(tx, workspaceId, input)
+    const eligible = new Set(lines.map(l => l.entryId))
+    const selected = input.entryIds.filter(id => eligible.has(id))
+    if (selected.length === 0)
+      throw new ValidationError('No billable, un-invoiced entries selected')
+    const draft = summarizeInvoice(lines, new Set(selected))
+
+    const invoice = one(
+      await tx
+        .insert(invoices)
+        .values({
+          workspaceId,
+          clientId: input.clientId,
+          periodStart: input.from,
+          periodEnd: input.to,
+          totalMs: draft.totalDurationMs,
+          totalMinor: draft.totalMinor,
+          currencyCode,
+        })
+        .returning(),
+    )
+    await tx
+      .update(timeEntries)
+      .set({ invoiceId: invoice.id, invoicedAt: invoice.issuedAt })
+      .where(
+        and(
+          eq(timeEntries.workspaceId, workspaceId),
+          inArray(timeEntries.id, selected),
+          isNull(timeEntries.invoicedAt),
+        ),
+      )
+    return invoice
+  })
+}
+
+/** Void an invoice (undo): return its entries to the open pool and delete it. */
+export async function voidInvoice(db: Db, workspaceId: string, id: string): Promise<void> {
+  await db.transaction(async tx => {
+    const rows = await tx
+      .select({ id: invoices.id })
+      .from(invoices)
+      .where(and(eq(invoices.id, id), eq(invoices.workspaceId, workspaceId)))
+    if (rows.length === 0) throw new NotFoundError('invoice not found')
+    await tx
+      .update(timeEntries)
+      .set({ invoiceId: null, invoicedAt: null })
+      .where(and(eq(timeEntries.workspaceId, workspaceId), eq(timeEntries.invoiceId, id)))
+    await tx.delete(invoices).where(and(eq(invoices.id, id), eq(invoices.workspaceId, workspaceId)))
+  })
+}
+
+/** All issued invoices for the workspace, newest first. */
+export function listInvoices(db: Db, workspaceId: string): Promise<IssuedInvoice[]> {
+  return db
+    .select({
+      id: invoices.id,
+      clientId: invoices.clientId,
+      periodStart: invoices.periodStart,
+      periodEnd: invoices.periodEnd,
+      totalMs: invoices.totalMs,
+      totalMinor: invoices.totalMinor,
+      currencyCode: invoices.currencyCode,
+      issuedAt: invoices.issuedAt,
+    })
+    .from(invoices)
+    .where(eq(invoices.workspaceId, workspaceId))
+    .orderBy(invoices.issuedAt)
+}
+
+async function assertClient(db: Db, workspaceId: string, clientId: string): Promise<void> {
+  const rows = await db
+    .select({ id: clients.id })
+    .from(clients)
+    .where(
+      and(
+        eq(clients.id, clientId),
+        eq(clients.workspaceId, workspaceId),
+        isNull(clients.deletedAt),
+      ),
+    )
+  if (rows.length === 0) throw new NotFoundError('client not found')
+}
+
+function one<T>(rows: readonly T[]): T {
+  const row = rows[0]
+  if (!row) throw new Error('insert returned no row')
+  return row
+}
