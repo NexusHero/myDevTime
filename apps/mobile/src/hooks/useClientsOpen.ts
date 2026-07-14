@@ -21,7 +21,7 @@ export function useClientsOpen(): ClientsOpenResource {
   const base = apiBaseUrl
   const resource = useAsync<ClientsOpen>(
     () => (base !== null ? fetchClientsOpen(base) : Promise.resolve(EMPTY)),
-    base ?? 'demo',
+    `clients-open:${base ?? 'demo'}`,
   )
   const data = resource.data ?? EMPTY
   const byClient = new Map(

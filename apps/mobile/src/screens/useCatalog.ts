@@ -19,9 +19,12 @@ export interface CatalogResource extends AsyncResource<Client[]> {
 
 export function useCatalog(): CatalogResource {
   const base = apiBaseUrl
-  const resource = useAsync<Client[]>(() => {
-    if (base !== null) return fetchCatalog(base)
-    return Promise.resolve([...CLIENTS])
-  }, base ?? 'demo')
+  const resource = useAsync<Client[]>(
+    () => {
+      if (base !== null) return fetchCatalog(base)
+      return Promise.resolve([...CLIENTS])
+    },
+    `catalog:${base ?? 'demo'}`,
+  )
   return { ...resource, live: base !== null }
 }
