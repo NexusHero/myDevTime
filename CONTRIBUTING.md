@@ -28,18 +28,50 @@ pnpm install     # installs deps AND wires the git hooks (core.hooksPath)
 ./test.sh        # the local gate — exactly what CI runs
 ```
 
-The gate runs, in order: `format:check` → `lint` → `typecheck` → `coverage` → `check:docs`.
-Individual commands (`pnpm lint`, `pnpm test`, `pnpm coverage`, `pnpm typecheck`,
-`pnpm check:docs`, `pnpm build`) and the full gate table are in
+The gate runs, in order: build packages → `format:check` → `lint` → `typecheck` → `coverage` →
+`check:purity` → `check:docs` → `check:req-coverage`. Individual commands (`pnpm lint`,
+`pnpm test`, `pnpm coverage`, `pnpm typecheck`, `pnpm check:docs`, `pnpm build`) and the full
+gate table are in
 [`skills/ultimate-dev-process/SKILL.md`](skills/ultimate-dev-process/SKILL.md) → Appendix.
 
-Layout: `apps/api` (backend — skeleton in [#3](https://github.com/NexusHero/myDevTime/issues/3)),
-`apps/mobile` (**gated on spike #1** — README only, no client code yet), `packages/domain`
-(pure deterministic core, held to ≥ 90 % coverage), `packages/shared` (types/schemas).
-`spikes/*` are throwaway prototypes outside the workspace.
+Layout: `apps/api` (NestJS backend), `apps/mobile` (Expo/React-Native client — iOS/Android/Web),
+`packages/domain` (pure deterministic core, held to ≥ 90 % coverage), `packages/shared`
+(types/schemas), `packages/design` (design tokens + theme + nav model, held to the coverage bar).
+`spikes/*` and `e2e/` are outside the workspace (throwaway prototypes; the Playwright acceptance
+suite).
 
 Git hooks are automatic after `pnpm install`: `pre-commit` runs the gate, `commit-msg` enforces
 Conventional Commits. Bypass in a real emergency with `git commit --no-verify`.
+
+## Running the whole thing locally
+
+The fast gate (`./test.sh`) proves the code; the **Docker stack** proves the thing we ship. The
+same images CI builds run on your machine via a `Makefile` — no hand-wiring, no clicking through
+sign-in to check the app boots.
+
+```bash
+make up          # build + start Postgres · Redis · api · web (nginx) — web on http://localhost:8080
+make smoke       # black-box HTTP checks against the running stack (ADR-0052)
+make down        # stop and wipe volumes
+```
+
+Browser **acceptance** tests (ADR-0053) drive the built web app through Chromium against that
+stack — they prove the app mounts and a real user can sign in, automatically:
+
+```bash
+make acceptance  # bring up the E2E overlay, install Playwright, run e2e/tests/*.spec.ts
+# or, against a stack you already started with `make up-e2e`:
+make e2e-install # once
+make e2e
+```
+
+The E2E overlay (`docker-compose.e2e.yml`) turns email verification **off** so a seeded account
+can sign in immediately — allowed only because `NODE_ENV=development`; a config refine forbids
+`AUTH_REQUIRE_EMAIL_VERIFICATION=false` in production. `make help` lists every target.
+
+Every requirement in the register maps to its verifying tests in
+[`docs/testing/requirements-traceability.md`](docs/testing/requirements-traceability.md),
+enforced by `pnpm check:req-coverage` in the gate.
 
 ## Branching & commits
 

@@ -19,5 +19,6 @@ run "Typecheck"     pnpm typecheck
 run "Tests + coverage" pnpm coverage
 run "Domain purity" pnpm check:purity
 run "Docs staleness" pnpm check:docs
+run "Req coverage"  pnpm check:req-coverage
 
 printf '\n\033[32m✓ local gate passed\033[0m\n'
