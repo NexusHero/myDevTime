@@ -1,0 +1,58 @@
+name: Container smoke
+
+# Artifact-parity gate (ADR-0052): build the real production Docker images and run
+# black-box HTTP smoke checks against the running stack. This is deliberately NOT
+# on every PR — it is slower and flakier than the vitest gate, and the in-process
+# Postgres integration job already covers the app logic. It runs on merges to main,
+# on demand, and on PRs that actually touch the container/edge surface (so a broken
+# Dockerfile / compose / nginx change is caught before it lands).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'apps/api/Dockerfile'
+      - 'apps/mobile/Dockerfile'
+      - 'apps/mobile/nginx.conf'
+      - 'docker-compose.yml'
+      - 'docker-compose.ci.yml'
+      - 'scripts/container-smoke.sh'
+      - '.github/workflows/container-smoke.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Build images & smoke the stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+
+      # Build the api + web images from the production Dockerfiles, with a GHA
+      # layer cache so repeat runs don't rebuild from scratch.
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build images
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml build
+
+      - name: Start the stack
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
+
+      - name: Smoke test
+        run: bash scripts/container-smoke.sh
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml logs --no-color --tail 200
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v
