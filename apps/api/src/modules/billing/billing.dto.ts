@@ -98,3 +98,17 @@ export class RecordEntitlementEventDto extends createZodDto(
     graceUntil: wireDate.nullish(),
   }),
 ) {}
+
+// ── Invoicing / "Abrechnung" (design v6, REQ-005/009) ────────────────────────
+export class InvoicePreviewQueryDto extends createZodDto(
+  z.object({ clientId: z.uuid(), from: wireDate, to: wireDate }),
+) {}
+export class IssueInvoiceDto extends createZodDto(
+  z.object({
+    clientId: z.uuid(),
+    from: wireDate,
+    to: wireDate,
+    /** The entry ids the user kept selected in the drawer. */
+    entryIds: z.array(z.uuid()).min(1),
+  }),
+) {}

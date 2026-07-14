@@ -91,7 +91,7 @@ export async function deleteRate(db: Db, workspaceId: string, id: string): Promi
 }
 
 /** Map a stored rate to the domain rule shape. */
-function toRule(r: Rate): ScopedRateRule {
+export function toRule(r: Rate): ScopedRateRule {
   return {
     level: r.level as RateLevel,
     scopeId: r.scopeId,

@@ -120,6 +120,13 @@
       "when": 1783780126561,
       "tag": "0016_rainy_nicolaos",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1784004110512,
+      "tag": "0017_curved_skin",
+      "breakpoints": true
     }
   ]
 }
