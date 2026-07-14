@@ -16,6 +16,12 @@ COPY scripts ./scripts
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
+# The web bundle imports the workspace packages through their built `dist`, so build
+# them from the repo root first. (The app's own `build:deps` uses `--filter
+# ./packages/*`, which matches nothing when run from apps/mobile — the export would
+# then fail to resolve `@mydevtime/design`. Mirror the api image's explicit build.)
+RUN pnpm --filter @mydevtime/shared --filter @mydevtime/domain --filter @mydevtime/design build
+
 # The API base URL is inlined into the static bundle at export time (EXPO_PUBLIC_*).
 # Default points at the web container's own origin, whose nginx proxies /api → api:3000,
 # so the built app talks to the real backend (not the demo path). Override at build:
@@ -23,7 +29,7 @@ RUN pnpm install --frozen-lockfile
 ARG EXPO_PUBLIC_API_URL=http://localhost:8080
 ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL
 
-# Export the Expo web app
+# Export the Expo web app (dist is already built above; export:web's build:deps is a no-op)
 WORKDIR /app/apps/mobile
 RUN pnpm run export:web
 
