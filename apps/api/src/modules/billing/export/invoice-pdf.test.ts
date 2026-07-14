@@ -61,6 +61,16 @@ describe('invoice PDF export', () => {
     expect(text).toContain('300,00')
   })
 
+  it('InvoicePdf_EmbedsTheDesignFaces_NotTheStandardPdfFonts', async () => {
+    const bytes = (await invoiceToPdf(invoice, 'de')).toString('latin1')
+    // The real design faces are embedded (subset PostScript names appear in the file)…
+    expect(bytes).toContain('Inter')
+    expect(bytes).toContain('JetBrainsMono')
+    // …and PDFKit's built-in Helvetica/Courier are no longer used.
+    expect(bytes).not.toContain('Helvetica')
+    expect(bytes).not.toContain('Courier')
+  })
+
   it('InvoicePdf_En_LocalisesLabels', async () => {
     const { text } = await extract(await invoiceToPdf(invoice, 'en'))
     expect(text).toContain('Invoice')

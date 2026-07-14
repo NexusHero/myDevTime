@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 import PDFDocument from 'pdfkit'
 import { effectiveRateMinor } from './format.js'
 import type { ExportLocale } from './pdf.js'
@@ -26,6 +28,23 @@ const HAIRLINE = '#f2e9e2'
 const ACCENT = '#ff5320'
 const ACCENT_SOFT = '#ff8a5c'
 const PAPER = '#fffcf8'
+
+// Embedded design v7 faces (ADR-0054): Clash Display for the display role, Inter
+// for body/UI, JetBrains Mono for the tabular figures ("numbers are the product").
+// The .ttf files are decoded from the design system's licensed .woff2 (ITF Free /
+// SIL OFL) and ship next to this module; see fonts/README.md.
+const FONT_DIR = fileURLToPath(new URL('./fonts', import.meta.url))
+const DISPLAY = 'ClashDisplay' // headline weight — the "Rechnung" title + wordmark
+const DISPLAY_SEMI = 'ClashDisplaySemi' // bold UI labels (no faux-bold on Inter)
+const UI = 'Inter' // regular body / muted text
+const MONO = 'JetBrainsMono' // every figure: money, hours, dates, invoice no.
+
+function registerFonts(doc: PDFKit.PDFDocument): void {
+  doc.registerFont(DISPLAY, join(FONT_DIR, 'ClashDisplay-Bold.ttf'))
+  doc.registerFont(DISPLAY_SEMI, join(FONT_DIR, 'ClashDisplay-Semibold.ttf'))
+  doc.registerFont(UI, join(FONT_DIR, 'Inter.ttf'))
+  doc.registerFont(MONO, join(FONT_DIR, 'JetBrainsMono.ttf'))
+}
 
 const LEFT = 50
 const RIGHT = 545 // A4 width 595 − 50 margin
@@ -118,6 +137,7 @@ export function invoiceToPdf(invoice: InvoiceExport, locale: ExportLocale = 'en'
         CreationDate: invoice.issuedAt,
       },
     })
+    registerFonts(doc)
     const chunks: Buffer[] = []
     doc.on('data', (c: Buffer) => chunks.push(c))
     doc.on('end', () => {
@@ -129,14 +149,14 @@ export function invoiceToPdf(invoice: InvoiceExport, locale: ExportLocale = 'en'
     doc.rect(0, 0, doc.page.width, doc.page.height).fill(PAPER)
 
     // Header: wordmark (left) · sender / issuer (right).
-    doc.font('Helvetica-Bold').fontSize(17).fillColor(INK).text('myDevTime', LEFT, 52)
+    doc.font(DISPLAY).fontSize(17).fillColor(INK).text('myDevTime', LEFT, 52)
     doc
-      .font('Helvetica-Bold')
+      .font(DISPLAY_SEMI)
       .fontSize(10.5)
       .fillColor(INK)
       .text(invoice.senderName, RIGHT - 260, 52, { width: 260, align: 'right' })
     doc
-      .font('Helvetica')
+      .font(UI)
       .fontSize(9)
       .fillColor(MUTED)
       .text(t.issuer, RIGHT - 260, 68, { width: 260, align: 'right' })
@@ -147,15 +167,15 @@ export function invoiceToPdf(invoice: InvoiceExport, locale: ExportLocale = 'en'
 
     // Bill-to (left) · title + meta (right).
     let y = 128
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(FAINT).text(t.billTo.toUpperCase(), LEFT, y)
+    doc.font(DISPLAY_SEMI).fontSize(9).fillColor(FAINT).text(t.billTo.toUpperCase(), LEFT, y)
     doc
-      .font('Helvetica-Bold')
+      .font(DISPLAY_SEMI)
       .fontSize(14)
       .fillColor(INK)
       .text(invoice.clientName ?? t.noClient, LEFT, y + 14)
 
     doc
-      .font('Helvetica-Bold')
+      .font(DISPLAY)
       .fontSize(26)
       .fillColor(INK)
       .text(t.title, RIGHT - 260, y - 4, {
@@ -167,7 +187,7 @@ export function invoiceToPdf(invoice: InvoiceExport, locale: ExportLocale = 'en'
       `${t.date}  ${df.format(invoice.issuedAt)}`,
       `${t.period}  ${df.format(invoice.periodStart)} – ${df.format(invoice.periodEnd)}`,
     ]
-    doc.font('Courier').fontSize(10).fillColor(MUTED)
+    doc.font(MONO).fontSize(10).fillColor(MUTED)
     let my = y + 30
     for (const line of metaLines) {
       doc.text(line, RIGHT - 300, my, { width: 300, align: 'right' })
@@ -176,7 +196,7 @@ export function invoiceToPdf(invoice: InvoiceExport, locale: ExportLocale = 'en'
 
     // Table header.
     y = 210
-    doc.font('Helvetica-Bold').fontSize(8.5).fillColor(FAINT)
+    doc.font(DISPLAY_SEMI).fontSize(8.5).fillColor(FAINT)
     cell(doc, t.service.toUpperCase(), COLS.proj, y)
     cell(doc, t.span.toUpperCase(), COLS.date, y)
     cell(doc, t.hoursShort.toUpperCase(), COLS.hours, y)
@@ -199,17 +219,17 @@ export function invoiceToPdf(invoice: InvoiceExport, locale: ExportLocale = 'en'
         p.firstStart === p.lastStart
           ? dfShort.format(new Date(p.firstStart))
           : `${dfShort.format(new Date(p.firstStart))}–${dfShort.format(new Date(p.lastStart))}`
-      doc.font('Helvetica-Bold').fontSize(11).fillColor(INK)
+      doc.font(DISPLAY_SEMI).fontSize(11).fillColor(INK)
       cell(doc, p.project, COLS.proj, y)
-      doc.font('Helvetica').fontSize(8.5).fillColor(FAINT)
+      doc.font(UI).fontSize(8.5).fillColor(FAINT)
       cell(doc, t.entries(p.count), { ...COLS.proj, width: COLS.proj.width }, y + 13)
-      doc.font('Courier').fontSize(10).fillColor(MUTED)
+      doc.font(MONO).fontSize(10).fillColor(MUTED)
       cell(doc, span, COLS.date, y + 1)
       doc.fillColor(INK)
       cell(doc, hours(p.durationMs), COLS.hours, y + 1)
       doc.fillColor(MUTED)
       cell(doc, rate === null ? '' : money(rate), COLS.rate, y + 1)
-      doc.font('Courier-Bold').fontSize(10.5).fillColor(INK)
+      doc.font(MONO).fontSize(10.5).fillColor(INK)
       cell(doc, money(p.amountMinor), COLS.amount, y + 1)
       y += 30
       rule(doc, y - 6, HAIRLINE, 1)
@@ -218,10 +238,10 @@ export function invoiceToPdf(invoice: InvoiceExport, locale: ExportLocale = 'en'
     // Totals — subtotal line + dark grand-total block, right-aligned (width 260).
     y += 12
     const boxX = RIGHT - 260
-    doc.font('Helvetica').fontSize(11).fillColor(MUTED)
+    doc.font(UI).fontSize(11).fillColor(MUTED)
     doc.text(t.totalHours, boxX, y, { width: 150 })
     doc
-      .font('Courier')
+      .font(MONO)
       .fillColor(INK)
       .text(hours(invoice.totalMs), boxX + 150, y, {
         width: 110,
@@ -230,19 +250,19 @@ export function invoiceToPdf(invoice: InvoiceExport, locale: ExportLocale = 'en'
     y += 24
     doc.rect(boxX, y, 260, 44).fill(INK)
     doc
-      .font('Helvetica-Bold')
+      .font(DISPLAY_SEMI)
       .fontSize(12)
       .fillColor('#ffffff')
       .text(t.grandTotal, boxX + 16, y + 15, { width: 120 })
     doc
-      .font('Courier-Bold')
+      .font(MONO)
       .fontSize(16)
       .fillColor(ACCENT_SOFT)
       .text(money(invoice.totalMinor), boxX + 120, y + 13, { width: 124, align: 'right' })
 
     // Footer note.
     doc
-      .font('Helvetica')
+      .font(UI)
       .fontSize(9)
       .fillColor(FAINT)
       .text(t.footer(hours(invoice.totalMs)), LEFT, BOTTOM + 8, { width: RIGHT - LEFT })
