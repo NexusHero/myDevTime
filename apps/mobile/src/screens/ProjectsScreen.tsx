@@ -10,7 +10,15 @@ import {
   type Screen,
 } from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
-import { Badge, BudgetRing, Button, Card, ScreenScaffold, Sparkline } from '../components/index'
+import {
+  Badge,
+  BudgetRing,
+  Button,
+  Card,
+  EmptyState,
+  ScreenScaffold,
+  Sparkline,
+} from '../components/index'
 import type { Client, Project } from './projectsData'
 import { useCatalog } from './useCatalog'
 import { useClientsOpen } from '../hooks/useClientsOpen'
@@ -252,6 +260,9 @@ export function ProjectsScreen({
 
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [issued, setIssued] = useState<IssuedInvoiceDTO | null>(null)
+  // "Minute 1" preview (design v6 C9): a header toggle that shows the first-start
+  // empty state, so the first-run experience is one tap away without wiping data.
+  const [preview, setPreview] = useState(false)
 
   const onIssued = (invoice: IssuedInvoiceDTO): void => {
     setIssued(invoice)
@@ -310,12 +321,51 @@ export function ProjectsScreen({
           </Text>
         </View>
       )}
-      <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, marginLeft: 'auto' }}>
-        {subtitle}
-      </Text>
+      <Pressable
+        onPress={() => setPreview(p => !p)}
+        accessibilityRole="switch"
+        accessibilityState={{ checked: preview }}
+        accessibilityLabel="Minute 1 Vorschau"
+        style={{
+          marginLeft: 'auto',
+          paddingVertical: 3,
+          paddingHorizontal: t.spacing.s2,
+          borderRadius: t.radius.pill,
+          borderWidth: 1,
+          borderColor: preview ? t.color.accent : t.color.border,
+          backgroundColor: preview ? t.color.accentSoft : t.color.surface,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: t.fontSize['2xs'],
+            fontWeight: '700',
+            color: preview ? t.color.accentText : t.color.ink3,
+          }}
+        >
+          Minute 1
+        </Text>
+      </Pressable>
+      <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>{subtitle}</Text>
       {!catalog.live && <Badge tone="neutral">Demo data</Badge>}
     </View>
   )
+
+  if (preview) {
+    return (
+      <ScreenScaffold header={header}>
+        <EmptyState
+          title="Noch keine Projekte"
+          hint="Leg deinen ersten Kunden und ein Projekt an — dann fließen Zeiten, Budgets und die Abrechnung hier zusammen. So sieht der Start ohne Daten aus."
+          action={
+            <Button size="sm" onPress={() => setPreview(false)}>
+              Beispiel ansehen
+            </Button>
+          }
+        />
+      </ScreenScaffold>
+    )
+  }
 
   return (
     <ScreenScaffold header={header}>
