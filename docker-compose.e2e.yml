@@ -1,7 +1,7 @@
 # E2E overlay for the acceptance tests (ADR-0053). Layered on docker-compose.yml,
 # it configures the api so a browser test can sign up + sign in without a mailbox:
 #   docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d
-#   (cd e2e && pnpm install && pnpm exec playwright install chromium && pnpm test)
+#   (cd e2e && pnpm install --ignore-workspace && pnpm exec playwright install chromium && pnpm test)
 # The stack stays in the compose-default NODE_ENV=development, where turning email
 # verification off is allowed (the config refine forbids it in production).
 services:
