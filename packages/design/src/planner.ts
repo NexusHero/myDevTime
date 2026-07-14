@@ -94,6 +94,41 @@ export function snapDurationMin(
   return Math.min(Math.max(snapped, minMin), Math.max(minMin, maxMin))
 }
 
+/** Where a dragged block should land: a day index and a start minute. */
+export interface DropTarget {
+  readonly day: number
+  readonly startMin: number
+}
+
+/**
+ * Map a cross-day drag delta to a drop target (design v6): the horizontal delta
+ * over the column width is rounded to whole day steps and clamped to
+ * `[0, dayCount)`; the vertical delta (`minPerPx` minutes per pixel) shifts the
+ * start, snapped to `gridMin` and clamped so the block stays inside the day window
+ * (`spanMin`). Pure so the gesture layer stays thin and the mapping is
+ * deterministic (ADR-0005).
+ */
+export function dropTarget(
+  dxPx: number,
+  dyPx: number,
+  from: { readonly day: number; readonly startMin: number; readonly lenMin: number },
+  opts: {
+    readonly colWidth: number
+    readonly minPerPx: number
+    readonly dayCount: number
+    readonly spanMin: number
+    readonly gridMin?: number
+  },
+): DropTarget {
+  const grid = opts.gridMin ?? 15
+  const dayStep = opts.colWidth > 0 ? Math.round(dxPx / opts.colWidth) : 0
+  const day = Math.max(0, Math.min(opts.dayCount - 1, from.day + dayStep))
+  const rawStart = from.startMin + dyPx * opts.minPerPx
+  const maxStart = Math.max(0, opts.spanMin - from.lenMin)
+  const startMin = Math.max(0, Math.min(maxStart, Math.round(rawStart / grid) * grid))
+  return { day, startMin }
+}
+
 /** A time interval on a day column, in minutes from the top of the window. */
 export interface Interval {
   readonly startMin: number
