@@ -1,0 +1,16 @@
+# E2E overlay for the acceptance tests (ADR-0053). Layered on docker-compose.yml,
+# it configures the api so a browser test can sign up + sign in without a mailbox:
+#   docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d
+#   (cd e2e && pnpm install && pnpm exec playwright install chromium && pnpm test)
+# The stack stays in the compose-default NODE_ENV=development, where turning email
+# verification off is allowed (the config refine forbids it in production).
+services:
+  api:
+    environment:
+      # Non-prod escape hatch so seeded accounts can sign in immediately (ADR-0053).
+      AUTH_REQUIRE_EMAIL_VERIFICATION: 'false'
+      # A throwaway secret (>=32 chars) — E2E only, never a real deployment.
+      AUTH_SECRET: 'e2e-insecure-secret-not-for-production-0123456789'
+      # The web origin (nginx) the browser and its API calls come from.
+      AUTH_BASE_URL: 'http://localhost:8080'
+      TRUSTED_ORIGINS: 'http://localhost:8080'
