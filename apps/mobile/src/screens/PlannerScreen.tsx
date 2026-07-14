@@ -1,11 +1,12 @@
-import { useState } from 'react'
-import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
+import { useRef, useState } from 'react'
+import { PanResponder, Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import {
   assignLanes,
   formatDuration,
   maxConcurrency,
   plannerBlockRect,
   projectColor,
+  snapDurationMin,
   type LanePlacement,
   type Theme,
 } from '@mydevtime/design'
@@ -238,9 +239,12 @@ function BlockBadge({
 function CanvasBlockView({
   block,
   placement,
+  onResize,
 }: {
   readonly block: CanvasBlock
   readonly placement: LanePlacement
+  /** Commit a new duration (minutes) when the bottom edge is dragged (design v6 A1). */
+  readonly onResize?: ((lenMin: number) => void) | undefined
 }): React.JSX.Element {
   const t = useTheme()
   const rect = plannerBlockRect(block.start, block.len, SPAN)
@@ -253,6 +257,28 @@ function CanvasBlockView({
   const fyi = isMeeting && block.rsvp === 'fyi'
   // A solid (accepted/plain) meeting fills; tentative/fyi read hollow.
   const solidMeeting = isMeeting && !tentative && !fyi
+
+  // Resize gesture (A1): drag the bottom edge → new duration on the 15-min grid.
+  // Live block start/len + callback are read through a ref so the PanResponder is
+  // created once and never loses an in-flight drag to a re-render; snapping is the
+  // pure `snapDurationMin` (ADR-0005). PanResponder works on web and native.
+  const live = useRef({ start: block.start, len: block.len, onResize })
+  live.current = { start: block.start, len: block.len, onResize }
+  const grantLen = useRef(block.len)
+  const responder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        grantLen.current = live.current.len
+      },
+      onPanResponderMove: (_e, g) => {
+        const deltaMin = (g.dy * SPAN) / BODY_HEIGHT
+        const next = snapDurationMin(grantLen.current + deltaMin, 15, 15, SPAN - live.current.start)
+        live.current.onResize?.(next)
+      },
+    }),
+  ).current
 
   // Lane geometry: full width for a lone block, else an equal share with a small gap.
   const GUTTER_PAD = 4
@@ -350,6 +376,13 @@ function CanvasBlockView({
           {clock(block.start)}–{clock(block.start + block.len)}
         </Text>
       )}
+      {onResize !== undefined && !isBreak && (
+        <View
+          {...responder.panHandlers}
+          accessibilityLabel={`Dauer ändern: ${block.label}`}
+          style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 10 }}
+        />
+      )}
     </View>
   )
 }
@@ -390,15 +423,24 @@ function DayColumn({
   day,
   index,
   flex,
+  blocks,
+  onResizeBlock,
 }: {
   readonly day: DemoDay
   readonly index: number
   readonly flex: boolean
+  readonly blocks: readonly CanvasBlock[]
+  /** Commit a resized duration by the block's index in the shared list. */
+  readonly onResizeBlock: (globalIndex: number, lenMin: number) => void
 }): React.JSX.Element {
   const t = useTheme()
   const hours: number[] = []
   for (let h = START_HOUR + 1; h < END_HOUR; h++) hours.push(h)
-  const dayBlocks = DEMO_BLOCKS.filter(b => b.day === index)
+  // Keep each block's index in the shared list so a resize maps back to it.
+  const dayEntries = blocks
+    .map((b, globalIndex) => ({ b, globalIndex }))
+    .filter(x => x.b.day === index)
+  const dayBlocks = dayEntries.map(x => x.b)
   // Lanes split the column when blocks overlap; the badge counts real conflicts —
   // breaks and FYI meetings never count (design v6).
   const placements = assignLanes(dayBlocks.map(b => ({ startMin: b.start, lenMin: b.len })))
@@ -482,11 +524,12 @@ function DayColumn({
             }}
           />
         ))}
-        {dayBlocks.map((b, i) => (
+        {dayEntries.map(({ b, globalIndex }, i) => (
           <CanvasBlockView
             key={`${b.label}-${String(i)}`}
             block={b}
             placement={placements[i] ?? { lane: 0, lanes: 1 }}
+            onResize={len => onResizeBlock(globalIndex, len)}
           />
         ))}
         {day.today && (
@@ -905,6 +948,11 @@ export function PlannerScreen(): React.JSX.Element {
   const stacked = width < STACK_BREAKPOINT
   const [week, setWeek] = useState(28)
   const [view, setView] = useState<'Woche' | 'Monat' | 'Jahr'>('Woche')
+  // The week canvas blocks are local, resizable state (design v6 A1) — dragging a
+  // block's bottom edge commits a new 15-min-snapped duration. Demo data for now.
+  const [blocks, setBlocks] = useState<readonly CanvasBlock[]>(DEMO_BLOCKS)
+  const resizeBlock = (globalIndex: number, lenMin: number): void =>
+    setBlocks(bs => bs.map((b, i) => (i === globalIndex ? { ...b, len: lenMin } : b)))
   const [scope, setScope] = useState<'Zeiten' | 'Budgets'>('Zeiten')
   const [ask, setAsk] = useState('')
   const [answer, setAnswer] = useState<string | null>(null)
@@ -1113,14 +1161,28 @@ export function PlannerScreen(): React.JSX.Element {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   <View style={{ flexDirection: 'row' }}>
                     {DEMO_DAYS.map((day, di) => (
-                      <DayColumn key={day.name} day={day} index={di} flex={false} />
+                      <DayColumn
+                        key={day.name}
+                        day={day}
+                        index={di}
+                        flex={false}
+                        blocks={blocks}
+                        onResizeBlock={resizeBlock}
+                      />
                     ))}
                   </View>
                 </ScrollView>
               ) : (
                 <View style={{ flexDirection: 'row', flex: 1 }}>
                   {DEMO_DAYS.map((day, di) => (
-                    <DayColumn key={day.name} day={day} index={di} flex />
+                    <DayColumn
+                      key={day.name}
+                      day={day}
+                      index={di}
+                      flex
+                      blocks={blocks}
+                      onResizeBlock={resizeBlock}
+                    />
                   ))}
                 </View>
               )}

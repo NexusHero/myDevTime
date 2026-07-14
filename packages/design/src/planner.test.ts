@@ -7,6 +7,7 @@ import {
   plannerBlockRect,
   plannerTotalHours,
   priorityWeight,
+  snapDurationMin,
 } from './planner.js'
 
 /**
@@ -116,6 +117,25 @@ describe('loadTone', () => {
   })
   it('NonPositiveSoll_WithLoad_IsCrit', () => {
     expect(loadTone(3, 0)).toBe('crit')
+  })
+})
+
+describe('snapDurationMin', () => {
+  it('RoundsToTheNearestGridStep', () => {
+    expect(snapDurationMin(52, 15)).toBe(45) // 52 → nearest 15 is 45
+    expect(snapDurationMin(53, 15)).toBe(60) // 53 → nearest 15 is 60
+  })
+  it('ClampsToMinimum', () => {
+    expect(snapDurationMin(3, 15, 15)).toBe(15)
+    expect(snapDurationMin(-100, 15, 15)).toBe(15)
+  })
+  it('ClampsToMaximum_NeverBelowMin', () => {
+    expect(snapDurationMin(600, 15, 15, 120)).toBe(120)
+    // A max below the min still yields at least the min (window smaller than a slot).
+    expect(snapDurationMin(600, 15, 30, 10)).toBe(30)
+  })
+  it('NonPositiveGrid_Throws', () => {
+    expect(() => snapDurationMin(60, 0)).toThrow('gridMin must be positive')
   })
 })
 
