@@ -102,7 +102,7 @@ a Runtime-View sequence diagram (§6).
 | REQ-019 | Security hardening baseline: authz sweep, rate-limit map, headers/CORS, input validation, scanning, prompt-injection review — test-enforced | [#24](https://github.com/NexusHero/myDevTime/issues/24) | Proposed |
 | REQ-020 | Privacy/DSGVO package: Art. 15 export, Art. 17 erasure, retention in code, provider DPA/no-training matrix, consent points | [#25](https://github.com/NexusHero/myDevTime/issues/25) | Proposed |
 | REQ-021 | Observability & ops baseline: structured PII-free logging, metrics/alerts (incl. webhook lag + LLM spend), deploy/rollback, rehearsed restore | [#26](https://github.com/NexusHero/myDevTime/issues/26) | Proposed |
-| REQ-022 | E2E suite: golden paths across web + both mobile platforms, faked externals, 20-consecutive-green flake gate | [#27](https://github.com/NexusHero/myDevTime/issues/27) | Proposed |
+| REQ-022 | E2E suite: golden paths across web + both mobile platforms, faked externals, 20-consecutive-green flake gate | ADR-0053, [#27](https://github.com/NexusHero/myDevTime/issues/27) | In progress — the **browser acceptance tier** landed ([ADR-0053](adr/0053-acceptance-e2e-and-requirements-traceability.md)): Playwright drives the built web app through Chromium against the running Docker stack (`e2e/`), asserting the app mounts, a seeded user signs in past the auth gate, and a wrong password is rejected (REQ-002/007); email-verification is env-gated (`AUTH_REQUIRE_EMAIL_VERIFICATION`, prod-locked on) so tests seed-then-sign-in. Traceability is now machine-checked (`docs/testing/requirements-traceability.md` + `scripts/check-req-coverage.mjs`). Both mobile platforms + the 20-consecutive-green flake gate remain |
 | REQ-023 | Distribution: web (PWA-installable) + App Store + Play Store, store-policy self-review, staged rollout | [#28](https://github.com/NexusHero/myDevTime/issues/28) | Proposed |
 | REQ-024 | Pricing decision: free-tier limits + per-rail Pro prices, unit-economics check — recorded as an ADR before store submission | [#29](https://github.com/NexusHero/myDevTime/issues/29) | Proposed |
 | REQ-025 | Meeting transcription pipeline: consent-first capture, `TranscriptionPort` ASR adapter, transcript linked to the time entry, DSGVO-grade lifecycle | ADR-0008/0009, [#32](https://github.com/NexusHero/myDevTime/issues/32) | Proposed — blocked on the capture spike [#31](https://github.com/NexusHero/myDevTime/issues/31) |
@@ -320,6 +320,25 @@ Tech Radar for the full list.
 
 _Fill in concrete quality-attribute scenarios (e.g. "sync of a 30-day offline backlog completes
 in < Ns without data loss") as they're defined per milestone._
+
+## Test tiers & requirements traceability
+
+Verification runs in four tiers, cheapest-and-fastest first (ADR-0014/0027/0052/0053):
+
+1. **Local gate** (`./test.sh` = CI): build · format · lint · typecheck · unit tests +
+   coverage (≥90 % on `domain`/`design`) · domain purity · docs staleness · requirements
+   coverage.
+2. **API integration**: the real NestJS app booted in-process against a real Postgres service
+   container, driven via `app.inject()`, incl. negative workspace-isolation tests.
+3. **Container smoke** (ADR-0052): black-box HTTP checks against the shipped production images.
+4. **Browser acceptance** (ADR-0053): Playwright drives the built web app through Chromium
+   against the running Docker stack.
+
+Every requirement in the register above maps to the tests that verify it in
+**[`docs/testing/requirements-traceability.md`](testing/requirements-traceability.md)**. That
+mapping is machine-checked by `scripts/check-req-coverage.mjs` (part of the local gate): no
+register requirement may lack a traceability row, and no row may name a test file that doesn't
+exist.
 
 ---
 
