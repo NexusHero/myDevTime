@@ -76,3 +76,84 @@ export function loadTone(load: number, soll: number): LoadTone {
   if (load <= soll) return 'warn'
   return 'crit'
 }
+
+/** A time interval on a day column, in minutes from the top of the window. */
+export interface Interval {
+  readonly startMin: number
+  readonly lenMin: number
+}
+
+/** A block's column placement: which `lane` it sits in, of how many `lanes`. */
+export interface LanePlacement {
+  /** 0-based column index within its overlap cluster. */
+  readonly lane: number
+  /** Number of lanes the cluster splits into (1 = full width). */
+  readonly lanes: number
+}
+
+/**
+ * Pack overlapping day blocks into side-by-side lanes (design v6 "Überbuchung"):
+ * a maximal run of transitively-overlapping intervals forms a cluster, and within
+ * a cluster each block takes the first lane free at its start — so parallel blocks
+ * split the column instead of hiding each other. Non-overlapping blocks stay full
+ * width (`lanes: 1`). Deterministic (ADR-0005): input order is preserved in the
+ * output, ties broken by longer-first then original index, so the layout is stable.
+ */
+export function assignLanes(items: readonly Interval[]): LanePlacement[] {
+  const order = items
+    .map((it, index) => ({ index, start: it.startMin, end: it.startMin + Math.max(it.lenMin, 0) }))
+    .sort((a, b) => a.start - b.start || b.end - b.start - (a.end - a.start) || a.index - b.index)
+  const out = new Array<LanePlacement>(items.length)
+
+  let cluster: { index: number; start: number; end: number }[] = []
+  let clusterEnd = Number.NEGATIVE_INFINITY
+  const flush = (): void => {
+    const laneEnds: number[] = []
+    const laneOf: { index: number; lane: number }[] = []
+    for (const b of cluster) {
+      let lane = laneEnds.findIndex(end => end <= b.start + 1e-9)
+      if (lane === -1) {
+        lane = laneEnds.length
+        laneEnds.push(0)
+      }
+      laneEnds[lane] = b.end
+      laneOf.push({ index: b.index, lane })
+    }
+    for (const { index, lane } of laneOf) out[index] = { lane, lanes: laneEnds.length }
+    cluster = []
+  }
+
+  for (const b of order) {
+    if (cluster.length > 0 && b.start >= clusterEnd - 1e-9) {
+      flush()
+      clusterEnd = Number.NEGATIVE_INFINITY
+    }
+    cluster.push(b)
+    clusterEnd = Math.max(clusterEnd, b.end)
+  }
+  if (cluster.length > 0) flush()
+  return out
+}
+
+/**
+ * The maximum number of intervals overlapping at any instant (design v6 day-head
+ * "N×" overbooking badge). 1 (or 0) means no conflict. A sweep over sorted
+ * start/end events; zero-length intervals never add to the peak.
+ */
+export function maxConcurrency(items: readonly Interval[]): number {
+  const events: { at: number; delta: number }[] = []
+  for (const it of items) {
+    const len = Math.max(it.lenMin, 0)
+    if (len <= 0) continue
+    events.push({ at: it.startMin, delta: 1 }, { at: it.startMin + len, delta: -1 })
+  }
+  // Ends before starts at the same instant, so touching blocks don't count as overlap.
+  events.sort((a, b) => a.at - b.at || a.delta - b.delta)
+  let current = 0
+  let peak = 0
+  for (const e of events) {
+    current += e.delta
+    if (current > peak) peak = current
+  }
+  return peak
+}
