@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   assignLanes,
   dayLoad,
+  findFreeSlot,
   loadTone,
   maxConcurrency,
   plannerBlockRect,
@@ -205,6 +206,38 @@ describe('assignLanes', () => {
 
   it('EmptyInput_IsEmpty', () => {
     expect(assignLanes([])).toEqual([])
+  })
+})
+
+describe('findFreeSlot', () => {
+  const DAY_START = 0
+  const DAY_END = 600 // 08:00–18:00
+
+  it('EmptyDay_ReturnsTheWindowStart', () => {
+    expect(findFreeSlot([], 60, DAY_START, DAY_END)).toBe(0)
+  })
+
+  it('FitsIntoTheFirstGapAfterAnEarlyBlock', () => {
+    // A block 0–120; a 60-min task lands right after it, at 120.
+    expect(findFreeSlot([{ startMin: 0, lenMin: 120 }], 60, DAY_START, DAY_END)).toBe(120)
+  })
+
+  it('SlotsIntoAGapBetweenTwoBlocks', () => {
+    const occ = [
+      { startMin: 0, lenMin: 60 },
+      { startMin: 180, lenMin: 60 },
+    ]
+    // 60–180 is free; a 60-min task takes 60.
+    expect(findFreeSlot(occ, 60, DAY_START, DAY_END)).toBe(60)
+  })
+
+  it('RespectsNotBefore_SkippingElapsedTime', () => {
+    expect(findFreeSlot([], 60, DAY_START, DAY_END, 200)).toBe(200)
+  })
+
+  it('ReturnsNull_WhenTheDayCannotHoldIt', () => {
+    // One block fills all but the last 30 min; a 60-min task can't fit.
+    expect(findFreeSlot([{ startMin: 0, lenMin: 570 }], 60, DAY_START, DAY_END)).toBeNull()
   })
 })
 
