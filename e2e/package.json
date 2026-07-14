@@ -1,0 +1,15 @@
+{
+  "name": "@mydevtime/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Browser acceptance (end-to-end) tests — drive the built app through a real browser against the running Docker stack (ADR-0053). Outside the pnpm workspace on purpose, like spikes/.",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.49.1"
+  }
+}

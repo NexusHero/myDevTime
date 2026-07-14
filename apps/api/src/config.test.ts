@@ -42,6 +42,30 @@ describe('loadConfig', () => {
     expect(act).toThrow(/AUTH_SECRET/)
   })
 
+  it('LoadConfig_EmailVerification_DefaultsOn', () => {
+    expect(loadConfig({}).AUTH_REQUIRE_EMAIL_VERIFICATION).toBe(true)
+  })
+
+  it('LoadConfig_EmailVerificationOffInDev_Ok', () => {
+    const config = loadConfig({
+      NODE_ENV: 'development',
+      AUTH_REQUIRE_EMAIL_VERIFICATION: 'false',
+    })
+
+    expect(config.AUTH_REQUIRE_EMAIL_VERIFICATION).toBe(false)
+  })
+
+  it('LoadConfig_EmailVerificationOffInProduction_Throws', () => {
+    const act = (): unknown =>
+      loadConfig({
+        NODE_ENV: 'production',
+        AUTH_SECRET: 'x'.repeat(32),
+        AUTH_REQUIRE_EMAIL_VERIFICATION: 'false',
+      })
+
+    expect(act).toThrow(/AUTH_REQUIRE_EMAIL_VERIFICATION/)
+  })
+
   it('LoadConfig_InvalidPort_ThrowsListingTheField', () => {
     const act = (): unknown => loadConfig({ PORT: 'not-a-number' })
 
