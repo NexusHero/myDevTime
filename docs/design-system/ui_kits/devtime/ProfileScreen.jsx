@@ -3,6 +3,9 @@ function ProfileScreen({ theme, setTheme, mode, setMode }) {
   const [reminders, setReminders] = React.useState(true);
   const [autoCapture, setAutoCapture] = React.useState(true);
   const [autoTracker, setAutoTracker] = React.useState(true);
+  const [calRead, setCalRead] = React.useState(true);
+  const [calWrite, setCalWrite] = React.useState(true);
+  const [calPrivate, setCalPrivate] = React.useState(true);
   return (
     <div style={{ height: '100%', boxSizing: 'border-box', maxWidth: 1120, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '24px 28px 0' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
@@ -110,6 +113,51 @@ function ProfileScreen({ theme, setTheme, mode, setMode }) {
           </Card>
         </div>
         <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Card title="Kalender-Sync" subtitle="Outlook · Microsoft Graph">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--ink)', color: 'var(--surface)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>O</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--ink)' }}>suhay.sevinc@firma.de</div>
+                  <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)' }}>Zuletzt synchronisiert vor 2 min</div>
+                </div>
+                <Badge tone="good">Verbunden</Badge>
+              </div>
+              {/* Stufe 1: Lesen */}
+              <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-lg)', background: 'var(--surface-sunk)', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--accent-strong)', letterSpacing: 'var(--ls-wide)' }}>STUFE 1 · LESEN</span>
+                  <span style={{ marginLeft: 'auto' }}><Switch checked={calRead} onChange={setCalRead} label="" /></span>
+                </div>
+                <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-2)', lineHeight: 1.5 }}>
+                  Termine erscheinen im Planner als <b style={{ fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 800, border: '1px solid currentColor', borderRadius: 3, padding: '0 3px' }}>OL</b>-Blöcke — read-only. Verschiebungen lösen den Konflikt-Check aus.
+                </div>
+              </div>
+              {/* Stufe 2: Schreiben */}
+              <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-lg)', background: 'var(--surface-sunk)', border: '1px solid var(--border)', opacity: calRead ? 1 : 0.45, transition: 'opacity var(--dur-med) var(--ease-out)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--accent-strong)', letterSpacing: 'var(--ls-wide)' }}>STUFE 2 · SCHREIBEN</span>
+                  <span style={{ marginLeft: 'auto' }}><Switch checked={calRead && calWrite} onChange={(v) => calRead && setCalWrite(v)} label="" /></span>
+                </div>
+                <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-2)', lineHeight: 1.5, marginBottom: calRead && calWrite ? 10 : 0 }}>
+                  Geplante DevTime-Blöcke landen als Fokuszeit in Outlook — Kollegen sehen dich belegt, Meeting-Einladungen weichen aus. Blöcke mit <span style={{ fontFamily: 'var(--font-mono)' }}>⇄</span> sind zwei-Wege.
+                </div>
+                {calRead && calWrite && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+                    <Switch checked={calPrivate} onChange={setCalPrivate} label="Privacy: nur „Belegt“ — ohne Titel & Projekt" />
+                    <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)' }}>Projekte, die geschrieben werden:</div>
+                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                      {[['Finanzo AG', 'var(--project-1)', true], ['Sync engine', 'var(--project-2)', true], ['Nordwind', 'var(--project-3)', true], ['Atlas', 'var(--project-4)', false]].map(([n, c, on]) => (
+                        <span key={n} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 'var(--radius-pill)', fontSize: 10, fontWeight: 700, cursor: 'pointer', border: on ? '1.5px solid var(--accent)' : '1px solid var(--border)', background: on ? 'var(--accent-soft)' : 'var(--surface)', color: on ? 'var(--accent-strong)' : 'var(--ink-3)' }}>
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: c, opacity: on ? 1 : 0.4 }}></span>{n}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
           <Card title="Integrationen" subtitle="Export nur nach Bestätigung — nie automatisch">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[

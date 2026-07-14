@@ -32,13 +32,13 @@ function ProjectDonut({ data, total }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
       <div style={{ position: 'relative', width: 150, height: 150, flexShrink: 0 }}>
         <svg viewBox="0 0 150 150" style={{ width: '100%', transform: 'rotate(-90deg)' }}>
-          {data.map((d) => {
+          {data.map((d, i) => {
             const frac = drawn ? d.h / sum : 0;
             const seg = (
               <circle key={d.n} cx="75" cy="75" r={R} fill="none" stroke={d.c} strokeWidth="16"
                 strokeDasharray={Math.max(frac * C - 3, 0.01) + ' ' + (C - frac * C + 3)}
                 strokeDashoffset={-acc * C}
-                style={{ transition: 'stroke-dasharray var(--dur-slow) var(--ease-out), stroke-dashoffset var(--dur-slow) var(--ease-out)' }} />
+                style={{ transition: 'stroke-dasharray var(--dur-slow) var(--ease-out) ' + i * 130 + 'ms, stroke-dashoffset var(--dur-slow) var(--ease-out) ' + i * 130 + 'ms' }} />
             );
             acc += frac;
             return seg;
@@ -127,7 +127,7 @@ function ReportsScreen() {
       {/* Arbeitsfläche — einziger Scrollbereich; Titel + Tabs stehen fest.
            key={range}: beim Range-Wechsel steigen die Sektionen gestaffelt neu ein. */}
       <div key={range} style={{ flex: 1, minHeight: 0, overflowY: 'auto', margin: '0 -28px', padding: '0 28px 28px' }}>
-      <style>{'@keyframes dt-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } } .dt-rise { animation: dt-rise var(--dur-slow) var(--ease-out) both; } @media (prefers-reduced-motion: reduce) { .dt-rise { animation: none; } }'}</style>
+      <style>{'@keyframes dt-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } } .dt-rise { animation: dt-rise var(--dur-slow) var(--ease-out) both; } @keyframes dt-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } } .dt-draw { animation: dt-draw 900ms var(--ease-out) both 150ms; } @keyframes dt-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } } .dt-grow { transform-box: fill-box; transform-origin: bottom; animation: dt-grow var(--dur-slow) var(--ease-spring) both; } @keyframes dt-pop { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } } .dt-pop { transform-box: fill-box; transform-origin: center; animation: dt-pop var(--dur-med) var(--ease-spring) both; } @media (prefers-reduced-motion: reduce) { .dt-rise, .dt-draw, .dt-grow, .dt-pop { animation: none; } }'}</style>
       {/* AI reachable in context */}
       <div style={{ margin: '16px 0 0', maxWidth: 680 }}>
         <AIAskBar
@@ -159,14 +159,14 @@ function ReportsScreen() {
                 <svg viewBox="0 0 300 56" style={{ width: '100%', maxWidth: 300, display: 'block' }}>
                   <line x1="0" y1="25" x2="300" y2="25" stroke="var(--warn)" strokeWidth="1" strokeDasharray="3 4" opacity="0.55" />
                   <text x="298" y="20" textAnchor="end" fontFamily="var(--font-mono)" fontSize="8" fill="var(--ink-3)">erhöht</text>
-                  <polyline points="0,44 33,46 66,41 99,43 132,38 165,40 198,34 231,30 264,26 297,21" fill="none" stroke="var(--warn)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <polyline className="dt-draw" pathLength="1" strokeDasharray="1" style={{ animationDuration: '1100ms' }} points="0,44 33,46 66,41 99,43 132,38 165,40 198,34 231,30 264,26 297,21" fill="none" stroke="var(--warn)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                   {[[0,44],[33,46],[66,41],[99,43],[132,38],[165,40],[198,34],[231,30],[264,26]].map(([cx, cy], i) => (
-                    <circle key={i} cx={cx} cy={cy} r="2.5" fill="var(--surface)" stroke="var(--warn)" strokeWidth="1.5" />
+                    <circle key={i} className="dt-pop" style={{ animationDelay: 150 + i * 95 + 'ms' }} cx={cx} cy={cy} r="2.5" fill="var(--surface)" stroke="var(--warn)" strokeWidth="1.5" />
                   ))}
-                  <circle cx="297" cy="21" r="4" fill="var(--warn)" />
+                  <circle className="dt-pop" style={{ animationDelay: '1050ms' }} cx="297" cy="21" r="4" fill="var(--warn)" />
                   {/* self-report markers: check-in weeks */}
-                  {[33, 99, 165, 231, 297].map((cx) => (
-                    <rect key={cx} x={cx - 2} y="50" width="4" height="4" rx="1" fill="var(--accent)" opacity="0.7" />
+                  {[33, 99, 165, 231, 297].map((cx, i) => (
+                    <rect key={cx} className="dt-pop" style={{ animationDelay: 400 + i * 90 + 'ms' }} x={cx - 2} y="50" width="4" height="4" rx="1" fill="var(--accent)" opacity="0.7" />
                   ))}
                 </svg>
                 <div style={{ fontSize: 10, color: 'var(--ink-3)', marginTop: 4 }}>Linie = passive Signale · <span style={{ color: 'var(--accent)' }}>▪</span> = deine Check-ins</div>
@@ -219,10 +219,10 @@ function ReportsScreen() {
             {[0, 1, 2, 3].map((i) => (
               <line key={i} x1="0" y1={10 + i * 30} x2="300" y2={10 + i * 30} stroke="var(--border)" strokeWidth="0.5" opacity="0.5" />
             ))}
-            <style>{'@keyframes dt-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } } @media (prefers-reduced-motion: reduce) { .dt-draw { animation: none !important; stroke-dashoffset: 0 !important; } }'}</style>
+            <style>{'@media (prefers-reduced-motion: reduce) { .dt-draw { animation: none !important; stroke-dashoffset: 0 !important; } }'}</style>
             <polyline className="dt-draw" points={d.burn.pts} fill="none" stroke="var(--project-3)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" pathLength="1" strokeDasharray="1" style={{ animation: 'dt-draw 900ms var(--ease-out) both 150ms' }} />
-            <polyline className="dt-draw" points="150,66 210,84 258,100" fill="none" stroke="var(--project-3)" strokeWidth="2" strokeDasharray="5 5" opacity="0.55" />
-            <circle cx="150" cy="66" r="4" fill="var(--live)" />
+            <polyline className="dt-draw" points="150,66 210,84 258,100" fill="none" stroke="var(--project-3)" strokeWidth="2" strokeDasharray="5 5" opacity="0.55" style={{ animation: 'none' }} />
+            <circle className="dt-pop" style={{ animationDelay: '950ms' }} cx="150" cy="66" r="4" fill="var(--live)" />
             <text x="4" y="24" fontFamily="var(--font-mono)" fontSize="9" fill="var(--ink-3)">80h</text>
             <text x="130" y="108" fontFamily="var(--font-mono)" fontSize="9" fill="var(--live)">heute</text>
             <text x="248" y="94" fontFamily="var(--font-mono)" fontSize="9" fill="var(--ink-3)">21.7.</text>
@@ -235,8 +235,8 @@ function ReportsScreen() {
             <svg viewBox="0 0 120 40" style={{ width: 120, flexShrink: 0 }}>
               {d.burn.tasks.map(([neu, zu], w) => (
                 <g key={w} transform={'translate(' + (w * 30 + 4) + ',0)'}>
-                  <rect x="0" y={36 - Math.min(neu, 11) * 3} width="8" height={Math.min(neu, 11) * 3} rx="2" fill="var(--accent)" opacity="0.85" style={{ transition: 'all var(--dur-slow) var(--ease-out)' }} />
-                  <rect x="11" y={36 - Math.min(zu, 11) * 3} width="8" height={Math.min(zu, 11) * 3} rx="2" fill="var(--good)" opacity="0.85" style={{ transition: 'all var(--dur-slow) var(--ease-out)' }} />
+                  <rect className="dt-grow" style={{ animationDelay: 200 + w * 90 + 'ms' }} x="0" y={36 - Math.min(neu, 11) * 3} width="8" height={Math.min(neu, 11) * 3} rx="2" fill="var(--accent)" opacity="0.85" />
+                  <rect className="dt-grow" style={{ animationDelay: 245 + w * 90 + 'ms' }} x="11" y={36 - Math.min(zu, 11) * 3} width="8" height={Math.min(zu, 11) * 3} rx="2" fill="var(--good)" opacity="0.85" />
                 </g>
               ))}
             </svg>
@@ -316,8 +316,73 @@ function ReportsScreen() {
           </Card>
         )}
       </div>
+
+      {/* ---- Todo 41: Rückstau (neu−geschlossen) und Belastung auf EINER Zeitachse ----
+           Die Kernthese des Balance-Features sichtbar gemacht: wenn der Backlog
+           schneller wächst als du schließt UND die Belastung mitsteigt = Frühwarnung. */}
+      <div className="dt-rise" style={{ marginTop: 12, animationDelay: '240ms' }}>
+        <Card title="Rückstau trifft Belastung" subtitle={d.label + ' · Netto-Aufgaben vs. Belastungstrend — gleiche Zeitachse'}>
+          {(() => {
+            const wk = d.burn.tasks; // [neu, zu] pro Woche
+            const n = wk.length;
+            const W = 620, H = 150, PAD = 30, colW = (W - PAD * 2) / n;
+            const nets = wk.map(([a, b]) => a - b);
+            const maxNet = Math.max(3, ...nets.map(Math.abs));
+            const zeroY = 40, unit = 26 / maxNet; // Balken-Nulllinie oben
+            // Belastungstrend (steigend) — normalisiert auf untere Hälfte
+            const strain = { week: [52, 58, 61, 64], month: [40, 48, 55, 60, 55, 62], year: [30, 38, 44, 50, 56, 47] }[range] || [50, 55, 60, 64];
+            const sN = strain.length;
+            const sx = (i) => PAD + (i / (sN - 1)) * (W - PAD * 2);
+            const sy = (v) => H - 18 - (v / 100) * (H - 70);
+            const strainPts = strain.map((v, i) => sx(i) + ',' + sy(v)).join(' ');
+            const cross = nets[n - 1] > 0 && strain[sN - 1] >= 60;
+            return (
+              <div>
+                <svg viewBox={'0 0 ' + W + ' ' + H} style={{ width: '100%', display: 'block' }}>
+                  {/* Balken-Nulllinie */}
+                  <line x1={PAD} y1={zeroY} x2={W - PAD} y2={zeroY} stroke="var(--border-strong)" strokeWidth="1" />
+                  <text x={PAD - 4} y={zeroY + 3} textAnchor="end" fontFamily="var(--font-mono)" fontSize="8" fill="var(--ink-3)">0</text>
+                  {/* Netto-Balken: rot = Rückstau wächst, grün = abgebaut */}
+                  {nets.map((net, i) => {
+                    const h = Math.abs(net) * unit;
+                    const up = net > 0;
+                    const cx = PAD + colW * i + colW / 2;
+                    return (
+                      <g key={i}>
+                        <rect className="dt-grow" style={{ animationDelay: 150 + i * 90 + 'ms', transformOrigin: 'center ' + zeroY + 'px' }}
+                          x={cx - 9} y={up ? zeroY - h : zeroY} width="18" height={Math.max(h, 1)} rx="3"
+                          fill={up ? 'var(--warn)' : 'var(--good)'} opacity="0.9" />
+                        <text x={cx} y={up ? zeroY - h - 4 : zeroY + h + 11} textAnchor="middle" fontFamily="var(--font-mono)" fontSize="9" fontWeight="700" fill={up ? 'var(--warn)' : 'var(--good)'}>{net > 0 ? '+' + net : net}</text>
+                        <text x={cx} y={H - 4} textAnchor="middle" fontFamily="var(--font-mono)" fontSize="8" fill="var(--ink-3)">{range === 'week' ? 'T' + (i + 1) : 'W' + (i + 1)}</text>
+                      </g>
+                    );
+                  })}
+                  {/* Belastungstrend darüber */}
+                  <text x={W - PAD} y={sy(strain[0]) - 8} textAnchor="end" fontFamily="var(--font-mono)" fontSize="8" fill="var(--warn)">Belastung</text>
+                  <polyline className="dt-draw" pathLength="1" strokeDasharray="1" style={{ animationDuration: '1100ms' }} points={strainPts} fill="none" stroke="var(--warn)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
+                  {strain.map((v, i) => (
+                    <circle key={i} className="dt-pop" style={{ animationDelay: 300 + i * 100 + 'ms' }} cx={sx(i)} cy={sy(v)} r={i === sN - 1 ? 4 : 2.5} fill={i === sN - 1 ? 'var(--warn)' : 'var(--surface)'} stroke="var(--warn)" strokeWidth="1.5" />
+                  ))}
+                </svg>
+                <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 'var(--fs-2xs)', color: 'var(--ink-2)', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--warn)' }}></span> Rückstau wächst (neu &gt; geschlossen)</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--good)' }}></span> abgebaut</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span style={{ width: 14, height: 2, background: 'var(--warn)' }}></span> Belastungstrend</span>
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  <AICallout compact title={cross ? 'Beide Kurven zeigen nach oben.' : 'Rückstau und Belastung entkoppeln sich gerade.'}
+                    action={<Button size="sm">✦ Backlog priorisieren</Button>}>
+                    {cross
+                      ? 'Dein Backlog wächst netto (+' + nets[n - 1] + ') und die Belastung steigt parallel — das ist das Muster, das dem Kippen vorausgeht. Vorschlag: diese Woche keine neuen Tasks ziehen, zwei P3 nach KW 29 verschieben.'
+                      : 'Du schließt zuletzt mehr, als reinkommt, während die Belastung noch nachhängt — der gesunde Fall. Halte das Tempo, dann fällt der Trend in 1–2 Wochen.'}
+                  </AICallout>
+                </div>
+              </div>
+            );
+          })()}
+        </Card>
+      </div>
       </div>
     </div>
   );
 }
-window.ReportsScreen = ReportsScreen;
