@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { plannerBlockRect, plannerTotalHours } from './planner.js'
+import {
+  dayLoad,
+  loadTone,
+  plannerBlockRect,
+  plannerTotalHours,
+  priorityWeight,
+} from './planner.js'
 
 /**
  * The planner geometry is deterministic layout math (ADR-0005), so it is pinned
@@ -59,5 +65,54 @@ describe('plannerTotalHours', () => {
 
   it('EmptyDay_IsZero', () => {
     expect(plannerTotalHours([])).toBe(0)
+  })
+})
+
+describe('priorityWeight', () => {
+  it('HighPriorityWeighsHeavier', () => {
+    expect(priorityWeight(1)).toBe(1.4)
+    expect(priorityWeight(2)).toBe(1)
+    expect(priorityWeight(3)).toBe(0.7)
+  })
+})
+
+describe('dayLoad', () => {
+  it('SumsPrioWeightedEstimates', () => {
+    // 3h @ P1 (×1.4) + 2h @ P2 (×1) + 1h @ P3 (×0.7) = 4.2 + 2 + 0.7 = 6.9
+    expect(
+      dayLoad([
+        { prio: 1, estHours: 3 },
+        { prio: 2, estHours: 2 },
+        { prio: 3, estHours: 1 },
+      ]),
+    ).toBeCloseTo(6.9, 10)
+  })
+
+  it('EmptyDay_IsZero', () => {
+    expect(dayLoad([])).toBe(0)
+  })
+
+  it('NegativeEstimate_IsFlooredAtZero', () => {
+    expect(dayLoad([{ prio: 1, estHours: -5 }])).toBe(0)
+  })
+})
+
+describe('loadTone', () => {
+  const SOLL = 8
+  it('NoLoad_IsIdle', () => {
+    expect(loadTone(0, SOLL)).toBe('idle')
+  })
+  it('UpTo85Percent_IsGood', () => {
+    expect(loadTone(SOLL * 0.85, SOLL)).toBe('good')
+  })
+  it('Between85AndSoll_IsWarn', () => {
+    expect(loadTone(SOLL * 0.95, SOLL)).toBe('warn')
+    expect(loadTone(SOLL, SOLL)).toBe('warn')
+  })
+  it('OverSoll_IsCrit', () => {
+    expect(loadTone(SOLL + 0.1, SOLL)).toBe('crit')
+  })
+  it('NonPositiveSoll_WithLoad_IsCrit', () => {
+    expect(loadTone(3, 0)).toBe('crit')
   })
 })
