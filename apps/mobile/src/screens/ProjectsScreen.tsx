@@ -14,6 +14,9 @@ import { Badge, BudgetRing, Button, Card, ScreenScaffold, Sparkline } from '../c
 import type { Client, Project } from './projectsData'
 import { useCatalog } from './useCatalog'
 import { useClientsOpen } from '../hooks/useClientsOpen'
+import { InvoiceDrawer, type DrawerClient } from '../components/invoicing/InvoiceDrawer'
+import { voidInvoice, type IssuedInvoiceDTO } from '../api/invoicing'
+import { apiBaseUrl } from '../config'
 
 /**
  * Projects — clients → projects → tasks with budget consumption and rates
@@ -235,6 +238,31 @@ export function ProjectsScreen({
   const open = useClientsOpen()
   const openMinor = (open.data?.clients ?? []).reduce((s, c) => s + c.openMinor, 0)
   const openMs = (open.data?.clients ?? []).reduce((s, c) => s + c.openMs, 0)
+  const currencyCode = open.data?.currencyCode ?? 'EUR'
+
+  // Names for the drawer: client id → name, project id → name (from the catalog).
+  const nameByClient = new Map(clients.map(c => [c.id, c.name]))
+  const nameByProject = new Map(clients.flatMap(c => c.projects).map(p => [p.id, p.name]))
+  const drawerClients: DrawerClient[] = (open.data?.clients ?? []).map(c => ({
+    clientId: c.clientId,
+    name: nameByClient.get(c.clientId) ?? 'Kunde',
+    openMs: c.openMs,
+    openMinor: c.openMinor,
+  }))
+
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [issued, setIssued] = useState<IssuedInvoiceDTO | null>(null)
+
+  const onIssued = (invoice: IssuedInvoiceDTO): void => {
+    setIssued(invoice)
+    open.reload()
+  }
+  const undoIssue = (): void => {
+    if (apiBaseUrl !== null && issued !== null) {
+      void voidInvoice(apiBaseUrl, issued.id).then(() => open.reload())
+    }
+    setIssued(null)
+  }
 
   // Bounded screen (design v1): one flat list sorted by budget risk, the top few
   // visible and the rest behind a "+N weitere" drill-in — scroll depth never
@@ -293,30 +321,52 @@ export function ProjectsScreen({
     <ScreenScaffold header={header}>
       {open.live && openMs > 0 && (
         <Card>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'baseline',
-              justifyContent: 'space-between',
-            }}
-          >
-            <Text style={{ fontSize: t.fontSize.sm, fontWeight: '600', color: t.color.ink2 }}>
-              Offen abrechenbar
-            </Text>
-            <Text
-              style={{
-                fontFamily: t.fontFamily.numeric,
-                fontSize: t.fontSize.md,
-                fontWeight: '700',
-                color: t.color.ink,
-              }}
-            >
-              {formatDuration(openMs)} h ·{' '}
-              {formatMoneyMinor(openMinor, open.data?.currencyCode ?? 'EUR')}
-            </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s3 }}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>
+                Offen abrechenbar
+              </Text>
+              <Text
+                style={{
+                  fontFamily: t.fontFamily.numeric,
+                  fontSize: t.fontSize.lg,
+                  fontWeight: '700',
+                  color: t.color.ink,
+                }}
+              >
+                {formatDuration(openMs)} h · {formatMoneyMinor(openMinor, currencyCode)}
+              </Text>
+            </View>
+            <Button size="sm" onPress={() => setDrawerOpen(true)}>
+              Abrechnen
+            </Button>
           </View>
         </Card>
       )}
+
+      {issued !== null && (
+        <Card>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s3 }}>
+            <Text
+              style={{ flex: 1, fontSize: t.fontSize.sm, color: t.color.good, fontWeight: '600' }}
+            >
+              Abgerechnet · {formatMoneyMinor(issued.totalMinor, issued.currencyCode)}
+            </Text>
+            <Button size="sm" variant="ghost" onPress={undoIssue}>
+              Rückgängig
+            </Button>
+          </View>
+        </Card>
+      )}
+
+      <InvoiceDrawer
+        open={drawerOpen}
+        clients={drawerClients}
+        currencyCode={currencyCode}
+        nameByProject={nameByProject}
+        onClose={() => setDrawerOpen(false)}
+        onIssued={onIssued}
+      />
 
       {catalog.loading && catalog.data === null && <Notice title="Loading projects…" />}
 
