@@ -205,6 +205,61 @@ export function listInvoices(db: Db, workspaceId: string): Promise<IssuedInvoice
     .orderBy(invoices.issuedAt)
 }
 
+/** Open (un-invoiced) billable hours + money per client — the Projects header
+ *  figures (design v6). Every completed, billable, un-invoiced, priced entry
+ *  whose project belongs to a client, grouped by client, most-money first. */
+export interface ClientOpen {
+  readonly clientId: string
+  readonly openMs: number
+  readonly openMinor: number
+}
+
+export async function openBillableByClient(
+  db: Db,
+  workspaceId: string,
+): Promise<{ clients: ClientOpen[]; currencyCode: string }> {
+  const clientByProject = new Map<string, string | null>()
+  for (const p of await db
+    .select({ id: projects.id, clientId: projects.clientId })
+    .from(projects)
+    .where(and(eq(projects.workspaceId, workspaceId), isNull(projects.deletedAt)))) {
+    clientByProject.set(p.id, p.clientId)
+  }
+
+  const rows = await db
+    .select()
+    .from(timeEntries)
+    .where(
+      and(
+        eq(timeEntries.workspaceId, workspaceId),
+        isNull(timeEntries.deletedAt),
+        isNull(timeEntries.invoicedAt),
+        eq(timeEntries.billable, true),
+      ),
+    )
+  const rules = (await listRates(db, workspaceId)).map(toRule)
+  // All-time window: 0 → max instant, so every completed billable entry is a line.
+  const lines = invoiceLines(rows.map(toDomainEntry), clientByProject, rules, {
+    from: 0,
+    to: Number.MAX_SAFE_INTEGER,
+  })
+
+  const byClient = new Map<string, { ms: number; minor: number }>()
+  for (const l of lines) {
+    const clientId = clientByProject.get(l.projectId)
+    if (!clientId) continue // internal/no-client work is not billed to anyone
+    const acc = byClient.get(clientId) ?? { ms: 0, minor: 0 }
+    acc.ms += l.durationMs
+    acc.minor += l.amountMinor
+    byClient.set(clientId, acc)
+  }
+
+  const clients = [...byClient.entries()]
+    .map(([clientId, v]) => ({ clientId, openMs: v.ms, openMinor: v.minor }))
+    .sort((a, b) => b.openMinor - a.openMinor || a.clientId.localeCompare(b.clientId))
+  return { clients, currencyCode: await workspaceCurrency(db, workspaceId) }
+}
+
 async function assertClient(db: Db, workspaceId: string, clientId: string): Promise<void> {
   const rows = await db
     .select({ id: clients.id })
