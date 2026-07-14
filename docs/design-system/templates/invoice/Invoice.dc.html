@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Rechnung" description="Edle, warme Kunden-Rechnung im DevTime-Look — A4, druckfertig als PDF" -->
+<helmet><script src="./ds-base.js"></script><meta name="format-detection" content="telephone=no" /><style>a, a[href^="tel"], a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !important; }</style></helmet>
+<div style="width: 794px; min-height: 1123px; margin: 0 auto; box-sizing: border-box; background: #fffcf8; color: #101828; padding: 60px 64px 48px; font-family: var(--font-ui, Inter, sans-serif); display: flex; flex-direction: column; position: relative">
+  <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 44px">
+    <span style="display: inline-flex; align-items: center; gap: 10px"><img src="../../assets/logo/icon-light.svg" alt="" style="height: 36px; display: block" /><img src="../../assets/logo/wordmark.svg" alt="myDevTime" style="height: 24px; display: block" /></span>
+    <div style="text-align: right; font-size: 11.5px; line-height: 1.6; color: #667085">
+      <div style="font-weight: 700; color: #101828">Suhay Sevinc · Softwareentwicklung</div>
+      <div>Hauptstraße 12 · 78176 Blumberg</div>
+      <div>hallo@devtime.app · +49 170 000 00 00</div>
+    </div>
+  </div>
+  <div style="height: 3px; background: linear-gradient(90deg, #ff5320 0%, #ff5320 120px, #f2e9e2 120px, #f2e9e2 100%); border-radius: 2px; margin-bottom: 44px"></div>
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 36px">
+    <div>
+      <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #98a2b3; margin-bottom: 8px">Rechnung an</div>
+      <div style="font-size: 15px; font-weight: 700; margin-bottom: 3px">{{ client }}</div>
+      <div style="font-size: 12.5px; color: #667085; line-height: 1.6">Marienplatz 4<br />78462 Konstanz</div>
+    </div>
+    <div style="text-align: right">
+      <div style="font-family: var(--font-display, sans-serif); font-size: 34px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 10px">Rechnung</div>
+      <div style="font-family: var(--font-mono, monospace); font-size: 12px; color: #667085; line-height: 1.75; font-variant-numeric: tabular-nums">
+        <div>Nr. <span style="color: #101828; font-weight: 600">{{ invoiceNo }}</span></div>
+        <div>Datum <span style="color: #101828; font-weight: 600">14.07.2026</span></div>
+        <div>Leistungszeitraum <span style="color: #101828; font-weight: 600">01.07.–13.07.2026</span></div>
+      </div>
+    </div>
+  </div>
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 28px">
+    <thead>
+      <tr>
+        <th style="text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #98a2b3; padding: 0 0 10px; border-bottom: 1.5px solid #101828">Leistung</th>
+        <th style="text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #98a2b3; padding: 0 0 10px 16px; border-bottom: 1.5px solid #101828">Datum</th>
+        <th style="text-align: right; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #98a2b3; padding: 0 0 10px 16px; border-bottom: 1.5px solid #101828">Std.</th>
+        <th style="text-align: right; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #98a2b3; padding: 0 0 10px 16px; border-bottom: 1.5px solid #101828">Satz</th>
+        <th style="text-align: right; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #98a2b3; padding: 0 0 10px 16px; border-bottom: 1.5px solid #101828">Betrag</th>
+      </tr>
+    </thead>
+    <tbody>
+      <sc-for list="{{ rows }}" as="r" hint-placeholder-count="4">
+        <tr>
+          <td style="padding: 11px 0; border-bottom: 1px solid #f2e9e2; font-size: 13px"><span style="font-weight: 600">{{ r.title }}</span><br /><span style="font-size: 11px; color: #98a2b3">{{ r.project }}</span></td>
+          <td style="padding: 11px 0 11px 16px; border-bottom: 1px solid #f2e9e2; font-family: var(--font-mono, monospace); font-size: 11.5px; color: #667085; white-space: nowrap; font-variant-numeric: tabular-nums">{{ r.date }}</td>
+          <td style="padding: 11px 0 11px 16px; border-bottom: 1px solid #f2e9e2; text-align: right; font-family: var(--font-mono, monospace); font-size: 12px; font-variant-numeric: tabular-nums">{{ r.hours }}</td>
+          <td style="padding: 11px 0 11px 16px; border-bottom: 1px solid #f2e9e2; text-align: right; font-family: var(--font-mono, monospace); font-size: 12px; color: #667085; font-variant-numeric: tabular-nums">{{ r.rate }}</td>
+          <td style="padding: 11px 0 11px 16px; border-bottom: 1px solid #f2e9e2; text-align: right; font-family: var(--font-mono, monospace); font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums">{{ r.amount }}</td>
+        </tr>
+      </sc-for>
+    </tbody>
+  </table>
+  <div style="display: flex; justify-content: flex-end; margin-bottom: 36px">
+    <div style="width: 300px">
+      <div style="display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; color: #667085"><span>Gesamtstunden</span><span style="font-family: var(--font-mono, monospace); color: #101828; font-variant-numeric: tabular-nums">{{ totalHours }}</span></div>
+      <div style="display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; color: #667085"><span>Zwischensumme</span><span style="font-family: var(--font-mono, monospace); color: #101828; font-variant-numeric: tabular-nums">{{ netto }}</span></div>
+      <sc-if value="{{ showVat }}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; color: #667085"><span>Umsatzsteuer 19 %</span><span style="font-family: var(--font-mono, monospace); color: #101828; font-variant-numeric: tabular-nums">{{ vat }}</span></div>
+      </sc-if>
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; padding: 12px 16px; background: #101828; border-radius: 10px; color: #fff">
+        <span style="font-size: 13px; font-weight: 700">Gesamtbetrag</span>
+        <span style="font-family: var(--font-mono, monospace); font-size: 19px; font-weight: 700; color: #ff8a5c; font-variant-numeric: tabular-nums">{{ brutto }}</span>
+      </div>
+    </div>
+  </div>
+  <div style="font-size: 12.5px; line-height: 1.65; color: #475467; margin-bottom: 10px">
+    <sc-if value="{{ kleinunternehmer }}" hint-placeholder-val="{{ false }}">
+      <p style="margin: 0 0 10px">Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.</p>
+    </sc-if>
+    <p style="margin: 0">Zahlbar innerhalb von <b>14 Tagen</b> ohne Abzug auf das unten genannte Konto. Vielen Dank für die gute Zusammenarbeit — ich freue mich auf das nächste Projekt.</p>
+  </div>
+  <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid #f2e9e2; display: flex; gap: 32px; font-size: 10.5px; line-height: 1.7; color: #98a2b3">
+    <div><b style="color: #667085">Bank</b><br />Sparkasse Schwarzwald-Baar<br />IBAN DE21 6945 0065 0000 0000 00</div>
+    <div><b style="color: #667085">Steuer</b><br />USt-IdNr. DE000000000<br />Steuernr. 09&#8288;000/&#8288;00&#8288;000</div>
+    <div style="margin-left: auto; text-align: right"><b style="color: #667085">DevTime</b><br />Erstellt mit devtime.app<br />aus {{ totalHours }} erfassten Stunden</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:840,&quot;height&quot;:1160},&quot;client&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Finanzo AG&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Rechnung&quot;},&quot;invoiceNo&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;2026-041&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Rechnung&quot;},&quot;rate&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:78,&quot;min&quot;:20,&quot;max&quot;:250,&quot;unit&quot;:&quot;€/h&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Rechnung&quot;},&quot;detail&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Darstellung&quot;},&quot;kleinunternehmer&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Rechnung&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const rate = this.props.rate ?? 78;
+    const rows = [
+      { title: 'Checkout-Flow Refactoring', project: 'Website Relaunch', date: '06.07.', h: 6.5 },
+      { title: 'Review + Deploy', project: 'Website Relaunch', date: '07.07.', h: 3.0 },
+      { title: 'Hotfix Login', project: 'Support-Retainer', date: '08.07.', h: 1.5 },
+      { title: 'CMS-Migration', project: 'Website Relaunch', date: '10.07.', h: 7.0 },
+    ];
+    const eur = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+    const hrs = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 1 }) + ' h';
+    const net = rows.reduce((a, r) => a + r.h * rate, 0);
+    const totalH = rows.reduce((a, r) => a + r.h, 0);
+    const ku = this.props.kleinunternehmer ?? false;
+    const vat = ku ? 0 : net * 0.19;
+    // Detailansicht optional: Standard ist eine Sammelposition pro Projekt
+    const detail = this.props.detail ?? false;
+    let shown;
+    if (detail) {
+      shown = rows.map((r) => ({ title: r.title, project: r.project, date: r.date, hours: hrs(r.h), rate: eur(rate), amount: eur(r.h * rate) }));
+    } else {
+      const byProj = {};
+      rows.forEach((r) => { (byProj[r.project] = byProj[r.project] || []).push(r); });
+      shown = Object.entries(byProj).map(([p, rs]) => {
+        const h = rs.reduce((a, r) => a + r.h, 0);
+        return { title: 'Entwicklungsleistung · ' + p, project: rs.length + (rs.length === 1 ? ' Eintrag' : ' Einträge') + ', Nachweis auf Anfrage', date: rs[0].date + '–' + rs[rs.length - 1].date, hours: hrs(h), rate: eur(rate), amount: eur(h * rate) };
+      });
+    }
+    return {
+      client: this.props.client ?? 'Finanzo AG',
+      invoiceNo: this.props.invoiceNo ?? '2026-041',
+      rows: shown,
+      totalHours: hrs(totalH),
+      netto: eur(net), vat: eur(vat), brutto: eur(net + vat),
+      showVat: !ku, kleinunternehmer: ku,
+    };
+  }
+}
+</script>
+</body>
+</html>
