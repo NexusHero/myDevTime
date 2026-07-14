@@ -307,8 +307,17 @@ export async function getInvoiceExport(
             .where(and(eq(clients.id, invoice.clientId), eq(clients.workspaceId, workspaceId)))
         )[0]?.name ?? null)
 
+  const senderName =
+    (
+      await db
+        .select({ name: workspaces.name })
+        .from(workspaces)
+        .where(eq(workspaces.id, workspaceId))
+    )[0]?.name ?? 'myDevTime'
+
   return {
     id: invoice.id,
+    senderName,
     clientName,
     periodStart: invoice.periodStart,
     periodEnd: invoice.periodEnd,

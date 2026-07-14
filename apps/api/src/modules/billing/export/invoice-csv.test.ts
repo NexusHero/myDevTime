@@ -10,6 +10,7 @@ import { invoiceToCsv, type InvoiceExport } from './invoice-csv.js'
 const H = 3_600_000
 const INVOICE: InvoiceExport = {
   id: 'inv-1',
+  senderName: 'Acme GmbH',
   clientName: 'Finanzo AG',
   periodStart: new Date('2026-07-01T00:00:00.000Z'),
   periodEnd: new Date('2026-08-01T00:00:00.000Z'),
