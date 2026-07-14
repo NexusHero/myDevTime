@@ -4,6 +4,7 @@ import {
   formatStopwatch,
   getRunning,
   listEntries,
+  patchEntryBillable,
   parseEntries,
   parseEntry,
   parseRunning,
@@ -92,6 +93,25 @@ describe('stopTimer', () => {
     const entry = await stopTimer('http://api', undefined, fetchImpl)
     expect(entry.endedAt).toBe('2026-07-10T10:00:00.000Z')
     expect(calls[0]?.method).toBe('POST')
+  })
+})
+
+describe('patchEntryBillable', () => {
+  it('PatchesTheEntryRouteWithTheBillableFlag', async () => {
+    let seenUrl = ''
+    const calls: RequestInit[] = []
+    const fetchImpl = ((url: string, init?: RequestInit) => {
+      seenUrl = url
+      calls.push(init ?? {})
+      return Promise.resolve(
+        new Response(JSON.stringify({ ...RUNNING, billable: false }), { status: 200 }),
+      )
+    }) as unknown as typeof fetch
+    const entry = await patchEntryBillable('http://api', 'e1', false, fetchImpl)
+    expect(seenUrl).toBe('http://api/api/tracking/entries/e1')
+    expect(calls[0]?.method).toBe('PATCH')
+    expect(calls[0]?.body).toBe(JSON.stringify({ billable: false }))
+    expect(entry.billable).toBe(false)
   })
 })
 

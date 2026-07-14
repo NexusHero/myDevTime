@@ -93,7 +93,11 @@ export function TodayScreen(): React.JSX.Element {
   const stacked = width < 720
   const [driftEvent, setDriftEvent] = useState(true)
   const [task, setTask] = useState('Sync engine: conflict resolution')
+  // B7 idle-detection (demo affordance): a 40-min gap while the timer ran. The three
+  // actions resolve it to a short confirmation, then the card dismisses. No backend
+  // idle signal exists yet, so this is clearly a preview (demo honesty, M7).
   const [idleHint, setIdleHint] = useState(true)
+  const [idleResolution, setIdleResolution] = useState<string | null>(null)
   const [dismissed, setDismissed] = useState<readonly number[]>([])
   // Punch-out mood is asked once, in the moment of stamping out — never a standing
   // widget (design v4 / OLBI rationale). Set on punch-out, cleared by the row itself.
@@ -135,6 +139,17 @@ export function TodayScreen(): React.JSX.Element {
     setDismissed([])
     planner.repropose()
     setDriftEvent(false)
+  }
+
+  // B7: an idle action dismisses the prompt and drops a confirmation toast with undo.
+  const IDLE_MSG = {
+    behalten: '40 min behalten — auf Sync engine gebucht.',
+    pause: '40 min als Pause markiert.',
+    verwerfen: '40 min verworfen — Timer um 12:20 gekürzt.',
+  } as const
+  const resolveIdle = (choice: keyof typeof IDLE_MSG): void => {
+    setIdleHint(false)
+    setIdleResolution(IDLE_MSG[choice])
   }
 
   const segColors = appSegmentColors(t)
@@ -195,6 +210,36 @@ export function TodayScreen(): React.JSX.Element {
           Sync engine
         </Text>
       </View>
+      {/* B5: billable € toggle — flips the running entry's billable flag live
+          (server-authoritative money, ADR-0005) or the next-start default. */}
+      <Pressable
+        onPress={() => timer.setBillable(!timer.billable)}
+        disabled={timer.busy}
+        accessibilityRole="switch"
+        accessibilityState={{ checked: timer.billable }}
+        accessibilityLabel="Abrechenbar"
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: 17,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: 1.5,
+          borderColor: timer.billable ? t.color.accent : t.color.borderStrong,
+          backgroundColor: timer.billable ? t.color.accentSoft : t.color.surface,
+        }}
+      >
+        <Text
+          style={{
+            fontFamily: t.fontFamily.display,
+            fontWeight: '700',
+            fontSize: 15,
+            color: timer.billable ? t.color.accent : t.color.ink3,
+          }}
+        >
+          €
+        </Text>
+      </Pressable>
       {isRunning && timer.running ? (
         <ReanimatedTimer
           startedAt={timer.running.startedAt}
@@ -588,26 +633,73 @@ export function TodayScreen(): React.JSX.Element {
             style={{
               flexDirection: 'row',
               alignItems: 'center',
+              flexWrap: 'wrap',
               gap: t.spacing.s3,
               paddingVertical: t.spacing.s3,
               paddingHorizontal: t.spacing.s4,
-              borderWidth: 1.5,
-              borderStyle: 'dashed',
-              borderColor: t.color.borderStrong,
+              borderWidth: 1,
+              borderColor: t.color.warn,
+              borderRadius: t.radius.card,
+              backgroundColor: t.color.warnSoft,
+            }}
+          >
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.color.warn }} />
+            <Text
+              style={{
+                flexGrow: 1,
+                flexShrink: 1,
+                flexBasis: 200,
+                fontSize: t.fontSize.xs,
+                color: t.color.ink,
+              }}
+            >
+              <Text style={{ fontWeight: '600' }}>40 min inaktiv</Text>
+              <Text style={{ color: t.color.ink2 }}>
+                {' (12:20–13:00) — Timer lief weiter. Was soll damit passieren?'}
+              </Text>
+            </Text>
+            <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
+              <Button size="sm" variant="secondary" onPress={() => resolveIdle('behalten')}>
+                Behalten
+              </Button>
+              <Button size="sm" variant="secondary" onPress={() => resolveIdle('pause')}>
+                Als Pause
+              </Button>
+              <Button size="sm" onPress={() => resolveIdle('verwerfen')}>
+                Verwerfen
+              </Button>
+            </View>
+          </View>
+        )}
+
+        {idleResolution !== null && (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: t.spacing.s3,
+              paddingVertical: t.spacing.s3,
+              paddingHorizontal: t.spacing.s4,
+              borderWidth: 1,
+              borderColor: t.color.border,
               borderRadius: t.radius.card,
               backgroundColor: t.color.surface,
             }}
           >
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.color.warn }} />
-            <Text style={{ flex: 1, fontSize: t.fontSize.xs, color: t.color.ink2 }}>
-              <Text style={{ color: t.color.ink, fontWeight: '600' }}>14 min ohne Aktivität</Text>
-              {' (12:04–12:18) — Timer um die Lücke kürzen?'}
+            <Text
+              style={{ flex: 1, fontSize: t.fontSize.xs, fontWeight: '600', color: t.color.ink }}
+            >
+              {idleResolution}
             </Text>
-            <Button size="sm" variant="secondary" onPress={() => setIdleHint(false)}>
-              Kürzen
-            </Button>
-            <Button size="sm" variant="ghost" onPress={() => setIdleHint(false)}>
-              Behalten
+            <Button
+              size="sm"
+              variant="ghost"
+              onPress={() => {
+                setIdleResolution(null)
+                setIdleHint(true)
+              }}
+            >
+              Rückgängig
             </Button>
           </View>
         )}
