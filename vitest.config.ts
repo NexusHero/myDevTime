@@ -33,17 +33,20 @@ export default defineConfig({
       // react-native-svg's commonjs entry does require('react-native') which
       // bypasses Vite's alias and hits Flow syntax Node can't parse.  Alias to
       // a lightweight test shim instead.
-      'react-native-svg': new URL('./test/__mocks__/react-native-svg.tsx', import.meta.url)
-        .pathname,
+      'react-native-svg': new URL(
+        './apps/mobile/test/__mocks__/react-native-svg.tsx',
+        import.meta.url,
+      ).pathname,
       // react-native-reanimated needs the native/worklet runtime; alias to a test
       // shim so component render tests don't load its native source (ADR-0027).
       'react-native-reanimated': new URL(
-        './test/__mocks__/react-native-reanimated.tsx',
+        './apps/mobile/test/__mocks__/react-native-reanimated.tsx',
         import.meta.url,
       ).pathname,
       // @shopify/flash-list ships native/Flow syntax Vitest can't transform, and
       // virtualization is irrelevant to render tests — alias to an eager shim (ADR-0027).
-      '@shopify/flash-list': new URL('./test/__mocks__/flash-list.tsx', import.meta.url).pathname,
+      '@shopify/flash-list': new URL('./apps/mobile/test/__mocks__/flash-list.tsx', import.meta.url)
+        .pathname,
       // Workspace packages → source so Vitest transforms them via SWC/Oxc
       '@mydevtime/design': new URL('./packages/design/src/index.ts', import.meta.url).pathname,
       '@mydevtime/domain': new URL('./packages/domain/src/index.ts', import.meta.url).pathname,

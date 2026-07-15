@@ -292,6 +292,8 @@ export function ProfileScreen({
                     alignItems: 'center',
                     justifyContent: 'center',
                     backgroundColor: workday ? t.color.accentSoft : t.color.sunk,
+                    borderWidth: workday ? t.borderWidth.medium : 0,
+                    borderColor: t.color.accent,
                   }}
                 >
                   <Text

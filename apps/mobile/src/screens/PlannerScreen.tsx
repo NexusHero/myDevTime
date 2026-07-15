@@ -521,6 +521,22 @@ function DayColumn({
             }}
           />
         ))}
+        {/* 30-min dotted hairlines — a finer grid for the 15-min snapping (design v6). */}
+        {Array.from({ length: END_HOUR - START_HOUR }, (_, i) => 30 + i * 60).map(min => (
+          <View
+            key={`half-${String(min)}`}
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: (min / SPAN) * BODY_HEIGHT,
+              borderTopWidth: 1,
+              borderTopColor: t.color.border,
+              borderStyle: 'dotted',
+              opacity: 0.25,
+            }}
+          />
+        ))}
         {dayEntries.map(({ b, globalIndex }, i) => (
           <CanvasBlockView
             key={`${b.label}-${String(i)}`}
@@ -536,7 +552,17 @@ function DayColumn({
             style={{ position: 'absolute', left: 0, right: 0, top: (NOW_MIN / SPAN) * BODY_HEIGHT }}
             pointerEvents="none"
           >
-            <View style={{ height: 2, backgroundColor: t.color.live }} />
+            <View
+              style={{
+                height: 2,
+                backgroundColor: t.color.live,
+                shadowColor: t.color.live,
+                shadowOpacity: 0.6,
+                shadowRadius: 4,
+                shadowOffset: { width: 0, height: 0 },
+                elevation: 2,
+              }}
+            />
             <View
               style={{
                 position: 'absolute',

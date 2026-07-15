@@ -429,7 +429,7 @@ export function TodayScreen(): React.JSX.Element {
         <View
           style={{
             flexDirection: 'row',
-            alignItems: 'center',
+            alignItems: 'baseline',
             flexWrap: 'wrap',
             gap: t.spacing.s3,
           }}
@@ -437,10 +437,10 @@ export function TodayScreen(): React.JSX.Element {
           <Text
             style={{
               fontWeight: '700',
-              fontSize: t.fontSize.xl,
+              fontSize: t.fontSize['2xl'],
               color: t.color.ink,
               fontFamily: t.fontFamily.display,
-              letterSpacing: t.fontSize.xl * t.letterSpacing.tight,
+              letterSpacing: t.fontSize['2xl'] * t.letterSpacing.tight,
             }}
           >
             Today
