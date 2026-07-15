@@ -4,7 +4,6 @@
   "apps/mobile/src/components/core/Button.tsx": 1,
   "apps/mobile/src/components/forms/SegmentedControl.tsx": 1,
   "apps/mobile/src/components/forms/Switch.tsx": 1,
-  "apps/mobile/src/components/planner/PlannerMonthView.tsx": 1,
   "apps/mobile/src/components/planner/TaskInbox.tsx": 1,
   "apps/mobile/src/onboarding/OnboardingFlow.tsx": 4,
   "apps/mobile/src/screens/AssistantScreen.tsx": 1,

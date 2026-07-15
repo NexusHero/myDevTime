@@ -15,23 +15,15 @@ import {
 
 /**
  * The Co-Planner data source (REQ-031, ADR-0011). When an API base URL is
- * configured the hook loads today's proposed plan (generating one on first visit)
- * and lets the user re-propose; otherwise — the default in local dev and the test
- * gate — it resolves an illustrative demo plan. `live` lets the UI flag demo data.
- * The blocks are the deterministic core's; the client only renders them. The day
- * frame is 08:00–18:00; the backlog is a sensible default until real task
- * estimates feed it (a follow-up).
+ * configured the hook loads today's proposed plan and lets the user re-propose;
+ * otherwise — the default in local dev and the test gate — there is no plan and the
+ * screen shows its empty state. The app fabricates no plan and sends no invented
+ * backlog to the backend; real anchors/estimates from the calendar + tracking data
+ * feed the generator in a follow-up. `live` lets the UI flag that the plan is
+ * API-backed; the blocks are the deterministic core's. The day frame is 08:00–18:00.
  */
 const DAY_START = 8 * 60
 const DAY_END = 18 * 60
-
-const DEFAULT_ANCHORS = [{ startMin: 9 * 60, lenMin: 30, label: 'Daily standup' }]
-const DEFAULT_BACKLOG: PlanCandidate[] = [
-  { id: 'sync-engine', label: 'Sync engine', estimateMin: 150, priority: 1 },
-  { id: 'finanzo', label: 'Finanzo API', estimateMin: 120, priority: 2 },
-  { id: 'reviews', label: 'Code reviews', estimateMin: 60, priority: 3 },
-  { id: 'nordwind', label: 'Website relaunch', estimateMin: 90, priority: 4 },
-]
 
 function todayIso(): string {
   const now = new Date()
@@ -39,35 +31,18 @@ function todayIso(): string {
   return `${String(now.getFullYear())}-${p(now.getMonth() + 1)}-${p(now.getDate())}`
 }
 
-function demoPlan(date: string): DayPlan {
-  return {
-    id: 'demo',
-    date,
-    version: 1,
-    status: 'proposed',
-    plannedFocusMin: 405,
-    unplacedMin: 15,
-    blocks: [
-      { startMin: 480, lenMin: 60, kind: 'focus', label: 'Sync engine', taskId: 'sync-engine' },
-      { startMin: 540, lenMin: 30, kind: 'meeting', label: 'Daily standup', taskId: null },
-      { startMin: 570, lenMin: 90, kind: 'focus', label: 'Sync engine', taskId: 'sync-engine' },
-      { startMin: 660, lenMin: 15, kind: 'break', label: 'Break', taskId: null },
-      { startMin: 675, lenMin: 120, kind: 'focus', label: 'Finanzo API', taskId: 'finanzo' },
-      { startMin: 795, lenMin: 60, kind: 'focus', label: 'Code reviews', taskId: 'reviews' },
-      { startMin: 855, lenMin: 15, kind: 'break', label: 'Break', taskId: null },
-      { startMin: 870, lenMin: 75, kind: 'focus', label: 'Website relaunch', taskId: 'nordwind' },
-    ],
-    droppedAnchors: [{ startMin: 540, lenMin: 30, label: 'Vendor sync (overlaps standup)' }],
-  }
-}
-
+/**
+ * The generator input for a re-propose. Until the calendar/tracking feed real
+ * anchors + task estimates (a follow-up) there are none, so a re-propose yields an
+ * honestly empty day rather than an invented one.
+ */
 function defaultInput(date: string): GeneratePlanInput {
   return {
     date,
     dayStartMin: DAY_START,
     dayEndMin: DAY_END,
-    anchors: DEFAULT_ANCHORS,
-    backlog: DEFAULT_BACKLOG,
+    anchors: [],
+    backlog: [] as PlanCandidate[],
   }
 }
 
@@ -96,7 +71,6 @@ export function usePlanner(): PlannerResource {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [busy, setBusy] = useState(false)
-  const [reloadKey, setReloadKey] = useState(0)
   const [review, setReview] = useState<PlanReview | null>(null)
   const [briefing, setBriefing] = useState<PlanBriefing | null>(null)
   const [briefingBusy, setBriefingBusy] = useState(false)
@@ -106,9 +80,7 @@ export function usePlanner(): PlannerResource {
     setLoading(true)
     const date = todayIso()
     const load: Promise<DayPlan | null> =
-      base === null
-        ? Promise.resolve(demoPlan(date))
-        : getPlan(base, date).then(existing => existing ?? generatePlan(base, defaultInput(date)))
+      base === null ? Promise.resolve(null) : getPlan(base, date)
     load
       .then(p => {
         if (!alive) return
@@ -124,22 +96,12 @@ export function usePlanner(): PlannerResource {
     return () => {
       alive = false
     }
-  }, [base, reloadKey])
+  }, [base])
 
-  // Evening review: plan-vs-actual focus. Live plans read the deterministic core's
-  // review; the demo shows an illustrative under-plan drift.
+  // Evening review: plan-vs-actual focus, read from the deterministic core.
   useEffect(() => {
-    if (plan === null) {
+    if (plan === null || base === null) {
       setReview(null)
-      return
-    }
-    if (base === null) {
-      const tracked = Math.max(0, plan.plannedFocusMin - 45)
-      setReview({
-        plannedFocusMin: plan.plannedFocusMin,
-        trackedFocusMin: tracked,
-        driftMin: tracked - plan.plannedFocusMin,
-      })
       return
     }
     let alive = true
@@ -156,18 +118,7 @@ export function usePlanner(): PlannerResource {
   }, [base, plan])
 
   const requestBriefing = useCallback(() => {
-    if (plan === null) return
-    if (base === null) {
-      // Demo: an illustrative deterministic summary (the AI text needs the backend).
-      const meetings = plan.blocks.filter(b => b.kind === 'meeting').length
-      const parts = [
-        `Heute ${String(Math.round(plan.plannedFocusMin / 60))} h Fokus, ${String(meetings)} Termine.`,
-      ]
-      if (plan.unplacedMin > 0)
-        parts.push('Backlog ohne Platz — priorisiere die wichtigsten Aufgaben.')
-      setBriefing({ source: 'deterministic', charged: false, text: parts.join(' ') })
-      return
-    }
+    if (plan === null || base === null) return
     setBriefingBusy(true)
     getPlanBriefing(base, plan.id)
       .then(b => {
@@ -183,11 +134,7 @@ export function usePlanner(): PlannerResource {
   }, [base, plan])
 
   const accept = useCallback(() => {
-    if (plan === null || base === null) {
-      // Demo/no plan: reflect acceptance locally so the UI still confirms.
-      if (plan !== null) setPlan({ ...plan, status: 'accepted' })
-      return
-    }
+    if (plan === null || base === null) return
     setBusy(true)
     setPlanStatus(base, plan.id, 'accepted')
       .then(p => {
@@ -204,10 +151,7 @@ export function usePlanner(): PlannerResource {
 
   const repropose = useCallback(() => {
     setBriefing(null)
-    if (base === null) {
-      setReloadKey(k => k + 1) // demo: re-resolve the demo plan
-      return
-    }
+    if (base === null) return // no backend → nothing to propose
     setBusy(true)
     generatePlan(base, defaultInput(todayIso()))
       .then(p => {

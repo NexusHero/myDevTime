@@ -1,7 +1,7 @@
 import { View } from 'react-native'
 import { monthGrid, weekdayHeaders } from '@mydevtime/design'
 import { Text } from '../components/core/Text'
-import { Badge, Card, LeaveBalance, Row, ScreenScaffold } from '../components/index'
+import { Badge, Card, EmptyState, LeaveBalance, Row, ScreenScaffold } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
 import { SubScreenHeader } from './SubScreenHeader'
 import { useAbsences } from '../hooks/useAbsences'
@@ -12,7 +12,8 @@ import type { Absence, AbsenceKind } from '../api/absences'
  * calendar the Profile hub links into. The month grid comes from the pure, tested
  * `monthGrid` helper; the day markers, the remaining-days balance, and the
  * upcoming list are fed by the `absences` module (`useAbsences`) — the balance is
- * the deterministic core's (ADR-0005) — with demo data as the offline fallback.
+ * the deterministic core's (ADR-0005). Loading and error states are surfaced; with
+ * no backend the calendar is simply empty.
  */
 function kindColor(kind: AbsenceKind, t: ReturnType<typeof useTheme>): string {
   if (kind === 'vacation') return t.color.good
@@ -54,19 +55,7 @@ function rangeLabel(a: Absence): string {
 
 export function AbsencesScreen({ onBack }: { onBack: () => void }): React.JSX.Element {
   const t = useTheme()
-  const { data, live } = useAbsences()
-  const month = data?.month ?? { year: 2026, month0: 6, label: 'July 2026', today: 1 }
-  const marks = data?.marks ?? {}
-  const balance = data?.balance ?? {
-    allowanceDays: 30,
-    carryOverDays: 0,
-    usedDays: 0,
-    remainingDays: 30,
-  }
-  const upcoming = data?.upcoming ?? []
-
-  const weeks = monthGrid(month.year, month.month0, true)
-  const headers = weekdayHeaders(true)
+  const { data, loading, error } = useAbsences()
 
   const header = (
     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: t.spacing.s2 }}>
@@ -77,9 +66,32 @@ export function AbsencesScreen({ onBack }: { onBack: () => void }): React.JSX.El
           onBack={onBack}
         />
       </View>
-      {!live && <Badge tone="neutral">Demo data</Badge>}
     </View>
   )
+
+  if (data === null) {
+    return (
+      <ScreenScaffold header={header}>
+        <Card>
+          {error ? (
+            <Text style={{ color: t.color.crit }}>Couldn’t load absences — {error.message}</Text>
+          ) : loading ? (
+            <Text style={{ color: t.color.ink2 }}>Loading absences…</Text>
+          ) : (
+            <EmptyState
+              title="No absences yet"
+              hint="Book vacation or sick days to see them here."
+            />
+          )}
+        </Card>
+      </ScreenScaffold>
+    )
+  }
+
+  const { month, marks, balance, upcoming } = data
+
+  const weeks = monthGrid(month.year, month.month0, true)
+  const headers = weekdayHeaders(true)
 
   return (
     <ScreenScaffold header={header}>
