@@ -201,6 +201,10 @@ function CanvasBlockView({
   readonly colWidth: number
 }): React.JSX.Element {
   const t = useTheme()
+  // Pointer hover (web) pops a squeezed lane block to full width; the resize flag
+  // drives the live time pill. Both are no-ops on touch, where hover doesn't exist.
+  const [hovered, setHovered] = useState(false)
+  const [resizing, setResizing] = useState(false)
   const rect = plannerBlockRect(block.start, block.len, SPAN)
   const color = canvasBlockColor(t, block)
   const px = Math.max(rect.height * BODY_HEIGHT, 13)
@@ -225,12 +229,15 @@ function CanvasBlockView({
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {
         grantLen.current = live.current.len
+        setResizing(true)
       },
       onPanResponderMove: (_e, g) => {
         const deltaMin = (g.dy * SPAN) / BODY_HEIGHT
         const next = snapDurationMin(grantLen.current + deltaMin, 15, 15, SPAN - live.current.start)
         live.current.onResize?.(next)
       },
+      onPanResponderRelease: () => setResizing(false),
+      onPanResponderTerminate: () => setResizing(false),
     }),
   ).current
 
@@ -267,15 +274,28 @@ function CanvasBlockView({
     }),
   ).current
 
-  // Lane geometry: full width for a lone block, else an equal share with a small gap.
+  // Overbooking pop: hovering a squeezed lane block (design v6) expands it to the
+  // full column and lifts it above its siblings, so a crammed slot stays readable
+  // without a drag. Suppressed while dragging so the two gestures never fight.
+  const popped = hovered && placement.lanes > 1 && dragXY === null
+
+  // Lane geometry: full width for a lone (or popped) block, else an equal share.
   const GUTTER_PAD = 4
   const laneStyle =
-    placement.lanes <= 1
+    placement.lanes <= 1 || popped
       ? { left: GUTTER_PAD, right: GUTTER_PAD }
       : {
           left: `${(placement.lane / placement.lanes) * 100}%` as const,
           width: `${100 / placement.lanes}%` as const,
         }
+  // A lifted block (popped or dragging) casts a shadow so it reads as "on top".
+  const elevatedShadow = {
+    shadowColor: t.color.ink,
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  }
 
   const labelColor = solidMeeting
     ? '#ffffff'
@@ -289,17 +309,54 @@ function CanvasBlockView({
   const timeColor = solidMeeting ? 'rgba(255,255,255,0.85)' : isGhost ? color : t.color.ink2
   const badgeColor = solidMeeting ? 'rgba(255,255,255,0.85)' : labelColor
 
+  const baseBg = solidMeeting
+    ? color
+    : block.kind === 'actual'
+      ? `${color}22`
+      : isBreak || fyi
+        ? t.color.sunk
+        : 'transparent'
+  // A popped block overlaps its neighbours, so a see-through one gets a solid
+  // surface to stay legible over what it now covers.
+  const backgroundColor = popped && baseBg === 'transparent' ? t.color.surface : baseBg
+
+  // Live target-time pill: while resizing, the block's own live length is exact;
+  // while dragging, project the drop target through the same deterministic mapping.
+  const dragPreview =
+    dragXY !== null
+      ? dropTarget(
+          dragXY.x,
+          dragXY.y,
+          { day: block.day, startMin: block.start, lenMin: block.len },
+          {
+            colWidth,
+            minPerPx: SPAN / BODY_HEIGHT,
+            dayCount: weekDays.length,
+            spanMin: SPAN,
+          },
+        )
+      : null
+  const showTime = resizing || dragXY !== null
+  const previewStart = dragPreview?.startMin ?? block.start
+
   return (
     <View
       {...(onMove !== undefined ? dragResponder.panHandlers : {})}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
       style={{
         position: 'absolute',
         top: rect.top * BODY_HEIGHT + 1,
         height: px,
-        marginHorizontal: placement.lanes > 1 ? 1 : 0,
+        marginHorizontal: placement.lanes > 1 && !popped ? 1 : 0,
         ...laneStyle,
+        ...(popped ? { zIndex: 20, ...elevatedShadow } : null),
         ...(dragXY !== null
-          ? { transform: [{ translateX: dragXY.x }, { translateY: dragXY.y }], zIndex: 30 }
+          ? {
+              transform: [{ translateX: dragXY.x }, { translateY: dragXY.y }],
+              zIndex: 30,
+              ...elevatedShadow,
+            }
           : null),
         borderRadius: t.radius.chip,
         paddingHorizontal: 7,
@@ -326,16 +383,36 @@ function CanvasBlockView({
               : isBreak
                 ? t.color.borderStrong
                 : undefined,
-        backgroundColor: solidMeeting
-          ? color
-          : block.kind === 'actual'
-            ? `${color}22`
-            : isBreak || fyi
-              ? t.color.sunk
-              : 'transparent',
+        backgroundColor,
         opacity: dragXY !== null ? 0.9 : fyi ? 0.85 : 1,
       }}
     >
+      {showTime && (
+        <View
+          style={{
+            position: 'absolute',
+            top: 1,
+            right: 1,
+            zIndex: 40,
+            paddingHorizontal: 6,
+            paddingVertical: 1,
+            borderRadius: t.radius.pill,
+            backgroundColor: t.color.ink,
+          }}
+          pointerEvents="none"
+        >
+          <Text
+            style={{
+              fontFamily: t.fontFamily.numeric,
+              fontSize: t.fontSize['2xs'],
+              fontWeight: '700',
+              color: t.color.bg,
+            }}
+          >
+            {clock(previewStart)}–{clock(previewStart + block.len)}
+          </Text>
+        </View>
+      )}
       {px >= 24 && (
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {block.rec === true && <BlockBadge label="↻" color={badgeColor} />}
