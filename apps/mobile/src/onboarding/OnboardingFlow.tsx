@@ -605,12 +605,6 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
               {(
                 [
                   ['Target hours', `${fmtHM(daily)} h/day · ${fmtHM(daily * 5)} h/week`],
-                  [
-                    'Projects',
-                    projects.length > 0
-                      ? `${String(projects.length)} created`
-                      : 'none yet — later is fine too',
-                  ],
                   ['Auto-Tracker', tracker ? 'active (local)' : 'off'],
                 ] as const
               ).map(([k, v]) => (
