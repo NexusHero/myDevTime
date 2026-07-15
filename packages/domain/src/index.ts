@@ -157,3 +157,14 @@ export { FREE } from './entitlements/types.js'
 export { deriveEntitlement } from './entitlements/derive.js'
 export type { Feature } from './entitlements/features.js'
 export { can, featuresFor } from './entitlements/features.js'
+
+// Auto-Tracker (REQ-042, ADR-0057) — deterministic aggregation of "app usage while
+// tracking" spans into a percentage-correct breakdown. OS/browser capture is a
+// client adapter behind a narrow port; this core is pure and framework-free (ADR-0005).
+export type {
+  ActivitySample,
+  ActivitySegment,
+  ActivityBreakdown,
+  SummarizeOptions,
+} from './autotracker/activity.js'
+export { summarizeActivity } from './autotracker/activity.js'
