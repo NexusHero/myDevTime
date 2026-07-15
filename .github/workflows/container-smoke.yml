@@ -38,7 +38,7 @@ jobs:
       # Build the api + web images from the production Dockerfiles, with a GHA
       # layer cache so repeat runs don't rebuild from scratch.
       - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build images
         run: docker compose -f docker-compose.yml -f docker-compose.ci.yml build
