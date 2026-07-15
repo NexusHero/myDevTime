@@ -14,11 +14,20 @@ spec:
     spec:
       containers:
         - name: api
-          image: ghcr.io/orga/mydevtime-api:latest
+          # Bootstrap tag; the deploy workflow pins the exact SHA via `kubectl set image`.
+          image: ghcr.io/nexushero/mydevtime-api:latest
           imagePullPolicy: Always
           env:
+            # Compose DATABASE_URL from the postgres secret so the password never
+            # appears in plaintext in this manifest. `$(POSTGRES_PASSWORD)` is
+            # interpolated by the kubelet because it is defined earlier in the list.
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
             - name: DATABASE_URL
-              value: 'postgres://mydevtime:mydevtime-secure-password@postgres:5432/mydevtime'
+              value: 'postgres://mydevtime:$(POSTGRES_PASSWORD)@postgres:5432/mydevtime'
             - name: REDIS_URL
               value: 'redis://redis:6379'
             - name: NODE_ENV
@@ -44,9 +53,18 @@ spec:
                   key: TRUSTED_ORIGINS
           ports:
             - containerPort: 3000
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: '1'
+              memory: 512Mi
+          # Liveness = process is up (no I/O); readiness = DB + Redis reachable, so a
+          # pod only takes traffic once its dependencies answer (health.controller.ts).
           readinessProbe:
             httpGet:
-              path: /health
+              path: /health/ready
               port: 3000
             initialDelaySeconds: 5
             periodSeconds: 10
