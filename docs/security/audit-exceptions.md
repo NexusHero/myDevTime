@@ -1,11 +1,20 @@
 # Dependency audit exceptions
 
-`pnpm audit --prod --audit-level high` is a CI gate ([`.github/workflows/security.yml`](../../.github/workflows/security.yml),
-ADR-0016). This file documents every advisory we knowingly accept, so the
-allowlist is auditable and revisited — not a silent suppression.
+The dependency-vulnerability CI gate ([`.github/workflows/security.yml`](../../.github/workflows/security.yml),
+ADR-0016) runs **OSV-Scanner** over the pnpm lockfile. This file documents every
+advisory we knowingly accept, so the allowlist is auditable and revisited — not a
+silent suppression.
+
+> **Why not `pnpm audit`?** In 2026-07 npm retired its audit endpoints (they now
+> return HTTP 410, "use the bulk advisory endpoint"), which broke `pnpm audit`
+> registry-wide. OSV-Scanner queries the OSV database directly from the lockfile,
+> so it does not depend on the npm audit endpoint.
 
 Configuration lives in the root [`package.json`](../../package.json) under
-`pnpm.overrides` (fixes) and `pnpm.auditConfig.ignoreGhsas` (accepted).
+`pnpm.overrides` (fixes) and in [`osv-scanner.toml`](../../osv-scanner.toml)
+(`[[IgnoredVulns]]`, accepted). The legacy `pnpm.auditConfig.ignoreGhsas` list is
+kept in sync for anyone running `pnpm audit` locally, but CI reads
+`osv-scanner.toml`.
 
 ## Fixed via override
 
@@ -34,7 +43,12 @@ toolchain.
 | GHSA-r6q2-hw4h-h46w | tar | expo > @expo/cli > tar |
 
 **Revisit when:** the Expo SDK is upgraded (each SDK bump tends to move
-`@expo/cli` onto a newer `tar`). At that point, re-run `pnpm audit --prod` and
-remove any GHSA that no longer resolves — the goal is to keep this list as short
-as the toolchain allows, and to never allowlist an advisory in code we actually
-ship.
+`@expo/cli` onto a newer `tar`). At that point, re-run the scan and remove any
+GHSA that no longer resolves from both `osv-scanner.toml` and the legacy
+`pnpm.auditConfig.ignoreGhsas` — the goal is to keep this list as short as the
+toolchain allows, and to never allowlist an advisory in code we actually ship.
+
+> **Scope note:** OSV-Scanner scans the whole lockfile, not only the `--prod`
+> subtree `pnpm audit` used to. Dev/build-time advisories can therefore surface
+> here; add them to `osv-scanner.toml` with a documented reason (build-tool only,
+> not shipped) or fix them — same discipline as above.
