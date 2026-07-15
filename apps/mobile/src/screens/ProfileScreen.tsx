@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Alert, Pressable, View, useWindowDimensions } from 'react-native'
+import { Pressable, View, useWindowDimensions } from 'react-native'
 import { Text } from '../components/core/Text'
 import {
   PROFILE_HUB_LINKS,
@@ -18,6 +18,7 @@ import { useCredits } from '../hooks/useCredits'
 import { useWorktime } from '../hooks/useWorktime'
 import { useAbsences } from '../hooks/useAbsences'
 import { initialsOf, useSessionContext } from '../shell/SessionContext'
+import { confirmDestructive } from '../utils/confirmDestructive'
 
 /**
  * Profile & settings — the personal hub (ux-vision §3), ported 1:1 from the
@@ -61,7 +62,7 @@ function shortDate(iso: string): string {
 
 /** Appearance controls, wired to the live ThemeProvider. */
 const ACCENT_OPTIONS: readonly { readonly key: AccentTheme; readonly label: string }[] = [
-  { key: 'blueprint', label: 'Royal Blue' },
+  { key: 'blueprint', label: 'Blueprint' },
   { key: 'sovereign', label: 'Sovereign' },
   { key: 'ember', label: 'Ember' },
 ]
@@ -433,18 +434,12 @@ export function ProfileScreen({
             {...(item.connected
               ? {
                   onPress: () =>
-                    Alert.alert(
-                      'Disconnect integration?',
-                      `Disconnect ${item.label}? You can reconnect anytime via OAuth.`,
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        {
-                          text: 'Disconnect',
-                          style: 'destructive',
-                          onPress: () => connectors.disconnect(item.id),
-                        },
-                      ],
-                    ),
+                    confirmDestructive({
+                      title: 'Disconnect integration?',
+                      message: `Disconnect ${item.label}? You can reconnect anytime via OAuth.`,
+                      confirmLabel: 'Disconnect',
+                      onConfirm: () => connectors.disconnect(item.id),
+                    }),
                 }
               : {})}
           />

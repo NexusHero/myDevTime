@@ -18,6 +18,7 @@ import { SubScreenHeader } from './SubScreenHeader'
 import { useRates } from '../hooks/useRates'
 import { eurosToMinor, type Rate, type RateLevel } from '../api/rates'
 import { useCatalog } from './useCatalog'
+import { confirmDestructive } from '../utils/confirmDestructive'
 
 /**
  * Hourly rates (REQ-005) — the one place to manage the workspace's rate rules the
@@ -88,10 +89,19 @@ export function RatesScreen({ onBack }: { onBack: () => void }): React.JSX.Eleme
       })
   }
 
-  const removeRate = (id: string): void => {
-    setError(null)
-    rates.remove(id).catch((e: unknown) => {
-      setError(message(e))
+  const removeRate = (id: string, name: string): void => {
+    // Rates drive billing — never delete on a single stray tap. Confirm first
+    // (cross-platform), then remove only on a positive answer.
+    confirmDestructive({
+      title: 'Delete rate?',
+      message: `Delete the rate for ${name}? Invoices priced from now on will use the next matching rate.`,
+      confirmLabel: 'Delete',
+      onConfirm: () => {
+        setError(null)
+        rates.remove(id).catch((e: unknown) => {
+          setError(message(e))
+        })
+      },
     })
   }
 
@@ -230,7 +240,7 @@ export function RatesScreen({ onBack }: { onBack: () => void }): React.JSX.Eleme
                           <IconButton
                             icon={<Icon name="x" size={16} color={t.color.ink3} />}
                             label={`Remove rate ${rateLabel(r)}`}
-                            onPress={() => removeRate(r.id)}
+                            onPress={() => removeRate(r.id, rateLabel(r))}
                           />
                         ) : undefined
                       }

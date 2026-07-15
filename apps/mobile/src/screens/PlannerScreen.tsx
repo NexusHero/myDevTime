@@ -123,6 +123,20 @@ function buildWeek(): readonly DemoDay[] {
 
 const weekDays = buildWeek()
 
+/** The real ISO-8601 calendar week number for a date (KW), so the header never
+ *  shows an arbitrary counter — the canvas always renders the current week. */
+function isoWeek(d: Date): number {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+  const dayNum = (date.getUTCDay() + 6) % 7
+  date.setUTCDate(date.getUTCDate() - dayNum + 3)
+  const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4))
+  const firstDayNum = (firstThursday.getUTCDay() + 6) % 7
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3)
+  return 1 + Math.round((date.getTime() - firstThursday.getTime()) / (7 * 24 * 3_600_000))
+}
+
+const CURRENT_WEEK = isoWeek(new Date())
+
 /** day 0–4 · start/len in minutes from 08:00 · kind + project id for the color. */
 const DEMO_BLOCKS: readonly CanvasBlock[] = []
 
@@ -928,7 +942,9 @@ export function PlannerScreen(): React.JSX.Element {
   const t = useTheme()
   const { width } = useWindowDimensions()
   const stacked = width < STACK_BREAKPOINT
-  const [week, setWeek] = useState(28)
+  // The canvas always shows the real current week; the header labels its ISO week
+  // number (KW) — no prev/next affordance that changes a counter but not the data.
+  const week = CURRENT_WEEK
   const [view, setView] = useState<'Woche' | 'Monat' | 'Jahr'>('Woche')
   // The week canvas blocks are local, resizable state (design v6 A1) — dragging a
   // block's bottom edge commits a new 15-min-snapped duration. Demo data for now.
@@ -1059,42 +1075,24 @@ export function PlannerScreen(): React.JSX.Element {
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 4,
                 borderWidth: 1,
                 borderColor: t.color.border,
                 borderRadius: t.radius.pill,
-                paddingVertical: 4,
-                paddingHorizontal: 6,
+                paddingVertical: 6,
+                paddingHorizontal: 14,
                 backgroundColor: t.color.surface,
               }}
             >
-              <Pressable
-                onPress={() => setWeek(w => w - 1)}
-                accessibilityRole="button"
-                accessibilityLabel="Previous week"
-                style={{ padding: 2 }}
-              >
-                <Icon name="chevronLeft" size={16} color={t.color.ink2} />
-              </Pressable>
               <Text
                 style={{
                   fontSize: t.fontSize.xs,
                   fontWeight: '600',
                   color: t.color.ink,
-                  minWidth: 46,
                   textAlign: 'center',
                 }}
               >
-                Week {week}
+                This week · KW {week}
               </Text>
-              <Pressable
-                onPress={() => setWeek(w => w + 1)}
-                accessibilityRole="button"
-                accessibilityLabel="Next week"
-                style={{ padding: 2 }}
-              >
-                <Icon name="chevronRight" size={16} color={t.color.ink2} />
-              </Pressable>
             </View>
             <Text
               style={{
@@ -1103,7 +1101,7 @@ export function PlannerScreen(): React.JSX.Element {
                 color: t.color.ink2,
               }}
             >
-              <Text style={{ color: t.color.ink, fontWeight: '600' }}>26.1h</Text> / 41:40h
+              <Text style={{ color: t.color.ink, fontWeight: '600' }}>—</Text>
             </Text>
           </>
         )}

@@ -150,7 +150,16 @@ export async function balanceForYear(
   const to = `${String(year).padStart(4, '0')}-12-31`
   const rows = await listAbsences(db, workspaceId, { from, to })
   const policy = await getPolicy(db, workspaceId)
-  return vacationBalance(rows.map(toCore), {
+  // An absence that straddles the year boundary (e.g. Dec 28 → Jan 5) is returned
+  // for BOTH years; count only the portion inside the queried year, or every such
+  // absence is double-counted and the balance is wrong. YYYY-MM-DD compares
+  // lexicographically == chronologically, so clamp the range to [from, to].
+  const clipped = rows.map(toCore).map(a => ({
+    ...a,
+    startDate: a.startDate < from ? from : a.startDate,
+    endDate: a.endDate > to ? to : a.endDate,
+  }))
+  return vacationBalance(clipped, {
     annualAllowanceDays: policy.annualAllowanceDays,
     carryOverDays: policy.carryOverDays,
   })

@@ -211,8 +211,8 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
         <Card>
           <Row
             title="Current plan"
-            subtitle="Renews Aug 1"
-            trailing={<Badge tone="accent">Pro</Badge>}
+            subtitle="Plans & pricing arrive with billing"
+            trailing={soon}
           />
           <Row
             title="Manage subscription"

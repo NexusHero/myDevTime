@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lt } from 'drizzle-orm'
+import { and, desc, eq, gte, lt, sql } from 'drizzle-orm'
 import {
   canDebit,
   creditBalance,
@@ -137,6 +137,11 @@ export async function debit(
     throw new ValidationError('debit amount must be a positive integer')
   }
   return db.transaction(async tx => {
+    // Serialize concurrent debits for this workspace: without it, two debits read
+    // the same balance (READ COMMITTED), both pass canDebit, and both insert —
+    // overdrawing below zero. A per-workspace transaction-scoped advisory lock
+    // makes the read-check-insert atomic against other debits/grants.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${workspaceId}))`)
     if (input.operationId) {
       const existing = await byOperation(tx, workspaceId, input.operationId)
       if (existing) return existing // replay → no double billing
