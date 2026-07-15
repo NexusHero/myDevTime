@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { Body, Controller, Get, Inject, Post, UseGuards } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { AuthGuard, CurrentUser, type AuthenticatedUser } from '../auth/contract.js'
@@ -39,9 +39,13 @@ export class AiController {
 
   /**
    * The grounded assistant (M2): answers a question only from the caller's supplied
-   * facts, the LLM phrasing them (ADR-0005). A credit is debited only when the AI
-   * actually answered (not a deterministic fallback or a refusal), idempotently per
-   * question so a retry of the same question never double-charges (ADR-0008).
+   * facts, the LLM phrasing them (ADR-0005). A credit is debited once for each
+   * answered request (not a deterministic fallback or a refusal), ADR-0008. The
+   * debit's operationId is a fresh per-request nonce, so each distinct ask is
+   * metered exactly once — a permanent per-question key previously let a user
+   * re-ask the identical question for unlimited free-but-billable answers. (Client
+   * retries of one submission are rare and would at worst re-charge; a
+   * client-supplied request id can dedupe them if that ever matters.)
    */
   @Post('assistant')
   @UseGuards(AuthGuard)
@@ -55,15 +59,10 @@ export class AiController {
         amount: ASSISTANT_CREDIT_COST,
         category: 'assistant',
         reason: 'Grounded assistant answer',
-        operationId: `assistant:${workspaceId}:${questionKey(body.question)}`,
+        operationId: `assistant:${workspaceId}:${randomUUID()}`,
       })
       charged = true
     }
     return { source: answer.source, refused: answer.refused, charged, text: answer.text }
   }
-}
-
-/** A stable short key for a question, for idempotent credit debits (not security). */
-function questionKey(text: string): string {
-  return createHash('sha256').update(text).digest('hex').slice(0, 16)
 }

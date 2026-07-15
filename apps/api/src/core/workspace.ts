@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import type { Db } from '../db/client.js'
 import { workspaceMembers, workspaces } from '../db/schema.js'
 
@@ -14,20 +14,28 @@ export async function resolveWorkspaceId(
   userId: string,
   userName: string,
 ): Promise<string> {
-  const existing = await db
-    .select({ workspaceId: workspaceMembers.workspaceId })
-    .from(workspaceMembers)
-    .where(eq(workspaceMembers.userId, userId))
-    .limit(1)
-  const member = existing[0]
-  if (member) return member.workspaceId
+  // This runs on the first request of every module, so two concurrent first
+  // requests could both find no membership and both provision a workspace. Wrap
+  // the read-then-insert in one transaction guarded by a per-user advisory lock
+  // so the second caller blocks, then sees the row the first inserted — one
+  // personal workspace per user, even under a concurrent cold start.
+  return db.transaction(async tx => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`)
+    const existing = await tx
+      .select({ workspaceId: workspaceMembers.workspaceId })
+      .from(workspaceMembers)
+      .where(eq(workspaceMembers.userId, userId))
+      .limit(1)
+    const member = existing[0]
+    if (member) return member.workspaceId
 
-  const created = await db
-    .insert(workspaces)
-    .values({ name: `${userName}'s workspace` })
-    .returning({ id: workspaces.id })
-  const workspace = created[0]
-  if (!workspace) throw new Error('failed to provision workspace')
-  await db.insert(workspaceMembers).values({ workspaceId: workspace.id, userId, role: 'owner' })
-  return workspace.id
+    const created = await tx
+      .insert(workspaces)
+      .values({ name: `${userName}'s workspace` })
+      .returning({ id: workspaces.id })
+    const workspace = created[0]
+    if (!workspace) throw new Error('failed to provision workspace')
+    await tx.insert(workspaceMembers).values({ workspaceId: workspace.id, userId, role: 'owner' })
+    return workspace.id
+  })
 }

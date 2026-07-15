@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, isNull, lt } from 'drizzle-orm'
+import { and, desc, eq, gte, isNull, lt, ne } from 'drizzle-orm'
 import { isValidEntry, type TimeEntry as CoreEntry } from '@mydevtime/domain'
 import type { Db } from '../../db/client.js'
 import { timeEntries } from '../../db/schema.js'
@@ -63,10 +63,23 @@ export async function startTimer(
 ): Promise<Entry> {
   const startedAt = input.startedAt ?? new Date()
   return db.transaction(async tx => {
-    await tx
-      .update(timeEntries)
-      .set({ endedAt: startedAt, updatedAt: new Date() })
+    // Stop any running timer, but never stamp its stop BEFORE its own start: the
+    // client controls `startedAt`, and a backdated start would otherwise leave the
+    // previous entry with a negative duration the timesheet core rejects.
+    const runningRows = await tx
+      .select()
+      .from(timeEntries)
       .where(and(live(workspaceId), isNull(timeEntries.endedAt)))
+      .limit(1)
+    const running = runningRows[0]
+    if (running) {
+      const stopAt =
+        startedAt.getTime() < running.startedAt.getTime() ? running.startedAt : startedAt
+      await tx
+        .update(timeEntries)
+        .set({ endedAt: stopAt, updatedAt: new Date() })
+        .where(and(live(workspaceId), eq(timeEntries.id, running.id), isNull(timeEntries.endedAt)))
+    }
     const rows = await tx
       .insert(timeEntries)
       .values({
@@ -224,6 +237,20 @@ export async function updateEntry(
     billable: patch.billable ?? current.billable,
     source: current.source,
   })
+
+  // Reopening a completed entry (endedAt -> null) turns it back into a running
+  // timer. Refuse if another timer is already running, so we never end up with two
+  // open rows (the partial unique index would otherwise surface as a raw 500).
+  if (nextEnd === null && current.endedAt !== null) {
+    const other = await db
+      .select({ id: timeEntries.id })
+      .from(timeEntries)
+      .where(and(live(workspaceId), isNull(timeEntries.endedAt), ne(timeEntries.id, id)))
+      .limit(1)
+    if (other[0]) {
+      throw new ValidationError('a timer is already running; stop it before reopening this entry')
+    }
+  }
 
   const values: Partial<typeof timeEntries.$inferInsert> = { updatedAt: new Date() }
   if (patch.startedAt !== undefined) values.startedAt = patch.startedAt

@@ -30,15 +30,12 @@ import {
   BillingSummaryQueryDto,
   CreateBudgetDto,
   CreateRateDto,
-  DebitDto,
   ExportQueryDto,
   InvoiceExportQueryDto,
-  GrantDto,
   IdParamDto,
   InvoicePreviewQueryDto,
   IssueInvoiceDto,
   LedgerQueryDto,
-  RecordEntitlementEventDto,
   UsageQueryDto,
 } from './billing.dto.js'
 
@@ -233,30 +230,15 @@ export class BillingController {
     return credits.usageFor(db, workspaceId, { from: query.from, to: query.to })
   }
 
-  @Post('credits/debit')
-  @HttpCode(201)
-  async creditDebit(@CurrentUser() user: AuthenticatedUser, @Body() body: DebitDto) {
-    const { db, workspaceId } = await this.ctx.workspaceOf(user)
-    return credits.debit(db, workspaceId, {
-      amount: body.amount,
-      category: body.category,
-      reason: body.reason,
-      operationId: body.operationId,
-    })
-  }
-
-  @Post('credits/grant')
-  @HttpCode(201)
-  async creditGrant(@CurrentUser() user: AuthenticatedUser, @Body() body: GrantDto) {
-    const { db, workspaceId } = await this.ctx.workspaceOf(user)
-    return credits.grant(db, workspaceId, {
-      amount: body.amount,
-      kind: body.kind,
-      category: body.category,
-      reason: body.reason,
-      operationId: body.operationId,
-    })
-  }
+  // NB: there is deliberately NO self-service `POST /credits/grant`,
+  // `POST /credits/debit`, or `POST /entitlement/events`. Credit grants and
+  // entitlement changes are privileged: they originate only from verified
+  // purchase/entitlement processing (the Stripe adapter calls
+  // `entitlements.recordEvent` / `credits.grant` after checking provider
+  // authenticity). Debits happen server-side inside the feature that consumes a
+  // credit (e.g. the AI assistant endpoint), never on client demand. Exposing
+  // these as session-authenticated routes let any user grant themselves
+  // unlimited credits / entitlements (audit Blocker B1/B2).
 
   // ── Timesheet export (CSV / XLSX / PDF) ──────────────────────────────────
   @Get('projects/:id/timesheet')
@@ -309,14 +291,6 @@ export class BillingController {
     return entitlements.getEntitlement(db, workspaceId, query.asOf ?? new Date())
   }
 
-  @Post('entitlement/events')
-  async recordEntitlementEvent(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() body: RecordEntitlementEventDto,
-  ) {
-    const { db, workspaceId } = await this.ctx.workspaceOf(user)
-    const { recorded } = await entitlements.recordEvent(db, workspaceId, body)
-    const entitlement = await entitlements.getEntitlement(db, workspaceId, new Date())
-    return { recorded, entitlement }
-  }
+  // (No `POST /entitlement/events` — see the note above. Entitlement events are
+  // written only by the payment-provider adapters after verifying authenticity.)
 }
