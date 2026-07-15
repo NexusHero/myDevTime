@@ -276,7 +276,9 @@ export function TodayScreen(): React.JSX.Element {
               timer.punchOut()
               setAskMood(true)
             } else {
-              timer.punchIn()
+              const note = task.trim()
+              timer.punchIn(note ? { note } : undefined)
+              setTask('')
               setAskMood(false)
             }
           }}
