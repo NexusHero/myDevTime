@@ -66,6 +66,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
     fontFamily: t.fontFamily.display,
     fontWeight: '700' as const,
     fontSize: t.fontSize.xl,
+    letterSpacing: t.fontSize.xl * t.letterSpacing.tight,
     color: t.color.ink,
   }
   const sub = {
@@ -193,6 +194,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
                 fontFamily: t.fontFamily.display,
                 fontWeight: '700',
                 fontSize: 34,
+                letterSpacing: 34 * t.letterSpacing.tight,
                 color: '#fff',
               }}
             >
@@ -536,6 +538,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
                   fontFamily: t.fontFamily.numeric,
                   fontSize: t.fontSize['2xs'],
                   fontWeight: '700',
+                  letterSpacing: t.fontSize['2xs'] * t.letterSpacing.wide,
                   color: t.color.liveStrong,
                 }}
               >

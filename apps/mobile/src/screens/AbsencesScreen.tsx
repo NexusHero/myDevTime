@@ -191,6 +191,19 @@ export function AbsencesScreen({ onBack }: { onBack: () => void }): React.JSX.El
               </Text>
             </View>
           ))}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
+            <View
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: 3,
+                backgroundColor: 'transparent',
+                borderWidth: 1,
+                borderColor: t.color.accent,
+              }}
+            />
+            <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>Today</Text>
+          </View>
         </View>
       </Card>
 
