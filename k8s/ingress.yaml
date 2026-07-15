@@ -3,13 +3,12 @@ kind: Ingress
 metadata:
   name: mydevtime-ingress
   annotations:
-    # Use traefik as the ingress class (default in k3s)
-    kubernetes.io/ingress.class: traefik
-    # Request a TLS certificate automatically from cert-manager
+    # Request a TLS certificate automatically from cert-manager.
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    # For traefik, if you need to rewrite paths you'd use middleware,
-    # but our web container proxy already handles /api, or we can route it here:
 spec:
+  # traefik is the default ingress controller in k3s. Use the typed field rather
+  # than the deprecated `kubernetes.io/ingress.class` annotation.
+  ingressClassName: traefik
   tls:
     - hosts:
         - mydevtime.com

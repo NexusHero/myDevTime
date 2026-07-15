@@ -27,3 +27,7 @@ apps/api/openapi.json
 
 # Claude Code harness working dir (worktrees, scratch, session state)
 .claude/
+
+# Filled-in Kubernetes Secret manifests — only the *.example.yaml templates are
+# tracked; real credentials are applied out-of-band (see k8s/README.md).
+k8s/**/secret.yaml
