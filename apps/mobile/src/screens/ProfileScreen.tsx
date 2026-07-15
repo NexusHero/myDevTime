@@ -14,6 +14,9 @@ import { useAccent, useTheme, useThemePref } from '../theme/ThemeProvider'
 import type { ThemePref } from '../theme/resolveMode'
 import { Badge, Button, Card, LeaveBalance, Row, ScreenScaffold, Switch } from '../components/index'
 import { useConnectors } from '../hooks/useConnectors'
+import { useCredits } from '../hooks/useCredits'
+import { useWorktime } from '../hooks/useWorktime'
+import { useAbsences } from '../hooks/useAbsences'
 import { initialsOf, useSessionContext } from '../shell/SessionContext'
 
 /**
@@ -26,32 +29,35 @@ import { initialsOf, useSessionContext } from '../shell/SessionContext'
  * number renders through the shared `format*` helpers; the AI never mutates state
  * (ADR-0005). The identity and Sign-out seam read the shared session (REQ-002).
  */
-interface LedgerEntry {
-  readonly id: string
-  readonly label: string
-  readonly when: string
-  readonly delta: number
-}
-
-const CREDIT_BALANCE = 488
-const LEDGER: readonly LedgerEntry[] = [
-  { id: 'l1', label: 'Monatliches Pro-Guthaben', when: '1. Jul', delta: 500 },
-  { id: 'l2', label: 'Meeting-Zusammenfassung — Nordwind', when: '7. Jul', delta: -8 },
-  { id: 'l3', label: 'NL-Zeiteintrag', when: '8. Jul', delta: -4 },
-]
-
 /** Row copy for the surfaces the Profile hub links into (ux-vision §3). */
 const HUB_META: Record<ProfileHubLink, { title: string; subtitle: string }> = {
   meetings: { title: 'Meetings', subtitle: 'Transkripte & AI-Insights' },
   assistant: { title: 'Assistent', subtitle: 'Frag nach deinen Zeiten · schreibgeschützt' },
 }
 
-const VACATION_USED = 18
-const VACATION_ALLOWANCE = 30
 const DAILY_TARGET_MS = 8 * 3_600_000
-const OVERTIME_MS = 9 * 3_600_000 + 30 * 60_000
 const WEEKLY_TARGET_MS = 40 * 3_600_000
 const WEEK_DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] as const
+
+/** A short `d. Mon` label from a credit entry's ISO instant (no locale drift). */
+const MONTH_SHORT = [
+  'Jan',
+  'Feb',
+  'Mär',
+  'Apr',
+  'Mai',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Okt',
+  'Nov',
+  'Dez',
+]
+function shortDate(iso: string): string {
+  const [, m, d] = iso.slice(0, 10).split('-')
+  return `${String(Number(d))}. ${MONTH_SHORT[Number(m) - 1] ?? ''}`
+}
 
 /** Appearance controls, wired to the live ThemeProvider (Darstellung). */
 const ACCENT_OPTIONS: readonly { readonly key: AccentTheme; readonly label: string }[] = [
@@ -160,6 +166,19 @@ export function ProfileScreen({
   const [calendarCapture, setCalendarCapture] = useState(true)
   const [autoTracker, setAutoTracker] = useState(true)
   const connectors = useConnectors()
+  const credits = useCredits()
+  const wt = useWorktime()
+  const absences = useAbsences()
+
+  const creditBalance = credits.data?.balance ?? 0
+  const ledger = (credits.data?.ledger ?? []).slice(0, 3)
+  const overtimeMs = wt.overtimeMs
+  const vacation = absences.data?.balance ?? {
+    allowanceDays: 0,
+    carryOverDays: 0,
+    usedDays: 0,
+    remainingDays: 0,
+  }
 
   const user = session.user ?? { name: '', email: '', id: '', emailVerified: false }
   const displayName = user.name.trim() || user.email || 'You'
@@ -290,9 +309,15 @@ export function ProfileScreen({
         </MetaRow>
         <MetaRow label="Überstunden-Saldo">
           <Text
-            style={{ ...mono, fontSize: t.fontSize.md, fontWeight: '700', color: t.color.good }}
+            style={{
+              ...mono,
+              fontSize: t.fontSize.md,
+              fontWeight: '700',
+              color: overtimeMs >= 0 ? t.color.good : t.color.warn,
+            }}
           >
-            +{formatDuration(OVERTIME_MS)} h
+            {overtimeMs >= 0 ? '+' : '−'}
+            {formatDuration(Math.abs(overtimeMs))} h
           </Text>
         </MetaRow>
         <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
@@ -423,12 +448,9 @@ export function ProfileScreen({
     >
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: t.spacing.s2 }}>
         <Text style={{ ...mono, fontSize: t.fontSize.xl, fontWeight: '700' }}>
-          {String(CREDIT_BALANCE)}
+          {String(creditBalance)}
         </Text>
         <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>Credits übrig</Text>
-        <Text style={{ marginLeft: 'auto', fontSize: t.fontSize.xs, color: t.color.ink3 }}>
-          erneuert am 1. Aug
-        </Text>
       </View>
       <View
         style={{
@@ -438,24 +460,30 @@ export function ProfileScreen({
           borderTopColor: t.color.border,
         }}
       >
-        {LEDGER.map(entry => (
-          <Row
-            key={entry.id}
-            title={entry.label}
-            subtitle={entry.when}
-            trailing={
-              <Text
-                style={{
-                  fontFamily: t.fontFamily.numeric,
-                  fontSize: t.fontSize.sm,
-                  color: entry.delta < 0 ? t.color.ink2 : t.color.good,
-                }}
-              >
-                {formatSigned(entry.delta)}
-              </Text>
-            }
-          />
-        ))}
+        {ledger.length === 0 ? (
+          <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink3 }}>
+            Noch keine Buchungen.
+          </Text>
+        ) : (
+          ledger.map(entry => (
+            <Row
+              key={entry.id}
+              title={entry.reason ?? entry.category}
+              subtitle={shortDate(entry.at)}
+              trailing={
+                <Text
+                  style={{
+                    fontFamily: t.fontFamily.numeric,
+                    fontSize: t.fontSize.sm,
+                    color: entry.amount < 0 ? t.color.ink2 : t.color.good,
+                  }}
+                >
+                  {formatSigned(entry.amount)}
+                </Text>
+              }
+            />
+          ))
+        )}
         <Row
           title="Ledger & Nutzung ansehen"
           trailing={chevron}
@@ -467,7 +495,11 @@ export function ProfileScreen({
 
   const abwesenheiten = (
     <Card title="Abwesenheiten">
-      <LeaveBalance entitlement={VACATION_ALLOWANCE} taken={VACATION_USED} />
+      <LeaveBalance
+        entitlement={vacation.allowanceDays}
+        taken={vacation.usedDays}
+        carryover={vacation.carryOverDays}
+      />
       <View style={{ marginTop: t.spacing.s3 }}>
         <Row
           title="Abwesenheitskalender öffnen"

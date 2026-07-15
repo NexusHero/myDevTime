@@ -20,13 +20,10 @@ import { useAsync, type AsyncResource } from './useAsync.js'
  * hook fetches, for the trailing week, the workspace time summary, the
  * billable-money summary, the project budgets (with per-budget status), the
  * overtime balance, and the catalog (for project names), then joins them;
- * otherwise — the default in local dev and the test gate — it resolves
- * illustrative demo figures. `live` lets the UI flag demo data. Every figure on
- * the Reports card is now API-backed.
+ * otherwise — the default in local dev and the test gate — it resolves **empty**.
+ * The app fabricates no figures. `live` lets the UI flag that the data is
+ * API-backed; every figure on the Reports card is the deterministic core's.
  */
-const H = 3_600_000
-const M = 60_000
-
 export interface ReportsData {
   readonly totalMs: number
   readonly billableMinor: number
@@ -41,50 +38,13 @@ export interface ReportsResource extends AsyncResource<ReportsData> {
   readonly live: boolean
 }
 
-function demoReports(): ReportsData {
-  const day = (...hours: number[]): number[] => hours.map(h => h * H)
-  return {
-    totalMs: 41 * H + 15 * M,
-    billableMinor: 486_000,
-    currencyCode: 'EUR',
-    byProject: [
-      { id: 'finanzo', name: 'Finanzo', spentMs: 78 * H, daily: day(6, 5, 7, 8, 6, 2, 0) },
-      { id: 'sync-engine', name: 'Sync engine', spentMs: 58 * H, daily: day(4, 6, 5, 9, 7, 3, 1) },
-      {
-        id: 'nordwind',
-        name: 'Website relaunch',
-        spentMs: 44 * H,
-        daily: day(3, 4, 2, 5, 6, 4, 2),
-      },
-    ],
-    budgets: [
-      {
-        id: 'finanzo',
-        name: 'Finanzo',
-        ratio: 0.65,
-        consumed: 78 * H,
-        basis: 'hours',
-        currencyCode: 'EUR',
-      },
-      {
-        id: 'sync-engine',
-        name: 'Sync engine',
-        ratio: 0.97,
-        consumed: 58 * H,
-        basis: 'hours',
-        currencyCode: 'EUR',
-      },
-      {
-        id: 'nordwind',
-        name: 'Website relaunch',
-        ratio: 1.1,
-        consumed: 44 * H,
-        basis: 'hours',
-        currencyCode: 'EUR',
-      },
-    ],
-    overtimeMs: 9 * H + 30 * M,
-  }
+const EMPTY_REPORTS: ReportsData = {
+  totalMs: 0,
+  billableMinor: 0,
+  currencyCode: 'EUR',
+  byProject: [],
+  budgets: [],
+  overtimeMs: 0,
 }
 
 /** The trailing 7-day window ending at the next UTC midnight (the summary range). */
@@ -103,7 +63,7 @@ export function useReports(): ReportsResource {
   const resource = useAsync<ReportsData>(
     async () => {
       if (base === null) {
-        return Promise.resolve(demoReports())
+        return Promise.resolve(EMPTY_REPORTS)
       }
       const [summary, billing, catalog, budgetList, overtime] = await Promise.all([
         fetchSummary(base, range),

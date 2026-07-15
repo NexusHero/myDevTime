@@ -12,7 +12,7 @@ import { prettyCategory } from '../api/credits'
  * links into. Every AI action debits credits here; the balance and history are the
  * source of truth a feature gate reads (never a payment SDK). Fed by the `billing`
  * credit service (`useCredits`) — the balance, ledger and usage are the
- * deterministic core's (ADR-0005) — with demo data as the offline fallback.
+ * deterministic core's (ADR-0005). With no backend the screen is simply empty.
  */
 export function CreditsScreen({ onBack }: { onBack: () => void }): React.JSX.Element {
   const t = useTheme()
@@ -34,7 +34,6 @@ export function CreditsScreen({ onBack }: { onBack: () => void }): React.JSX.Ele
           onBack={onBack}
         />
       </View>
-      {!credits.live && <Badge tone="neutral">Demo data</Badge>}
     </View>
   )
 
@@ -73,10 +72,18 @@ export function CreditsScreen({ onBack }: { onBack: () => void }): React.JSX.Ele
           </Text>
           <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>this cycle</Text>
         </View>
-        <View style={{ flexDirection: 'row', marginTop: t.spacing.s4 }}>
-          <Button size="sm" variant="secondary" onPress={() => undefined}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: t.spacing.s2,
+            marginTop: t.spacing.s4,
+          }}
+        >
+          <Button size="sm" variant="secondary" disabled>
             Buy a credit pack
           </Button>
+          <Badge tone="neutral">Coming soon</Badge>
         </View>
       </Card>
 
