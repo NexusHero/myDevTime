@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: api-migrate
+spec:
+  # Reap the finished Job automatically so a re-run's `kubectl apply` never
+  # collides with an immutable leftover.
+  ttlSecondsAfterFinished: 120
+  backoffLimit: 4
+  template:
+    spec:
+      containers:
+        - name: api-migrate
+          # ${API_IMAGE} is substituted with the freshly built SHA by the deploy
+          # workflow (envsubst) so migrations run the code being deployed, not :latest.
+          image: ${API_IMAGE}
+          command: ['node', 'dist/db/migrate.js']
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: DATABASE_URL
+              value: 'postgres://mydevtime:$(POSTGRES_PASSWORD)@postgres:5432/mydevtime'
+            - name: NODE_ENV
+              value: 'production'
+      restartPolicy: Never

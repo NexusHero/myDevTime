@@ -1,0 +1,125 @@
+name: Deploy to Kubernetes (Hetzner)
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  # github.repository is <owner>/<repo>, e.g. NexusHero/myDevTime. GHCR paths must
+  # be lowercase, so the actual image name is derived (lowercased) where used.
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push-images:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for API
+        id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api
+          tags: |
+            type=sha
+            type=raw,value=latest
+
+      - name: Build and push API Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+
+      - name: Extract metadata (tags, labels) for Web
+        id: meta-web
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web
+          tags: |
+            type=sha
+            type=raw,value=latest
+
+      - name: Build and push Web Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/mobile/Dockerfile
+          push: true
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: ${{ steps.meta-web.outputs.labels }}
+
+  deploy:
+    needs: build-and-push-images
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Compute image refs (GHCR paths are lowercase)
+        id: img
+        run: |
+          repo_lc="${IMAGE_NAME,,}"
+          sha7="${GITHUB_SHA::7}"
+          echo "api=${REGISTRY}/${repo_lc}-api:sha-${sha7}" >> "$GITHUB_OUTPUT"
+          echo "web=${REGISTRY}/${repo_lc}-web:sha-${sha7}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      # Bootstrap/converge the cluster objects. Idempotent: safe on the first deploy
+      # (creates them) and every deploy after (no-op if unchanged). Secrets are NOT
+      # applied here — they are managed out-of-band (see k8s/README.md), so the
+      # tracked *.example.yaml templates never overwrite real credentials.
+      - name: Apply manifests
+        run: |
+          kubectl apply -f k8s/postgres/service.yaml -f k8s/postgres/statefulset.yaml
+          kubectl apply -f k8s/redis/deployment.yaml -f k8s/redis/service.yaml
+          kubectl apply -f k8s/api/service.yaml -f k8s/api/deployment.yaml
+          kubectl apply -f k8s/web/deployment.yaml -f k8s/web/service.yaml
+          kubectl apply -f k8s/ingress.yaml
+
+      # Run migrations with the image being deployed (not :latest), before rolling
+      # out the app. delete-before-apply + ttlSecondsAfterFinished keep re-runs clean.
+      - name: Run database migrations
+        env:
+          API_IMAGE: ${{ steps.img.outputs.api }}
+        run: |
+          kubectl delete job/api-migrate --ignore-not-found
+          envsubst '${API_IMAGE}' < k8s/api/job-migrate.yaml | kubectl apply -f -
+          if ! kubectl wait --for=condition=complete job/api-migrate --timeout=180s; then
+            echo "::error::Migration job did not complete — logs follow"
+            kubectl logs job/api-migrate --tail=200 || true
+            exit 1
+          fi
+          kubectl delete job/api-migrate --ignore-not-found
+
+      - name: Roll out new images
+        env:
+          API_IMAGE: ${{ steps.img.outputs.api }}
+          WEB_IMAGE: ${{ steps.img.outputs.web }}
+        run: |
+          kubectl set image deployment/api api="$API_IMAGE"
+          kubectl set image deployment/web web="$WEB_IMAGE"
+          kubectl rollout status deployment/api --timeout=180s
+          kubectl rollout status deployment/web --timeout=180s

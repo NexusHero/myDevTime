@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mydevtime-ingress
+  annotations:
+    # Request a TLS certificate automatically from cert-manager.
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  # traefik is the default ingress controller in k3s. Use the typed field rather
+  # than the deprecated `kubernetes.io/ingress.class` annotation.
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - mydevtime.com
+      secretName: mydevtime-tls
+  rules:
+    - host: mydevtime.com
+      http:
+        paths:
+          # API routes go to the API service
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 3000
+          # Everything else goes to the Web service
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 80
