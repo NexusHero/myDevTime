@@ -3,7 +3,7 @@
 _Every requirement in the register maps here to the automated tests that exercise it._
 
 This is the machine-checked bridge between the **Requirements Register**
-(`docs/architecture.md` §1, REQ-001…REQ-041) and the test suite. The gate
+(`docs/architecture.md` §1, REQ-001…REQ-042) and the test suite. The gate
 (`scripts/check-req-coverage.mjs`, run by `./test.sh`) enforces two invariants:
 
 1. **Completeness** — every `REQ-NNN` in the register has a row here. A new
@@ -90,6 +90,7 @@ _traceability_ is honest and current.
 | REQ-039 | Planned | — | System quick actions (App Intents / Quick Settings Tile) — Proposed, tracked by [#49](https://github.com/NexusHero/myDevTime/issues/49). |
 | REQ-040 | Planned | — | Classic day list (Canvas ⇄ Liste) — Proposed, tracked by [#50](https://github.com/NexusHero/myDevTime/issues/50). |
 | REQ-041 | Planned | — | Task effort estimation — Proposed, tracked by [#90](https://github.com/NexusHero/myDevTime/issues/90). |
+| REQ-042 | Partial | `packages/domain/src/autotracker/activity.test.ts`, `apps/mobile/src/autotracker/capture.test.ts` | Auto-Tracker (ADR-0057): deterministic `summarizeActivity` breakdown + the capture port's pure `SpanAccumulator` and first-party `webCapture` adapter. Real OS capture (Android/desktop) is a follow-up behind the same port. |
 
 ---
 
