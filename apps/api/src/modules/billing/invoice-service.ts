@@ -326,7 +326,7 @@ export async function getInvoiceExport(
     totalMs: invoice.totalMs,
     totalMinor: invoice.totalMinor,
     lines: lines.map(l => ({
-      projectName: nameByProject.get(l.projectId) ?? 'Projekt',
+      projectName: nameByProject.get(l.projectId) ?? 'Project',
       note: l.note,
       start: l.start,
       durationMs: l.durationMs,

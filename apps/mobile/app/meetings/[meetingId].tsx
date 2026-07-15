@@ -17,7 +17,7 @@ export default function MeetingRoute(): React.JSX.Element {
         Meeting
       </Text>
       <Text style={{ color: t.color.ink2, marginTop: t.spacing.s3 }}>
-        {meetingId ? `#${meetingId}` : 'Kein Meeting ausgewählt.'}
+        {meetingId ? `#${meetingId}` : 'No meeting selected.'}
       </Text>
     </View>
   )

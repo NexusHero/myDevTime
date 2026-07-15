@@ -35,7 +35,8 @@ export function deterministicAnswer(
   question: string,
   facts: readonly string[],
 ): { refused: boolean; text: string } {
-  if (facts.length === 0) return { refused: true, text: 'Dazu habe ich gerade keine Daten.' }
+  if (facts.length === 0)
+    return { refused: true, text: "I don't have any data for that right now." }
   const qWords = new Set(tokenize(question))
   let best = facts[0] ?? ''
   let bestScore = -1
@@ -106,7 +107,7 @@ export class LlmAssistant implements Assistant {
         return {
           source: 'ai-proposal',
           refused: true,
-          text: 'Das steht nicht in deinen aktuellen Daten.',
+          text: "That isn't in your current data.",
         }
       }
       return { source: 'ai-proposal', refused: false, text }

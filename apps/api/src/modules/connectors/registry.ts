@@ -39,8 +39,8 @@ export const CONNECTORS: readonly ConnectorSpec[] = [
     category: 'git',
     auth: 'oauth2',
     capabilities: [
-      { capability: READ, label: 'Issues & Commits lesen', scopes: ['repo:read'] },
-      { capability: WRITE, label: 'Issues erstellen', scopes: ['repo:write'] },
+      { capability: READ, label: 'Read issues & commits', scopes: ['repo:read'] },
+      { capability: WRITE, label: 'Create issues', scopes: ['repo:write'] },
     ],
   },
   {
@@ -49,8 +49,8 @@ export const CONNECTORS: readonly ConnectorSpec[] = [
     category: 'git',
     auth: 'oauth2',
     capabilities: [
-      { capability: READ, label: 'Issues & Commits lesen', scopes: ['read_api'] },
-      { capability: WRITE, label: 'Issues erstellen', scopes: ['api'] },
+      { capability: READ, label: 'Read issues & commits', scopes: ['read_api'] },
+      { capability: WRITE, label: 'Create issues', scopes: ['api'] },
     ],
   },
   {
@@ -59,8 +59,8 @@ export const CONNECTORS: readonly ConnectorSpec[] = [
     category: 'issues',
     auth: 'oauth2',
     capabilities: [
-      { capability: READ, label: 'Tickets lesen', scopes: ['read:jira-work'] },
-      { capability: WRITE, label: 'Tickets & Worklogs schreiben', scopes: ['write:jira-work'] },
+      { capability: READ, label: 'Read tickets', scopes: ['read:jira-work'] },
+      { capability: WRITE, label: 'Write tickets & worklogs', scopes: ['write:jira-work'] },
     ],
   },
   {
@@ -69,8 +69,8 @@ export const CONNECTORS: readonly ConnectorSpec[] = [
     category: 'issues',
     auth: 'oauth2',
     capabilities: [
-      { capability: READ, label: 'Issues lesen', scopes: ['read'] },
-      { capability: WRITE, label: 'Issues schreiben', scopes: ['write'] },
+      { capability: READ, label: 'Read issues', scopes: ['read'] },
+      { capability: WRITE, label: 'Write issues', scopes: ['write'] },
     ],
   },
   {
@@ -79,22 +79,22 @@ export const CONNECTORS: readonly ConnectorSpec[] = [
     category: 'chat',
     auth: 'oauth2',
     capabilities: [
-      { capability: READ, label: 'Kontext lesen', scopes: ['channels:history'] },
-      { capability: WRITE, label: 'Zusammenfassungen posten', scopes: ['chat:write'] },
+      { capability: READ, label: 'Read context', scopes: ['channels:history'] },
+      { capability: WRITE, label: 'Post summaries', scopes: ['chat:write'] },
     ],
   },
   {
     id: 'google-calendar',
-    label: 'Google Kalender',
+    label: 'Google Calendar',
     category: 'calendar',
     auth: 'oauth2',
     capabilities: [
       {
         capability: READ,
-        label: 'Termine lesen',
+        label: 'Read events',
         scopes: ['https://www.googleapis.com/auth/calendar.readonly'],
       },
-      { capability: CAPTURE, label: 'Termine als Capture-Kandidaten', scopes: [] },
+      { capability: CAPTURE, label: 'Events as capture candidates', scopes: [] },
     ],
   },
 ]

@@ -945,7 +945,7 @@ export function PlannerScreen(): React.JSX.Element {
   // The canvas always shows the real current week; the header labels its ISO week
   // number (KW) — no prev/next affordance that changes a counter but not the data.
   const week = CURRENT_WEEK
-  const [view, setView] = useState<'Woche' | 'Monat' | 'Jahr'>('Woche')
+  const [view, setView] = useState<'Week' | 'Month' | 'Year'>('Week')
   // The week canvas blocks are local, resizable state (design v6 A1) — dragging a
   // block's bottom edge commits a new 15-min-snapped duration. Demo data for now.
   const [blocks, setBlocks] = useState<readonly CanvasBlock[]>(DEMO_BLOCKS)
@@ -1061,15 +1061,15 @@ export function PlannerScreen(): React.JSX.Element {
         <View style={{ maxWidth: 260, minWidth: 200, flexGrow: 1 }}>
           <SegmentedControl
             segments={[
-              { value: 'Woche', label: 'Week' },
-              { value: 'Monat', label: 'Month' },
-              { value: 'Jahr', label: 'Year' },
+              { value: 'Week', label: 'Week' },
+              { value: 'Month', label: 'Month' },
+              { value: 'Year', label: 'Year' },
             ]}
             active={view}
             onChange={setView}
           />
         </View>
-        {view === 'Woche' && (
+        {view === 'Week' && (
           <>
             <View
               style={{
@@ -1105,7 +1105,7 @@ export function PlannerScreen(): React.JSX.Element {
             </Text>
           </>
         )}
-        {view === 'Woche' && (
+        {view === 'Week' && (
           <Button
             size="sm"
             variant={inboxOpen ? 'primary' : 'ghost'}
@@ -1115,11 +1115,11 @@ export function PlannerScreen(): React.JSX.Element {
           </Button>
         )}
         <Button size="sm">
-          {view === 'Jahr' ? 'Plan year' : view === 'Monat' ? 'Plan month' : 'Plan week'}
+          {view === 'Year' ? 'Plan year' : view === 'Month' ? 'Plan month' : 'Plan week'}
         </Button>
       </View>
 
-      {view === 'Monat' && (
+      {view === 'Month' && (
         <Card>
           <EmptyState
             title="Month view — coming soon"
@@ -1128,7 +1128,7 @@ export function PlannerScreen(): React.JSX.Element {
         </Card>
       )}
 
-      {view === 'Jahr' && (
+      {view === 'Year' && (
         <Card>
           <EmptyState
             title="Year view — coming soon"
@@ -1137,7 +1137,7 @@ export function PlannerScreen(): React.JSX.Element {
         </Card>
       )}
 
-      {view === 'Woche' && (
+      {view === 'Week' && (
         <>
           {/* AI in context — reachable here, not only in the Assistant tab */}
           <View style={{ gap: t.spacing.s2, maxWidth: 680 }}>
