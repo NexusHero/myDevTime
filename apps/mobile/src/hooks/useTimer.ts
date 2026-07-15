@@ -13,6 +13,8 @@ import {
   type StartTimerInput,
   type TimeEntry,
 } from '../api/timer.js'
+import { reconcileTimer } from '../timer/reconcile.js'
+import { loadTimerSession, saveTimerSession } from '../timer/timerStore.js'
 
 /**
  * The live timer for the Island (REQ-004, ux-vision §2.3). Three modes:
@@ -75,30 +77,53 @@ export function useTimer(): TimerResource {
   const [pausedInput, setPausedInput] = useState<StartTimerInput | null>(null)
   // The billable default the next punch-in carries; a running entry's own flag wins.
   const [billableDefault, setBillableDefault] = useState(true)
+  // Whether the session state has been restored from persistence yet — the persist
+  // effect stays quiet until then, so hydration never overwrites the stored session.
+  const [hydrated, setHydrated] = useState(false)
 
-  // Load the running entry once. API → server; offline → the local store (restores
-  // a running timer after a reload); demo → idle.
+  // Restore the timer once, so a running OR paused session survives an app restart
+  // (REQ-004). The server is authoritative for a running segment; the locally-stored
+  // session carries the banked total + paused context; `reconcileTimer` merges them.
+  // Demo mode (no API) stays ephemeral — nothing is persisted or restored.
   useEffect(() => {
     let alive = true
+    if (base === null) {
+      setLoading(false)
+      setHydrated(true)
+      return
+    }
     setLoading(true)
-    const load: Promise<TimeEntry | null> = base !== null ? getRunning(base) : Promise.resolve(null)
-    load
+    getRunning(base)
       .then(entry => {
-        if (alive) {
-          setRunning(entry)
-          setError(null)
-        }
+        if (!alive) return
+        const restored = reconcileTimer(entry, loadTimerSession())
+        setRunning(restored.running)
+        setAccumulatedMs(restored.accumulatedMs)
+        setPausedInput(restored.pausedInput)
+        setError(null)
       })
       .catch((cause: unknown) => {
         if (alive) setError(cause instanceof Error ? cause : new Error(String(cause)))
       })
       .finally(() => {
-        if (alive) setLoading(false)
+        if (alive) {
+          setLoading(false)
+          setHydrated(true)
+        }
       })
     return () => {
       alive = false
     }
   }, [base])
+
+  // Persist the client-only session (banked total + paused context) on every change
+  // once hydrated, so a reload restores it; clears when the session ends. Live mode
+  // only — demo/test stays in-memory (matches the storage story of `onboardingStore`).
+  useEffect(() => {
+    if (!hydrated || base === null) return
+    const active = running !== null || pausedInput !== null
+    saveTimerSession(active ? { accumulatedMs, pausedInput } : null)
+  }, [hydrated, base, running, pausedInput, accumulatedMs])
 
   // Start a segment (optimistic, then reconcile with the server or the local store).
   const beginEntry = useCallback(
