@@ -30,6 +30,19 @@ services:
       timeout: 5s
       retries: 10
 
+  # One-off migration step, decoupled from the app containers (12-factor VI). Runs
+  # once to completion; the api waits for it via `service_completed_successfully`.
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    command: ['node', 'dist/db/migrate.js']
+    environment:
+      DATABASE_URL: postgres://mydevtime:mydevtime@postgres:5432/mydevtime
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   api:
     build:
       context: .
@@ -46,6 +59,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   web:
     build:

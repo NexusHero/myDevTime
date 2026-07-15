@@ -24,3 +24,6 @@ coverage/
 
 # Generated OpenAPI artifact (emitted by CI)
 apps/api/openapi.json
+
+# Claude Code harness working dir (worktrees, scratch, session state)
+.claude/
