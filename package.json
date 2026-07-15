@@ -24,6 +24,7 @@
     "check:adherence": "node scripts/check-design-adherence.mjs",
     "gate": "./test.sh",
     "prepare": "node scripts/install-hooks.mjs",
+    "db:seed": "pnpm --filter @mydevtime/api db:seed",
     "docker": "./scripts/docker.sh"
   },
   "devDependencies": {

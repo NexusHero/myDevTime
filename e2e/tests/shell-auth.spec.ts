@@ -15,6 +15,26 @@ test.describe('acceptance · app shell + authentication', () => {
     await expect(page.getByRole('button', { name: /^sign in$/i })).toBeVisible()
   })
 
+  test('REQ-002 · a new user can sign up entirely via the UI and reach the app', async ({ page }) => {
+    const user = freshUser()
+    await page.goto('/')
+    
+    // Switch to registration screen
+    await page.getByRole('button', { name: /create free account/i }).click()
+    
+    // Fill the registration form
+    await page.getByPlaceholder('Suhay Sevinc').fill(user.name)
+    await page.getByPlaceholder('you@company.com').fill(user.email)
+    await page.getByPlaceholder('At least 8 characters').fill(user.password)
+    
+    // Submit registration
+    await page.getByRole('button', { name: /^create free account$/i }).click()
+    
+    // Sign-up is complete and automatically authenticates the user in E2E dev stack.
+    // The registration form leaves the DOM.
+    await expect(page.getByText('Create free account')).toBeHidden()
+  })
+
   test('REQ-007 · a seeded user can sign in and reach the app', async ({ page, request }) => {
     const user = freshUser()
     await apiSignUp(request, user)

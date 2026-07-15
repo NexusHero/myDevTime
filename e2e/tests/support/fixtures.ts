@@ -36,6 +36,8 @@ export async function apiSignUp(request: APIRequestContext, user: TestUser): Pro
 /** Sign in through the LoginScreen and wait until the auth gate lets the app through. */
 export async function uiSignIn(page: Page, user: TestUser): Promise<void> {
   await page.goto('/')
+  // Bypass the onboarding flow by pre-setting the completed flag in localStorage
+  await page.evaluate(() => localStorage.setItem('mydevtime.onboarded', '1'))
   await page.getByPlaceholder('you@company.com').fill(user.email)
   await page.getByPlaceholder('••••••••').fill(user.password)
   await page.getByRole('button', { name: /^sign in$/i }).click()

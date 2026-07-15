@@ -89,7 +89,7 @@ export function createAuth({ db, config, email }: CreateAuthDeps) {
     // stricter windows on the credential and reset endpoints. In-memory store is
     // fine for the single-process monolith; database storage is a scaling concern.
     rateLimit: {
-      enabled: true,
+      enabled: config.NODE_ENV === 'production',
       window: 60,
       max: 100,
       customRules: {

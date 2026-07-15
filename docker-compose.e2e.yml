@@ -7,6 +7,7 @@
 services:
   api:
     environment:
+      NODE_ENV: development
       # Non-prod escape hatch so seeded accounts can sign in immediately (ADR-0053).
       AUTH_REQUIRE_EMAIL_VERIFICATION: 'false'
       # A throwaway secret (>=32 chars) — E2E only, never a real deployment.
