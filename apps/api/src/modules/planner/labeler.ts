@@ -52,11 +52,11 @@ function buildPrompt(plan: DayPlan): string {
       `${String(i)}: ${b.kind} "${b.label}" (${String(b.startMin)}–${String(b.startMin + b.lenMin)} min)`,
   )
   return [
-    'Du bist der Co-Planner. Ranke und labele die folgenden, bereits fix platzierten',
-    'Tagesblöcke — du verschiebst NICHTS und erfindest keine Blöcke. Gib für jeden',
-    'Block ein kurzes, ruhiges deutsches Label (note) und einen rank: 1..n in der',
-    'Reihenfolge, in der die Fokus-Blöcke angegangen werden sollten; Meetings und',
-    'Pausen bekommen rank 0. Antworte als JSON-Array zum Schema.',
+    'You are the Co-Planner. Rank and label the following, already-fixed day',
+    'blocks — you move NOTHING and invent no blocks. For each block give a short,',
+    'calm English label (note) and a rank: 1..n in the order in which the focus',
+    'blocks should be tackled; meetings and breaks get rank 0. Answer as a JSON',
+    'array matching the schema.',
     '',
     ...lines,
   ].join('\n')

@@ -25,20 +25,20 @@ export interface AssistantResult {
  */
 export function factsFromReports(data: ReportsData): string[] {
   const facts: string[] = []
-  facts.push(`Diese Woche getrackt: ${formatDuration(data.totalMs)} h.`)
-  facts.push(`Abrechenbar diese Woche: ${formatMoneyMinor(data.billableMinor, data.currencyCode)}.`)
+  facts.push(`Tracked this week: ${formatDuration(data.totalMs)} h.`)
+  facts.push(`Billable this week: ${formatMoneyMinor(data.billableMinor, data.currencyCode)}.`)
   const sign = data.overtimeMs >= 0 ? '+' : '−'
-  facts.push(`Überstundensaldo: ${sign}${formatDuration(Math.abs(data.overtimeMs))} h.`)
+  facts.push(`Overtime balance: ${sign}${formatDuration(Math.abs(data.overtimeMs))} h.`)
   const projects = [...data.byProject].sort((a, b) => b.spentMs - a.spentMs)
   const top = projects[0]
   if (top !== undefined) {
-    facts.push(`Top-Projekt diese Woche: ${top.name} mit ${formatDuration(top.spentMs)} h.`)
+    facts.push(`Top project this week: ${top.name} with ${formatDuration(top.spentMs)} h.`)
   }
   for (const p of projects.slice(0, 6)) {
-    facts.push(`Projekt ${p.name}: ${formatDuration(p.spentMs)} h getrackt.`)
+    facts.push(`Project ${p.name}: ${formatDuration(p.spentMs)} h tracked.`)
   }
   for (const b of data.budgets) {
-    facts.push(`Budget ${b.name}: ${formatPercent(b.ratio)} verbraucht.`)
+    facts.push(`Budget ${b.name}: ${formatPercent(b.ratio)} used.`)
   }
   return facts
 }

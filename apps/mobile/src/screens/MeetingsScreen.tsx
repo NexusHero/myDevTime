@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, View, useWindowDimensions } from 'react-native'
 import { projectColor } from '@mydevtime/design'
 import { Text } from '../components/core/Text'
-import { Badge, Button, Card, ScreenScaffold } from '../components/index'
+import { Badge, Button, Card, EmptyState, ScreenScaffold } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
 
 /**
@@ -26,42 +26,6 @@ interface Meeting {
   readonly actions?: readonly string[]
 }
 
-const MEETINGS: readonly Meeting[] = [
-  {
-    id: 'm1',
-    title: 'Finanzo sprint review',
-    project: 'finanzo',
-    time: '09:30',
-    duration: '46m',
-    state: 'insights',
-    summary: [
-      'Sync conflict policy signed off — last-writer-wins with tombstones (REQ-006).',
-      'Invoice export slips to next sprint; budget rings stay in scope.',
-      'Two calendar edge cases reassigned to the automation module.',
-    ],
-    actions: [
-      'Draft ADR amendment for the tombstone retention window',
-      'Split the invoice-export story from the timesheet epic',
-    ],
-  },
-  {
-    id: 'm2',
-    title: 'Huber CMS kickoff',
-    project: 'huber',
-    time: '13:00',
-    duration: '31m',
-    state: 'transcript',
-  },
-  {
-    id: 'm3',
-    title: 'Nordwind planning',
-    project: 'nordwind',
-    time: '15:00',
-    duration: '—',
-    state: 'upcoming',
-  },
-]
-
 function stateBadge(state: MeetingState): { tone: 'good' | 'neutral' | 'warn'; label: string } {
   if (state === 'insights') return { tone: 'good', label: 'Insights ✓' }
   if (state === 'transcript') return { tone: 'neutral', label: 'Transcript' }
@@ -72,18 +36,44 @@ export function MeetingsScreen(): React.JSX.Element {
   const t = useTheme()
   const { width } = useWindowDimensions()
   const stacked = width < 760
-  const [selId, setSelId] = useState('m1')
+  const meetings: readonly Meeting[] = []
+  const [selId, setSelId] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
-  const sel = MEETINGS.find(m => m.id === selId) ?? MEETINGS[0]!
+  const sel = meetings.find(m => m.id === selId) ?? meetings[0]
+
+  const header = (
+    <View>
+      <Text
+        style={{
+          fontWeight: '700',
+          fontSize: t.fontSize.xl,
+          color: t.color.ink,
+          fontFamily: t.fontFamily.display,
+        }}
+      >
+        Meetings
+      </Text>
+      <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, marginTop: 2 }}>
+        Transcripts & AI insights · consent-first
+      </Text>
+    </View>
+  )
+
+  if (sel === undefined) {
+    return (
+      <ScreenScaffold header={header}>
+        <EmptyState
+          title="No meetings yet"
+          hint="Opt a meeting into recording and its transcript and AI insights show up here. Consent-first by design — every figure comes from the deterministic core, never the model."
+        />
+      </ScreenScaffold>
+    )
+  }
 
   const list = (
-    <Card
-      title="This week"
-      action={<Badge tone="neutral">Beispiel</Badge>}
-      {...(stacked ? {} : { style: { width: 280 } })}
-    >
+    <Card title="This week" {...(stacked ? {} : { style: { width: 280 } })}>
       <View style={{ gap: t.spacing.s1 }}>
-        {MEETINGS.map(m => {
+        {meetings.map(m => {
           const active = m.id === selId
           const badge = stateBadge(m.state)
           return (
@@ -255,24 +245,6 @@ export function MeetingsScreen(): React.JSX.Element {
           <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>{note}</Text>
         </Card>
       )}
-    </View>
-  )
-
-  const header = (
-    <View>
-      <Text
-        style={{
-          fontWeight: '700',
-          fontSize: t.fontSize.xl,
-          color: t.color.ink,
-          fontFamily: t.fontFamily.display,
-        }}
-      >
-        Meetings
-      </Text>
-      <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, marginTop: 2 }}>
-        Transcripts & AI insights · consent-first
-      </Text>
     </View>
   )
 

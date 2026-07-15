@@ -20,7 +20,7 @@ export function SocialButtons({
 }: {
   readonly providers: AuthProviders
   readonly onSocial: (provider: SocialProvider) => void
-  /** How to label a provider, e.g. `n => n` (login) or `n => `Mit ${n} …`` (register). */
+  /** How to label a provider, e.g. `n => n` (login) or `n => `Sign up with ${n}`` (register). */
   readonly label: (name: string) => string
 }): React.JSX.Element {
   const t = useTheme()
@@ -37,21 +37,21 @@ export function SocialButtons({
       })}
       {none && (
         <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, textAlign: 'center' }}>
-          Social-Login ist für diese Instanz noch nicht konfiguriert — nutze E-Mail.
+          Social login isn’t configured for this instance yet — use email.
         </Text>
       )}
     </View>
   )
 }
 
-/** A labelled "oder" divider between social and email. */
+/** A labelled "or" divider between social and email. */
 export function OrDivider(): React.JSX.Element {
   const t = useTheme()
   const line = { flex: 1, height: 1, backgroundColor: t.color.border }
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s3 }}>
       <View style={line} />
-      <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>oder</Text>
+      <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>or</Text>
       <View style={line} />
     </View>
   )

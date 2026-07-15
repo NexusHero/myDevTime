@@ -25,10 +25,10 @@ describe('factsFromReports', () => {
   it('IncludesTrackedBillableOvertimeTopProjectAndBudgets', () => {
     const facts = factsFromReports(DATA)
     const joined = facts.join(' | ')
-    expect(joined).toContain('getrackt')
-    expect(joined).toContain('Abrechenbar')
-    expect(joined).toContain('Überstundensaldo')
-    expect(joined).toContain('Top-Projekt diese Woche: Finanzo')
+    expect(joined).toContain('tracked')
+    expect(joined).toContain('Billable')
+    expect(joined).toContain('Overtime balance')
+    expect(joined).toContain('Top project this week: Finanzo')
     expect(joined).toContain('Budget Nordwind')
   })
 })
@@ -60,10 +60,10 @@ describe('askAssistant', () => {
         ),
       )
     }) as unknown as typeof fetch
-    const r = await askAssistant('http://api', 'Top-Projekt?', ['Top-Projekt: Finanzo.'], fetchImpl)
+    const r = await askAssistant('http://api', 'Top project?', ['Top project: Finanzo.'], fetchImpl)
     expect(r.source).toBe('ai-proposal')
     expect(r.charged).toBe(true)
     expect(seen[0]).toContain('/api/ai/assistant')
-    expect(body).toEqual({ question: 'Top-Projekt?', facts: ['Top-Projekt: Finanzo.'] })
+    expect(body).toEqual({ question: 'Top project?', facts: ['Top project: Finanzo.'] })
   })
 })

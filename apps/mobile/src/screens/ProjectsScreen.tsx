@@ -229,7 +229,7 @@ export function ProjectsScreen({
   const nameByProject = new Map(clients.flatMap(c => c.projects).map(p => [p.id, p.name]))
   const drawerClients: DrawerClient[] = (open.data?.clients ?? []).map(c => ({
     clientId: c.clientId,
-    name: nameByClient.get(c.clientId) ?? 'Kunde',
+    name: nameByClient.get(c.clientId) ?? 'Client',
     openMs: c.openMs,
     openMinor: c.openMinor,
   }))
@@ -332,11 +332,11 @@ export function ProjectsScreen({
     return (
       <ScreenScaffold header={header}>
         <EmptyState
-          title="Noch keine Projekte"
-          hint="Leg deinen ersten Kunden und ein Projekt an — dann fließen Zeiten, Budgets und die Abrechnung hier zusammen. So sieht der Start ohne Daten aus."
+          title="No projects yet"
+          hint="Add your first client and a project — then time, budgets, and invoicing come together here. This is what the start looks like with no data."
           action={
             <Button size="sm" onPress={() => setPreview(false)}>
-              Beispiel ansehen
+              See an example
             </Button>
           }
         />
@@ -389,7 +389,7 @@ export function ProjectsScreen({
               </Button>
             )}
             <Button size="sm" variant="ghost" onPress={undoIssue}>
-              Rückgängig
+              Undo
             </Button>
           </View>
         </Card>

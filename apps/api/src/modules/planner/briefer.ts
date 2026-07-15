@@ -40,25 +40,21 @@ function hours(min: number): string {
 export function deterministicBriefing(plan: DayPlan): string {
   const meetings = meetingsCount(plan)
   const parts: string[] = [
-    `Heute: ${hours(plan.plannedFocusMin)} Fokus geplant, ${String(meetings)} ${
-      meetings === 1 ? 'Termin' : 'Termine'
+    `Today: ${hours(plan.plannedFocusMin)} of focus planned, ${String(meetings)} ${
+      meetings === 1 ? 'meeting' : 'meetings'
     }.`,
   ]
   if (plan.droppedAnchors.length > 0) {
     parts.push(
       `${String(plan.droppedAnchors.length)} ${
-        plan.droppedAnchors.length === 1
-          ? 'Termin überschneidet sich'
-          : 'Termine überschneiden sich'
-      } und ${plan.droppedAnchors.length === 1 ? 'wurde' : 'wurden'} nicht eingeplant.`,
+        plan.droppedAnchors.length === 1 ? 'meeting overlaps' : 'meetings overlap'
+      } and ${plan.droppedAnchors.length === 1 ? 'was' : 'were'} not scheduled.`,
     )
   }
   if (plan.unplacedMin > 0) {
-    parts.push(
-      `${hours(plan.unplacedMin)} Backlog fanden keinen Platz — priorisiere oder verschiebe.`,
-    )
+    parts.push(`${hours(plan.unplacedMin)} of backlog didn't fit — prioritize or move it.`)
   } else if (meetings > 0 && plan.plannedFocusMin > 0) {
-    parts.push('Der Tag geht auf: Fokus und Termine passen ins Fenster.')
+    parts.push('The day adds up: focus and meetings fit the window.')
   }
   return parts.join(' ')
 }
@@ -67,15 +63,15 @@ function buildPrompt(plan: DayPlan): string {
   const meetings = meetingsCount(plan)
   const focusBlocks = plan.blocks.filter(b => b.kind === 'focus').map(b => b.label)
   return [
-    'Du bist ein ruhiger Planungs-Coach. Fasse den bereits fix geplanten Tag in 2–3',
-    'kurzen deutschen Sätzen zusammen und gib EINEN konkreten Entlastungs-Tipp, wenn',
-    'der Tag dicht ist. Du verschiebst nichts selbst und erfindest keine Termine —',
-    'du kommentierst nur die folgenden Fakten:',
-    `- Geplante Fokuszeit: ${String(plan.plannedFocusMin)} min`,
-    `- Termine: ${String(meetings)}`,
-    `- Backlog ohne Platz: ${String(plan.unplacedMin)} min`,
-    `- Überschneidende, nicht eingeplante Termine: ${String(plan.droppedAnchors.length)}`,
-    `- Fokus-Themen: ${focusBlocks.length > 0 ? focusBlocks.join(', ') : '—'}`,
+    'You are a calm planning coach. Summarize the already-fixed day in 2–3',
+    'short English sentences and give ONE concrete tip to lighten the load when',
+    'the day is packed. You never move anything yourself and never invent meetings —',
+    'you only comment on the following facts:',
+    `- Planned focus time: ${String(plan.plannedFocusMin)} min`,
+    `- Meetings: ${String(meetings)}`,
+    `- Backlog without a slot: ${String(plan.unplacedMin)} min`,
+    `- Overlapping, unscheduled meetings: ${String(plan.droppedAnchors.length)}`,
+    `- Focus topics: ${focusBlocks.length > 0 ? focusBlocks.join(', ') : '—'}`,
   ].join('\n')
 }
 

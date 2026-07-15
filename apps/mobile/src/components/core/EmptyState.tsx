@@ -1,5 +1,6 @@
 import { View } from 'react-native'
 import { Text } from './Text'
+import { Icon } from './Icon'
 import { useTheme } from '../../theme/ThemeProvider'
 
 interface EmptyStateProps {
@@ -7,6 +8,8 @@ interface EmptyStateProps {
   readonly hint?: string
   readonly action?: React.ReactNode
   readonly compact?: boolean
+  /** Glyph shown in the badge; defaults to a neutral inbox so it never reads as a broken image. */
+  readonly icon?: string
 }
 
 export function EmptyState({
@@ -14,6 +17,7 @@ export function EmptyState({
   hint,
   action,
   compact = false,
+  icon = 'inbox',
 }: EmptyStateProps): React.JSX.Element {
   const t = useTheme()
 
@@ -38,7 +42,9 @@ export function EmptyState({
           justifyContent: 'center',
           alignItems: 'center',
         }}
-      />
+      >
+        <Icon name={icon} size={22} color={t.color.accentText} />
+      </View>
       <Text
         style={{
           fontWeight: '600',

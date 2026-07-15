@@ -12,9 +12,9 @@ interface MoodCheckProps {
 }
 
 const OPTIONS: readonly { readonly id: Mood; readonly label: string }[] = [
-  { id: 'good', label: 'Gut' },
-  { id: 'tense', label: 'Angespannt' },
-  { id: 'stressed', label: 'Gestresst' },
+  { id: 'good', label: 'Good' },
+  { id: 'tense', label: 'Tense' },
+  { id: 'stressed', label: 'Stressed' },
 ]
 
 const CONFIRM_MS = 2000
@@ -22,9 +22,9 @@ const CONFIRM_MS = 2000
 /**
  * MoodCheck — the momentary strain signal (OLBI/EMA rationale, design system
  * readme). It is **not** a standing widget: it appears only in the punch-out
- * moment as a transient one-tap row (Gut / Angespannt / Gestresst), confirms with
- * a quiet acknowledgement, then dismisses itself. The answer stays local and
- * feeds the Balance trend — never modal, never a permanent nag.
+ * moment as a transient one-tap row (Good / Tense / Stressed), confirms with
+ * a quiet acknowledgement, then dismisses itself. The pick is reported via
+ * `onChange` for the caller to handle — never modal, never a permanent nag.
  */
 export function MoodCheck({ onDone, onChange }: MoodCheckProps): React.JSX.Element {
   const t = useTheme()
@@ -61,12 +61,12 @@ export function MoodCheck({ onDone, onChange }: MoodCheckProps): React.JSX.Eleme
     >
       {picked !== null ? (
         <Text style={{ fontSize: t.fontSize['2xs'], fontWeight: '600', color: t.color.good }}>
-          Notiert — fließt still in deinen Balance-Trend ein.
+          Noted.
         </Text>
       ) : (
         <>
           <Text style={{ fontSize: t.fontSize['2xs'], fontWeight: '600', color: t.color.ink2 }}>
-            Ausgestempelt · wie war der Block?
+            Clocked out · how was the block?
           </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s4 }}>
             {OPTIONS.map(o => (
@@ -94,10 +94,10 @@ export function MoodCheck({ onDone, onChange }: MoodCheckProps): React.JSX.Eleme
           <Pressable
             onPress={() => onDone?.()}
             accessibilityRole="button"
-            accessibilityLabel="Überspringen"
+            accessibilityLabel="Skip"
             style={{ marginLeft: 'auto' }}
           >
-            <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>Überspringen</Text>
+            <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>Skip</Text>
           </Pressable>
         </>
       )}

@@ -37,7 +37,7 @@ const WINDOW = {
 }
 
 /**
- * The invoicing / "Abrechnung" drawer (design v6, ADR-0051): pick a client with
+ * The invoicing drawer (design v6, ADR-0051): pick a client with
  * open work → preview its still-open billable positions (deselect any) → issue.
  * Server-authoritative: the total the user sees is the deterministic core's and
  * the server re-checks the selection on issue. On success it hands the frozen
@@ -82,7 +82,7 @@ export function InvoiceDrawer({
         setSelected(new Set(p.lines.filter(l => l.priced).map(l => l.entryId)))
       })
       .catch((e: unknown) => {
-        if (alive) setError(e instanceof Error ? e.message : 'Konnte nicht laden')
+        if (alive) setError(e instanceof Error ? e.message : 'Could not load')
       })
     return () => {
       alive = false
@@ -114,7 +114,7 @@ export function InvoiceDrawer({
       })
       .catch((e: unknown) => {
         setBusy(false)
-        setError(e instanceof Error ? e.message : 'Abrechnung fehlgeschlagen')
+        setError(e instanceof Error ? e.message : 'Invoicing failed')
       })
   }
 
@@ -140,13 +140,9 @@ export function InvoiceDrawer({
                 fontFamily: t.fontFamily.display,
               }}
             >
-              {client ? `Abrechnung · ${client.name}` : 'Abrechnung erstellen'}
+              {client ? `Invoice · ${client.name}` : 'Create invoice'}
             </Text>
-            <Pressable
-              onPress={onClose}
-              accessibilityLabel="Schließen"
-              style={{ marginLeft: 'auto' }}
-            >
+            <Pressable onPress={onClose} accessibilityLabel="Close" style={{ marginLeft: 'auto' }}>
               <Text style={{ fontSize: t.fontSize.lg, color: t.color.ink3 }}>✕</Text>
             </Pressable>
           </View>
@@ -160,7 +156,7 @@ export function InvoiceDrawer({
               <View style={{ gap: t.spacing.s1 }}>
                 {clients.length === 0 ? (
                   <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>
-                    Aktuell nichts Offenes.
+                    Nothing open right now.
                   </Text>
                 ) : (
                   clients.map(c => (
@@ -194,7 +190,9 @@ export function InvoiceDrawer({
                 )}
               </View>
             ) : lines === null ? (
-              <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>Lade Positionen…</Text>
+              <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>
+                Loading positions…
+              </Text>
             ) : (
               <InvoiceDraftView
                 lines={lines}
@@ -210,7 +208,7 @@ export function InvoiceDrawer({
 
           {client !== null && (
             <Button variant="ghost" onPress={() => setClient(null)}>
-              ← Anderer Kunde
+              ← Another client
             </Button>
           )}
         </View>

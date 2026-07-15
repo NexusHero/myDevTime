@@ -15,9 +15,9 @@ import {
 
 /**
  * The Planner **Task-Inbox** rail (design v6): assigned tickets from Jira/Linear/
- * GitHub, searchable + filterable + sortable, grouped by project. "Planen" drops a
+ * GitHub, searchable + filterable + sortable, grouped by project. "Plan" drops a
  * ticket into the next free slot as a ghost proposal; the check button marks it
- * done. Cross-calendar drag is deferred (#39/#117) — one-tap Planen is the path
+ * done. Cross-calendar drag is deferred (#39/#117) — one-tap Plan is the path
  * for now. Purely presentational over the caller's task list.
  */
 interface TaskInboxProps {
@@ -108,7 +108,7 @@ function TaskRow({
         <Pressable
           onPress={onDone}
           accessibilityRole="button"
-          accessibilityLabel={`Erledigt: ${task.key}`}
+          accessibilityLabel={`Done: ${task.key}`}
           style={{
             width: 16,
             height: 16,
@@ -170,7 +170,7 @@ function TaskRow({
           {task.est}h
         </Text>
         <Button size="sm" onPress={onPlan}>
-          Planen
+          Plan
         </Button>
       </Pressable>
       {open && (
@@ -195,7 +195,7 @@ function TaskRow({
             }}
           >
             P{task.prio} · {task.est}h · {task.tag} · {task.src}
-            {task.due !== undefined ? ` · fällig ${task.due}` : ''}
+            {task.due !== undefined ? ` · due ${task.due}` : ''}
           </Text>
         </View>
       )}
@@ -206,8 +206,8 @@ function TaskRow({
 export function TaskInbox({ tasks, onPlan, onDone }: TaskInboxProps): React.JSX.Element {
   const t = useTheme()
   const [query, setQuery] = useState('')
-  const [tag, setTag] = useState<(typeof INBOX_TAGS)[number]>('Alle')
-  const [source, setSource] = useState<(typeof INBOX_SOURCES)[number]>('Alle')
+  const [tag, setTag] = useState<(typeof INBOX_TAGS)[number]>('All')
+  const [source, setSource] = useState<(typeof INBOX_SOURCES)[number]>('All')
   const [sort, setSort] = useState<InboxSort>('prio')
   const [openKey, setOpenKey] = useState<string | null>(null)
 
@@ -215,8 +215,8 @@ export function TaskInbox({ tasks, onPlan, onDone }: TaskInboxProps): React.JSX.
     .filter(task => {
       const q = query.trim().toLowerCase()
       return (
-        (tag === 'Alle' || task.tag === tag) &&
-        (source === 'Alle' || task.src === source) &&
+        (tag === 'All' || task.tag === tag) &&
+        (source === 'All' || task.src === source) &&
         (q === '' || `${task.key} ${task.title}`.toLowerCase().includes(q))
       )
     })
@@ -273,12 +273,12 @@ export function TaskInbox({ tasks, onPlan, onDone }: TaskInboxProps): React.JSX.
               {visible.length !== tasks.length ? `/${String(tasks.length)}` : ''}
             </Text>
           </View>
-          <Text style={{ marginLeft: 'auto', fontSize: 9, color: t.color.ink3 }}>3 Quellen</Text>
+          <Text style={{ marginLeft: 'auto', fontSize: 9, color: t.color.ink3 }}>3 sources</Text>
         </View>
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Suchen (Key, Titel) …"
+          placeholder="Search (key, title)…"
           placeholderTextColor={t.color.ink3}
           style={{
             paddingHorizontal: t.spacing.s3,
@@ -298,19 +298,19 @@ export function TaskInbox({ tasks, onPlan, onDone }: TaskInboxProps): React.JSX.
           ))}
         </View>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
-          <Text style={{ fontSize: 9, fontWeight: '700', color: t.color.ink3 }}>Quelle</Text>
+          <Text style={{ fontSize: 9, fontWeight: '700', color: t.color.ink3 }}>Source</Text>
           {INBOX_SOURCES.map(f => (
             <FilterChip key={f} label={f} active={source === f} onPress={() => setSource(f)} />
           ))}
         </View>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
-          <Text style={{ fontSize: 9, fontWeight: '700', color: t.color.ink3 }}>Sortieren</Text>
+          <Text style={{ fontSize: 9, fontWeight: '700', color: t.color.ink3 }}>Sort</Text>
           {(
             [
-              ['prio', 'Priorität'],
+              ['prio', 'Priority'],
               ['due', 'Deadline'],
-              ['est', 'Aufwand'],
-              ['src', 'Quelle'],
+              ['est', 'Effort'],
+              ['src', 'Source'],
             ] as const
           ).map(([value, label]) => (
             <FilterChip
@@ -386,7 +386,7 @@ export function TaskInbox({ tasks, onPlan, onDone }: TaskInboxProps): React.JSX.
               color: t.color.ink3,
             }}
           >
-            Nichts gefunden — Filter oder Suche anpassen.
+            Nothing found — adjust filters or search.
           </Text>
         )}
       </View>

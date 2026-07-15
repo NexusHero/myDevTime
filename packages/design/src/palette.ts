@@ -128,9 +128,11 @@ const neutralLight: Neutrals = {
   ink: '#101828',
   ink2: '#475467',
   ink3: '#98a2b3',
-  good: '#16a34a',
+  // Status text is darkened in light mode so it clears WCAG AA (4.5:1) as small
+  // text on its own *Soft fill (Badge tone), not just on the main surface.
+  good: '#166534',
   crit: '#c2372f',
-  warn: '#b45309',
+  warn: '#92400e',
   goodSoft: '#e4f1e9',
   critSoft: '#f9ebea',
   warnSoft: '#f6eae1',

@@ -20,9 +20,9 @@ import {
  * switches back to Login.
  */
 function passwordHint(pw: string): string {
-  if (pw.length === 0) return 'Mindestens 8 Zeichen — Zahlen oder Sonderzeichen machen es stärker.'
-  if (pw.length < 8) return `${String(8 - pw.length)} Zeichen fehlen noch.`
-  return 'Passt — starkes Passwort.'
+  if (pw.length === 0) return 'At least 8 characters — numbers or symbols make it stronger.'
+  if (pw.length < 8) return `${String(8 - pw.length)} more characters needed.`
+  return 'Looks good — strong password.'
 }
 
 export function RegisterScreen({
@@ -67,7 +67,7 @@ export function RegisterScreen({
 
   if (verifyNotice) {
     return (
-      <AuthScaffold pitch={'In 2 Minuten\nzur ersten getrackten Stunde.'}>
+      <AuthScaffold pitch={'In 2 minutes\nto your first tracked hour.'}>
         <Text
           style={{
             fontSize: t.fontSize.xl,
@@ -76,19 +76,18 @@ export function RegisterScreen({
             fontFamily: t.fontFamily.display,
           }}
         >
-          Fast geschafft
+          Almost there
         </Text>
         <Text style={{ color: t.color.ink2, fontSize: t.fontSize.sm }}>
-          Wir haben dir eine Bestätigungs-E-Mail an {email} geschickt. Bestätige sie, dann kannst du
-          dich anmelden.
+          We’ve sent a confirmation email to {email}. Confirm it, then you can sign in.
         </Text>
-        <Button onPress={onGoLogin}>Zur Anmeldung</Button>
+        <Button onPress={onGoLogin}>Go to sign in</Button>
       </AuthScaffold>
     )
   }
 
   return (
-    <AuthScaffold pitch={'In 2 Minuten\nzur ersten getrackten Stunde.'}>
+    <AuthScaffold pitch={'In 2 minutes\nto your first tracked hour.'}>
       <Text
         style={{
           fontSize: t.fontSize.xl,
@@ -97,14 +96,10 @@ export function RegisterScreen({
           fontFamily: t.fontFamily.display,
         }}
       >
-        Konto erstellen
+        Create free account
       </Text>
 
-      <SocialButtons
-        providers={providers}
-        onSocial={onSocial}
-        label={n => `Mit ${n} registrieren`}
-      />
+      <SocialButtons providers={providers} onSocial={onSocial} label={n => `Sign up with ${n}`} />
       <OrDivider />
 
       {message !== null && (
@@ -115,16 +110,16 @@ export function RegisterScreen({
 
       <Input label="Name" placeholder="Suhay Sevinc" value={name} onChangeText={setName} />
       <Input
-        label="E-Mail"
-        placeholder="du@firma.de"
+        label="Email"
+        placeholder="you@company.com"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
       />
       <View style={{ gap: 4 }}>
         <Input
-          label="Passwort"
-          placeholder="Mindestens 8 Zeichen"
+          label="Password"
+          placeholder="At least 8 characters"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -140,18 +135,20 @@ export function RegisterScreen({
       </View>
 
       <Button onPress={submit} disabled={busy}>
-        {busy ? 'Wird erstellt…' : 'Konto erstellen'}
+        {busy ? 'Creating…' : 'Create free account'}
       </Button>
 
       <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>
-        Mit der Registrierung akzeptierst du die AGB und die Datenschutzerklärung. Dein
-        Auto-Tracking bleibt lokal, bis du es teilst.
+        By creating an account you accept the Terms and the Privacy Policy. Your auto-tracking stays
+        local until you share it.
       </Text>
 
       <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
-        <Text style={{ color: t.color.ink2, fontSize: t.fontSize.sm }}>Schon ein Konto?</Text>
+        <Text style={{ color: t.color.ink2, fontSize: t.fontSize.sm }}>
+          Already have an account?
+        </Text>
         <Pressable onPress={onGoLogin} accessibilityRole="button">
-          <Text style={link}>Anmelden</Text>
+          <Text style={link}>Sign in</Text>
         </Pressable>
       </View>
     </AuthScaffold>

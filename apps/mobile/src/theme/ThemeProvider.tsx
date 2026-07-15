@@ -12,7 +12,7 @@ import { resolveMode, type ThemePref } from './resolveMode'
 /**
  * Theme context (issue #11). Resolves the effective `Theme` from the OS color
  * scheme and the user's mode preference (pure `resolveMode`) plus the chosen
- * accent theme (Blueprint/Königsblau default / Sovereign / Ember — ADR-0023), and hands the
+ * accent theme (Blueprint/Royal Blue default / Sovereign / Ember — ADR-0023), and hands the
  * whole design system — palette + scales — to every screen via `useTheme()`.
  * Dark-first with light a first-class sibling (ux-vision §4).
  */

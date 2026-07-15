@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pressable, View, useWindowDimensions } from 'react-native'
+import { Alert, Pressable, View, useWindowDimensions } from 'react-native'
 import { Text } from '../components/core/Text'
 import {
   PROFILE_HUB_LINKS,
@@ -20,58 +20,58 @@ import { useAbsences } from '../hooks/useAbsences'
 import { initialsOf, useSessionContext } from '../shell/SessionContext'
 
 /**
- * Profil & Einstellungen — the personal hub (ux-vision §3), ported 1:1 from the
+ * Profile & settings — the personal hub (ux-vision §3), ported 1:1 from the
  * design system's `ProfileScreen`: a two-column responsive layout (two columns on
- * wide, stacked on phone). Left: identity, the **Darstellung** appearance controls
+ * wide, stacked on phone). Left: identity, the **Appearance** controls
  * (accent theme + light/dark mode, wired to the live `ThemeProvider`), the
- * work-time summary and the settings toggles. Right: **Integrationen**, the
+ * work-time summary and the settings toggles. Right: **Integrations**, the
  * AI-credit balance + ledger preview (#34) and the absences summary (#37). Every
  * number renders through the shared `format*` helpers; the AI never mutates state
  * (ADR-0005). The identity and Sign-out seam read the shared session (REQ-002).
  */
 /** Row copy for the surfaces the Profile hub links into (ux-vision §3). */
 const HUB_META: Record<ProfileHubLink, { title: string; subtitle: string }> = {
-  meetings: { title: 'Meetings', subtitle: 'Transkripte & AI-Insights' },
-  assistant: { title: 'Assistent', subtitle: 'Frag nach deinen Zeiten · schreibgeschützt' },
+  meetings: { title: 'Meetings', subtitle: 'Transcripts & AI insights' },
+  assistant: { title: 'Assistant', subtitle: 'Ask about your time · read-only' },
 }
 
 const DAILY_TARGET_MS = 8 * 3_600_000
 const WEEKLY_TARGET_MS = 40 * 3_600_000
-const WEEK_DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] as const
+const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
 /** A short `d. Mon` label from a credit entry's ISO instant (no locale drift). */
 const MONTH_SHORT = [
   'Jan',
   'Feb',
-  'Mär',
+  'Mar',
   'Apr',
-  'Mai',
+  'May',
   'Jun',
   'Jul',
   'Aug',
   'Sep',
-  'Okt',
+  'Oct',
   'Nov',
-  'Dez',
+  'Dec',
 ]
 function shortDate(iso: string): string {
   const [, m, d] = iso.slice(0, 10).split('-')
   return `${String(Number(d))}. ${MONTH_SHORT[Number(m) - 1] ?? ''}`
 }
 
-/** Appearance controls, wired to the live ThemeProvider (Darstellung). */
+/** Appearance controls, wired to the live ThemeProvider. */
 const ACCENT_OPTIONS: readonly { readonly key: AccentTheme; readonly label: string }[] = [
-  { key: 'blueprint', label: 'Königsblau' },
+  { key: 'blueprint', label: 'Royal Blue' },
   { key: 'sovereign', label: 'Sovereign' },
   { key: 'ember', label: 'Ember' },
 ]
 const MODE_OPTIONS: readonly { readonly key: ThemePref; readonly label: string }[] = [
   { key: 'system', label: 'System' },
-  { key: 'light', label: 'Hell' },
-  { key: 'dark', label: 'Dunkel' },
+  { key: 'light', label: 'Light' },
+  { key: 'dark', label: 'Dark' },
 ]
 
-/** The small uppercase sub-heading used inside the Darstellung card. */
+/** The small uppercase sub-heading used inside the Appearance card. */
 function MicroLabel({ children }: { children: string }): React.JSX.Element {
   const t = useTheme()
   return (
@@ -231,7 +231,7 @@ export function ProfileScreen({
   )
 
   const darstellung = (
-    <Card title="Darstellung">
+    <Card title="Appearance">
       <View style={{ gap: t.spacing.s4 }}>
         <View>
           <MicroLabel>Accent</MicroLabel>
@@ -248,7 +248,7 @@ export function ProfileScreen({
           </View>
         </View>
         <View>
-          <MicroLabel>Modus</MicroLabel>
+          <MicroLabel>Mode</MicroLabel>
           <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
             {MODE_OPTIONS.map(o => (
               <OptionButton
@@ -265,19 +265,19 @@ export function ProfileScreen({
   )
 
   const arbeitszeit = (
-    <Card title="Arbeitszeit" subtitle="REQ-028 · ArbZG §4">
+    <Card title="Work time" subtitle="REQ-028 · ArbZG §4">
       <View style={{ gap: t.spacing.s4 }}>
-        <MetaRow label="Soll pro Tag">
+        <MetaRow label="Target per day">
           <Text style={{ ...mono, fontSize: t.fontSize.sm, fontWeight: '600' }}>
             {formatDuration(DAILY_TARGET_MS)} h
           </Text>
         </MetaRow>
-        <MetaRow label="Wochen-Soll">
+        <MetaRow label="Weekly target">
           <Text style={{ ...mono, fontSize: t.fontSize.sm, fontWeight: '600' }}>
             {formatDuration(WEEKLY_TARGET_MS)} h
           </Text>
         </MetaRow>
-        <MetaRow label="Wochenmodell">
+        <MetaRow label="Week model">
           <View style={{ flexDirection: 'row', gap: 4 }}>
             {WEEK_DAYS.map((d, i) => {
               const workday = i < 5
@@ -307,7 +307,7 @@ export function ProfileScreen({
             })}
           </View>
         </MetaRow>
-        <MetaRow label="Überstunden-Saldo">
+        <MetaRow label="Overtime balance">
           <Text
             style={{
               ...mono,
@@ -321,11 +321,11 @@ export function ProfileScreen({
           </Text>
         </MetaRow>
         <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
-          Pausenwarnungen folgen dem ArbZG-§4-Preset — ein Hinweis, keine Rechtsberatung.
+          Break warnings follow the ArbZG §4 preset — guidance, not legal advice.
         </Text>
         <Row
-          title="Arbeitszeit öffnen"
-          subtitle="Kommen/Gehen, Pausen & Überstunden"
+          title="Open work time"
+          subtitle="Clock-in/out, breaks & overtime"
           trailing={chevron}
           onPress={() => onNavigate('worktime')}
         />
@@ -334,46 +334,46 @@ export function ProfileScreen({
   )
 
   const einstellungen = (
-    <Card title="Einstellungen">
+    <Card title="Settings">
       <Row
-        title="Pausen-Erinnerungen (ArbZG)"
+        title="Break reminders (ArbZG)"
         trailing={
           <Switch
             checked={reminders}
             onChange={setReminders}
-            accessibilityLabel="Pausen-Erinnerungen (ArbZG)"
+            accessibilityLabel="Break reminders (ArbZG)"
           />
         }
       />
       <Row
-        title="Kalender-Auto-Erfassung"
+        title="Calendar auto-capture"
         trailing={
           <Switch
             checked={calendarCapture}
             onChange={setCalendarCapture}
-            accessibilityLabel="Kalender-Auto-Erfassung"
+            accessibilityLabel="Calendar auto-capture"
           />
         }
       />
       <Row
-        title="Auto-Tracker (App-Nutzung aufzeichnen)"
+        title="Auto-Tracker (record app usage)"
         trailing={
           <Switch
             checked={autoTracker}
             onChange={setAutoTracker}
-            accessibilityLabel="Auto-Tracker (App-Nutzung aufzeichnen)"
+            accessibilityLabel="Auto-Tracker (record app usage)"
           />
         }
       />
       <Row
-        title="Stundensätze"
-        subtitle="€/Std. pro Workspace, Kunde & Projekt"
+        title="Hourly rates"
+        subtitle="€/hr per workspace, client & project"
         trailing={chevron}
         onPress={() => onNavigate('rates')}
       />
       <Row
-        title="Alle Einstellungen"
-        subtitle="Präferenzen, Abo, Daten & Datenschutz"
+        title="All settings"
+        subtitle="Preferences, subscription, data & privacy"
         trailing={chevron}
         onPress={() => onNavigate('settings')}
       />
@@ -382,29 +382,29 @@ export function ProfileScreen({
 
   const integrationen = (
     <Card
-      title="Integrationen"
-      subtitle="OAuth · Export nur nach Bestätigung — nie automatisch"
-      action={connectors.live ? undefined : <Badge tone="neutral">Vorschau</Badge>}
+      title="Integrations"
+      subtitle="OAuth · export only after confirmation — never automatic"
+      action={connectors.live ? undefined : <Badge tone="neutral">Preview</Badge>}
     >
       {connectors.connectors.map(item => {
         // Honest state (M3): connected (sealed token) → good; configured but not yet
-        // connected → "Verbinden"; not configured in this deployment → "geplant".
+        // connected → "Connect"; not configured in this deployment → "Planned".
         const tone: 'good' | 'accent' | 'neutral' = item.connected
           ? 'good'
           : item.configured
             ? 'accent'
             : 'neutral'
-        const label = item.connected ? 'Verbunden' : item.configured ? 'Verbinden' : 'Geplant'
+        const label = item.connected ? 'Connected' : item.configured ? 'Connect' : 'Planned'
         return (
           <Row
             key={item.id}
             title={item.label}
             subtitle={
               item.connected
-                ? 'Verbunden · zum Trennen tippen'
+                ? 'Connected · tap to disconnect'
                 : item.configured
-                  ? 'Bereit zum Verbinden (OAuth)'
-                  : 'Für diese Instanz noch nicht konfiguriert'
+                  ? 'Ready to connect (OAuth)'
+                  : 'Not yet configured for this instance'
             }
             leading={
               <View
@@ -430,7 +430,23 @@ export function ProfileScreen({
               </View>
             }
             trailing={<Badge tone={tone}>{label}</Badge>}
-            {...(item.connected ? { onPress: () => connectors.disconnect(item.id) } : {})}
+            {...(item.connected
+              ? {
+                  onPress: () =>
+                    Alert.alert(
+                      'Disconnect integration?',
+                      `Disconnect ${item.label}? You can reconnect anytime via OAuth.`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Disconnect',
+                          style: 'destructive',
+                          onPress: () => connectors.disconnect(item.id),
+                        },
+                      ],
+                    ),
+                }
+              : {})}
           />
         )
       })}
@@ -442,7 +458,7 @@ export function ProfileScreen({
       title="AI-Credits"
       action={
         <Button size="sm" variant="secondary" onPress={() => onNavigate('credits')}>
-          Aufladen
+          Top up
         </Button>
       }
     >
@@ -450,7 +466,7 @@ export function ProfileScreen({
         <Text style={{ ...mono, fontSize: t.fontSize.xl, fontWeight: '700' }}>
           {String(creditBalance)}
         </Text>
-        <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>Credits übrig</Text>
+        <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>Credits left</Text>
       </View>
       <View
         style={{
@@ -461,9 +477,7 @@ export function ProfileScreen({
         }}
       >
         {ledger.length === 0 ? (
-          <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink3 }}>
-            Noch keine Buchungen.
-          </Text>
+          <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink3 }}>No entries yet.</Text>
         ) : (
           ledger.map(entry => (
             <Row
@@ -484,17 +498,13 @@ export function ProfileScreen({
             />
           ))
         )}
-        <Row
-          title="Ledger & Nutzung ansehen"
-          trailing={chevron}
-          onPress={() => onNavigate('credits')}
-        />
+        <Row title="View ledger & usage" trailing={chevron} onPress={() => onNavigate('credits')} />
       </View>
     </Card>
   )
 
   const abwesenheiten = (
-    <Card title="Abwesenheiten">
+    <Card title="Absences">
       <LeaveBalance
         entitlement={vacation.allowanceDays}
         taken={vacation.usedDays}
@@ -502,8 +512,8 @@ export function ProfileScreen({
       />
       <View style={{ marginTop: t.spacing.s3 }}>
         <Row
-          title="Abwesenheitskalender öffnen"
-          subtitle="Urlaub, Krankheit, Feiertage"
+          title="Open absence calendar"
+          subtitle="Vacation, sickness, holidays"
           trailing={chevron}
           onPress={() => onNavigate('absences')}
         />
@@ -523,7 +533,7 @@ export function ProfileScreen({
             letterSpacing: t.fontSize.xl * t.letterSpacing.tight,
           }}
         >
-          Profil & Einstellungen
+          Profile & settings
         </Text>
       }
     >
@@ -548,7 +558,7 @@ export function ProfileScreen({
       </View>
 
       {/* More — the top-level surfaces kept off the phone's five-tab bar (ux-vision §3). */}
-      <Card title="Mehr">
+      <Card title="More">
         {PROFILE_HUB_LINKS.map(link => (
           <Row
             key={link}
@@ -564,7 +574,7 @@ export function ProfileScreen({
       <Card>
         <Row
           title="Sign out"
-          subtitle={session.live ? user.email : 'Demo-Sitzung'}
+          subtitle={session.live ? user.email : 'Demo session'}
           trailing={
             <Text style={{ color: t.color.crit, fontSize: t.fontSize.sm, fontWeight: '600' }}>
               {session.busy ? '…' : 'Sign out'}

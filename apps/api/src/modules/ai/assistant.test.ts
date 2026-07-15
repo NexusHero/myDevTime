@@ -9,9 +9,9 @@ import { LlmAssistant, deterministicAnswer } from './assistant.js'
  * the provider is down or the answer is not in the data (ADR-0005/0029).
  */
 const facts = [
-  'Diese Woche: 41h 15m getrackt.',
-  'Top-Projekt: Finanzo mit 14.5h.',
-  'Überstundensaldo: +1h 30m.',
+  'This week: 41h 15m tracked.',
+  'Top project: Finanzo with 14.5h.',
+  'Overtime balance: +1h 30m.',
 ]
 
 function fakeLlm(text: string): LlmPort {
@@ -30,15 +30,15 @@ function fakeLlm(text: string): LlmPort {
 
 describe('deterministicAnswer', () => {
   it('PicksTheFactWithTheMostWordOverlap', () => {
-    const out = deterministicAnswer('Wie ist mein Überstundensaldo?', facts)
+    const out = deterministicAnswer('What is my overtime balance?', facts)
     expect(out.refused).toBe(false)
-    expect(out.text).toContain('Überstundensaldo')
+    expect(out.text).toContain('Overtime balance')
   })
   it('RefusesWhenNothingOverlaps', () => {
-    expect(deterministicAnswer('Wie ist das Wetter?', facts).refused).toBe(true)
+    expect(deterministicAnswer('What is the weather?', facts).refused).toBe(true)
   })
   it('RefusesWhenThereAreNoFacts', () => {
-    expect(deterministicAnswer('irgendwas', []).refused).toBe(true)
+    expect(deterministicAnswer('anything', []).refused).toBe(true)
   })
 })
 
@@ -62,8 +62,8 @@ describe('LlmAssistant', () => {
   })
 
   it('ValidCompletion_YieldsAiProposal', async () => {
-    const out = await new LlmAssistant(fakeLlm('Dein Top-Projekt ist Finanzo mit 14.5h.')).answer(
-      'Was ist mein Top-Projekt?',
+    const out = await new LlmAssistant(fakeLlm('Your top project is Finanzo with 14.5h.')).answer(
+      'What is my top project?',
       facts,
       { allowAi: true },
     )
@@ -73,7 +73,7 @@ describe('LlmAssistant', () => {
   })
 
   it('RefusalMarker_IsReportedAsRefused', async () => {
-    const out = await new LlmAssistant(fakeLlm('KEINE_DATEN')).answer('Wetter?', facts, {
+    const out = await new LlmAssistant(fakeLlm('NO_DATA')).answer('Weather?', facts, {
       allowAi: true,
     })
     expect(out.source).toBe('ai-proposal')
