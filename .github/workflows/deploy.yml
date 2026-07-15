@@ -1,0 +1,102 @@
+name: Deploy to Kubernetes (Hetzner)
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  # github.repository is usually orga/repo, e.g. suhaysevinc/mydevtime
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push-images:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for API
+        id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api
+          tags: |
+            type=sha
+            type=raw,value=latest
+
+      - name: Build and push API Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+
+      - name: Extract metadata (tags, labels) for Web
+        id: meta-web
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web
+          tags: |
+            type=sha
+            type=raw,value=latest
+
+      - name: Build and push Web Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/mobile/Dockerfile
+          push: true
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: ${{ steps.meta-web.outputs.labels }}
+
+  deploy:
+    needs: build-and-push-images
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      # Run database migrations first
+      - name: Run Database Migrations
+        run: |
+          kubectl apply -f k8s/api/job-migrate.yaml
+          # Wait for job to complete
+          kubectl wait --for=condition=complete job/api-migrate --timeout=120s
+          # Clean up the job so it can run again next time
+          kubectl delete -f k8s/api/job-migrate.yaml
+
+      # Update deployments with the new image SHA
+      - name: Deploy to Kubernetes
+        run: |
+          API_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api:sha-${GITHUB_SHA::7}"
+          WEB_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web:sha-${GITHUB_SHA::7}"
+
+          # Replace image tags in deployments or just use kubectl set image
+          kubectl set image deployment/api api=$API_IMAGE
+          kubectl set image deployment/web web=$WEB_IMAGE
+
+          # Watch rollout status
+          kubectl rollout status deployment/api --timeout=180s
+          kubectl rollout status deployment/web --timeout=180s
