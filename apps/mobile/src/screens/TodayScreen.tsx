@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pressable, ScrollView, TextInput, View, useWindowDimensions } from 'react-native'
+import { Platform, Pressable, ScrollView, TextInput, View, useWindowDimensions } from 'react-native'
 import { formatDuration, projectColor } from '@mydevtime/design'
 import { Text } from '../components/core/Text'
 import { useTheme } from '../theme/ThemeProvider'
@@ -19,6 +19,8 @@ import {
 } from '../components/index'
 import { useTimerContext } from '../timer/TimerContext'
 import { usePlanner } from '../hooks/usePlanner'
+import { usePreferences } from '../hooks/usePreferences'
+import { useAutoTracker } from '../autotracker/useAutoTracker'
 import { NlQuickAdd } from './NlQuickAdd'
 import { useCatalog } from './useCatalog'
 import { findProject } from './projectsData'
@@ -88,6 +90,14 @@ export function TodayScreen(): React.JSX.Element {
   const paused = timer.paused
   // The session is "active" (has time on it) whether the segment is running or paused.
   const active = isRunning || paused
+
+  // Auto-Tracker (REQ-042): captures the app's own tab activity while tracking, but
+  // only after explicit consent (the persisted `autoTracker` preference) and only on
+  // web, where first-party capture is real. Anything else → an honest empty state.
+  const { prefs } = usePreferences()
+  const captureAvailable = Platform.OS === 'web'
+  const consented = prefs.autoTracker
+  const activity = useAutoTracker(consented && captureAvailable, active)
 
   const planBlocks = (plan?.blocks ?? []).map((b, i) => ({ ...b, index: i }))
   const visibleBlocks = planBlocks.filter(b => !dismissed.includes(b.index))
@@ -401,13 +411,90 @@ export function TodayScreen(): React.JSX.Element {
     </Card>
   )
 
+  const autoTrackerHint = !consented
+    ? "Auto-Tracker is off. Turn it on in Settings to see where this session's time goes — local, exclusible, only while tracking."
+    : !captureAvailable
+      ? "App-usage capture isn't available on this platform yet — it runs in the web app today; local to your device."
+      : !active
+        ? 'Starts capturing when you start tracking — the split stays on this device.'
+        : 'Watching this session — your activity split appears here.'
+
   const autoTracker = (
     <Card title="Auto-Tracker" subtitle="App usage while tracking">
-      <EmptyState
-        title="Coming soon"
-        hint="The Auto-Tracker breakdown appears here once it's enabled in Settings — local, exclusible, only while tracking."
-        compact
-      />
+      {activity && activity.segments.length > 0 ? (
+        <>
+          <View
+            style={{
+              flexDirection: 'row',
+              height: 10,
+              borderRadius: t.radius.pill,
+              overflow: 'hidden',
+              gap: 2,
+              marginBottom: t.spacing.s3,
+            }}
+          >
+            {activity.segments.map(s => (
+              <View
+                key={s.source}
+                style={{
+                  flexGrow: Math.max(s.pct, 1),
+                  flexBasis: 0,
+                  backgroundColor: projectColor(s.source, t.mode),
+                }}
+              />
+            ))}
+          </View>
+          <View style={{ gap: t.spacing.s2 }}>
+            {activity.segments.map(s => (
+              <View
+                key={s.source}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}
+              >
+                <View
+                  style={{
+                    width: 9,
+                    height: 9,
+                    borderRadius: 5,
+                    backgroundColor: projectColor(s.source, t.mode),
+                  }}
+                />
+                <Text
+                  style={{
+                    flex: 1,
+                    fontSize: t.fontSize.xs,
+                    fontWeight: '600',
+                    color: t.color.ink,
+                  }}
+                >
+                  {s.source}
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: t.fontFamily.numeric,
+                    fontSize: t.fontSize['2xs'],
+                    color: t.color.ink2,
+                  }}
+                >
+                  {formatDuration(s.ms)} h
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: t.fontFamily.numeric,
+                    fontSize: t.fontSize['2xs'],
+                    color: t.color.ink3,
+                    width: 40,
+                    textAlign: 'right',
+                  }}
+                >
+                  {s.pct}%
+                </Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : (
+        <EmptyState title="App usage while tracking" hint={autoTrackerHint} compact />
+      )}
     </Card>
   )
 
