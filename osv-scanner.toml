@@ -1,12 +1,19 @@
 # OSV-Scanner config (CI dependency gate — .github/workflows/security.yml, ADR-0016).
 # Accepted advisories are documented, with a revisit trigger, in
-# docs/security/audit-exceptions.md. Every entry below is `tar` reached only via
-# `apps/mobile > expo > @expo/cli > tar` — the archive extractor the Expo *build
-# CLI* uses at build time. It never ships in the app bundle and never runs on a
-# device or server; `@expo/cli` pins `tar@^6`, and the patched line is `tar@>=7`,
-# so bumping it breaks the CLI. Revisit on each Expo SDK upgrade and drop any
-# GHSA that no longer resolves.
+# docs/security/audit-exceptions.md. Every entry below is build/CLI tooling reached
+# only through the Expo build CLI or drizzle-kit (better-auth's migration CLI) — it
+# never ships in the app bundle and never runs on a user device or in the server
+# request path. pnpm classifies these as "production" only because `expo`,
+# `better-auth`, and `drizzle-kit` are runtime dependency *entries*; the vulnerable
+# sub-packages are their build machinery. OSV-Scanner surfaces them because it scans
+# the whole lockfile at every severity, where the retired `pnpm audit --prod
+# --audit-level high` gate only checked production deps at high+ severity. Revisit
+# on each Expo / drizzle-kit / better-auth upgrade and drop any GHSA that no longer
+# resolves — keep this list as short as the toolchain allows.
 
+# --- tar: the archive extractor the Expo build CLI uses (expo > @expo/cli > tar).
+# `@expo/cli` pins `tar@^6`; the patched line is `tar@>=7`, so it can't be bumped
+# via override without breaking the CLI.
 [[IgnoredVulns]]
 id = "GHSA-34x7-hfp2-rc4v"
 reason = "tar via expo > @expo/cli — build CLI only, never shipped (docs/security/audit-exceptions.md)"
@@ -30,3 +37,28 @@ reason = "tar via expo > @expo/cli — build CLI only, never shipped (docs/secur
 [[IgnoredVulns]]
 id = "GHSA-r6q2-hw4h-h46w"
 reason = "tar via expo > @expo/cli — build CLI only, never shipped (docs/security/audit-exceptions.md)"
+
+[[IgnoredVulns]]
+id = "GHSA-vmf3-w455-68vh"
+reason = "tar 6.2.1 via expo > @expo/cli — same build-CLI extractor, tar@^6 pin (docs/security/audit-exceptions.md)"
+
+# --- esbuild: the build-time bundler pulled in by drizzle-kit (better-auth's
+# migration CLI) and by tsx/vite in the dev/test toolchain. Never in the runtime
+# request path.
+[[IgnoredVulns]]
+id = "GHSA-67mh-4wv8-2f99"
+reason = "esbuild via better-auth > drizzle-kit and tsx/vite — build/dev tooling only, never shipped (docs/security/audit-exceptions.md)"
+
+# --- postcss: CSS processor inside the Expo build CLI (@expo/metro-config >
+# @expo/cli). Build-time asset processing only, never shipped.
+[[IgnoredVulns]]
+id = "GHSA-qx2v-qp2m-jg93"
+reason = "postcss via expo > @expo/cli > @expo/metro-config — build CLI only, never shipped (docs/security/audit-exceptions.md)"
+
+# --- uuid: reached only through the Expo build CLI (xcode > @expo/config-plugins
+# and @expo/bunyan > @expo/rudder-sdk-node, both under @expo/cli). Native-project /
+# telemetry tooling that runs at build time, never on a device or the server. Same
+# GHSA affects the 7.0.3 and 8.3.2 copies.
+[[IgnoredVulns]]
+id = "GHSA-w5hq-g745-h8pq"
+reason = "uuid via expo > @expo/cli (xcode / rudder-sdk) — build CLI only, never shipped (docs/security/audit-exceptions.md)"
