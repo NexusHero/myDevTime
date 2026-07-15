@@ -11,24 +11,25 @@ permissions:
   contents: read
 
 jobs:
+  # Dependency vulnerability gate. `pnpm audit` was retired here (2026-07): npm
+  # returned HTTP 410 for its audit endpoints ("use the bulk advisory endpoint"),
+  # breaking `pnpm audit` registry-wide. OSV-Scanner reads the lockfile and queries
+  # the OSV database directly, so it does not depend on the npm audit endpoint.
+  # Accepted advisories (Expo build-CLI `tar` only, never shipped) are allowlisted
+  # in `osv-scanner.toml` and documented, with a revisit trigger, in
+  # docs/security/audit-exceptions.md.
   audit:
-    name: pnpm audit (production deps)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Audit production dependencies
-        # Accepted advisories (Expo build-CLI only, never shipped) are allowlisted
-        # in package.json (pnpm.auditConfig.ignoreGhsas) and documented, with a
-        # revisit trigger, in docs/security/audit-exceptions.md.
-        run: pnpm audit --prod --audit-level high
+    name: OSV vulnerability scan (dependencies)
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.2.2
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    with:
+      scan-args: |-
+        --lockfile=./pnpm-lock.yaml
+        --config=./osv-scanner.toml
+      fail-on-vuln: true
 
   dependency-review:
     name: Dependency review
