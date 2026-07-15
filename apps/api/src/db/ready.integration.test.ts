@@ -23,7 +23,8 @@ describe.skipIf(!databaseUrl)('GET /health/ready (integration)', () => {
     const res = await app.inject({ method: 'GET', url: '/health/ready' })
 
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toEqual({ status: 'ready', db: 'up' })
+    // No REDIS_URL in this test's config, so readiness reports redis not configured.
+    expect(res.json()).toEqual({ status: 'ready', db: 'up', redis: 'not_configured' })
     await app.close()
   })
 })
