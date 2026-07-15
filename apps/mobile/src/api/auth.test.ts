@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { getSession, parseUser, signIn, signOut, validateCredentials } from './auth.js'
+import {
+  fetchProviders,
+  getSession,
+  parseProviders,
+  parseUser,
+  signIn,
+  signOut,
+  signUp,
+  startSocialSignIn,
+  validateCredentials,
+  validateSignUp,
+} from './auth.js'
 
 /**
  * The client auth seam talks to the server's vendor-free `/api/auth/me` and
@@ -108,5 +119,83 @@ describe('validateCredentials', () => {
   })
   it('ShortPassword_IsRejected', () => {
     expect(validateCredentials({ email: 'a@b.co', password: 'short' })).toMatch(/8/)
+  })
+})
+
+describe('parseProviders', () => {
+  it('KeepsOnlyKnownSocialProviders', () => {
+    expect(parseProviders({ emailPassword: true, social: ['google', 'nope', 'github'] })).toEqual({
+      emailPassword: true,
+      social: ['google', 'github'],
+    })
+  })
+  it('BadShape_DefaultsSafely', () => {
+    expect(parseProviders({})).toEqual({ emailPassword: false, social: [] })
+  })
+})
+
+describe('fetchProviders', () => {
+  it('ReadsTheConfiguredMethods', async () => {
+    const { fetchImpl, urls } = fetchSeq([
+      () => ({ status: 200, body: { emailPassword: true, social: ['github'] } }),
+    ])
+    expect(await fetchProviders('http://api', fetchImpl)).toEqual({
+      emailPassword: true,
+      social: ['github'],
+    })
+    expect(urls[0]).toContain('/api/auth/providers')
+  })
+})
+
+describe('signUp', () => {
+  it('PostsThenReturnsIdentity_WhenSessionEstablished', async () => {
+    const { fetchImpl, urls } = fetchSeq([
+      () => ({ status: 200, body: { ok: true } }), // sign-up
+      () => ({ status: 200, body: USER }), // /me
+    ])
+    const user = await signUp(
+      'http://api',
+      { name: 'Dev', email: 'dev@nexushero.io', password: 'hunter2xy' },
+      fetchImpl,
+    )
+    expect(user?.id).toBe('u1')
+    expect(urls[0]).toContain('/api/auth/sign-up/email')
+  })
+  it('ReturnsNull_WhenEmailVerificationRequired', async () => {
+    // Sign-up succeeds but no session yet (verification required) → 401 on /me.
+    const { fetchImpl } = fetchSeq([
+      () => ({ status: 200, body: { ok: true } }),
+      () => ({ status: 401, body: { title: 'Unauthorized' } }),
+    ])
+    expect(
+      await signUp(
+        'http://api',
+        { name: 'Dev', email: 'dev@nexushero.io', password: 'hunter2xy' },
+        fetchImpl,
+      ),
+    ).toBeNull()
+  })
+})
+
+describe('startSocialSignIn', () => {
+  it('ReturnsTheProviderAuthorizeUrl', async () => {
+    const { fetchImpl, urls } = fetchSeq([
+      () => ({ status: 200, body: { url: 'https://accounts.google.com/o/oauth2/auth?x=1' } }),
+    ])
+    const url = await startSocialSignIn('http://api', 'google', 'http://app/', fetchImpl)
+    expect(url).toContain('accounts.google.com')
+    expect(urls[0]).toContain('/api/auth/sign-in/social')
+  })
+})
+
+describe('validateSignUp', () => {
+  it('EmptyName_IsRejected', () => {
+    expect(validateSignUp({ name: '  ', email: 'a@b.co', password: 'longenough' })).toMatch(/name/i)
+  })
+  it('DelegatesToCredentialChecks', () => {
+    expect(validateSignUp({ name: 'Dev', email: 'nope', password: 'longenough' })).toMatch(/email/i)
+  })
+  it('ValidInput_IsNull', () => {
+    expect(validateSignUp({ name: 'Dev', email: 'a@b.co', password: 'longenough' })).toBeNull()
   })
 })

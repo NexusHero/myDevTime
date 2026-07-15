@@ -74,3 +74,87 @@ export function validateCredentials(creds: Credentials): string | null {
   if (creds.password.length < 8) return 'Password must be at least 8 characters.'
   return null
 }
+
+export type SocialProvider = 'google' | 'apple' | 'github'
+
+/** Which sign-in methods this deployment offers (from `GET /api/auth/providers`). */
+export interface AuthProviders {
+  readonly emailPassword: boolean
+  readonly social: readonly SocialProvider[]
+}
+
+export interface SignUpInput {
+  readonly name: string
+  readonly email: string
+  readonly password: string
+}
+
+const SOCIAL: readonly SocialProvider[] = ['google', 'apple', 'github']
+const isSocial = (v: unknown): v is SocialProvider => SOCIAL.includes(v as SocialProvider)
+
+/** Parse the configured auth methods, defaulting conservatively on a bad shape. */
+export function parseProviders(value: unknown): AuthProviders {
+  const o = record(value)
+  const social = Array.isArray(o.social) ? o.social.filter(isSocial) : []
+  return { emailPassword: o.emailPassword === true, social }
+}
+
+/** Which sign-in methods are configured — the gate reads this to enable buttons. */
+export async function fetchProviders(
+  baseUrl: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<AuthProviders> {
+  return parseProviders(await getJson(baseUrl, '/api/auth/providers', fetchImpl))
+}
+
+/**
+ * Create an account with name + email + password. Returns the signed-in identity
+ * when the server established a session immediately, or `null` when email
+ * verification is required first (production default) — the caller then tells the
+ * user to check their inbox. The wire route is Better-Auth's `/sign-up/email`.
+ */
+export async function signUp(
+  baseUrl: string,
+  input: SignUpInput,
+  fetchImpl: typeof fetch = fetch,
+): Promise<AuthUser | null> {
+  await postJson(baseUrl, '/api/auth/sign-up/email', input, fetchImpl)
+  return getSession(baseUrl, fetchImpl)
+}
+
+/**
+ * Begin an OAuth sign-in: ask Better-Auth's `/sign-in/social` for the provider's
+ * authorize URL (server round-trip so the client never holds client secrets), and
+ * return it for the caller to open. `callbackURL` is where the provider returns to
+ * after consent — our own origin, so the session cookie lands on us.
+ */
+export async function startSocialSignIn(
+  baseUrl: string,
+  provider: SocialProvider,
+  callbackURL: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<string> {
+  const body = record(
+    await postJson(baseUrl, '/api/auth/sign-in/social', { provider, callbackURL }, fetchImpl),
+  )
+  return str(body, 'url')
+}
+
+/** Pre-flight sign-up check. Returns a user-facing message, or `null` when valid. */
+export function validateSignUp(input: SignUpInput): string | null {
+  if (input.name.trim().length === 0) return 'Enter your name.'
+  return validateCredentials({ email: input.email, password: input.password })
+}
+
+/**
+ * Ask the server to email a password-reset link (Better-Auth `/forget-password`).
+ * Always resolves — the server does not reveal whether the address exists, so the
+ * UI shows the same "check your inbox" either way.
+ */
+export async function requestPasswordReset(
+  baseUrl: string,
+  email: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  await postJson(baseUrl, '/api/auth/forget-password', { email }, fetchImpl)
+}

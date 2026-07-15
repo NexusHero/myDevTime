@@ -23,7 +23,11 @@ function fakeSession(overrides: Partial<SessionResource> = {}): {
     error: null,
     live: true,
     busy: false,
+    providers: { emailPassword: true, social: [] },
     signIn: () => Promise.resolve(),
+    signUp: () => Promise.resolve(true),
+    startSocial: () => undefined,
+    requestReset: () => Promise.resolve(),
     signOut: () => {
       count += 1
       return Promise.resolve()
