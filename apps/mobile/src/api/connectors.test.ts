@@ -12,7 +12,7 @@ const CONNECTOR = {
   category: 'git',
   configured: true,
   connected: false,
-  capabilities: [{ capability: 'inbound', label: 'Issues lesen', granted: true }],
+  capabilities: [{ capability: 'inbound', label: 'Read issues', granted: true }],
 }
 
 interface Seen {

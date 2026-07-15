@@ -33,6 +33,12 @@ WORKDIR /app
 # Copy the deployed application from the builder
 COPY --from=builder /prod/api .
 
+# Run as the unprivileged `node` user (present in the base image), not root.
+USER node
+
 EXPOSE 3000
 
-CMD ["sh", "-c", "node dist/db/migrate.js && node dist/main.js"]
+# Serve only — migrations are a separate one-off release step (the compose
+# `migrate` service / a k8s Job / `node dist/db/migrate.js`), never run by every
+# replica on boot (that couples release+run and races N migrators, 12-factor VI).
+CMD ["node", "dist/main.js"]
