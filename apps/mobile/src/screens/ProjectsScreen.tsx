@@ -51,7 +51,7 @@ function ProjectCard({
   const billing =
     project.rateMinorPerHour > 0
       ? `${formatMoneyMinor(project.rateMinorPerHour, project.currency)} / h`
-      : `${String(project.tasks.length)} Aufgaben`
+      : `${String(project.tasks.length)} Tasks`
 
   return (
     <Pressable
@@ -98,10 +98,10 @@ function ProjectCard({
               {billing}
             </Text>
           </View>
-          {budgetTone(ratio) !== 'good' && <Badge tone="warn">Budget knapp</Badge>}
+          {budgetTone(ratio) !== 'good' && <Badge tone="warn">Budget tight</Badge>}
         </View>
 
-        {/* Budget ring + Gebucht/Budget + weekly-trend footer; degrades without a budget cap */}
+        {/* Budget ring + Booked/Budget + weekly-trend footer; degrades without a budget cap */}
         {hasBudget ? (
           <View
             style={{
@@ -114,7 +114,7 @@ function ProjectCard({
             <BudgetRing ratio={ratio} size={72} label={`${project.name} budget`} />
             <View style={{ flex: 1, minWidth: 0, gap: t.spacing.s2 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>Gebucht</Text>
+                <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>Booked</Text>
                 <Text style={{ ...mono, fontSize: t.fontSize.xs, fontWeight: '600' }}>
                   {formatDuration(project.spentMs)}
                 </Text>
@@ -129,7 +129,7 @@ function ProjectCard({
           </View>
         ) : (
           <View style={{ marginTop: t.spacing.s4 }}>
-            <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>Kein Budget-Cap</Text>
+            <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>No budget cap</Text>
           </View>
         )}
 
@@ -254,7 +254,7 @@ export function ProjectsScreen({
   }
 
   // Bounded screen (design v1): one flat list sorted by budget risk, the top few
-  // visible and the rest behind a "+N weitere" drill-in — scroll depth never
+  // visible and the rest behind a "+N more" drill-in — scroll depth never
   // grows with the project count. The limit follows the column count.
   const sorted = [...clients.flatMap(c => c.projects)].sort((a, b) => budgetRisk(b) - budgetRisk(a))
   const limit = columns === 2 ? 6 : 3
@@ -264,7 +264,7 @@ export function ProjectsScreen({
     ? 'Loading…'
     : catalog.error
       ? 'Could not load'
-      : 'nach Budget-Risiko'
+      : 'by budget risk'
 
   const header = (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
@@ -303,7 +303,7 @@ export function ProjectsScreen({
         onPress={() => setPreview(p => !p)}
         accessibilityRole="switch"
         accessibilityState={{ checked: preview }}
-        accessibilityLabel="Minute 1 Vorschau"
+        accessibilityLabel="Minute 1 preview"
         style={{
           marginLeft: 'auto',
           paddingVertical: 3,
@@ -350,9 +350,7 @@ export function ProjectsScreen({
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s3 }}>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>
-                Offen abrechenbar
-              </Text>
+              <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>Open billable</Text>
               <Text
                 style={{
                   fontFamily: t.fontFamily.numeric,
@@ -365,7 +363,7 @@ export function ProjectsScreen({
               </Text>
             </View>
             <Button size="sm" onPress={() => setDrawerOpen(true)}>
-              Abrechnen
+              Invoice
             </Button>
           </View>
         </Card>
@@ -377,7 +375,7 @@ export function ProjectsScreen({
             <Text
               style={{ flex: 1, fontSize: t.fontSize.sm, color: t.color.good, fontWeight: '600' }}
             >
-              Abgerechnet · {formatMoneyMinor(issued.totalMinor, issued.currencyCode)}
+              Invoiced · {formatMoneyMinor(issued.totalMinor, issued.currencyCode)}
             </Text>
             {exportBase !== null && (
               <Button
@@ -448,7 +446,7 @@ export function ProjectsScreen({
       {(hidden > 0 || expanded) && sorted.length > limit && (
         <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
           <Button size="sm" variant="secondary" onPress={() => setExpanded(e => !e)}>
-            {expanded ? 'Weniger anzeigen' : `+${String(hidden)} weitere anzeigen`}
+            {expanded ? 'Show less' : `+${String(hidden)} show more`}
           </Button>
         </View>
       )}
