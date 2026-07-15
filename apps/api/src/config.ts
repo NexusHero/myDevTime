@@ -72,6 +72,15 @@ const envSchema = z
         message: 'AUTH_SECRET (>=32 chars) is required in production',
       })
     }
+    // The auth origin (cookies/redirects) must come from a trusted config value,
+    // not the client Host header — so require it in production.
+    if (cfg.NODE_ENV === 'production' && !cfg.AUTH_BASE_URL) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['AUTH_BASE_URL'],
+        message: 'AUTH_BASE_URL is required in production (trusted auth origin)',
+      })
+    }
     // Email verification can never be disabled in production — the E2E escape
     // hatch is a non-prod concession only (ADR-0053).
     if (cfg.NODE_ENV === 'production' && !cfg.AUTH_REQUIRE_EMAIL_VERIFICATION) {

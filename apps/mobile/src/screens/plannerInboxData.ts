@@ -2,10 +2,10 @@ import type { Priority } from '@mydevtime/design'
 
 /**
  * Types + static config for the Planner **Task-Inbox** (design v6): assigned
- * Jira/Linear/GitHub tickets land here, not in the calendar. "Planen" drops the
+ * Jira/Linear/GitHub tickets land here, not in the calendar. "Plan" drops the
  * ticket into the next free slot as a ghost (a proposal — ADR-0005). No live
  * connector feeds this yet, so `INBOX_TASKS` is empty and the rail shows its empty
- * state — real tickets arrive once a ticket connector (Profile → Integrationen) is
+ * state — real tickets arrive once a ticket connector (Profile → Integrations) is
  * connected. The projects/tags/sources/sorters below are the rail's static config.
  */
 
@@ -34,17 +34,19 @@ export interface InboxProject {
   readonly id: string
 }
 
+// Honest placeholders until a live ticket connector is wired (Profile → Integrations).
+// No real company names — the `id` fields are only deterministic color keys, never shown.
 export const INBOX_PROJECTS: readonly InboxProject[] = [
-  { name: 'Finanzo AG', id: 'finanzo' },
-  { name: 'Sync engine', id: 'sync-engine' },
-  { name: 'Nordwind GmbH', id: 'nordwind' },
-  { name: 'Atlas Relaunch', id: 'reviews' },
+  { name: 'Project 1', id: 'finanzo' },
+  { name: 'Project 2', id: 'sync-engine' },
+  { name: 'Project 3', id: 'nordwind' },
+  { name: 'Project 4', id: 'reviews' },
 ]
 
 export const INBOX_TASKS: readonly InboxTask[] = []
 
-export const INBOX_TAGS: readonly (TaskTag | 'Alle')[] = ['Alle', 'Bug', 'Feature', 'Review']
-export const INBOX_SOURCES: readonly (TaskSource | 'Alle')[] = ['Alle', 'Jira', 'Linear', 'GitHub']
+export const INBOX_TAGS: readonly (TaskTag | 'All')[] = ['All', 'Bug', 'Feature', 'Review']
+export const INBOX_SOURCES: readonly (TaskSource | 'All')[] = ['All', 'Jira', 'Linear', 'GitHub']
 export type InboxSort = 'prio' | 'due' | 'est' | 'src'
 
 /** The sort comparators, deterministic with a stable priority tie-break. */

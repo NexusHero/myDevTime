@@ -47,23 +47,23 @@ export function deterministicAnswer(
     }
   }
   if (bestScore <= 0) {
-    return { refused: true, text: 'Das steht nicht in deinen aktuellen Daten — frag konkreter.' }
+    return { refused: true, text: "That isn't in your current data — ask more specifically." }
   }
   return { refused: false, text: best }
 }
 
-const REFUSAL_MARKER = 'KEINE_DATEN'
+const REFUSAL_MARKER = 'NO_DATA'
 
 function buildPrompt(question: string, facts: readonly string[]): string {
   return [
-    'Du bist ein nüchterner, ehrlicher Assistent. Beantworte die Frage AUSSCHLIESSLICH',
-    'aus den folgenden Fakten. Erfinde keine Zahlen. Steht die Antwort nicht in den',
-    `Fakten, antworte exakt mit "${REFUSAL_MARKER}". Antworte knapp auf Deutsch.`,
+    'You are a sober, honest assistant. Answer the question EXCLUSIVELY',
+    'from the following facts. Do not invent numbers. If the answer is not in the',
+    `facts, reply exactly with "${REFUSAL_MARKER}". Answer concisely in English.`,
     '',
-    'FAKTEN:',
+    'FACTS:',
     ...facts.map(f => `- ${f}`),
     '',
-    `FRAGE: ${question}`,
+    `QUESTION: ${question}`,
   ].join('\n')
 }
 

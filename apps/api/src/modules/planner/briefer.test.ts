@@ -39,10 +39,10 @@ function fakeLlm(text: string): LlmPort {
 describe('deterministicBriefing', () => {
   it('SummarisesFocusMeetingsDroppedAndUnplaced', () => {
     const text = deterministicBriefing(plan)
-    expect(text).toContain('5 h 30 min Fokus')
-    expect(text).toContain('1 Termin') // meetings count
-    expect(text).toContain('überschneidet sich')
-    expect(text).toContain('4 h 30 min Backlog')
+    expect(text).toContain('5 h 30 min of focus')
+    expect(text).toContain('1 meeting') // meetings count
+    expect(text).toContain('overlaps')
+    expect(text).toContain('4 h 30 min of backlog')
   })
 
   it('IsReproducible', () => {
@@ -73,11 +73,12 @@ describe('LlmPlanBriefer', () => {
   })
 
   it('ValidCompletion_YieldsAiProposalText', async () => {
-    const out = await new LlmPlanBriefer(
-      fakeLlm('Dichter Tag — verschiebe den Vendor Call.'),
-    ).brief(plan, { allowAi: true })
+    const out = await new LlmPlanBriefer(fakeLlm('Packed day — move the Vendor Call.')).brief(
+      plan,
+      { allowAi: true },
+    )
     expect(out.source).toBe('ai-proposal')
-    expect(out.text).toBe('Dichter Tag — verschiebe den Vendor Call.')
+    expect(out.text).toBe('Packed day — move the Vendor Call.')
   })
 
   it('EmptyCompletion_FallsBackToDeterministic', async () => {

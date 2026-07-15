@@ -35,7 +35,7 @@ import { INBOX_PROJECTS, INBOX_TASKS, type InboxTask } from './plannerInboxData'
  * selector and week-total, an in-context AI ask bar (AI is reachable here, not
  * just in the Assistant tab), the week canvas where plan (dashed ghost blocks —
  * REQ-031) and actuals (solid, project-colored) share one surface per day so
- * drift is visible by *looking*, the red `--live` "Jetzt" now-line, the live
+ * drift is visible by *looking*, the red `--live` "Now" now-line, the live
  * Co-Planner proposal (deterministic core's ghost blocks — ADR-0005), and the
  * legend. Block geometry comes from the pure, tested `plannerBlockRect`; project
  * colors are deterministic per id. The AI never mutates state — every proposal
@@ -52,8 +52,9 @@ const HEADER_HEIGHT = 46
 const GUTTER = 52
 const COL_WIDTH = 150
 const STACK_BREAKPOINT = 860
-/** "Jetzt" — 14:20, in minutes from 08:00. */
-const NOW_MIN = (14 - START_HOUR) * 60 + 20
+/** "Now" — the real current time, in minutes from 08:00, clamped to the window. */
+const NOW = new Date()
+const NOW_MIN = Math.max(0, Math.min((NOW.getHours() - START_HOUR) * 60 + NOW.getMinutes(), SPAN))
 
 type CanvasKind = 'actual' | 'meeting' | 'ghost' | 'break'
 /** Calendar RSVP for a meeting: accepted (solid), tentative (hatched), fyi (dimmed, not counted). */
@@ -84,21 +85,46 @@ interface DemoDay {
   readonly today?: boolean
 }
 
-const DEMO_DAYS: readonly DemoDay[] = [
-  { name: 'Mo', date: '7.7.', total: '—' },
-  { name: 'Di', date: '8.7.', total: '—', today: true },
-  { name: 'Mi', date: '9.7.', total: '—' },
-  { name: 'Do', date: '10.7.', total: '—' },
-  { name: 'Fr', date: '11.7.', total: '—' },
-]
+const MONTH_SHORT = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const
+const WEEK_DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] as const
+
+/** The real current Mon–Fri work week, with `today` flagged on the matching date. */
+function buildWeek(): readonly DemoDay[] {
+  const now = new Date()
+  const monday = new Date(now)
+  const daysSinceMonday = (now.getDay() + 6) % 7
+  monday.setDate(now.getDate() - daysSinceMonday)
+  monday.setHours(0, 0, 0, 0)
+  const todayKey = now.toDateString()
+  return WEEK_DAY_NAMES.map((name, i) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    return {
+      name,
+      date: `${MONTH_SHORT[d.getMonth()] ?? ''} ${String(d.getDate())}`,
+      total: '—',
+      today: d.toDateString() === todayKey,
+    }
+  })
+}
+
+const weekDays = buildWeek()
 
 /** day 0–4 · start/len in minutes from 08:00 · kind + project id for the color. */
 const DEMO_BLOCKS: readonly CanvasBlock[] = []
-
-const DEMO_ASK: readonly { readonly q: string; readonly a: string }[] = []
-
-const ASK_FALLBACK =
-  'Dazu habe ich gerade keine belastbare Antwort — frag mich nach Engpässen oder deinem Wochen-Soll.'
 
 function canvasBlockColor(t: Theme, b: CanvasBlock): string {
   if (b.kind === 'break' || b.project === undefined) return t.color.ink3
@@ -141,7 +167,7 @@ function BlockBadge({
 /**
  * One absolutely-positioned block on a day column (canvas geometry, ADR-0005).
  * `placement` splits the column into lanes when blocks overlap (design v6
- * "Überbuchung"); meetings carry their RSVP state — tentative reads hollow, FYI
+ * "overbooking"); meetings carry their RSVP state — tentative reads hollow, FYI
  * dims out and never counts — plus recurring (↻) and Outlook (⇄ OL) markers.
  */
 function CanvasBlockView({
@@ -216,7 +242,7 @@ function CanvasBlockView({
           {
             colWidth: m.colWidth,
             minPerPx: SPAN / BODY_HEIGHT,
-            dayCount: DEMO_DAYS.length,
+            dayCount: weekDays.length,
             spanMin: SPAN,
           },
         )
@@ -330,7 +356,7 @@ function CanvasBlockView({
       {onResize !== undefined && !isBreak && (
         <View
           {...responder.panHandlers}
-          accessibilityLabel={`Dauer ändern: ${block.label}`}
+          accessibilityLabel={`Change duration: ${block.label}`}
           style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 10 }}
         />
       )}
@@ -527,7 +553,7 @@ function DayColumn({
                   color: '#ffffff',
                 }}
               >
-                14:20
+                {clock(NOW_MIN)}
               </Text>
             </View>
           </View>
@@ -558,7 +584,7 @@ function Legend(): React.JSX.Element {
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 16 }}>
       <Item
-        label="Gebucht"
+        label="Booked"
         swatch={
           <View
             style={{
@@ -579,7 +605,7 @@ function Legend(): React.JSX.Element {
         }
       />
       <Item
-        label="Vorschlag"
+        label="Proposal"
         swatch={
           <View
             style={{
@@ -610,7 +636,7 @@ function Legend(): React.JSX.Element {
         }
       />
       <Item
-        label="Jetzt"
+        label="Now"
         swatch={<View style={{ width: 16, height: 2, backgroundColor: t.color.live }} />}
       />
     </View>
@@ -670,8 +696,8 @@ function CoPlannerProposal(): React.JSX.Element {
 
   return (
     <Card
-      title="Co-Planner — heute"
-      subtitle="Vorschlag als Ghost-Blöcke — annehmen oder verwerfen"
+      title="Co-Planner — today"
+      subtitle="Proposal as ghost blocks — accept or dismiss"
       action={
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
           <Button
@@ -680,22 +706,20 @@ function CoPlannerProposal(): React.JSX.Element {
             disabled={planner.briefingBusy || plan === null}
             onPress={() => planner.requestBriefing()}
           >
-            {planner.briefingBusy ? '…' : 'KI-Briefing'}
+            {planner.briefingBusy ? '…' : 'AI briefing'}
           </Button>
           <Button variant="secondary" size="sm" disabled={planner.busy} onPress={repropose}>
-            Neu vorschlagen
+            Propose again
           </Button>
         </View>
       }
     >
       {planner.loading && plan === null ? (
-        <Text style={{ color: t.color.ink2 }}>Dein Tag wird geplant …</Text>
+        <Text style={{ color: t.color.ink2 }}>Planning your day…</Text>
       ) : planner.error ? (
-        <Text style={{ color: t.color.crit }}>
-          Planung fehlgeschlagen — {planner.error.message}
-        </Text>
+        <Text style={{ color: t.color.crit }}>Planning failed — {planner.error.message}</Text>
       ) : plan === null || plan.blocks.length === 0 ? (
-        <Text style={{ color: t.color.ink2 }}>Noch kein Vorschlag.</Text>
+        <Text style={{ color: t.color.ink2 }}>No proposal yet.</Text>
       ) : (
         <>
           <View style={{ height: 320, position: 'relative' }}>
@@ -748,7 +772,7 @@ function CoPlannerProposal(): React.JSX.Element {
                       <Pressable
                         onPress={() => accept(i)}
                         accessibilityRole="button"
-                        accessibilityLabel={`Vorschlag annehmen: ${b.label}`}
+                        accessibilityLabel={`Accept proposal: ${b.label}`}
                         style={{
                           width: 22,
                           height: 22,
@@ -763,7 +787,7 @@ function CoPlannerProposal(): React.JSX.Element {
                       <Pressable
                         onPress={() => dismiss(i)}
                         accessibilityRole="button"
-                        accessibilityLabel={`Vorschlag verwerfen: ${b.label}`}
+                        accessibilityLabel={`Dismiss proposal: ${b.label}`}
                         style={{
                           width: 22,
                           height: 22,
@@ -798,21 +822,21 @@ function CoPlannerProposal(): React.JSX.Element {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
                 <Icon name="alert" size={14} color={t.color.warn} />
                 <Text style={{ fontSize: t.fontSize.sm, fontWeight: '700', color: t.color.warn }}>
-                  Tag überbucht
+                  Day overbooked
                 </Text>
               </View>
               {plan.droppedAnchors.length > 0 && (
                 <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>
                   {plan.droppedAnchors.length === 1
-                    ? '1 Termin überschneidet sich und wurde nicht eingeplant:'
-                    : `${String(plan.droppedAnchors.length)} Termine überschneiden sich und wurden nicht eingeplant:`}{' '}
+                    ? '1 appointment overlaps and was not scheduled:'
+                    : `${String(plan.droppedAnchors.length)} appointments overlap and were not scheduled:`}{' '}
                   {plan.droppedAnchors.map(a => a.label).join(', ')}
                 </Text>
               )}
               {plan.unplacedMin > 0 && (
                 <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>
-                  {formatDuration(plan.unplacedMin * 60_000)} h Backlog fanden keinen Platz — kürze
-                  Aufgaben, verschiebe Termine oder plane einen weiteren Tag ein.
+                  {formatDuration(plan.unplacedMin * 60_000)} h of backlog didn&apos;t fit — shorten
+                  tasks, move appointments, or schedule another day.
                 </Text>
               )}
             </View>
@@ -832,10 +856,10 @@ function CoPlannerProposal(): React.JSX.Element {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
                 <Icon name="assistant" size={14} color={t.color.accent} />
                 <Text style={{ fontSize: t.fontSize.sm, fontWeight: '700', color: t.color.ink }}>
-                  KI-Briefing
+                  AI briefing
                 </Text>
                 <Badge tone={planner.briefing.source === 'ai-proposal' ? 'accent' : 'neutral'}>
-                  {planner.briefing.source === 'ai-proposal' ? 'KI' : 'Zusammenfassung'}
+                  {planner.briefing.source === 'ai-proposal' ? 'AI' : 'Summary'}
                 </Badge>
               </View>
               <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, lineHeight: 20 }}>
@@ -844,9 +868,9 @@ function CoPlannerProposal(): React.JSX.Element {
             </View>
           )}
           <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, marginTop: t.spacing.s2 }}>
-            {formatDuration(plan.plannedFocusMin * 60_000)} h Fokus geplant
+            {formatDuration(plan.plannedFocusMin * 60_000)} h focus planned
             {plan.unplacedMin > 0
-              ? ` · ${formatDuration(plan.unplacedMin * 60_000)} h ohne Platz`
+              ? ` · ${formatDuration(plan.unplacedMin * 60_000)} h no slot`
               : ''}
           </Text>
           {planner.review !== null && (
@@ -868,16 +892,16 @@ function CoPlannerProposal(): React.JSX.Element {
                   textTransform: 'uppercase',
                 }}
               >
-                Abend-Review
+                Evening review
               </Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s5 }}>
                 <ReviewMetric
-                  label="Geplant"
+                  label="Planned"
                   value={`${formatDuration(planner.review.plannedFocusMin * 60_000)} h`}
                   tone={t.color.ink}
                 />
                 <ReviewMetric
-                  label="Getrackt"
+                  label="Tracked"
                   value={`${formatDuration(planner.review.trackedFocusMin * 60_000)} h`}
                   tone={t.color.ink}
                 />
@@ -889,8 +913,8 @@ function CoPlannerProposal(): React.JSX.Element {
               </View>
               <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
                 {planner.review.driftMin >= 0
-                  ? 'Im Plan oder darüber — starker Fokustag.'
-                  : 'Unter dem geplanten Fokus — morgen ruhiger takten?'}
+                  ? 'On plan or above — strong focus day.'
+                  : 'Below planned focus — pace tomorrow more gently?'}
               </Text>
             </View>
           )}
@@ -917,7 +941,7 @@ export function PlannerScreen(): React.JSX.Element {
   const moveBlock = (globalIndex: number, day: number, startMin: number): void =>
     setBlocks(bs => bs.map((b, i) => (i === globalIndex ? { ...b, day, start: startMin } : b)))
 
-  // Task-Inbox (design v6): assigned tickets; "Planen" drops one into the next free
+  // Task-Inbox (design v6): assigned tickets; "Plan" drops one into the next free
   // slot as a ghost proposal (deterministic `findFreeSlot` — ADR-0005), never onto a
   // busy slot; a full week says so honestly instead of silently dropping the task.
   const [tasks, setTasks] = useState<readonly InboxTask[]>(INBOX_TASKS)
@@ -926,12 +950,12 @@ export function PlannerScreen(): React.JSX.Element {
   const doneTask = (task: InboxTask): void => setTasks(ts => ts.filter(x => x.key !== task.key))
   const planTask = (task: InboxTask): void => {
     const lenMin = Math.round(task.est * 60)
-    for (let day = 0; day < DEMO_DAYS.length; day++) {
+    for (let day = 0; day < weekDays.length; day++) {
       const occupied = blocks
         .filter(b => b.day === day)
         .map(b => ({ startMin: b.start, lenMin: b.len }))
-      // On today (day 1), don't propose a slot that has already elapsed.
-      const notBefore = DEMO_DAYS[day]?.today === true ? NOW_MIN : 0
+      // On today, don't propose a slot that has already elapsed.
+      const notBefore = weekDays[day]?.today === true ? NOW_MIN : 0
       const start = findFreeSlot(occupied, lenMin, 0, SPAN, notBefore)
       if (start !== null) {
         setBlocks(bs => [
@@ -946,29 +970,28 @@ export function PlannerScreen(): React.JSX.Element {
           },
         ])
         setTasks(ts => ts.filter(x => x.key !== task.key))
-        setInboxNote(`${task.key} eingeplant — ${DEMO_DAYS[day]?.name ?? ''} ${clock(start)}.`)
+        setInboxNote(`${task.key} scheduled — ${weekDays[day]?.name ?? ''} ${clock(start)}.`)
         return
       }
     }
-    setInboxNote(`Kein freier Slot in KW ${String(week)} — „${task.key}" bleibt in der Inbox.`)
+    setInboxNote(`No free slot in week ${String(week)} — "${task.key}" stays in the inbox.`)
   }
-  const [scope, setScope] = useState<'Zeiten' | 'Budgets'>('Zeiten')
+  const [scope, setScope] = useState<'Time' | 'Budgets'>('Time')
   const [ask, setAsk] = useState('')
   const [answer, setAnswer] = useState<string | null>(null)
 
   const submitAsk = (text: string): void => {
-    const match = DEMO_ASK.find(s => s.q.toLowerCase() === text.trim().toLowerCase())
     setAsk(text)
-    setAnswer(text.trim() === '' ? null : (match?.a ?? ASK_FALLBACK))
+    setAnswer(text.trim() === '' ? null : 'The assistant isn’t connected yet.')
   }
 
-  const scopeChip = (label: 'Zeiten' | 'Budgets'): React.JSX.Element => {
+  const scopeChip = (label: 'Time' | 'Budgets'): React.JSX.Element => {
     const active = scope === label
     return (
       <Pressable
         onPress={() => setScope(label)}
         accessibilityRole="button"
-        accessibilityLabel={`Kontext: ${label}`}
+        accessibilityLabel={`Context: ${label}`}
         style={{
           paddingVertical: 4,
           paddingHorizontal: 12,
@@ -1022,9 +1045,9 @@ export function PlannerScreen(): React.JSX.Element {
         <View style={{ maxWidth: 260, minWidth: 200, flexGrow: 1 }}>
           <SegmentedControl
             segments={[
-              { value: 'Woche', label: 'Woche' },
-              { value: 'Monat', label: 'Monat' },
-              { value: 'Jahr', label: 'Jahr' },
+              { value: 'Woche', label: 'Week' },
+              { value: 'Monat', label: 'Month' },
+              { value: 'Jahr', label: 'Year' },
             ]}
             active={view}
             onChange={setView}
@@ -1048,7 +1071,7 @@ export function PlannerScreen(): React.JSX.Element {
               <Pressable
                 onPress={() => setWeek(w => w - 1)}
                 accessibilityRole="button"
-                accessibilityLabel="Vorherige Woche"
+                accessibilityLabel="Previous week"
                 style={{ padding: 2 }}
               >
                 <Icon name="chevronLeft" size={16} color={t.color.ink2} />
@@ -1062,12 +1085,12 @@ export function PlannerScreen(): React.JSX.Element {
                   textAlign: 'center',
                 }}
               >
-                KW {week}
+                Week {week}
               </Text>
               <Pressable
                 onPress={() => setWeek(w => w + 1)}
                 accessibilityRole="button"
-                accessibilityLabel="Nächste Woche"
+                accessibilityLabel="Next week"
                 style={{ padding: 2 }}
               >
                 <Icon name="chevronRight" size={16} color={t.color.ink2} />
@@ -1080,7 +1103,7 @@ export function PlannerScreen(): React.JSX.Element {
                 color: t.color.ink2,
               }}
             >
-              <Text style={{ color: t.color.ink, fontWeight: '600' }}>26,1h</Text> / 41:40h
+              <Text style={{ color: t.color.ink, fontWeight: '600' }}>26.1h</Text> / 41:40h
             </Text>
           </>
         )}
@@ -1094,15 +1117,15 @@ export function PlannerScreen(): React.JSX.Element {
           </Button>
         )}
         <Button size="sm">
-          {view === 'Jahr' ? 'Jahr planen' : view === 'Monat' ? 'Monat planen' : 'Woche planen'}
+          {view === 'Jahr' ? 'Plan year' : view === 'Monat' ? 'Plan month' : 'Plan week'}
         </Button>
       </View>
 
       {view === 'Monat' && (
         <Card>
           <EmptyState
-            title="Monatsansicht — bald verfügbar"
-            hint="Die geplante Last pro Tag über den Monat erscheint hier, sobald die Auslastungs-Aggregation live ist."
+            title="Month view — coming soon"
+            hint="The planned load per day across the month appears here once utilization aggregation is live."
           />
         </Card>
       )}
@@ -1110,8 +1133,8 @@ export function PlannerScreen(): React.JSX.Element {
       {view === 'Jahr' && (
         <Card>
           <EmptyState
-            title="Jahresansicht — bald verfügbar"
-            hint="Die Wochen-Intensität über das Jahr erscheint hier, sobald die Auslastungs-Aggregation live ist."
+            title="Year view — coming soon"
+            hint="The weekly intensity across the year appears here once utilization aggregation is live."
           />
         </Card>
       )}
@@ -1121,39 +1144,16 @@ export function PlannerScreen(): React.JSX.Element {
           {/* AI in context — reachable here, not only in the Assistant tab */}
           <View style={{ gap: t.spacing.s2, maxWidth: 680 }}>
             <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
-              {scopeChip('Zeiten')}
+              {scopeChip('Time')}
               {scopeChip('Budgets')}
             </View>
             <AIAskBar
               value={ask}
               onChange={setAsk}
               onSubmit={() => submitAsk(ask)}
-              placeholder="Frag zu deiner Woche …"
+              placeholder="Ask about your week…"
             />
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s2 }}>
-              {DEMO_ASK.map(s => (
-                <Pressable
-                  key={s.q}
-                  onPress={() => {
-                    setAsk(s.q)
-                    setAnswer(s.a)
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={s.q}
-                  style={{
-                    paddingVertical: 4,
-                    paddingHorizontal: 10,
-                    borderRadius: t.radius.pill,
-                    borderWidth: 1,
-                    borderColor: t.color.border,
-                    backgroundColor: t.color.surface,
-                  }}
-                >
-                  <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>{s.q}</Text>
-                </Pressable>
-              ))}
-            </View>
-            {answer !== null && <AICallout title="✦ Assistent">{answer}</AICallout>}
+            {answer !== null && <AICallout title="✦ Assistant">{answer}</AICallout>}
           </View>
 
           {inboxNote !== null && (
@@ -1194,7 +1194,7 @@ export function PlannerScreen(): React.JSX.Element {
                 {stacked ? (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     <View style={{ flexDirection: 'row' }}>
-                      {DEMO_DAYS.map((day, di) => (
+                      {weekDays.map((day, di) => (
                         <DayColumn
                           key={day.name}
                           day={day}
@@ -1212,11 +1212,11 @@ export function PlannerScreen(): React.JSX.Element {
                   <View
                     style={{ flexDirection: 'row', flex: 1 }}
                     onLayout={e => {
-                      const w = e.nativeEvent.layout.width / DEMO_DAYS.length
+                      const w = e.nativeEvent.layout.width / weekDays.length
                       if (w > 0) setColWidth(w)
                     }}
                   >
-                    {DEMO_DAYS.map((day, di) => (
+                    {weekDays.map((day, di) => (
                       <DayColumn
                         key={day.name}
                         day={day}
@@ -1240,11 +1240,11 @@ export function PlannerScreen(): React.JSX.Element {
           <CoPlannerProposal />
 
           <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, lineHeight: 18 }}>
-            Blöcke ziehen (über Tage &amp; Zeiten) oder an der Unterkante in der Dauer ändern —
-            beides rastet auf 15 min. Überlappende Blöcke teilen sich die Spalte (Lanes); der
-            „N×"-Chip im Tageskopf zählt echte Konflikte (Pausen &amp; FYI zählen nicht). ↻
-            wiederkehrend · ⇄ OL = Outlook · ? = Vorbehalt · FYI = ohne Teilnahme. Gestrichelte
-            Blöcke sind Co-Planner-Vorschläge.
+            Drag blocks (across days &amp; times) or change their duration at the bottom edge — both
+            snap to 15 min. Overlapping blocks share the column (lanes); the &quot;N×&quot; chip in
+            the day header counts real conflicts (breaks &amp; FYI don&apos;t count). ↻ recurring ·
+            ⇄ OL = Outlook · ? = tentative · FYI = no attendance. Dashed blocks are Co-Planner
+            proposals.
           </Text>
         </>
       )}

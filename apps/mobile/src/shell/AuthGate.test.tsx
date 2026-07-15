@@ -28,7 +28,7 @@ describe('AuthGate', () => {
       await new Promise(resolve => setTimeout(resolve, 0))
     })
     const tree = JSON.stringify(renderer.toJSON())
-    expect(tree).toContain('Willkommen zurück') // the login gate
+    expect(tree).toContain('Welcome back') // the login gate
     expect(tree).not.toContain('APP-CONTENT') // the app stays behind the gate
   })
 })

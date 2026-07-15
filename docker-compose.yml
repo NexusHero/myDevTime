@@ -1,6 +1,6 @@
 # Local development database (ADR-0015). Not used in production.
 #   docker compose up -d
-#   DATABASE_URL=postgres://mydevtime:mydevtime@localhost:5432/mydevtime \
+#   DATABASE_URL=postgres://mydevtime:mydevtime@localhost:5433/mydevtime \
 #     pnpm --filter @mydevtime/api db:migrate
 services:
   postgres:

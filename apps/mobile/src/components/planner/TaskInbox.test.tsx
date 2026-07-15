@@ -9,7 +9,7 @@ import type { InboxTask } from '../../screens/plannerInboxData.js'
 
 /**
  * The inbox rail is presentational (slot-finding is unit-tested in the design
- * package), so these smoke-test the render + that "Planen" reports the task.
+ * package), so these smoke-test the render + that "Plan" reports the task.
  */
 const TASKS: InboxTask[] = [
   { key: 'FIN-1', title: 'Alpha', est: 1, prio: 1, tag: 'Bug', project: 0, src: 'Jira', desc: 'x' },
@@ -39,7 +39,7 @@ describe('TaskInbox', () => {
     const r = render(<TaskInbox tasks={TASKS} onPlan={onPlan} onDone={() => undefined} />)
     const planButtons = r.root
       .findAllByType(Pressable)
-      .filter(p => p.props.accessibilityLabel === 'Planen')
+      .filter(p => p.props.accessibilityLabel === 'Plan')
     expect(planButtons.length).toBe(TASKS.length)
     act(() => {
       planButtons[0]!.props.onPress()

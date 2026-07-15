@@ -36,9 +36,9 @@ export async function apiSignUp(request: APIRequestContext, user: TestUser): Pro
 /** Sign in through the LoginScreen and wait until the auth gate lets the app through. */
 export async function uiSignIn(page: Page, user: TestUser): Promise<void> {
   await page.goto('/')
-  await page.getByPlaceholder('du@firma.de').fill(user.email)
+  await page.getByPlaceholder('you@company.com').fill(user.email)
   await page.getByPlaceholder('••••••••').fill(user.password)
-  await page.getByRole('button', { name: /^anmelden$/i }).click()
+  await page.getByRole('button', { name: /^sign in$/i }).click()
   // The login form leaves the DOM once the session is established.
-  await expect(page.getByText('Willkommen zurück')).toBeHidden()
+  await expect(page.getByText('Welcome back')).toBeHidden()
 }

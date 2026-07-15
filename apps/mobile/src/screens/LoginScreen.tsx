@@ -17,7 +17,7 @@ import {
  * session: the dark brand panel + a warm form. Email + password go through the auth
  * seam (`validateCredentials` catches obvious mistakes before the round-trip); the
  * Google/Apple/GitHub buttons are enabled only where the provider is configured;
- * "Passwort vergessen?" emails a reset link; and a link switches to Register.
+ * "Forgot password?" emails a reset link; and a link switches to Register.
  */
 export function LoginScreen({
   onSignIn,
@@ -56,10 +56,10 @@ export function LoginScreen({
     setLocalError(null)
     setNotice(null)
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setLocalError('Gib zuerst deine E-Mail ein, dann sende ich dir einen Reset-Link.')
+      setLocalError('Enter your email first, then I’ll send you a reset link.')
       return
     }
-    const done = (): void => setNotice('Wenn die E-Mail existiert, ist ein Reset-Link unterwegs.')
+    const done = (): void => setNotice('If the email exists, a reset link is on its way.')
     void onForgot(email).then(done).catch(done)
   }
 
@@ -67,7 +67,7 @@ export function LoginScreen({
   const link = { color: t.color.accentText, fontSize: t.fontSize.sm, fontWeight: '600' as const }
 
   return (
-    <AuthScaffold pitch={'Deine Zeit.\nGetrackt, geplant, geschützt.'}>
+    <AuthScaffold pitch={'Your time.\nTracked, planned, protected.'}>
       <Text
         style={{
           fontSize: t.fontSize.xl,
@@ -76,7 +76,7 @@ export function LoginScreen({
           fontFamily: t.fontFamily.display,
         }}
       >
-        Willkommen zurück
+        Welcome back
       </Text>
 
       {message !== null && (
@@ -89,25 +89,25 @@ export function LoginScreen({
       )}
 
       <Input
-        label="E-Mail"
-        placeholder="du@firma.de"
+        label="Email"
+        placeholder="you@company.com"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
       />
       <Input
-        label="Passwort"
+        label="Password"
         placeholder="••••••••"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
       <Pressable onPress={forgot} accessibilityRole="button">
-        <Text style={{ ...link, alignSelf: 'flex-end' }}>Passwort vergessen?</Text>
+        <Text style={{ ...link, alignSelf: 'flex-end' }}>Forgot password?</Text>
       </Pressable>
 
       <Button onPress={submit} disabled={busy}>
-        {busy ? 'Anmelden…' : 'Anmelden'}
+        {busy ? 'Signing in…' : 'Sign in'}
       </Button>
 
       <OrDivider />
@@ -116,9 +116,9 @@ export function LoginScreen({
       <View
         style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: t.spacing.s2 }}
       >
-        <Text style={{ color: t.color.ink2, fontSize: t.fontSize.sm }}>Noch kein Konto?</Text>
+        <Text style={{ color: t.color.ink2, fontSize: t.fontSize.sm }}>No account yet?</Text>
         <Pressable onPress={onGoRegister} accessibilityRole="button">
-          <Text style={link}>Kostenlos registrieren</Text>
+          <Text style={link}>Create free account</Text>
         </Pressable>
       </View>
     </AuthScaffold>

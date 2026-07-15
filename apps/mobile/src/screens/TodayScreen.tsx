@@ -20,6 +20,8 @@ import {
 import { useTimerContext } from '../timer/TimerContext'
 import { usePlanner } from '../hooks/usePlanner'
 import { NlQuickAdd } from './NlQuickAdd'
+import { useCatalog } from './useCatalog'
+import { findProject } from './projectsData'
 
 /** Minutes-from-midnight → `HH:MM`. */
 function hhmm(min: number): string {
@@ -71,6 +73,13 @@ export function TodayScreen(): React.JSX.Element {
   // widget (design v4 / OLBI rationale). Set on punch-out, cleared by the row itself.
   const [askMood, setAskMood] = useState(false)
   const timer = useTimerContext()
+  // The running entry's real project (resolved from the live catalog by its id) —
+  // the hero chip binds to it and renders nothing when there is no running project.
+  const catalog = useCatalog()
+  const runningProject =
+    timer.running?.projectId != null
+      ? (findProject(catalog.data ?? [], timer.running.projectId)?.project ?? null)
+      : null
   // The Co-Planner on Today is the real persisted plan (M5): its blocks, accept and
   // replan all go through the planner service — no local ghost constants.
   const planner = usePlanner()
@@ -86,7 +95,7 @@ export function TodayScreen(): React.JSX.Element {
   const dismissBlock = (index: number): void =>
     setDismissed(d => (d.includes(index) ? d : [...d, index]))
 
-  // Overbooked/unplaced work becomes the "ohne Platz" chip shelf (bounded screens,
+  // Overbooked/unplaced work becomes the "no slot" chip shelf (bounded screens,
   // ADR-0035): dropped meetings (M4) plus a backlog summary chip when time spilled.
   const overflowItems: readonly OverflowItem[] = plan
     ? [
@@ -118,7 +127,7 @@ export function TodayScreen(): React.JSX.Element {
       <TextInput
         value={task}
         onChangeText={setTask}
-        placeholder="Woran arbeitest du?"
+        placeholder="What are you working on?"
         placeholderTextColor={t.color.ink3}
         style={{
           flexGrow: 1,
@@ -131,31 +140,33 @@ export function TodayScreen(): React.JSX.Element {
           color: t.color.ink,
         }}
       />
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: t.spacing.s2,
-          paddingVertical: 7,
-          paddingHorizontal: 14,
-          borderRadius: t.radius.pill,
-          backgroundColor: t.color.sunk,
-          borderWidth: 1,
-          borderColor: t.color.border,
-        }}
-      >
+      {runningProject && (
         <View
           style={{
-            width: 9,
-            height: 9,
-            borderRadius: 5,
-            backgroundColor: projectColor('sync-engine', t.mode),
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: t.spacing.s2,
+            paddingVertical: 7,
+            paddingHorizontal: 14,
+            borderRadius: t.radius.pill,
+            backgroundColor: t.color.sunk,
+            borderWidth: 1,
+            borderColor: t.color.border,
           }}
-        />
-        <Text style={{ fontSize: t.fontSize.xs, fontWeight: '600', color: t.color.ink2 }}>
-          Sync engine
-        </Text>
-      </View>
+        >
+          <View
+            style={{
+              width: 9,
+              height: 9,
+              borderRadius: 5,
+              backgroundColor: projectColor(runningProject.id, t.mode),
+            }}
+          />
+          <Text style={{ fontSize: t.fontSize.xs, fontWeight: '600', color: t.color.ink2 }}>
+            {runningProject.name}
+          </Text>
+        </View>
+      )}
       {/* B5: billable € toggle — flips the running entry's billable flag live
           (server-authoritative money, ADR-0005) or the next-start default. */}
       <Pressable
@@ -163,7 +174,7 @@ export function TodayScreen(): React.JSX.Element {
         disabled={timer.busy}
         accessibilityRole="switch"
         accessibilityState={{ checked: timer.billable }}
-        accessibilityLabel="Abrechenbar"
+        accessibilityLabel="Billable"
         style={{
           width: 34,
           height: 34,
@@ -216,7 +227,7 @@ export function TodayScreen(): React.JSX.Element {
           onPress={() => (paused ? timer.resume() : timer.pause())}
           disabled={timer.busy}
           accessibilityRole="button"
-          accessibilityLabel={paused ? 'Weiter' : 'Pause'}
+          accessibilityLabel={paused ? 'Resume' : 'Pause'}
           style={{
             width: 48,
             height: 48,
@@ -256,7 +267,7 @@ export function TodayScreen(): React.JSX.Element {
           )}
         </Pressable>
       )}
-      {/* The primary Stempel button breathes + emits pulse waves while active
+      {/* The primary punch button breathes + emits pulse waves while active
           (design v4 motion pass); LiveButton is a no-op when idle or reduced-motion. */}
       <LiveButton active={active} color={active ? t.color.live : t.color.accent} size={64}>
         <Pressable
@@ -279,7 +290,7 @@ export function TodayScreen(): React.JSX.Element {
             backgroundColor: active ? t.color.live : t.color.accent,
             alignItems: 'center',
             justifyContent: 'center',
-            // Coloured glow under the Stempel button, matching the design
+            // Coloured glow under the punch button, matching the design
             // (box-shadow 0 10px 28px -8px, tinted live/accent).
             shadowColor: active ? t.color.live : t.color.accent,
             shadowOffset: { width: 0, height: 10 },
@@ -313,12 +324,12 @@ export function TodayScreen(): React.JSX.Element {
   const coPlanner = (
     <Card
       title="Co-Planner"
-      subtitle="Dein Plan für heute"
+      subtitle="Your plan for today"
       action={
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
           {visibleBlocks.length > 0 && (
             <Badge tone={accepted ? 'good' : 'accent'}>
-              {accepted ? '✓ Angenommen' : '✦ Vorschlag'}
+              {accepted ? '✓ Accepted' : '✦ Proposal'}
             </Badge>
           )}
           {!accepted && visibleBlocks.length > 0 && (
@@ -328,7 +339,7 @@ export function TodayScreen(): React.JSX.Element {
               disabled={planner.busy}
               onPress={() => planner.accept()}
             >
-              Alle übernehmen
+              Accept all
             </Button>
           )}
         </View>
@@ -338,13 +349,13 @@ export function TodayScreen(): React.JSX.Element {
         <AICallout
           title={
             plan === null
-              ? 'Noch kein Plan.'
-              : `Dein Tag: ${String(plan.blocks.filter(b => b.kind === 'meeting').length)} Termine, ${formatDuration(plan.plannedFocusMin * 60_000)} h Fokus.`
+              ? 'No plan yet.'
+              : `Your day: ${String(plan.blocks.filter(b => b.kind === 'meeting').length)} meetings, ${formatDuration(plan.plannedFocusMin * 60_000)} h focus.`
           }
         >
           {plan !== null && plan.unplacedMin > 0
-            ? `${formatDuration(plan.unplacedMin * 60_000)} h Backlog ohne Platz — priorisiere oder verschiebe. Vorschlag unten: annehmen, ziehen oder verwerfen.`
-            : 'Blöcke unten: annehmen, ziehen oder verwerfen. Die Reihenfolge folgt der Priorität.'}
+            ? `${formatDuration(plan.unplacedMin * 60_000)} h backlog with no slot — prioritize or reschedule. Proposal below: accept, drag, or dismiss.`
+            : 'Blocks below: accept, drag, or dismiss. The order follows priority.'}
         </AICallout>
       </View>
       {overflowItems.length > 0 && (
@@ -353,7 +364,7 @@ export function TodayScreen(): React.JSX.Element {
         </View>
       )}
       {planner.loading && plan === null ? (
-        <Text style={{ color: t.color.ink2 }}>Dein Tag wird geplant …</Text>
+        <Text style={{ color: t.color.ink2 }}>Planning your day…</Text>
       ) : (
         <View style={{ gap: t.spacing.s2, opacity: planner.busy ? 0.5 : 1 }}>
           {visibleBlocks.map(b => (
@@ -381,7 +392,7 @@ export function TodayScreen(): React.JSX.Element {
         >
           <Icon name="check" size={14} color={t.color.good} />
           <Text style={{ fontSize: t.fontSize['2xs'], fontWeight: '600', color: t.color.good }}>
-            Plan übernommen — {visibleBlocks.length} Blöcke sind jetzt fest.
+            Plan accepted — {visibleBlocks.length} blocks are now fixed.
           </Text>
         </View>
       )}
@@ -389,10 +400,10 @@ export function TodayScreen(): React.JSX.Element {
   )
 
   const autoTracker = (
-    <Card title="Auto-Tracker" subtitle="App-Nutzung während des Trackens">
+    <Card title="Auto-Tracker" subtitle="App usage while tracking">
       <EmptyState
-        title="Bald verfügbar"
-        hint="Die Auto-Tracker-Aufschlüsselung erscheint hier, sobald sie in den Einstellungen aktiv ist — lokal, ausschließbar, nur während des Trackens."
+        title="Coming soon"
+        hint="The Auto-Tracker breakdown appears here once it's enabled in Settings — local, exclusible, only while tracking."
         compact
       />
     </Card>

@@ -41,6 +41,7 @@ export class AuthModule implements OnApplicationBootstrap {
   constructor(
     private readonly adapterHost: HttpAdapterHost,
     @Inject(AUTH_INSTANCE) private readonly auth: AuthInstance | null,
+    @Inject(CONFIG) private readonly config: ConfigToken,
   ) {}
 
   /** Mount Better-Auth's catch-all on Fastify before the server starts listening. */
@@ -52,7 +53,12 @@ export class AuthModule implements OnApplicationBootstrap {
       method: ['GET', 'POST'],
       url: '/api/auth/*',
       handler: async (request, reply) => {
-        const url = new URL(request.url, `http://${request.headers.host ?? 'localhost'}`)
+        // Resolve the request origin from the trusted, configured base URL —
+        // never the client-controlled Host header (which Better-Auth would treat
+        // as the canonical origin for cookies/redirects). AUTH_BASE_URL is
+        // required in production (config superRefine); dev falls back to Host.
+        const origin = this.config.AUTH_BASE_URL ?? `http://${request.headers.host ?? 'localhost'}`
+        const url = new URL(request.url, origin)
         const response = await auth.handler(
           new Request(url.toString(), {
             method: request.method,

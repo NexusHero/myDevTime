@@ -11,7 +11,8 @@ import { useAsync, type AsyncResource } from './useAsync.js'
 /**
  * The AI-credit data source (REQ-027). When an API base URL is configured the hook
  * loads the balance, the ledger, and this-cycle usage from the `billing` credit
- * service and derives the grant/spent totals from the ledger; otherwise — the
+ * service and derives the this-cycle grant/spent totals from the cycle usage
+ * window (never the all-time ledger tail); otherwise — the
  * default in local dev and the test gate — it resolves **empty**. The app
  * fabricates no credits. `live` lets the UI flag that the data is API-backed; the
  * numbers are the deterministic core's.
@@ -36,20 +37,6 @@ export interface CreditsResource extends AsyncResource<CreditsData> {
   readonly live: boolean
 }
 
-function totals(ledger: readonly CreditEntry[]): {
-  balance: number
-  granted: number
-  spent: number
-} {
-  let granted = 0
-  let spent = 0
-  for (const e of ledger) {
-    if (e.amount >= 0) granted += e.amount
-    else spent += -e.amount
-  }
-  return { balance: granted - spent, granted, spent }
-}
-
 /** The trailing 30-day usage window ending at the next UTC midnight. */
 function cycleWindow(): { from: string; to: string } {
   const to = new Date()
@@ -71,7 +58,12 @@ export function useCredits(): CreditsResource {
         fetchLedger(base, 50),
         fetchUsage(base, range),
       ])
-      const { granted, spent } = totals(ledger)
+      // "This cycle" figures must reflect the cycle, not the all-time ledger tail:
+      // spent = the cycle-scoped usage sum, and the cycle's available credits are
+      // what's left plus what was used (balance + spent). Deriving these from the
+      // recent-ledger tail (any 50 rows across all time) overstated both.
+      const spent = usage.reduce((s, u) => s + Math.max(0, u.credits), 0)
+      const granted = balance + spent
       return { balance, grantedTotal: granted, spentTotal: spent, ledger, usage }
     },
     `${base ?? 'demo'}:credits`,

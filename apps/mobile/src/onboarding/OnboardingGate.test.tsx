@@ -27,7 +27,7 @@ function render(): TestRenderer.ReactTestRenderer {
 describe('OnboardingGate (first-run)', () => {
   it('shows the welcome flow, not the workspace, on a fresh device', () => {
     const json = JSON.stringify(render().toJSON())
-    expect(json).toContain("Los geht's")
+    expect(json).toContain('Get started')
     expect(json).not.toContain('WORKSPACE')
   })
 
@@ -35,6 +35,6 @@ describe('OnboardingGate (first-run)', () => {
     localStorage.setItem('mydevtime.onboarded', '1')
     const json = JSON.stringify(render().toJSON())
     expect(json).toContain('WORKSPACE')
-    expect(json).not.toContain("Los geht's")
+    expect(json).not.toContain('Get started')
   })
 })

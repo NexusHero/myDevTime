@@ -8,13 +8,12 @@ import { createRate, eurosToMinor } from '../api/rates'
 
 /**
  * First-run onboarding (design v3) — the moment users decide to stay.
- * Welcome → Arbeitszeit → Projekte → Auto-Tracker → Fertig. Bounded (one card,
+ * Welcome → Work time → Projects → Auto-Tracker → Done. Bounded (one card,
  * one decision per step), every step skippable, and privacy is stated exactly
  * where data is touched (ux-vision §5: trust is the aesthetic). Choices are local
- * to the flow; `onDone` hands control to the workspace. Copy stays German per the
- * design system.
+ * to the flow; `onDone` hands control to the workspace. UI copy is English-only.
  */
-const STEPS = ['Willkommen', 'Arbeitszeit', 'Projekte', 'Auto-Tracker', 'Fertig'] as const
+const STEPS = ['Welcome', 'Work time', 'Projects', 'Auto-Tracker', 'Done'] as const
 
 function fmtHM(min: number): string {
   return `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`
@@ -100,20 +99,20 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
     skip?: boolean
   }): React.JSX.Element => (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: t.spacing.s5 }}>
-      <Pressable onPress={back} accessibilityRole="button" accessibilityLabel="Zurück">
+      <Pressable onPress={back} accessibilityRole="button" accessibilityLabel="Back">
         <Text style={{ color: t.color.ink2, fontSize: t.fontSize.xs, fontWeight: '600' }}>
-          Zurück
+          Back
         </Text>
       </Pressable>
       <View style={{ flex: 1 }} />
       {(opts?.skip ?? true) && (
-        <Pressable onPress={next} accessibilityRole="button" accessibilityLabel="Überspringen">
+        <Pressable onPress={next} accessibilityRole="button" accessibilityLabel="Skip">
           <Text style={{ color: t.color.ink3, fontSize: t.fontSize.xs, fontWeight: '600' }}>
-            Überspringen
+            Skip
           </Text>
         </Pressable>
       )}
-      <Button onPress={opts?.onNext ?? next}>{opts?.nextLabel ?? 'Weiter'}</Button>
+      <Button onPress={opts?.onNext ?? next}>{opts?.nextLabel ?? 'Continue'}</Button>
     </View>
   )
 
@@ -207,12 +206,12 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
                 textAlign: 'center',
               }}
             >
-              Dein Tag, geplant. Plan und Realität auf einer Fläche.
+              Your day, planned. Plan and reality on one surface.
             </Text>
           </View>
           <View style={{ alignItems: 'center', gap: 14 }}>
             <Button size="lg" onPress={() => setStep(1)}>
-              Los geht&apos;s
+              Get started
             </Button>
             <Text
               style={{
@@ -221,7 +220,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
                 fontWeight: '600',
               }}
             >
-              Ich habe schon ein Konto
+              I already have an account
             </Text>
           </View>
         </View>
@@ -234,13 +233,13 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
     <View style={{ flex: 1, backgroundColor: t.color.bg }}>
       {dots}
       <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 24 }}>
-        {/* ── 1 · Arbeitszeit ── */}
+        {/* ── 1 · Work time ── */}
         {step === 1 && (
           <View style={card}>
-            <Text style={h1}>Deine tägliche Sollzeit</Text>
+            <Text style={h1}>Your daily target hours</Text>
             <Text style={sub}>
-              Daraus rechnet myDevTime Überstunden, Drift und deine Balance. Später jederzeit im
-              Profil änderbar — auch pro Wochentag.
+              myDevTime uses this to calculate overtime, drift, and your balance. Change it anytime
+              in your profile — even per weekday.
             </Text>
             <View
               style={{
@@ -257,7 +256,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
                   {fmtHM(daily)}
                 </Text>
                 <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3, marginTop: 6 }}>
-                  Stunden pro Tag
+                  Hours per day
                 </Text>
               </View>
               <StepBtn label="+" onPress={() => setDaily(d => Math.min(720, d + 5))} />
@@ -304,7 +303,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
                 backgroundColor: t.color.sunk,
               }}
             >
-              <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>Woche (×5)</Text>
+              <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>Week (×5)</Text>
               <Text style={{ ...mono, fontSize: t.fontSize.sm, fontWeight: '600' }}>
                 {fmtHM(daily * 5)} h
               </Text>
@@ -315,30 +314,30 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
               <Switch
                 checked={autoBreak}
                 onChange={setAutoBreak}
-                accessibilityLabel="Gesetzliche Pausen automatisch abziehen"
+                accessibilityLabel="Automatically deduct statutory breaks"
               />
               <Text style={{ flex: 1, fontSize: t.fontSize.xs, color: t.color.ink2 }}>
-                Gesetzliche Pausen automatisch abziehen (30 min ab 6 h)
+                Automatically deduct statutory breaks (30 min after 6 h)
               </Text>
             </View>
             {navRow({ skip: false })}
           </View>
         )}
 
-        {/* ── 2 · Projekte ── */}
+        {/* ── 2 · Projects ── */}
         {step === 2 && (
           <View style={card}>
-            <Text style={h1}>Woran arbeitest du?</Text>
+            <Text style={h1}>What are you working on?</Text>
             <Text style={sub}>
-              Leg dein erstes Projekt an — oder bring deine Historie mit. Farben kommen aus der
-              festen Projekt-Palette.
+              Create your first project — or bring your history with you. Colors come from the fixed
+              project palette.
             </Text>
             <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
               <TextInput
                 value={pName}
                 onChangeText={setPName}
                 onSubmitEditing={addProject}
-                placeholder="Projektname, z. B. Finanzo AG"
+                placeholder="Project name, e.g. Finanzo AG"
                 placeholderTextColor={t.color.ink3}
                 style={{
                   flex: 1,
@@ -355,20 +354,20 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
                 }}
               />
               <Button onPress={addProject} disabled={!pName.trim()}>
-                Anlegen
+                Create
               </Button>
             </View>
             <View style={{ marginBottom: 16 }}>
               <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, marginBottom: 6 }}>
-                Standard-Stundensatz (€/h) — optional, später pro Kunde & Projekt änderbar
+                Default hourly rate (€/h) — optional, changeable later per client & project
               </Text>
               <TextInput
                 value={rate}
                 onChangeText={setRate}
-                placeholder="z. B. 90"
+                placeholder="e.g. 90"
                 placeholderTextColor={t.color.ink3}
                 keyboardType="numeric"
-                accessibilityLabel="Standard-Stundensatz"
+                accessibilityLabel="Default hourly rate"
                 style={{
                   paddingVertical: 11,
                   paddingHorizontal: 14,
@@ -387,7 +386,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
                 <Pressable
                   key={c}
                   onPress={() => setPColor(i)}
-                  accessibilityLabel={`Farbe ${String(i + 1)}`}
+                  accessibilityLabel={`Color ${String(i + 1)}`}
                   style={{
                     width: 26,
                     height: 26,
@@ -458,7 +457,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
                   marginBottom: 10,
                 }}
               >
-                Oder importieren
+                Or import
               </Text>
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                 {['Toggl', 'Clockify', 'CSV'].map(src => {
@@ -491,8 +490,8 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
               </View>
               {imported !== null && (
                 <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3, marginTop: 10 }}>
-                  Import aus {imported} kommt bald. Leg solange oben dein erstes Projekt an — das
-                  reicht für den Start.
+                  Import from {imported} is coming soon. In the meantime, create your first project
+                  above — that's enough to get started.
                 </Text>
               )}
             </View>
@@ -503,10 +502,10 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
         {/* ── 3 · Auto-Tracker ── */}
         {step === 3 && (
           <View style={card}>
-            <Text style={h1}>Auto-Tracker aktivieren?</Text>
+            <Text style={h1}>Enable Auto-Tracker?</Text>
             <Text style={sub}>
-              Während ein Timer läuft, kann myDevTime lokal aufzeichnen, welche Apps du wie lange
-              nutzt — dein Tag füllt sich von selbst.
+              While a timer runs, myDevTime can record locally which apps you use and for how long —
+              your day fills itself in.
             </Text>
             <View
               style={{
@@ -529,7 +528,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
                   VS Code · 1h 36m
                 </Text>
                 <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>
-                  So sieht ein aufgezeichneter Eintrag aus.
+                  This is what a recorded entry looks like.
                 </Text>
               </View>
               <Text
@@ -545,9 +544,9 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
             </View>
             <View style={{ gap: 9, marginBottom: 8 }}>
               {[
-                'Bleibt zu 100 % auf diesem Gerät — nichts geht in die Cloud',
-                'Einzelne Apps jederzeit ausschließbar',
-                'Läuft nur, während du trackst — nie im Hintergrund',
+                'Stays 100% on this device — nothing goes to the cloud',
+                'Exclude individual apps anytime',
+                'Runs only while you track — never in the background',
               ].map(line => (
                 <View key={line} style={{ flexDirection: 'row', gap: 9 }}>
                   <Text style={{ color: t.color.good, fontWeight: '700', fontSize: t.fontSize.xs }}>
@@ -560,7 +559,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
               ))}
             </View>
             {navRow({
-              nextLabel: tracker === false ? 'Weiter' : 'Aktivieren & weiter',
+              nextLabel: tracker === false ? 'Continue' : 'Enable & continue',
               skip: false,
               onNext: () => {
                 if (tracker === null) setTracker(true)
@@ -575,13 +574,13 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
               style={{ marginTop: 6, paddingVertical: 6 }}
             >
               <Text style={{ color: t.color.ink3, fontSize: t.fontSize.xs, fontWeight: '600' }}>
-                Jetzt nicht — später im Profil
+                Not now — later in profile
               </Text>
             </Pressable>
           </View>
         )}
 
-        {/* ── 4 · Fertig ── */}
+        {/* ── 4 · Done ── */}
         {step === 4 && (
           <View style={{ ...card, alignItems: 'center' }}>
             <View
@@ -597,22 +596,22 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
             >
               <Text style={{ color: t.color.good, fontSize: 26 }}>✓</Text>
             </View>
-            <Text style={h1}>Alles bereit.</Text>
+            <Text style={h1}>All set.</Text>
             <Text style={{ ...sub, textAlign: 'center' }}>
-              Dein erster Tag ist noch leer — genau richtig. Starte den Timer, wenn du loslegst,
-              oder lass den Co-Planner einen Vorschlag machen.
+              Your first day is still empty — exactly right. Start the timer when you begin, or let
+              the Co-Planner make a suggestion.
             </Text>
             <View style={{ alignSelf: 'stretch', gap: 8, marginBottom: 24 }}>
               {(
                 [
-                  ['Sollzeit', `${fmtHM(daily)} h/Tag · ${fmtHM(daily * 5)} h/Woche`],
+                  ['Target hours', `${fmtHM(daily)} h/day · ${fmtHM(daily * 5)} h/week`],
                   [
-                    'Projekte',
+                    'Projects',
                     projects.length > 0
-                      ? `${String(projects.length)} angelegt`
-                      : 'noch keine — geht auch später',
+                      ? `${String(projects.length)} created`
+                      : 'none yet — later is fine too',
                   ],
-                  ['Auto-Tracker', tracker ? 'aktiv (lokal)' : 'aus'],
+                  ['Auto-Tracker', tracker ? 'active (local)' : 'off'],
                 ] as const
               ).map(([k, v]) => (
                 <View
@@ -632,7 +631,7 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
               ))}
             </View>
             <Button size="lg" onPress={finish}>
-              Zum Workspace
+              Go to workspace
             </Button>
           </View>
         )}
@@ -648,7 +647,7 @@ function StepBtn({ label, onPress }: { label: string; onPress: () => void }): Re
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={label === '+' ? '5 Minuten mehr' : '5 Minuten weniger'}
+      accessibilityLabel={label === '+' ? '5 minutes more' : '5 minutes less'}
       style={{
         width: 44,
         height: 44,

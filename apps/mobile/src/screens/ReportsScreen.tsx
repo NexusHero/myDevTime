@@ -16,12 +16,12 @@ import { useReports } from '../hooks/useReports'
 
 /**
  * Reports (REQ-005/009, ux-vision §3) — the trailing-week figures are the live
- * `useReports` resource's (ADR-0005): Gearbeitet, Umsatz, Überstunden-Saldo, the
+ * `useReports` resource's (ADR-0005): Worked, Revenue, Overtime balance, the
  * per-project distribution and the budget rings, all computed by the deterministic
  * core. There is no fabricated data: with no tracked time the cards show their
- * empty state, and the analytics that have no live source yet (Monat/Jahr,
- * Belastung, Burn-down, Tageslängen-Verteilung, Heatmap, Check-in) show an honest
- * "bald verfügbar" placeholder rather than demo numbers. Every figure renders
+ * empty state, and the analytics that have no live source yet (Month/Year,
+ * workload, burn-down, day-length distribution, heatmap, check-in) show an honest
+ * "coming soon" placeholder rather than demo numbers. Every figure renders
  * through the pure formatters in `@mydevtime/design`.
  */
 type Range = 'week' | 'month' | 'year'
@@ -92,7 +92,7 @@ function Distribution({ items }: { readonly items: readonly DistItem[] }): React
               style={{
                 fontFamily: t.fontFamily.numeric,
                 fontSize: t.fontSize['2xs'],
-                color: t.color.ink3,
+                color: t.color.ink2,
                 width: 40,
                 textAlign: 'right',
               }}
@@ -136,16 +136,16 @@ export function ReportsScreen(): React.JSX.Element {
 
   const soon = (title: string, hint: string): React.JSX.Element => (
     <Card title={title}>
-      <EmptyState title="Bald verfügbar" hint={hint} compact />
+      <EmptyState title="Coming soon" hint={hint} compact />
     </Card>
   )
 
   const summaryTiles = (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s3 }}>
       {[
-        { key: 'worked', label: 'Gearbeitet · Woche', value: `${formatDuration(trackedMs)} h` },
-        { key: 'revenue', label: 'Umsatz', value: formatMoneyMinor(revenueMinor, currencyCode) },
-        { key: 'saldo', label: 'Überstunden-Saldo', value: overtimeLabel(overtimeMs) },
+        { key: 'worked', label: 'Worked · Week', value: `${formatDuration(trackedMs)} h` },
+        { key: 'revenue', label: 'Revenue', value: formatMoneyMinor(revenueMinor, currencyCode) },
+        { key: 'saldo', label: 'Overtime balance', value: overtimeLabel(overtimeMs) },
       ].map(tile => (
         <View key={tile.key} style={{ flexGrow: 1, flexBasis: stacked ? '45%' : 0, minWidth: 150 }}>
           <StatTile label={tile.label} value={tile.value} />
@@ -155,15 +155,13 @@ export function ReportsScreen(): React.JSX.Element {
   )
 
   const distributionCard = (
-    <Card title="Wohin ging die Zeit?" subtitle="Woche · nach Projekt" style={{ flex: 1 }}>
+    <Card title="Where did the time go?" subtitle="Week · by project" style={{ flex: 1 }}>
       {loading ? (
-        <Text style={{ color: t.color.ink2 }}>Wird geladen …</Text>
+        <Text style={{ color: t.color.ink2 }}>Loading…</Text>
       ) : error !== null ? (
-        <Text style={{ color: t.color.crit }}>
-          Reports konnten nicht geladen werden — {error.message}
-        </Text>
+        <Text style={{ color: t.color.crit }}>Reports could not be loaded — {error.message}</Text>
       ) : distItems.length === 0 ? (
-        <Text style={{ color: t.color.ink2 }}>Noch keine Zeit in diesem Zeitraum erfasst.</Text>
+        <Text style={{ color: t.color.ink2 }}>No time tracked in this period.</Text>
       ) : (
         <Distribution items={distItems} />
       )}
@@ -171,11 +169,11 @@ export function ReportsScreen(): React.JSX.Element {
   )
 
   const budgetsCard = (
-    <Card title="Budgets" subtitle="Woche · Verbrauch nach Projekt">
+    <Card title="Budgets" subtitle="Week · usage by project">
       {loading ? (
-        <Text style={{ color: t.color.ink2 }}>Wird geladen …</Text>
+        <Text style={{ color: t.color.ink2 }}>Loading…</Text>
       ) : budgets.length === 0 ? (
-        <Text style={{ color: t.color.ink2 }}>Noch keine Projektbudgets gesetzt.</Text>
+        <Text style={{ color: t.color.ink2 }}>No project budgets set yet.</Text>
       ) : (
         <View
           style={{
@@ -236,16 +234,16 @@ export function ReportsScreen(): React.JSX.Element {
             Reports
           </Text>
           <Button size="sm" variant="ghost" disabled>
-            Export — bald verfügbar
+            Export — coming soon
           </Button>
         </View>
       }
     >
       <Tabs
         items={[
-          { value: 'week', label: 'Woche' },
-          { value: 'month', label: 'Monat' },
-          { value: 'year', label: 'Jahr' },
+          { value: 'week', label: 'Week' },
+          { value: 'month', label: 'Month' },
+          { value: 'year', label: 'Year' },
         ]}
         active={range}
         onChange={value => setRange(value as Range)}
@@ -265,14 +263,14 @@ export function ReportsScreen(): React.JSX.Element {
             {budgetsCard}
           </View>
           {soon(
-            'Weitere Auswertungen',
-            'Belastung, Budget-Burn-down, Tageslängen-Verteilung, Heatmap und Wochen-Check-in erscheinen hier, sobald ihre Aggregation live ist.',
+            'More analytics',
+            'Workload, budget burn-down, day-length distribution, heatmap and weekly check-in appear here once their aggregation is live.',
           )}
         </>
       ) : (
         soon(
-          range === 'month' ? 'Monatsauswertung' : 'Jahresauswertung',
-          'Die Auswertung über diesen Zeitraum erscheint hier, sobald die Aggregation live ist. Die Wochenansicht ist bereits mit deinen echten Daten verbunden.',
+          range === 'month' ? 'Monthly report' : 'Yearly report',
+          'The report for this period appears here once the aggregation is live. The week view is already connected to your real data.',
         )
       )}
     </ScreenScaffold>

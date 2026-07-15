@@ -71,7 +71,7 @@ export function DayBlock({
     <View
       style={container}
       accessibilityRole={isGhost ? 'button' : 'text'}
-      accessibilityLabel={`${isGhost ? 'Vorschlag: ' : ''}${label}, ${time}`}
+      accessibilityLabel={`${isGhost ? 'Proposal: ' : ''}${label}, ${time}`}
     >
       <Text style={{ fontSize: t.fontSize.sm, fontWeight: '600', color: labelColor }}>{label}</Text>
       <Text style={{ fontFamily: t.fontFamily.numeric, fontSize: t.fontSize.xs, color: timeColor }}>

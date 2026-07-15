@@ -10,9 +10,9 @@ import { apiSignUp, freshUser, uiSignIn } from './support/fixtures.js'
 test.describe('acceptance · app shell + authentication', () => {
   test('REQ-002 · the web app mounts and renders the sign-in screen', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByText('Willkommen zurück')).toBeVisible()
-    await expect(page.getByPlaceholder('du@firma.de')).toBeVisible()
-    await expect(page.getByRole('button', { name: /^anmelden$/i })).toBeVisible()
+    await expect(page.getByText('Welcome back')).toBeVisible()
+    await expect(page.getByPlaceholder('you@company.com')).toBeVisible()
+    await expect(page.getByRole('button', { name: /^sign in$/i })).toBeVisible()
   })
 
   test('REQ-007 · a seeded user can sign in and reach the app', async ({ page, request }) => {
@@ -20,8 +20,8 @@ test.describe('acceptance · app shell + authentication', () => {
     await apiSignUp(request, user)
     await uiSignIn(page, user)
     // Past the gate: the sign-in form is gone and the app chrome has taken over.
-    await expect(page.getByText('Willkommen zurück')).toBeHidden()
-    await expect(page.getByRole('button', { name: /^anmelden$/i })).toBeHidden()
+    await expect(page.getByText('Welcome back')).toBeHidden()
+    await expect(page.getByRole('button', { name: /^sign in$/i })).toBeHidden()
   })
 
   test('REQ-007 · wrong password is rejected and keeps the user on the sign-in screen', async ({
@@ -31,10 +31,10 @@ test.describe('acceptance · app shell + authentication', () => {
     const user = freshUser()
     await apiSignUp(request, user)
     await page.goto('/')
-    await page.getByPlaceholder('du@firma.de').fill(user.email)
+    await page.getByPlaceholder('you@company.com').fill(user.email)
     await page.getByPlaceholder('••••••••').fill('definitely-the-wrong-password')
-    await page.getByRole('button', { name: /^anmelden$/i }).click()
+    await page.getByRole('button', { name: /^sign in$/i }).click()
     // Still on the login screen — the gate did not open.
-    await expect(page.getByText('Willkommen zurück')).toBeVisible()
+    await expect(page.getByText('Welcome back')).toBeVisible()
   })
 })

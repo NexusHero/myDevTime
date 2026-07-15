@@ -39,7 +39,7 @@ function setup(signUpResult: boolean): {
 }
 
 const createButton = (r: TestRenderer.ReactTestRenderer): TestRenderer.ReactTestInstance =>
-  r.root.findAllByType(Button).find(b => b.props.children === 'Konto erstellen')!
+  r.root.findAllByType(Button).find(b => b.props.children === 'Create free account')!
 
 function fill(r: TestRenderer.ReactTestRenderer): void {
   const inputs = r.root.findAllByType(Input)
@@ -76,6 +76,6 @@ describe('RegisterScreen', () => {
       createButton(renderer).props.onPress()
       await new Promise(resolve => setTimeout(resolve, 0))
     })
-    expect(JSON.stringify(renderer.toJSON())).toContain('Bestätigungs-E-Mail')
+    expect(JSON.stringify(renderer.toJSON())).toContain('confirmation email')
   })
 })
