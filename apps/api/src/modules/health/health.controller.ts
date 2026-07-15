@@ -2,7 +2,8 @@ import { Controller, Get, Inject, Res } from '@nestjs/common'
 import { SkipThrottle } from '@nestjs/throttler'
 import { ApiTags } from '@nestjs/swagger'
 import type { FastifyReply } from 'fastify'
-import { DB_HANDLE, type DbHandleToken } from '../../core/tokens.js'
+import { Redis } from 'ioredis'
+import { CONFIG, DB_HANDLE, type ConfigToken, type DbHandleToken } from '../../core/tokens.js'
 
 interface Live {
   status: 'ok'
@@ -10,10 +11,12 @@ interface Live {
 interface Ready {
   status: 'ready'
   db: 'up'
+  redis: 'up' | 'not_configured'
 }
 interface NotReady {
   status: 'not_ready'
-  db: 'down' | 'not_configured'
+  db: 'down' | 'not_configured' | 'up'
+  redis?: 'down' | 'up' | 'not_configured'
 }
 
 /**
@@ -28,7 +31,23 @@ interface NotReady {
 @ApiTags('health')
 @Controller()
 export class HealthController {
-  constructor(@Inject(DB_HANDLE) private readonly db: DbHandleToken) {}
+  /** A lazily-connected Redis client reused across probes, or null when Redis is
+   *  not configured. Redis backs the global rate limiter (app.module.ts), so a pod
+   *  that can't reach it must not report ready under a multi-instance deployment. */
+  private readonly redis: Redis | null
+
+  constructor(
+    @Inject(DB_HANDLE) private readonly db: DbHandleToken,
+    @Inject(CONFIG) config: ConfigToken,
+  ) {
+    this.redis = config.REDIS_URL
+      ? new Redis(config.REDIS_URL, {
+          lazyConnect: true,
+          maxRetriesPerRequest: 1,
+          enableOfflineQueue: false,
+        })
+      : null
+  }
 
   @Get('health')
   liveness(): Live {
@@ -43,10 +62,19 @@ export class HealthController {
     }
     try {
       await this.db.sql`select 1`
-      return { status: 'ready', db: 'up' }
     } catch {
       void reply.status(503)
       return { status: 'not_ready', db: 'down' }
     }
+    if (this.redis) {
+      try {
+        await this.redis.ping()
+      } catch {
+        void reply.status(503)
+        return { status: 'not_ready', db: 'up', redis: 'down' }
+      }
+      return { status: 'ready', db: 'up', redis: 'up' }
+    }
+    return { status: 'ready', db: 'up', redis: 'not_configured' }
   }
 }
