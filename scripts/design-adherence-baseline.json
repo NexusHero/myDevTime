@@ -7,6 +7,7 @@
   "apps/mobile/src/components/planner/TaskInbox.tsx": 1,
   "apps/mobile/src/onboarding/OnboardingFlow.tsx": 4,
   "apps/mobile/src/screens/AssistantScreen.tsx": 1,
+  "apps/mobile/src/screens/auth/AuthScaffold.tsx": 2,
   "apps/mobile/src/screens/PlannerScreen.tsx": 3,
   "apps/mobile/src/screens/TodayScreen.tsx": 2,
   "apps/mobile/src/web/registerPwa.ts": 1
