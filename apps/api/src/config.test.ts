@@ -67,6 +67,31 @@ describe('loadConfig', () => {
     expect(act).toThrow(/AUTH_REQUIRE_EMAIL_VERIFICATION/)
   })
 
+  it('LoadConfig_RateLimit_DefaultsOn', () => {
+    expect(loadConfig({}).AUTH_RATE_LIMIT_ENABLED).toBe(true)
+  })
+
+  it('LoadConfig_RateLimitOffInDev_Ok', () => {
+    const config = loadConfig({
+      NODE_ENV: 'development',
+      AUTH_RATE_LIMIT_ENABLED: 'false',
+    })
+
+    expect(config.AUTH_RATE_LIMIT_ENABLED).toBe(false)
+  })
+
+  it('LoadConfig_RateLimitOffInProduction_Throws', () => {
+    const act = (): unknown =>
+      loadConfig({
+        NODE_ENV: 'production',
+        AUTH_SECRET: 'x'.repeat(32),
+        AUTH_BASE_URL: 'https://app.example.com',
+        AUTH_RATE_LIMIT_ENABLED: 'false',
+      })
+
+    expect(act).toThrow(/AUTH_RATE_LIMIT_ENABLED/)
+  })
+
   it('LoadConfig_InvalidPort_ThrowsListingTheField', () => {
     const act = (): unknown => loadConfig({ PORT: 'not-a-number' })
 

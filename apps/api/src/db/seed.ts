@@ -17,6 +17,16 @@ async function main(): Promise<void> {
     throw new Error('DATABASE_URL is required to seed the database')
   }
 
+  // Destructive by design: the seeder wipes and repopulates a workspace's data.
+  // Refuse to run against a production database unless an operator opts in
+  // explicitly, so a stray SEED command can never delete live customer data.
+  if (config.NODE_ENV === 'production' && process.env.SEED_ALLOW_PRODUCTION !== 'true') {
+    throw new Error(
+      'Refusing to seed with NODE_ENV=production: this deletes all workspace data. ' +
+        'Set SEED_ALLOW_PRODUCTION=true only if you really mean to seed a production database.',
+    )
+  }
+
   // Parse mode from process arguments or environment variables
   const args = process.argv.slice(2)
   const modeArg = args.find(arg => arg.startsWith('--mode='))
@@ -428,7 +438,10 @@ async function main(): Promise<void> {
 
     console.log(`✓ Seeding complete in mode: ${mode.toUpperCase()}!`)
   } catch (error) {
+    // Surface the failure and rethrow so the process exits non-zero (via the
+    // top-level catch). Swallowing it here would let a broken seed report success.
     console.error('Seeding failed:', error)
+    throw error
   } finally {
     await sqlConnection.end({ timeout: 5 })
   }
