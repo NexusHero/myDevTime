@@ -291,8 +291,6 @@ export function ProfileScreen({
                     borderRadius: 8,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    borderWidth: 1.5,
-                    borderColor: workday ? t.color.accent : 'transparent',
                     backgroundColor: workday ? t.color.accentSoft : t.color.sunk,
                     borderWidth: workday ? t.borderWidth.medium : 0,
                     borderColor: t.color.accent,
