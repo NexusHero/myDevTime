@@ -44,7 +44,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
 
   // Entry points whose flow isn't built yet: shown honestly as "coming soon" rather
   // than as a tappable chevron that does nothing (audit M-4).
-  const soon = <Badge tone="neutral">Bald verfügbar</Badge>
+  const soon = <Badge tone="neutral">Coming soon</Badge>
 
   return (
     <ScreenScaffold
@@ -118,7 +118,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
       </View>
 
       <View>
-        <SectionLabel>{`Preferences${prefsLive ? '' : ' · nicht gespeichert (offline)'}`}</SectionLabel>
+        <SectionLabel>{`Preferences${prefsLive ? '' : ' · not saved (offline)'}`}</SectionLabel>
         <Card>
           <Row
             title="Focus reminders"

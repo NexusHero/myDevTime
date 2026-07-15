@@ -39,7 +39,7 @@ function setup(): { renderer: TestRenderer.ReactTestRenderer; calls: Credentials
 
 /** The email/password submit button (social buttons share the same component). */
 function signInButton(renderer: TestRenderer.ReactTestRenderer): TestRenderer.ReactTestInstance {
-  return renderer.root.findAllByType(Button).find(b => b.props.children === 'Anmelden')!
+  return renderer.root.findAllByType(Button).find(b => b.props.children === 'Sign in')!
 }
 
 describe('LoginScreen', () => {

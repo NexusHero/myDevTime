@@ -16,7 +16,7 @@ import {
 } from '../api/nlEntry'
 
 /**
- * Natural-language quick-add (REQ-013, ADR-0005): type "2h Finanzo review gestern",
+ * Natural-language quick-add (REQ-013, ADR-0005): type "2h Finanzo review yesterday",
  * the `ai` module parses it into a **draft**, and only on confirm does it create a
  * real entry (deterministic parser first, LLM only as fallback — ADR-0029). The
  * draft is always shown for review; nothing is written silently. Needs the backend
@@ -95,7 +95,7 @@ export function NlQuickAdd(): React.JSX.Element {
         {base === null && <Badge tone="neutral">Needs backend</Badge>}
       </View>
       <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2, marginTop: 2 }}>
-        Natural language, e.g. “2h Finanzo review gestern”
+        Natural language, e.g. “2h Finanzo review yesterday”
       </Text>
 
       <View style={{ marginTop: t.spacing.s3 }}>
@@ -105,7 +105,7 @@ export function NlQuickAdd(): React.JSX.Element {
             setText(v)
             if (phase !== 'idle') setPhase('idle')
           }}
-          placeholder="2h Finanzo review gestern"
+          placeholder="2h Finanzo review yesterday"
         />
       </View>
 

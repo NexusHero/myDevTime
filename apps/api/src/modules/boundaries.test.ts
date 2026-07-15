@@ -15,7 +15,12 @@ import { MODULE_NAMES } from '../core/module.js'
  * erode.
  */
 const modulesDir = fileURLToPath(new URL('.', import.meta.url))
-const others = new Set<string>(MODULE_NAMES)
+// Boundary policing covers every business module — including those that expose no
+// public `/status` route and are therefore omitted from MODULE_NAMES (which drives
+// the status/OpenAPI convention). Without these, a cross-module reach into
+// `connectors`' secret vault or `preferences`' internals would go unpoliced.
+const POLICED = [...MODULE_NAMES, 'preferences', 'connectors'] as const
+const others = new Set<string>(POLICED)
 
 function tsFiles(dir: string): string[] {
   return readdirSync(dir).flatMap(name => {
@@ -28,7 +33,7 @@ function tsFiles(dir: string): string[] {
 const importRe = /from\s+['"]([^'"]+)['"]/g
 
 describe('module boundaries', () => {
-  it.each(MODULE_NAMES)('%sModule_ImportsOnlyOwnInternalsAndOthersContracts', self => {
+  it.each(POLICED)('%sModule_ImportsOnlyOwnInternalsAndOthersContracts', self => {
     const files = tsFiles(join(modulesDir, self)).filter(f => !f.endsWith('.test.ts'))
     const violations: string[] = []
 

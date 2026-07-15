@@ -8,7 +8,7 @@ import { useTheme } from '../../theme/ThemeProvider'
 import type { InvoiceLineDTO } from '../../api/invoicing'
 
 /**
- * The "Abrechnung erstellen" draft (design v6, ADR-0051) as a **pure**
+ * The "Create invoice" draft (design v6, ADR-0051) as a **pure**
  * presentational view: the priced positions with per-line checkboxes and a live
  * h/€ total. The total reuses the deterministic `summarizeInvoice` over the
  * selected ids — the exact same core the server freezes on issue, so what the
@@ -43,7 +43,7 @@ export function InvoiceDraftView({
     <View style={{ gap: t.spacing.s3 }}>
       {lines.length === 0 ? (
         <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>
-          Nichts Offenes in diesem Zeitraum.
+          Nothing open in this period.
         </Text>
       ) : (
         <View style={{ gap: t.spacing.s1 }}>
@@ -83,11 +83,11 @@ export function InvoiceDraftView({
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text numberOfLines={1} style={{ fontSize: t.fontSize.sm, color: t.color.ink }}>
-                    {nameByProject.get(line.projectId) ?? 'Projekt'}
+                    {nameByProject.get(line.projectId) ?? 'Project'}
                     {line.note ? ` · ${line.note}` : ''}
                   </Text>
                 </View>
-                {!line.priced && <Badge tone="warn">kein Satz</Badge>}
+                {!line.priced && <Badge tone="warn">no rate</Badge>}
                 <Text style={{ ...mono, fontSize: t.fontSize.xs }}>
                   {formatDuration(line.durationMs)} h
                 </Text>
@@ -113,7 +113,7 @@ export function InvoiceDraftView({
         }}
       >
         <Text style={{ fontSize: t.fontSize.sm, fontWeight: '600', color: t.color.ink2 }}>
-          Summe · {formatDuration(draft.totalDurationMs)} h
+          Total · {formatDuration(draft.totalDurationMs)} h
         </Text>
         <Text style={{ ...mono, fontSize: t.fontSize.lg }}>
           {formatMoneyMinor(draft.totalMinor, currencyCode)}
@@ -121,7 +121,7 @@ export function InvoiceDraftView({
       </View>
 
       <Button onPress={onIssue} disabled={busy || draft.lines.length === 0} fullWidth>
-        {busy ? 'Erstelle…' : 'Abrechnung erstellen'}
+        {busy ? 'Creating…' : 'Create invoice'}
       </Button>
     </View>
   )

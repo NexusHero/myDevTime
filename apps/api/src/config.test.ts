@@ -17,6 +17,7 @@ describe('loadConfig', () => {
       PORT: '8080',
       LOG_LEVEL: 'warn',
       AUTH_SECRET: 'x'.repeat(32),
+      AUTH_BASE_URL: 'https://app.example.com',
     })
 
     expect(config.NODE_ENV).toBe('production')

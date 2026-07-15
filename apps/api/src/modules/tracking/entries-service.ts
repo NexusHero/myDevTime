@@ -101,12 +101,29 @@ export async function stopTimer(
   workspaceId: string,
   endedAt: Date = new Date(),
 ): Promise<Entry> {
+  // Load the running row first so we can validate the client-supplied endedAt
+  // against the persisted startedAt (deterministic core) — a stop at or before
+  // the start would otherwise persist a negative-duration entry the timesheet
+  // math rejects (mirrors createManualEntry/updateEntry/clockOut).
+  const running = await db
+    .select()
+    .from(timeEntries)
+    .where(and(live(workspaceId), isNull(timeEntries.endedAt)))
+    .limit(1)
+  const row = running[0]
+  if (!row) throw new NotFoundError('no running timer')
+  assertValid({
+    id: row.id,
+    start: row.startedAt.getTime(),
+    end: endedAt.getTime(),
+    billable: row.billable,
+    source: row.source,
+  })
   const rows = await db
     .update(timeEntries)
     .set({ endedAt, updatedAt: new Date() })
-    .where(and(live(workspaceId), isNull(timeEntries.endedAt)))
+    .where(and(live(workspaceId), eq(timeEntries.id, row.id), isNull(timeEntries.endedAt)))
     .returning()
-  if (rows.length === 0) throw new NotFoundError('no running timer')
   return one(rows)
 }
 

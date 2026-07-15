@@ -28,8 +28,8 @@ export function LeaveBalance({
   taken = 0,
   planned = 0,
   carryover = 0,
-  label = 'Urlaub',
-  unit = 'Tage',
+  label = 'Vacation',
+  unit = 'Days',
 }: LeaveBalanceProps): React.JSX.Element {
   const t = useTheme()
   const total = entitlement + carryover
@@ -65,7 +65,7 @@ export function LeaveBalance({
           {String(rest)}
         </Text>
         <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>
-          {unit} {label} übrig
+          {unit} {label} left
         </Text>
         {carryover > 0 && (
           <Text
@@ -76,7 +76,7 @@ export function LeaveBalance({
               color: t.color.ink3,
             }}
           >
-            inkl. {String(carryover)} Übertrag
+            incl. {String(carryover)} carryover
           </Text>
         )}
       </View>
@@ -116,19 +116,20 @@ export function LeaveBalance({
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           {legendSwatch(t.color.accent)}
           <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>
-            Genommen <Text style={{ ...mono, fontSize: t.fontSize['2xs'] }}>{String(taken)}</Text>
+            Taken <Text style={{ ...mono, fontSize: t.fontSize['2xs'] }}>{String(taken)}</Text>
           </Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           {legendSwatch(t.color.accentSoft, t.color.accent)}
           <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>
-            Verplant <Text style={{ ...mono, fontSize: t.fontSize['2xs'] }}>{String(planned)}</Text>
+            Planned <Text style={{ ...mono, fontSize: t.fontSize['2xs'] }}>{String(planned)}</Text>
           </Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           {legendSwatch(t.color.sunk, t.color.borderStrong)}
           <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>
-            Anspruch <Text style={{ ...mono, fontSize: t.fontSize['2xs'] }}>{String(total)}</Text>
+            Entitlement{' '}
+            <Text style={{ ...mono, fontSize: t.fontSize['2xs'] }}>{String(total)}</Text>
           </Text>
         </View>
       </View>

@@ -23,9 +23,9 @@ interface ChatMsg {
 }
 
 const EXAMPLES: readonly string[] = [
-  'Was ist mein Top-Projekt diese Woche?',
-  'Wie ist mein Überstundensaldo?',
-  'Wie viel habe ich diese Woche abgerechnet?',
+  'What is my top project this week?',
+  'What is my overtime balance?',
+  'How much did I bill this week?',
 ]
 
 /** Deterministic offline answer: pick the fact with the most word-overlap. */
@@ -54,7 +54,7 @@ function offlineAnswer(question: string, facts: readonly string[]): AssistantRes
         source: 'deterministic',
         refused: true,
         charged: false,
-        text: 'Das steht nicht in deinen aktuellen Daten — frag konkreter.',
+        text: "That's not in your current data — ask more specifically.",
       }
 }
 
@@ -89,7 +89,7 @@ export function AssistantScreen(): React.JSX.Element {
           source: 'deterministic',
           refused: true,
           charged: false,
-          text: `Konnte nicht antworten — ${cause instanceof Error ? cause.message : String(cause)}`,
+          text: `Couldn't answer — ${cause instanceof Error ? cause.message : String(cause)}`,
         })
       })
       .finally(() => {
@@ -134,7 +134,7 @@ export function AssistantScreen(): React.JSX.Element {
             Assistant
           </Text>
         </View>
-        <Badge tone="neutral">deine Daten · nur Lesezugriff</Badge>
+        <Badge tone="neutral">Your data · read-only</Badge>
       </View>
 
       <ScrollView
@@ -147,8 +147,8 @@ export function AssistantScreen(): React.JSX.Element {
       >
         {msgs.length === 0 ? (
           <EmptyState
-            title="Frag deine eigenen Daten"
-            hint="Der Assistant antwortet nur aus deinen Zeiten, Projekten, Budgets und Meetings — jede Zahl kommt aus der deterministischen Aggregation, nie aus dem Modell. 1 Credit pro Frage."
+            title="Ask your own data"
+            hint="The Assistant answers only from your time, projects, budgets, and meetings — every number comes from deterministic aggregation, never from the model. 1 credit per question."
           />
         ) : (
           msgs.map((m, i) => <Bubble key={`${m.role}-${String(i)}`} msg={m} />)
@@ -174,12 +174,12 @@ export function AssistantScreen(): React.JSX.Element {
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: t.spacing.s2 }}>
           <View style={{ flex: 1 }}>
             <Input
-              placeholder="Frag nach Zeiten, Budgets, Meetings … · 1 Credit"
+              placeholder="Ask about time, budgets, meetings … · 1 credit"
               value={input}
               onChangeText={setInput}
             />
           </View>
-          <Button onPress={() => send(input)}>Senden</Button>
+          <Button onPress={() => send(input)}>Send</Button>
         </View>
       </View>
     </View>
@@ -216,8 +216,8 @@ function Bubble({ msg }: { msg: ChatMsg }): React.JSX.Element {
       {!isUser && !msg.refusal && (
         <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>
           {msg.source === 'ai-proposal'
-            ? 'KI-Formulierung · Zahlen aus deinen Daten, nie aus dem Modell'
-            : 'Aus deinen Daten · deterministisch'}
+            ? 'AI phrasing · numbers from your data, never from the model'
+            : 'From your data · deterministic'}
         </Text>
       )}
     </View>
