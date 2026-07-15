@@ -73,11 +73,21 @@ integration marketplace, multi-currency workspaces, 2FA/passkeys.
 | F23 | Operate core actions from the system: Siri/App Intents/Shortcuts (iOS), Quick Settings Tile (Android) |
 | F24 | Switch the day between Canvas and a classic list with per-entry amounts and day subtotals |
 
+## Audits {#_audits}
+
+Point-in-time quality & bug audits of the codebase live under [`docs/audit/`](audit/) so the
+audit trail sits inside the architecture record:
+
+- [2026-07-15 — Eight-perspective quality & bug audit](audit/2026-07-15-eight-perspective-audit.md)
+  (Requirements · Architecture · Developer · DevOps · Tester · UX · Customer · Security; 39
+  verified findings). Fixes ship as separate category PRs.
+
 ## Requirements Register {#_requirements_register}
 
 Living register of tracked requirements (process skill §1.1). GitHub issues are where a
-requirement is *discussed*; this table is where it is *tracked*. Each fulfilled requirement gains
-a Runtime-View sequence diagram (§6).
+requirement is *discussed*; this table is where it is *tracked*. Selected invariant-critical
+requirements gain a Runtime-View sequence diagram (§6); not every fulfilled requirement carries
+one.
 
 | ID | Requirement | Delivered by | Status |
 |----|-------------|-------------|--------|
@@ -95,7 +105,7 @@ a Runtime-View sequence diagram (§6).
 | REQ-012 | LLM assist layer: one multi-provider adapter, proposals only for rule-undecided candidates, code-enforced candidate guardrail, graceful degradation | ADR-0005/0029, [#17](https://github.com/NexusHero/myDevTime/issues/17) | In progress — the provider-agnostic **`LlmPort`** is fixed ([ADR-0029](adr/0029-llm-provider-port.md)): one narrow `complete`/`available` interface with structured output + uniform token usage, vendor types confined to per-provider adapters (`openai`/`anthropic`/`gemini`/`ollama`), provider chosen by config, and a `NullLlm` default so AI degrades gracefully. The port + Null adapter landed in `apps/api/modules/ai/llm`, and the real adapter now ships as **one library-backed `VercelLlm`** over the Vercel AI SDK (ADR-0029 amended): a single `LlmPort` implementation serving OpenAI/Anthropic/Gemini/Ollama, provider chosen by config (`readLlmConfig` → `VercelLlm`, else `NullLlm`), SDK types confined to `vercel-llm.ts`; the proposal features (REQ-013/014/015/026) build on the port |
 | REQ-013 | Natural-language time entry (de/en): deterministic pre-parser + LLM fallback, always a confirmed draft, never silently persisted | ADR-0005/0029, [#18](https://github.com/NexusHero/myDevTime/issues/18) | In progress — the deterministic **`parseTimeEntry`** core (de/en duration `1,5h`/`90m`/`1:30`/`2 Std 15 min`, day, `@`/`#`/keyword project hint, billable, note, confidence) lives pure in `packages/domain/src/nlentry`; `POST /api/ai/nl-entry` returns a **draft** (`deterministic`/`ai-proposal`/`none`), falling back over the `LlmPort` ([ADR-0029](adr/0029-llm-provider-port.md)) only when the pre-parser can't, and degrading to `none` when the provider is down; the `NlQuickAdd` card on Today previews the draft and creates the entry only on confirm — nothing is persisted without it |
 | REQ-014 | AI summaries & standup reports: narrative around domain-computed numbers (slot integrity), read-only artifacts, plain-template degradation | ADR-0005, [#19](https://github.com/NexusHero/myDevTime/issues/19) | Proposed |
-| REQ-015 | AI assistant chat: grounded in workspace data via read-only query tools, defined refusals, deep-links only — no state mutation from chat | ADR-0005, [#20](https://github.com/NexusHero/myDevTime/issues/20) | Proposed |
+| REQ-015 | AI assistant chat: grounded in workspace data via read-only query tools, defined refusals, deep-links only — no state mutation from chat | ADR-0005, [#20](https://github.com/NexusHero/myDevTime/issues/20) | Done — grounded `LlmAssistant` over the `ASSISTANT`/`LlmPort` seam answers only from client-supplied facts (never invents numbers) with a defined `NO_DATA` refusal; `POST /api/ai/assistant` (AuthGuard) debits one credit per answered request; the `AssistantScreen` renders answers with provenance. No state mutation from chat |
 | REQ-016 | Entitlement service: provider-agnostic plan model (`free`/`pro`), feature gates, idempotent/replay-safe webhook-event convergence, deterministic cross-rail resolution (AI usage moved to the credit ledger REQ-027 per ADR-0008) | ADR-0006/0008, [#21](https://github.com/NexusHero/myDevTime/issues/21) | Done (#21) — pure `deriveEntitlement` state machine + `can()` gating (`packages/domain/entitlements`, Phase A); append-only event log + derive-on-read service + `GET /billing/entitlement` and the idempotent `PaymentProviderPort` recording seam (Phase B). Real provider adapters are Stripe (REQ-017/#22) & store IAP (REQ-018/#23) |
 | REQ-017 | Stripe subscriptions on web: Checkout, Billing portal, signature-verified idempotent webhooks, Stripe Tax | ADR-0006, [#22](https://github.com/NexusHero/myDevTime/issues/22) | Done (#22) — Stripe SDK confined to `billing/payments/stripe`; `POST /billing/checkout` (subscription + Stripe Tax) · `/billing/portal` · signature-verified raw-body `/billing/stripe/webhook` → adapter → entitlement log; `billing_customers` workspace↔customer link (migration 0008); idempotent via #21. Live checkout/portal are exercised test-mode in the M5 e2e suite (#27) |
 | REQ-018 | Store subscriptions: StoreKit 2 + Play Billing with server notifications as source of truth; store-policy-compliant cross-rail UX | ADR-0006, [#23](https://github.com/NexusHero/myDevTime/issues/23) | Proposed |
@@ -132,7 +142,7 @@ The full milestone plan (M0–M5), dependency graph, and the Definition of 1.0 l
 |----------|------------------|------|
 | 1 | **Correctness** | Tracked minutes become invoiced money: durations, rates, budgets, and exports are computed by deterministic, exhaustively tested pure logic — never by an LLM, never twice in two places (ADR-0005) |
 | 2 | **Auditability** | Every entry carries provenance (`timer`/`manual`/`calendar`/`rule:<id>@<version>`/`ai-proposal` + accepted/corrected/rejected); every exported number traces back to its entries and rounding profile |
-| 3 | **Offline-first reliability** | Tracking never blocks on connectivity: timers, entries, and edits work offline and converge without losing or duplicating minutes (REQ-006) |
+| 3 | **Online-only reliability** ([ADR-0049](adr/0049-abandon-offline-first-architecture.md)) | The client is online-only: the local offline store was removed and the sync engine deferred (REQ-004/006). Every entry is still validated server-side by the deterministic tracking core; the pure conflict engine is kept dormant as the documented re-entry point should offline return post-1.0 |
 | 4 | **UX responsiveness** | The Tyme bar: ≤2-tap timer start, native-feeling phone/tablet apps, keyboard-first web — automation must never make capture slower |
 | 5 | **Data protection** | Time data reveals clients, work patterns, and income — and meeting transcripts are verbatim third-party speech: DSGVO-compliant handling, consent-first capture, encrypted third-party grants, no training of provider models on user data |
 | 6 | **Extensibility** | New capture source, new LLM provider, new payment rail = new adapter behind an existing port — no change to domain logic (OCP, §2.2) |
@@ -156,7 +166,7 @@ The full milestone plan (M0–M5), dependency graph, and the Definition of 1.0 l
 |-----------|------------|
 | Backend: single Node.js/TypeScript module-per-domain monolith (NestJS on Fastify) | [ADR-0003](adr/0003-node-typescript-backend.md), [ADR-0025](adr/0025-adopt-nestjs-on-fastify.md) |
 | Client: one React Native + Expo codebase for iOS/Android/Web | [ADR-0004](adr/0004-react-native-expo-client.md) — Accepted (provisional), spike [#1](https://github.com/NexusHero/myDevTime/issues/1) passed; on-device residual tracked in [#152](https://github.com/NexusHero/myDevTime/issues/152) |
-| Offline-first is core architecture, not a feature | ADR-0002; forces the sync engine (REQ-006) into M1 |
+| Online-only client (offline-first abandoned) | [ADR-0049](adr/0049-abandon-offline-first-architecture.md) supersedes ADR-0002's offline-first line; the sync engine (REQ-006) is deferred and kept dormant, not an M1 blocker |
 | LLMs never produce billing-relevant state | [ADR-0005](adr/0005-deterministic-core-llm-assist.md) |
 | Meeting capture is consent-first; channel + ASR provider pending the spike | [ADR-0009](adr/0009-meeting-capture-asr-approach.md), [#31](https://github.com/NexusHero/myDevTime/issues/31) |
 | Digital subscriptions inside the apps must use store IAP | Apple/Google policy — see [ADR-0006](adr/0006-subscription-billing-stripe-plus-store-iap.md) |
@@ -212,7 +222,7 @@ _Fill in (deployment topology, protocols, webhook endpoints) once the backend sk
 | Three platforms, one developer | One TypeScript codebase everywhere: Node backend (ADR-0003) + React Native/Expo clients (ADR-0004) with shared domain packages | Domain logic written once, tested once, used by client and server | Correctness, Extensibility |
 | Automation vs. billing integrity | Deterministic core + rules engine decide; LLM proposes/parses/explains with provenance (ADR-0005) | Billing data must be reproducible and auditable; LLM output is neither | Correctness, Auditability |
 | Three payment rails, one plan | Internal entitlement service as single source of truth; Stripe/StoreKit/Play as adapters (ADR-0006) | Cross-rail edge cases handled once; providers swappable | Extensibility, Correctness |
-| Capture must work anywhere | Offline-first local store + sync engine in the core (REQ-004/006) | Tyme-class reliability is a launch bar, not an optimization | Offline-first reliability |
+| Capture is fast and reliable online | Online-only client ([ADR-0049](adr/0049-abandon-offline-first-architecture.md)); the deterministic conflict engine is retained but dormant for a possible offline re-entry | Tyme-class responsiveness is a launch bar; offline was descoped to ship 1.0 | Online-only reliability |
 
 ---
 
@@ -261,8 +271,9 @@ own issues._
 
 # Runtime View {#section-runtime-view}
 
-Each fulfilled requirement gets a scenario here (a Mermaid sequence diagram) linking back to its
-`REQ-NNN` — see the process skill §1.3.
+Selected invariant-critical requirements get a scenario here (a Mermaid sequence diagram) linking
+back to their `REQ-NNN` — see the process skill §1.3. Not every fulfilled requirement carries a
+diagram; the flows most sensitive to correctness/ordering are the ones documented.
 
 ## Start a timer — one running timer per workspace (REQ-004)
 
