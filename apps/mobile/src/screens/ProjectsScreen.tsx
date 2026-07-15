@@ -274,6 +274,7 @@ export function ProjectsScreen({
           fontSize: t.fontSize.xl,
           color: t.color.ink,
           fontFamily: t.fontFamily.display,
+          letterSpacing: t.fontSize.xl * t.letterSpacing.tight,
         }}
       >
         Projects

@@ -125,10 +125,10 @@ export function AssistantScreen(): React.JSX.Element {
           <Text
             style={{
               fontWeight: '700',
-              fontSize: t.fontSize.xl,
+              fontSize: t.fontSize['2xl'],
               color: t.color.ink,
               fontFamily: t.fontFamily.display,
-              letterSpacing: t.fontSize.xl * t.letterSpacing.tight,
+              letterSpacing: t.fontSize['2xl'] * t.letterSpacing.tight,
             }}
           >
             Assistant
@@ -197,7 +197,7 @@ function Bubble({ msg }: { msg: ChatMsg }): React.JSX.Element {
         padding: t.spacing.s3,
         borderRadius: t.radius.card,
         backgroundColor: isUser ? t.color.accent : t.color.surface,
-        borderWidth: isUser ? 0 : 1,
+        borderWidth: isUser ? 0 : t.borderWidth.medium,
         // Assistant bubbles carry the accent AI-signature border (the product's
         // grounded-answer marker); user bubbles read as the accent fill.
         borderColor: t.color.accent,
@@ -214,7 +214,7 @@ function Bubble({ msg }: { msg: ChatMsg }): React.JSX.Element {
         {msg.text}
       </Text>
       {!isUser && !msg.refusal && (
-        <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>
+        <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
           {msg.source === 'ai-proposal'
             ? 'AI phrasing · numbers from your data, never from the model'
             : 'From your data · deterministic'}

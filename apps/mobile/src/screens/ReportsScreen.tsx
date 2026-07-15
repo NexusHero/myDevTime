@@ -92,7 +92,7 @@ function Distribution({ items }: { readonly items: readonly DistItem[] }): React
               style={{
                 fontFamily: t.fontFamily.numeric,
                 fontSize: t.fontSize['2xs'],
-                color: t.color.ink2,
+                color: t.color.ink3,
                 width: 40,
                 textAlign: 'right',
               }}

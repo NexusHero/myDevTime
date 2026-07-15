@@ -47,6 +47,7 @@ export function MeetingsScreen(): React.JSX.Element {
         style={{
           fontWeight: '700',
           fontSize: t.fontSize.xl,
+          letterSpacing: t.fontSize.xl * t.letterSpacing.tight,
           color: t.color.ink,
           fontFamily: t.fontFamily.display,
         }}
@@ -85,7 +86,7 @@ export function MeetingsScreen(): React.JSX.Element {
               }}
               style={{
                 padding: t.spacing.s3,
-                borderRadius: t.radius.chip,
+                borderRadius: t.radius.block,
                 backgroundColor: active ? t.color.bg : 'transparent',
                 borderWidth: 1,
                 borderColor: active ? t.color.border : 'transparent',
@@ -158,7 +159,7 @@ export function MeetingsScreen(): React.JSX.Element {
                       alignItems: stacked ? 'flex-start' : 'center',
                       gap: t.spacing.s2,
                       padding: t.spacing.s3,
-                      borderRadius: t.radius.chip,
+                      borderRadius: t.radius.block,
                       backgroundColor: t.color.bg,
                       borderWidth: 1,
                       borderColor: t.color.border,
