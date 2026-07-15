@@ -2,8 +2,8 @@
 
 The settled **visual language** ([`docs/design/ux-vision.md`](../../docs/design/ux-vision.md) §4)
 as pure, platform-agnostic TypeScript — the token foundation of the design system
-([#11](https://github.com/NexusHero/myDevTime/issues/11), Phase A). Values are lifted 1:1 from
-the validated UI prototype ([`spikes/ui-prototype`](../../spikes/ui-prototype)).
+([#11](https://github.com/NexusHero/myDevTime/issues/11), Phase A). Values were lifted 1:1 from
+the initially validated UI prototype.
 
 No React, no React Native imports — so it is held to the ≥90% coverage bar like the domain core
 and consumed identically by React Native and react-native-web (ADR-0004).
