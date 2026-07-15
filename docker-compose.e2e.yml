@@ -7,8 +7,12 @@
 services:
   api:
     environment:
+      NODE_ENV: development
       # Non-prod escape hatch so seeded accounts can sign in immediately (ADR-0053).
       AUTH_REQUIRE_EMAIL_VERIFICATION: 'false'
+      # Acceptance tests fire many sign-ups/sign-ins from one runner IP; relax the
+      # abuse limiter for E2E only (the config refine keeps it forced on in prod).
+      AUTH_RATE_LIMIT_ENABLED: 'false'
       # A throwaway secret (>=32 chars) — E2E only, never a real deployment.
       AUTH_SECRET: 'e2e-insecure-secret-not-for-production-0123456789'
       # The web origin (nginx) the browser and its API calls come from.

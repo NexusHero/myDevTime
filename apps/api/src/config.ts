@@ -40,6 +40,15 @@ const envSchema = z
       .enum(['true', 'false'])
       .default('true')
       .transform(v => v === 'true'),
+    // Whether Better-Auth's abuse-protection rate limiter is active (REQ-002 /
+    // SKILL §4). On by default in every environment and **forced on in production**
+    // (refine below); only a non-prod E2E stack may set 'false', so acceptance
+    // tests can sign up / sign in in bulk from one IP without tripping the limiter
+    // (ADR-0053). Never disable it to work around a real limit in a live system.
+    AUTH_RATE_LIMIT_ENABLED: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform(v => v === 'true'),
 
     // Transactional email (verification, password reset, account-deletion). When
     // SMTP_URL is set the SMTP transport is used; otherwise emails are logged
@@ -88,6 +97,15 @@ const envSchema = z
         code: 'custom',
         path: ['AUTH_REQUIRE_EMAIL_VERIFICATION'],
         message: 'AUTH_REQUIRE_EMAIL_VERIFICATION cannot be false in production',
+      })
+    }
+    // The rate limiter is an abuse-protection control — never disable it in
+    // production; the E2E escape hatch is a non-prod concession only (ADR-0053).
+    if (cfg.NODE_ENV === 'production' && !cfg.AUTH_RATE_LIMIT_ENABLED) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['AUTH_RATE_LIMIT_ENABLED'],
+        message: 'AUTH_RATE_LIMIT_ENABLED cannot be false in production',
       })
     }
   })

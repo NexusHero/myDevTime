@@ -38,7 +38,9 @@ export class AppModule {
           useFactory: (config: Config) => ({
             throttlers: [{ ttl: 60000, limit: 100 }],
             ...(config.REDIS_URL
-              ? { storage: new ThrottlerStorageRedisService(config.REDIS_URL) }
+              ? {
+                  storage: new ThrottlerStorageRedisService(config.REDIS_URL),
+                }
               : {}),
           }),
         }),

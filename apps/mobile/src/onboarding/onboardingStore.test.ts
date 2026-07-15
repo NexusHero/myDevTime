@@ -2,6 +2,9 @@
 // The web path reads/writes `localStorage`, which needs a DOM.
 import { afterEach, describe, expect, it } from 'vitest'
 import { hasOnboarded, markOnboarded } from './onboardingStore.js'
+import { ensureLocalStorage } from '../test/localStorage.js'
+
+ensureLocalStorage()
 
 afterEach(() => {
   localStorage.clear()

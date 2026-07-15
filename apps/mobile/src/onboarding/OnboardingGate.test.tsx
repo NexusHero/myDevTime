@@ -5,6 +5,9 @@ import TestRenderer, { act } from 'react-test-renderer'
 import { Text as RNText } from 'react-native'
 import { OnboardingGate } from './OnboardingGate.js'
 import { ThemeProvider } from '../theme/ThemeProvider.js'
+import { ensureLocalStorage } from '../test/localStorage.js'
+
+ensureLocalStorage()
 
 afterEach(() => {
   localStorage.clear()

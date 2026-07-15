@@ -1,5 +1,16 @@
-# Local development database (ADR-0015). Not used in production.
+# Full local stack from the production Docker images (ADR-0052): postgres + redis,
+# a one-off migrate step, the api (NODE_ENV=production, so email verification and
+# the auth rate limiter are enforced), and the web/nginx edge published on :8080.
 #   docker compose up -d
+#
+# Because this runs in production mode, a freshly seeded account cannot sign in
+# through the UI (no mailbox to verify its email). For a click-through demo where
+# sign-in works, add the E2E overlay, which drops to NODE_ENV=development and turns
+# the mailbox/rate-limit gates off (docker-compose.e2e.yml, ADR-0053):
+#   docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d
+#   pnpm --filter @mydevtime/api db:seed   # populate demo data (admin@test.de)
+#
+# The bundled postgres is also the local dev database used by the app tests:
 #   DATABASE_URL=postgres://mydevtime:mydevtime@localhost:5433/mydevtime \
 #     pnpm --filter @mydevtime/api db:migrate
 services:
@@ -39,6 +50,10 @@ services:
     command: ['node', 'dist/db/migrate.js']
     environment:
       DATABASE_URL: postgres://mydevtime:mydevtime@postgres:5432/mydevtime
+      NODE_ENV: production
+      AUTH_SECRET: dev-insecure-secret-not-for-production-use-only-32chars
+      AUTH_BASE_URL: http://localhost:8080
+      TRUSTED_ORIGINS: http://localhost:8080
     depends_on:
       postgres:
         condition: service_healthy
@@ -51,6 +66,10 @@ services:
       DATABASE_URL: postgres://mydevtime:mydevtime@postgres:5432/mydevtime
       REDIS_URL: redis://redis:6379
       PORT: 3000
+      NODE_ENV: production
+      AUTH_SECRET: dev-insecure-secret-not-for-production-use-only-32chars
+      TRUSTED_ORIGINS: http://localhost:8080
+      AUTH_BASE_URL: http://localhost:8080
       # The API sits behind the web container's nginx, so trust its X-Forwarded-* for the
       # rate limiter's client IP (ADR-0050). Never enable when the API is directly reachable.
       TRUST_PROXY: 'true'
