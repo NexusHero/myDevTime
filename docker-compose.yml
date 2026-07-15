@@ -1,5 +1,16 @@
-# Local development database (ADR-0015). Not used in production.
+# Full local stack from the production Docker images (ADR-0052): postgres + redis,
+# a one-off migrate step, the api (NODE_ENV=production, so email verification and
+# the auth rate limiter are enforced), and the web/nginx edge published on :8080.
 #   docker compose up -d
+#
+# Because this runs in production mode, a freshly seeded account cannot sign in
+# through the UI (no mailbox to verify its email). For a click-through demo where
+# sign-in works, add the E2E overlay, which drops to NODE_ENV=development and turns
+# the mailbox/rate-limit gates off (docker-compose.e2e.yml, ADR-0053):
+#   docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d
+#   pnpm --filter @mydevtime/api db:seed   # populate demo data (admin@test.de)
+#
+# The bundled postgres is also the local dev database used by the app tests:
 #   DATABASE_URL=postgres://mydevtime:mydevtime@localhost:5433/mydevtime \
 #     pnpm --filter @mydevtime/api db:migrate
 services:

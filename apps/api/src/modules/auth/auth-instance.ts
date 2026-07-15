@@ -85,11 +85,13 @@ export function createAuth({ db, config, email }: CreateAuthDeps) {
           }),
       },
     },
-    // Abuse protection (REQ-002 / SKILL §4): on in every environment, with
-    // stricter windows on the credential and reset endpoints. In-memory store is
-    // fine for the single-process monolith; database storage is a scaling concern.
+    // Abuse protection (REQ-002 / SKILL §4): on in every environment by default,
+    // with stricter windows on the credential and reset endpoints. Forced on in
+    // production (config refine); only a non-prod E2E stack may relax it so bulk
+    // acceptance sign-ups from one IP don't trip the limiter (ADR-0053). In-memory
+    // store is fine for the single-process monolith; DB storage is a scaling concern.
     rateLimit: {
-      enabled: config.NODE_ENV === 'production',
+      enabled: config.AUTH_RATE_LIMIT_ENABLED,
       window: 60,
       max: 100,
       customRules: {

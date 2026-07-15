@@ -5,31 +5,9 @@ import TestRenderer, { act } from 'react-test-renderer'
 import { Text as RNText } from 'react-native'
 import { OnboardingGate } from './OnboardingGate.js'
 import { ThemeProvider } from '../theme/ThemeProvider.js'
+import { ensureLocalStorage } from '../test/localStorage.js'
 
-// Mock localStorage if jsdom's is blocked or undefined in the current environment
-if (typeof localStorage === 'undefined') {
-  const store = new Map<string, string>()
-  const mockStorage = {
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => {
-      store.set(key, value)
-    },
-    removeItem: (key: string) => {
-      store.delete(key)
-    },
-    clear: () => {
-      store.clear()
-    },
-    key: (index: number) => Array.from(store.keys())[index] ?? null,
-    get length() {
-      return store.size
-    },
-  }
-  Object.defineProperty(globalThis, 'localStorage', {
-    value: mockStorage,
-    writable: true,
-  })
-}
+ensureLocalStorage()
 
 afterEach(() => {
   localStorage.clear()
