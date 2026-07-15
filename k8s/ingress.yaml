@@ -1,0 +1,36 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mydevtime-ingress
+  annotations:
+    # Use traefik as the ingress class (default in k3s)
+    kubernetes.io/ingress.class: traefik
+    # Request a TLS certificate automatically from cert-manager
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # For traefik, if you need to rewrite paths you'd use middleware,
+    # but our web container proxy already handles /api, or we can route it here:
+spec:
+  tls:
+    - hosts:
+        - mydevtime.com
+      secretName: mydevtime-tls
+  rules:
+    - host: mydevtime.com
+      http:
+        paths:
+          # API routes go to the API service
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 3000
+          # Everything else goes to the Web service
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 80
