@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Platform, Pressable, ScrollView, TextInput, View, useWindowDimensions } from 'react-native'
 import { formatDuration, projectColor } from '@mydevtime/design'
+import type { LoadLevel } from '@mydevtime/domain'
 import { Text } from '../components/core/Text'
 import { useTheme } from '../theme/ThemeProvider'
 import {
@@ -20,6 +21,7 @@ import {
 import { useTimerContext } from '../timer/TimerContext'
 import { usePlanner } from '../hooks/usePlanner'
 import { usePreferences } from '../hooks/usePreferences'
+import { useInsights } from '../hooks/useInsights'
 import { useAutoTracker } from '../autotracker/useAutoTracker'
 import { NlQuickAdd } from './NlQuickAdd'
 import { useCatalog } from './useCatalog'
@@ -98,6 +100,19 @@ export function TodayScreen(): React.JSX.Element {
   const captureAvailable = Platform.OS === 'web'
   const consented = prefs.autoTracker
   const activity = useAutoTracker(consented && captureAvailable, active)
+
+  // Balance & Streak (REQ-032): real, deterministic signals from tracked time — the
+  // focus streak and a neutral workload level. Both render as header chips only when
+  // there is something honest to show; nothing is fabricated.
+  const insights = useInsights().data
+
+  // Neutral, judgement-free colours for the workload chip: a calm week reads as good,
+  // an ordinary one as quiet ink, a heavy one as a gentle warning — never alarm.
+  const loadChip = (level: LoadLevel): { bg: string; fg: string } => {
+    if (level === 'calm') return { bg: t.color.goodSoft, fg: t.color.good }
+    if (level === 'elevated') return { bg: t.color.warnSoft, fg: t.color.warn }
+    return { bg: t.color.overlay, fg: t.color.ink2 }
+  }
 
   const planBlocks = (plan?.blocks ?? []).map((b, i) => ({ ...b, index: i }))
   const visibleBlocks = planBlocks.filter(b => !dismissed.includes(b.index))
@@ -533,6 +548,42 @@ export function TodayScreen(): React.JSX.Element {
             Today
           </Text>
           <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>{todayLabel()}</Text>
+
+          {insights && insights.streak > 0 && (
+            <View
+              style={{
+                paddingHorizontal: t.spacing.s2,
+                paddingVertical: 2,
+                borderRadius: t.radius.chip,
+                backgroundColor: t.color.liveSoft,
+              }}
+            >
+              <Text style={{ fontSize: t.fontSize.xs, fontWeight: '600', color: t.color.live }}>
+                {`Streak ${String(insights.streak)}`}
+              </Text>
+            </View>
+          )}
+
+          {insights && insights.load.ratio !== null && (
+            <View
+              style={{
+                paddingHorizontal: t.spacing.s2,
+                paddingVertical: 2,
+                borderRadius: t.radius.chip,
+                backgroundColor: loadChip(insights.load.level).bg,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: t.fontSize.xs,
+                  fontWeight: '600',
+                  color: loadChip(insights.load.level).fg,
+                }}
+              >
+                {`Balance: ${insights.load.level}`}
+              </Text>
+            </View>
+          )}
         </View>
 
         {heroBar}
