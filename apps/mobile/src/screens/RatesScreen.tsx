@@ -3,7 +3,6 @@ import { Pressable, View } from 'react-native'
 import { formatMoneyMinor } from '@mydevtime/design'
 import { Text } from '../components/core/Text'
 import {
-  Badge,
   Button,
   Card,
   EmptyState,
@@ -26,7 +25,7 @@ import { useCatalog } from './useCatalog'
  * (workspace default → client → project, most specific wins); this screen lists
  * them by level and creates/deletes them via `useRates`. The user only types €/h —
  * the effective date is stamped "now" — and the deterministic core owns the math
- * (ADR-0005). Demo data stands in when no API is configured.
+ * (ADR-0005). With no API configured the list is simply empty.
  */
 const CURRENCY = 'EUR' // one workspace currency at 1.0 (multi-currency is backlog)
 
@@ -108,7 +107,6 @@ export function RatesScreen({ onBack }: { onBack: () => void }): React.JSX.Eleme
           onBack={onBack}
         />
       </View>
-      {!rates.live && <Badge tone="neutral">Demo data</Badge>}
     </View>
   )
 

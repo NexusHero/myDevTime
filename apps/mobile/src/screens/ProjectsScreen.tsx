@@ -10,15 +10,7 @@ import {
   type Screen,
 } from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
-import {
-  Badge,
-  BudgetRing,
-  Button,
-  Card,
-  EmptyState,
-  ScreenScaffold,
-  Sparkline,
-} from '../components/index'
+import { Badge, BudgetRing, Button, Card, EmptyState, ScreenScaffold } from '../components/index'
 import type { Client, Project } from './projectsData'
 import { useCatalog } from './useCatalog'
 import { useClientsOpen } from '../hooks/useClientsOpen'
@@ -28,24 +20,12 @@ import { apiBaseUrl } from '../config'
 
 /**
  * Projects — clients → projects → tasks with budget consumption and rates
- * (ux-vision §3, issue #11). The data comes from `useCatalog`: the live tracking
- * catalog when an API is configured, else the illustrative demo data. Every figure
- * renders via the design `format*` helpers and the pure `budgetTone` policy
- * (ADR-0005). Cards without budget data (the live catalog carries structure + rates
- * only, for now) degrade to a task-count + rate summary. A card opens the detail.
+ * (ux-vision §3, issue #11). The data comes live from `useCatalog`; with no API
+ * the list is empty. Every figure renders via the design `format*` helpers and the
+ * pure `budgetTone` policy (ADR-0005). Cards without budget data (the live catalog
+ * carries structure + rates only, for now) degrade to a task-count + rate summary.
+ * A card opens the detail.
  */
-/**
- * No weekly time-series reaches the catalog yet (it carries structure + rates
- * only), so each card shows a deterministic, clearly-labelled demo trend derived
- * from the project id — swapped for real data the moment the tracking slice ships.
- */
-const DEMO_WEEK_HOURS: readonly number[] = [6, 7.5, 8, 5, 7, 2, 0]
-
-function demoWeekTrend(seed: string): readonly number[] {
-  const shift = seed.charCodeAt(0) % DEMO_WEEK_HOURS.length
-  return [...DEMO_WEEK_HOURS.slice(shift), ...DEMO_WEEK_HOURS.slice(0, shift)]
-}
-
 /** Up to two leading initials of a project name, for the card avatar. */
 function initials(name: string): string {
   return name
@@ -68,12 +48,10 @@ function ProjectCard({
   const hasBudget = project.budgetMs > 0
   const ratio = hasBudget ? project.spentMs / project.budgetMs : 0
   const mono = { fontFamily: t.fontFamily.numeric, color: t.color.ink }
-  const week = demoWeekTrend(project.id)
   const billing =
     project.rateMinorPerHour > 0
       ? `${formatMoneyMinor(project.rateMinorPerHour, project.currency)} / h`
       : `${String(project.tasks.length)} Aufgaben`
-  const trendLabel = `${project.name} — Wochentrend (Demo)`
 
   return (
     <Pressable
@@ -147,13 +125,11 @@ function ProjectCard({
                   {formatDuration(project.budgetMs)}
                 </Text>
               </View>
-              <Sparkline values={week} color={color} width={150} height={30} label={trendLabel} />
             </View>
           </View>
         ) : (
-          <View style={{ marginTop: t.spacing.s4, gap: t.spacing.s3 }}>
+          <View style={{ marginTop: t.spacing.s4 }}>
             <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>Kein Budget-Cap</Text>
-            <Sparkline values={week} color={color} width={150} height={30} label={trendLabel} />
           </View>
         )}
 
@@ -349,7 +325,6 @@ export function ProjectsScreen({
         </Text>
       </Pressable>
       <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>{subtitle}</Text>
-      {!catalog.live && <Badge tone="neutral">Demo data</Badge>}
     </View>
   )
 

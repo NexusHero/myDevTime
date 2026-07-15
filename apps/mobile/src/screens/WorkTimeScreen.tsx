@@ -12,8 +12,8 @@ import type { Shift } from '../api/worktime'
  * shift's elapsed time, this week's shifts with their ArbZG §4 break-rule warnings,
  * and the overtime balance. Every number is fed by the `worktime` module
  * (`useWorktime`); the break shortfall and overtime balance are the deterministic
- * core's (ADR-0005), so the view only formats and never computes them. Demo data
- * backs the screen offline.
+ * core's (ADR-0005), so the view only formats and never computes them. With no
+ * backend the screen is empty; clock-in/out still work locally so it stays usable.
  */
 function grossMs(shift: Shift): number {
   if (shift.endedAt === null) return 0
@@ -65,7 +65,6 @@ export function WorkTimeScreen({ onBack }: { onBack: () => void }): React.JSX.El
       <View style={{ flex: 1 }}>
         <SubScreenHeader title="Work time" subtitle="Clock in, breaks & overtime" onBack={onBack} />
       </View>
-      {!wt.live && <Badge tone="neutral">Demo data</Badge>}
     </View>
   )
 

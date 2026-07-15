@@ -5,6 +5,7 @@ import { Badge, Card, Row, ScreenListScaffold } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
 import { SubScreenHeader } from './SubScreenHeader'
 import { findTask } from './projectsData'
+import { useCatalog } from './useCatalog'
 import { useTaskEntries } from '../hooks/useTaskEntries'
 import { entryDurationMs } from '../api/timer'
 
@@ -12,9 +13,9 @@ import { entryDurationMs } from '../api/timer'
  * Task detail (REQ-004, ux-vision §3) — the drill-down from a project's task
  * list: the task's status, its share of tracked time, and the recent entries that
  * make it up, each carrying its provenance (timer / manual / calendar) per the
- * ADR-0005 rule. Entries come from the tracking API (`useTaskEntries`) with a demo
- * fallback; durations are computed by the pure `entryDurationMs` and rendered
- * through the design `formatDuration` helper.
+ * ADR-0005 rule. The task is looked up in the live catalog (`useCatalog`); entries
+ * come from the tracking API (`useTaskEntries`). Durations are computed by the pure
+ * `entryDurationMs` and rendered through the design `formatDuration` helper.
  */
 const SOURCE_LABEL: Record<string, string> = {
   timer: 'Timer',
@@ -40,11 +41,18 @@ export function TaskScreen({
   onNavigate: (screen: Screen, params?: Record<string, string>) => void
 }): React.JSX.Element {
   const t = useTheme()
-  const found = findTask(taskId)
+  const catalog = useCatalog()
+  const found = findTask(catalog.data ?? [], taskId)
   const entries = useTaskEntries(taskId)
   const now = new Date()
 
   if (!found) {
+    const message =
+      catalog.loading && catalog.data === null
+        ? 'Loading task…'
+        : catalog.error
+          ? `Couldn’t load the task — ${catalog.error.message}`
+          : 'This task could not be found.'
     return (
       <ScrollView
         style={{ flex: 1, backgroundColor: t.color.bg }}
@@ -52,7 +60,7 @@ export function TaskScreen({
       >
         <SubScreenHeader title="Task" backLabel="Projects" onBack={() => onNavigate('projects')} />
         <Card>
-          <Text style={{ color: t.color.ink2 }}>This task could not be found.</Text>
+          <Text style={{ color: catalog.error ? t.color.crit : t.color.ink2 }}>{message}</Text>
         </Card>
       </ScrollView>
     )
@@ -141,11 +149,6 @@ export function TaskScreen({
         >
           Recent entries
         </Text>
-        {!entries.live && (
-          <Badge tone="neutral" size="sm">
-            Demo data
-          </Badge>
-        )}
       </View>
     </View>
   )

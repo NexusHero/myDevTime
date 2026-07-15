@@ -19,11 +19,10 @@ import {
   Badge,
   Button,
   Card,
+  EmptyState,
   Icon,
   SegmentedControl,
 } from '../components/index'
-import { PlannerMonthView } from '../components/planner/PlannerMonthView'
-import { PlannerYearView } from '../components/planner/PlannerYearView'
 import { TaskInbox } from '../components/planner/TaskInbox'
 import { useTheme } from '../theme/ThemeProvider'
 import { usePlanner } from '../hooks/usePlanner'
@@ -86,112 +85,17 @@ interface DemoDay {
 }
 
 const DEMO_DAYS: readonly DemoDay[] = [
-  { name: 'Mo', date: '7.7.', total: '7,2h' },
-  { name: 'Di', date: '8.7.', total: '5,4h', today: true },
-  { name: 'Mi', date: '9.7.', total: '6,5h' },
-  { name: 'Do', date: '10.7.', total: '7,0h' },
+  { name: 'Mo', date: '7.7.', total: '—' },
+  { name: 'Di', date: '8.7.', total: '—', today: true },
+  { name: 'Mi', date: '9.7.', total: '—' },
+  { name: 'Do', date: '10.7.', total: '—' },
   { name: 'Fr', date: '11.7.', total: '—' },
 ]
 
 /** day 0–4 · start/len in minutes from 08:00 · kind + project id for the color. */
-const DEMO_BLOCKS: readonly CanvasBlock[] = [
-  { day: 0, start: 60, len: 15, label: 'Standup', kind: 'meeting', project: 'finanzo', rec: true },
-  { day: 0, start: 90, len: 150, label: 'Finanzo API', kind: 'actual', project: 'finanzo' },
-  { day: 0, start: 270, len: 30, label: 'Pause', kind: 'break' },
-  { day: 0, start: 300, len: 120, label: 'Sync engine', kind: 'actual', project: 'sync-engine' },
-  { day: 0, start: 450, len: 90, label: 'Code review', kind: 'actual', project: 'reviews' },
-  { day: 1, start: 60, len: 15, label: 'Standup', kind: 'meeting', project: 'finanzo', rec: true },
-  { day: 1, start: 90, len: 90, label: 'Finanzo Review', kind: 'actual', project: 'finanzo' },
-  {
-    day: 1,
-    start: 195,
-    len: 45,
-    label: 'Nordwind Call',
-    kind: 'meeting',
-    project: 'nordwind',
-    ext: 'Outlook',
-  },
-  { day: 1, start: 240, len: 45, label: 'Pause', kind: 'break' },
-  {
-    day: 1,
-    start: 300,
-    len: 120,
-    label: 'Deep work: Sync engine',
-    kind: 'ghost',
-    project: 'sync-engine',
-  },
-  { day: 1, start: 435, len: 45, label: 'Review backlog', kind: 'ghost', project: 'reviews' },
-  // Wed (day 2) is the overbooking day: three meetings overlap around 10:00 — two
-  // active RSVPs (a "2×"/"3×" conflict) plus a later FYI that must NOT count.
-  { day: 2, start: 60, len: 120, label: 'Nordwind Sprint', kind: 'actual', project: 'nordwind' },
-  {
-    day: 2,
-    start: 120,
-    len: 60,
-    label: 'Arch Sync',
-    kind: 'meeting',
-    project: 'reviews',
-    rsvp: 'tentative',
-    ext: 'Outlook',
-  },
-  {
-    day: 2,
-    start: 135,
-    len: 45,
-    label: 'HR 1:1',
-    kind: 'meeting',
-    project: 'finanzo',
-    rsvp: 'accepted',
-    ext: 'Outlook',
-  },
-  {
-    day: 2,
-    start: 210,
-    len: 60,
-    label: 'Pairing',
-    kind: 'meeting',
-    project: 'sync-engine',
-    rsvp: 'accepted',
-  },
-  { day: 2, start: 270, len: 30, label: 'Pause', kind: 'break' },
-  { day: 2, start: 330, len: 180, label: 'Deep work', kind: 'ghost', project: 'sync-engine' },
-  {
-    day: 2,
-    start: 360,
-    len: 90,
-    label: 'All-Hands',
-    kind: 'meeting',
-    project: 'nordwind',
-    rsvp: 'fyi',
-    ext: 'Outlook',
-  },
-  { day: 3, start: 60, len: 15, label: 'Standup', kind: 'meeting', project: 'finanzo', rec: true },
-  { day: 3, start: 120, len: 180, label: 'Finanzo API', kind: 'ghost', project: 'finanzo' },
-  { day: 3, start: 270, len: 45, label: 'Pause', kind: 'break' },
-  {
-    day: 3,
-    start: 360,
-    len: 60,
-    label: 'Client call',
-    kind: 'meeting',
-    project: 'nordwind',
-    rsvp: 'tentative',
-    ext: 'Outlook',
-  },
-  { day: 3, start: 450, len: 120, label: 'Sync engine', kind: 'ghost', project: 'sync-engine' },
-  { day: 4, start: 60, len: 480, label: 'Urlaub', kind: 'ghost' },
-]
+const DEMO_BLOCKS: readonly CanvasBlock[] = []
 
-const DEMO_ASK: readonly { readonly q: string; readonly a: string }[] = [
-  {
-    q: 'Wo wird es diese Woche eng?',
-    a: 'Donnerstag: 9,3h geplant bei 8:20h Soll — der Nordwind-Block (2h) drückt das Restbudget von 7,2h auf 5,2h. Vorschlag: den Review-Block auf Freitagvormittag ziehen.',
-  },
-  {
-    q: 'Schaffe ich mein Wochen-Soll?',
-    a: 'Knapp: 26,1h gebucht plus 14,5h geplant ergeben 40,6h bei 41:40h Soll. Es fehlt rund 1h — Freitag ist bis auf den Urlaub noch frei.',
-  },
-]
+const DEMO_ASK: readonly { readonly q: string; readonly a: string }[] = []
 
 const ASK_FALLBACK =
   'Dazu habe ich gerade keine belastbare Antwort — frag mich nach Engpässen oder deinem Wochen-Soll.'
@@ -770,7 +674,6 @@ function CoPlannerProposal(): React.JSX.Element {
       subtitle="Vorschlag als Ghost-Blöcke — annehmen oder verwerfen"
       action={
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
-          {!planner.live && <Badge tone="neutral">Demo-Daten</Badge>}
           <Button
             variant="secondary"
             size="sm"
@@ -1196,26 +1099,21 @@ export function PlannerScreen(): React.JSX.Element {
       </View>
 
       {view === 'Monat' && (
-        <>
-          <Card padding={false}>
-            <PlannerMonthView />
-          </Card>
-          <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, lineHeight: 18 }}>
-            Gefüllte Chips sind geplante Aufgaben (Prio-Punkt · zählen in die Tages-Schwere);
-            gestrichelte Wimpel-Banner sind Events — sie zählen nie. Der Balken unten misst die
-            prio-gewichtete Last gegen dein Tagessoll. Vorschau-Daten.
-          </Text>
-        </>
+        <Card>
+          <EmptyState
+            title="Monatsansicht — bald verfügbar"
+            hint="Die geplante Last pro Tag über den Monat erscheint hier, sobald die Auslastungs-Aggregation live ist."
+          />
+        </Card>
       )}
 
       {view === 'Jahr' && (
-        <>
-          <PlannerYearView />
-          <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, lineHeight: 18 }}>
-            Jede Kachel zeigt die Wochen-Intensität eines Monats; die Wimpel-Reihe zählt die Events.
-            Der laufende Monat ist orange umrandet. Vorschau-Daten.
-          </Text>
-        </>
+        <Card>
+          <EmptyState
+            title="Jahresansicht — bald verfügbar"
+            hint="Die Wochen-Intensität über das Jahr erscheint hier, sobald die Auslastungs-Aggregation live ist."
+          />
+        </Card>
       )}
 
       {view === 'Woche' && (
