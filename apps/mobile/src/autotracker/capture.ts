@@ -135,25 +135,28 @@ export function webCapture(opts: WebCaptureOptions = {}): ActivityCapture {
 }
 
 /**
- * The OS app-usage native module for the current build, or `null` when there is none
- * (the managed / web build). A Dev Client build that includes `modules/mydevtime-usage`
- * replaces this body with `requireNativeModule('MydevtimeUsage')` (ADR-0058) — the one
- * line that turns the dormant Android path live. Kept as a null-returning seam so the
- * managed build degrades to an honest empty state instead of a fake breakdown.
+ * The OS app-usage native module, once registered. Null in the managed / web build
+ * (no native module); a Dev Client build that includes `native/mydevtime-usage` calls
+ * `registerNativeUsageModule` from its JS entry at import (ADR-0058) — the one hook that
+ * turns the dormant Android path live. Kept behind a registration seam so the managed
+ * build degrades to an honest empty state instead of a fake breakdown.
  */
-function nativeUsageModule(): NativeUsageModule | null {
-  return null
+let registeredNativeUsage: NativeUsageModule | null = null
+
+/** Register the platform's native usage module (called by the native module's JS entry
+ *  in a Dev Client build). Passing `null` clears it. */
+export function registerNativeUsageModule(module: NativeUsageModule | null): void {
+  registeredNativeUsage = module
 }
 
 /** The capture adapter for the current platform: the real web adapter on web, the
- *  native OS usage adapter on Android **when a Dev Client build provides the module**
- *  (else the honest no-op), and the no-op elsewhere — iOS cannot see other apps
- *  (ADR-0057/0058). */
+ *  native OS usage adapter on Android **when a Dev Client build has registered the
+ *  module** (else the honest no-op), and the no-op elsewhere — iOS cannot see other
+ *  apps (ADR-0057/0058). */
 export function platformCapture(opts?: WebCaptureOptions): ActivityCapture {
   if (Platform.OS === 'web') return webCapture(opts)
-  if (Platform.OS === 'android') {
-    const native = nativeUsageModule()
-    if (native !== null) return nativeUsageCapture(native)
+  if (Platform.OS === 'android' && registeredNativeUsage !== null) {
+    return nativeUsageCapture(registeredNativeUsage)
   }
   return nullCapture()
 }

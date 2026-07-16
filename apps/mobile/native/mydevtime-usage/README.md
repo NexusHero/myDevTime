@@ -26,33 +26,27 @@ the `NativeUsageModule` port.
    `"android.permission.PACKAGE_USAGE_STATS"` (it is a special access grant the user
    toggles in Settings, which `requestPermission()` opens).
 3. **Prebuild + Dev Client**: `npx expo prebuild -p android` then `eas build --profile development -p android` (or a local `expo run:android`). Expo Go cannot load native modules.
-4. **Wire the resolver** — replace the body of `nativeUsageModule()` in
-   `apps/mobile/src/autotracker/capture.ts` with the real lookup:
-
-   ```ts
-   import { requireNativeModule } from 'expo-modules-core'
-   function nativeUsageModule(): NativeUsageModule | null {
-     try {
-       return requireNativeModule('MydevtimeUsage') as NativeUsageModule
-     } catch {
-       return null // managed / web build — no native module
-     }
-   }
-   ```
-
-   Nothing else changes: `platformCapture` already routes Android to
-   `nativeUsageCapture(module)`, which polls `query()` and feeds `diffUsage`'s spans into
-   the same deterministic `summarizeActivity` the web adapter uses.
+4. **Register the module** — add the JS entry below and import it once at app start
+   (e.g. from `App.tsx`), so it calls `registerNativeUsageModule` at load. Nothing else
+   changes: `platformCapture` already routes Android to `nativeUsageCapture(module)`,
+   which polls `query()` and feeds `diffUsage`'s spans into the same deterministic
+   `summarizeActivity` the web adapter uses.
 
 ## The JS entry (`index.ts`) to add on activation
 
 ```ts
 import { requireNativeModule } from 'expo-modules-core'
+import {
+  registerNativeUsageModule,
+} from '../../src/autotracker/capture'
 import type { NativeUsageModule } from '../../src/autotracker/nativeUsage'
 
-// The autolinked native module, typed against the port. Consent + session gating and
-// the local-only stance are enforced upstream (useAutoTracker / ADR-0057/0058).
-export default requireNativeModule('MydevtimeUsage') as NativeUsageModule
+// The autolinked native module, typed against the port, registered with the capture
+// seam at import. Consent + session gating and the local-only stance are enforced
+// upstream (useAutoTracker / ADR-0057/0058).
+const native = requireNativeModule('MydevtimeUsage') as NativeUsageModule
+registerNativeUsageModule(native)
+export default native
 ```
 
 ## Privacy

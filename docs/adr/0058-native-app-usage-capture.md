@@ -38,11 +38,12 @@ that are real and tested now, keeping the native binary a clean, documented drop
    exhaustively unit-tested. `nativeUsageCapture` is the `ActivityCapture` that polls the
    module and feeds those spans. **All of this is verified here**, with injected
    module/timers, because it contains no native code.
-2. **A null-returning resolver** (`nativeUsageModule()` in `capture.ts`): the managed /
-   web build has no native module, so `platformCapture` on Android falls back to the
-   honest null adapter (empty state) instead of a fabricated breakdown. A Dev Client
-   build replaces that one function body with `requireNativeModule('MydevtimeUsage')` —
-   the single line that turns the dormant Android path live. Nothing upstream changes.
+2. **A registration seam** (`registerNativeUsageModule()` in `capture.ts`): the managed /
+   web build registers nothing, so `platformCapture` on Android falls back to the honest
+   null adapter (empty state) instead of a fabricated breakdown. A Dev Client build's JS
+   entry calls `registerNativeUsageModule(requireNativeModule('MydevtimeUsage'))` at
+   import — the single hook that turns the dormant Android path live. Nothing upstream
+   changes.
 3. **The native module as a documented scaffold** (`apps/mobile/native/mydevtime-usage/`):
    the Expo module config, the Android `UsageStatsManager` reader (Kotlin), the JS bridge
    and the prebuild/permission steps — real reference files plus a README, **clearly
