@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native'
+import { useEffect, useMemo, useState } from 'react'
+import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { Slot, usePathname, useRouter } from 'expo-router'
 import { Text } from '../components/core/Text'
 import {
@@ -13,7 +13,27 @@ import {
 import { useTheme } from '../theme/ThemeProvider'
 import { Island, type IslandAction } from '../components/index'
 import { useTimerContext } from '../timer/TimerContext'
+import { useWorktime } from '../hooks/useWorktime'
+import { useCatalog } from '../screens/useCatalog'
+import { CommandBar } from '../command/CommandBar'
+import { buildCommands, type CommandAction } from '../command/commands'
 import { SCREEN_TITLES } from './titles'
+
+/** The Command Bar's "Go to" destinations — the primary navigable screens, in order. */
+const COMMAND_DESTINATIONS: readonly Screen[] = [
+  'today',
+  'planner',
+  'projects',
+  'reports',
+  'meetings',
+  'assistant',
+  'worktime',
+  'absences',
+  'credits',
+  'rates',
+  'settings',
+  'profile',
+]
 
 /**
  * The responsive navigation chrome (issue #11), now a persistent Expo Router
@@ -49,6 +69,100 @@ export function ShellChrome(): React.JSX.Element {
         { label: timer.busy ? '…' : 'Ausstempeln', onPress: timer.punchOut },
       ]
     : [{ label: timer.busy ? '…' : 'Einstempeln', onPress: () => timer.punchIn() }]
+  // Command Bar (design v10 §D11): a global palette wired to the real timer, punch
+  // clock, catalog projects and navigation. ⌘K / Ctrl-K opens it on web; a trigger
+  // pill opens it everywhere. Its actions dispatch to the same seams the screens use.
+  const worktime = useWorktime()
+  const catalog = useCatalog()
+  const [cmdOpen, setCmdOpen] = useState(false)
+  const commands = useMemo(
+    () =>
+      buildCommands({
+        timerRunning: timer.running !== null,
+        timerPaused: timer.paused,
+        punchedIn: worktime.running !== null,
+        projects: (catalog.data ?? []).flatMap(c =>
+          c.projects.map(p => ({ id: p.id, name: p.name })),
+        ),
+        destinations: COMMAND_DESTINATIONS.map(screen => ({
+          screen,
+          title: SCREEN_TITLES[screen],
+        })),
+      }),
+    [timer.running, timer.paused, worktime.running, catalog.data],
+  )
+  const runCommand = (action: CommandAction): void => {
+    switch (action.type) {
+      case 'timer-start':
+        timer.punchIn()
+        break
+      case 'timer-pause':
+        timer.pause()
+        break
+      case 'timer-resume':
+        timer.resume()
+        break
+      case 'timer-stop':
+        timer.punchOut()
+        break
+      case 'clock-in':
+        worktime.clockIn()
+        break
+      case 'clock-out':
+        worktime.clockOut()
+        break
+      case 'start-project':
+        timer.punchIn({ projectId: action.projectId })
+        break
+      case 'navigate':
+        go(action.screen)
+        break
+    }
+  }
+
+  // ⌘K / Ctrl-K opens the palette on web (native uses the trigger pill).
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return
+    const onKey = (e: KeyboardEvent): void => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault()
+        setCmdOpen(o => !o)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
+
+  const commandUi = (
+    <>
+      <Pressable
+        onPress={() => setCmdOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Open command bar"
+        style={[
+          styles.cmdTrigger,
+          { backgroundColor: t.color.surface, borderColor: t.color.border },
+        ]}
+      >
+        <Text
+          style={{
+            fontFamily: t.fontFamily.numeric,
+            fontSize: t.fontSize['2xs'],
+            color: t.color.ink2,
+          }}
+        >
+          {Platform.OS === 'web' ? '⌘K' : 'Actions'}
+        </Text>
+      </Pressable>
+      <CommandBar
+        open={cmdOpen}
+        onClose={() => setCmdOpen(false)}
+        commands={commands}
+        onRun={runCommand}
+      />
+    </>
+  )
+
   const islandFor = (posture: 'floating' | 'docked'): React.JSX.Element | null =>
     active === 'today' ? null : (
       <Island
@@ -110,6 +224,7 @@ export function ShellChrome(): React.JSX.Element {
         <View style={styles.content}>
           <Slot />
         </View>
+        {commandUi}
       </View>
     )
   }
@@ -120,6 +235,7 @@ export function ShellChrome(): React.JSX.Element {
       <View style={styles.content}>
         <Slot />
       </View>
+      {commandUi}
       {/* Floating pill, thumb-reachable above the tab bar (design v2). */}
       {floatingIsland && (
         <View style={styles.floatWrap} pointerEvents="box-none">
@@ -151,4 +267,14 @@ const styles = StyleSheet.create({
   navItem: { alignItems: 'center', justifyContent: 'center', flex: 1, paddingVertical: 8 },
   navItemSidebar: { alignItems: 'flex-start', flex: 0, paddingHorizontal: 12, borderRadius: 8 },
   tabbar: { flexDirection: 'row', borderTopWidth: 1, paddingBottom: 24, paddingTop: 6 },
+  // The ⌘K trigger pill sits bottom-right, clear of the tab bar and the Island.
+  cmdTrigger: {
+    position: 'absolute',
+    right: 16,
+    bottom: 92,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
 })
