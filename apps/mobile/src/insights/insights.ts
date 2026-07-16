@@ -1,4 +1,11 @@
-import type { DayFocus } from '@mydevtime/domain'
+import {
+  dailyHoursDistribution,
+  weeklyFocusTrend,
+  workloadLoad,
+  type DayFocus,
+  type FocusQuartiles,
+  type Load,
+} from '@mydevtime/domain'
 import type { Summary } from '../api/reports.js'
 import type { Absence } from '../api/absences.js'
 
@@ -80,4 +87,39 @@ export function weekToDateMinutes(
     sum += focusByDate.get(isoDay(today - (daysSinceMonday - i) * DAY_MS)) ?? 0
   }
   return sum
+}
+
+/**
+ * The full Balance-card read model (REQ-032, design v10 §Balance) composed from the
+ * client read models and the **deterministic** balance core (ADR-0005): the neutral
+ * week-to-date workload level, the trailing weekly-focus trend (for the sparkline), and
+ * the day-length distribution (for the box plot). Pure — inputs in, values out, no
+ * fetch, no clock — so the composition is unit-tested directly; the numbers are the
+ * core's, never fabricated. `hasData` is false when nothing was tracked in the window,
+ * so the view shows an honest empty state.
+ */
+export interface BalanceView {
+  readonly load: Load
+  /** Weekly focus minutes, oldest→newest, exactly `weeks` buckets (the sparkline). */
+  readonly trend: number[]
+  /** Five-number summary of active-day focus minutes, or null when too few days. */
+  readonly distribution: FocusQuartiles | null
+  readonly hasData: boolean
+}
+
+export function buildBalance(
+  dates: readonly string[],
+  focusByDate: ReadonlyMap<string, number>,
+  absences: ReadonlySet<string>,
+  todayIso: string,
+  targetMin: number,
+  weeks: number,
+): BalanceView {
+  const dayFocus = buildDayFocus(dates, focusByDate, absences)
+  return {
+    load: workloadLoad({ actualMin: weekToDateMinutes(focusByDate, todayIso), targetMin }),
+    trend: weeklyFocusTrend(dayFocus, weeks),
+    distribution: dailyHoursDistribution(dayFocus),
+    hasData: dayFocus.some(d => d.focusMin > 0),
+  }
 }
