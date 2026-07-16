@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>myDevTime — App usage</title>
+    <style>
+      /* Neutral local styling only. The product's design tokens live in
+         @mydevtime/design; a fuller companion would consume them. */
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, sans-serif;
+      }
+      body {
+        margin: 0;
+        padding: 20px;
+      }
+      h1 {
+        font-size: 16px;
+        margin: 0 0 4px;
+      }
+      p.sub {
+        margin: 0 0 16px;
+        opacity: 0.7;
+        font-size: 12px;
+      }
+      button {
+        font: inherit;
+        padding: 6px 14px;
+        border-radius: 999px;
+        cursor: pointer;
+      }
+      ul {
+        list-style: none;
+        padding: 0;
+        margin: 16px 0 0;
+      }
+      li {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 0;
+        font-size: 13px;
+      }
+      li .bar {
+        flex: 1;
+        height: 6px;
+        border-radius: 3px;
+        background: currentColor;
+        opacity: 0.25;
+        overflow: hidden;
+      }
+      li .pct {
+        font-variant-numeric: tabular-nums;
+        opacity: 0.7;
+        width: 40px;
+        text-align: right;
+      }
+      .empty {
+        opacity: 0.6;
+        font-size: 13px;
+        margin-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>App usage — this machine</h1>
+    <p class="sub">Local only. Nothing leaves this device.</p>
+    <button id="toggle">Start tracking</button>
+    <ul id="list"></ul>
+    <p class="empty" id="empty">Start tracking to see where your time goes.</p>
+
+    <script>
+      const toggle = document.getElementById('toggle')
+      const list = document.getElementById('list')
+      const empty = document.getElementById('empty')
+      let on = false
+
+      window.devtime.onUpdate(breakdown => {
+        list.innerHTML = ''
+        const segs = (breakdown && breakdown.segments) || []
+        empty.style.display = segs.length ? 'none' : 'block'
+        for (const s of segs) {
+          const li = document.createElement('li')
+          const name = document.createElement('span')
+          name.textContent = s.source
+          name.style.flexBasis = '140px'
+          const bar = document.createElement('span')
+          bar.className = 'bar'
+          const pct = document.createElement('span')
+          pct.className = 'pct'
+          pct.textContent = s.pct + '%'
+          li.append(name, bar, pct)
+          list.append(li)
+        }
+      })
+
+      toggle.addEventListener('click', async () => {
+        on = !on
+        toggle.textContent = on ? 'Stop tracking' : 'Start tracking'
+        if (on) await window.devtime.start()
+        else await window.devtime.stop()
+      })
+    </script>
+  </body>
+</html>
