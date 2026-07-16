@@ -302,9 +302,11 @@ export function ProjectsScreen({
       )}
       <Pressable
         onPress={() => setPreview(p => !p)}
-        accessibilityRole="switch"
+        // `button` not `switch`: react-native-web doesn't emit aria-checked from
+        // accessibilityState, failing axe (REQ-043); state rides the accessible name.
+        accessibilityRole="button"
         accessibilityState={{ checked: preview }}
-        accessibilityLabel="Minute 1 preview"
+        accessibilityLabel={`Minute 1 preview, ${preview ? 'on' : 'off'}`}
         style={{
           marginLeft: 'auto',
           paddingVertical: 3,

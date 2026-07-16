@@ -48,15 +48,21 @@ test.describe('acceptance · accessibility', () => {
     await page.goto('/')
     await page.evaluate(() => localStorage.setItem('mydevtime.onboarded', '1'))
 
-    // Focus the email field, then drive the whole form with the keyboard: type,
-    // Tab to the password, type, and submit with Enter — no mouse.
+    // Drive the whole form with the keyboard: focus each field and type, then
+    // activate the Sign-in button with Enter — no mouse. (react-native-web has no
+    // HTML form, so Enter inside a field does not submit; a role="button" element
+    // responds to Enter/Space, which is the keyboard-operability contract.)
     const email = page.getByPlaceholder('you@company.com')
     await email.focus()
     await expect(email).toBeFocused()
     await page.keyboard.type(user.email)
-    await page.keyboard.press('Tab')
+
+    const password = page.getByPlaceholder('••••••••')
+    await password.focus()
+    await expect(password).toBeFocused()
     await page.keyboard.type(user.password)
-    await page.keyboard.press('Enter')
+
+    await page.getByRole('button', { name: /^sign in$/i }).press('Enter')
 
     // Past the gate: the login form is gone, the app has taken over.
     await expect(page.getByText('Welcome back')).toBeHidden()
