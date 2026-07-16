@@ -6,6 +6,8 @@ import { user } from '../../../../db/auth-schema.js'
 import { workspaces } from '../../../../db/schema.js'
 import { resolveWorkspaceId } from '../../../../core/workspace.js'
 import { getEntitlement } from '../../entitlements-service.js'
+import * as credits from '../../credits-service.js'
+import { creditEntries } from '../../../../db/schema.js'
 import { createStripeGateway } from './gateway.js'
 import * as stripeSvc from './service.js'
 
@@ -71,6 +73,7 @@ describe.skipIf(!databaseUrl)('stripe webhook (integration)', () => {
   })
 
   afterAll(async () => {
+    await db.delete(creditEntries).where(eq(creditEntries.workspaceId, wsA))
     await db.delete(workspaces).where(eq(workspaces.id, wsA))
     await db.delete(user).where(eq(user.id, idA))
     await handle.close()
@@ -93,6 +96,18 @@ describe.skipIf(!databaseUrl)('stripe webhook (integration)', () => {
     await stripeSvc.handleWebhook(db, gateway, signedSub('evt_int_1', 'cus_int_a'))
     const view = await getEntitlement(db, wsA, new Date((T + 100) * 1000))
     expect(view.plan).toBe('pro')
+  })
+
+  it('MonthlyAllowance_GrantedOncePerEvent_DespiteRedelivery', async () => {
+    // evt_int_1 was delivered twice (created + redelivery); the allowance is keyed on the
+    // event id, so exactly one 500-credit grant landed — a redelivered webhook can't double it.
+    expect(await credits.balanceFor(db, wsA)).toBe(500)
+  })
+
+  it('MonthlyAllowance_GrantsAgainForANewPeriodEvent', async () => {
+    // A fresh event id (a renewal) is a new period → another 500-credit allowance.
+    await stripeSvc.handleWebhook(db, gateway, signedSub('evt_int_renew', 'cus_int_a'))
+    expect(await credits.balanceFor(db, wsA)).toBe(1000)
   })
 
   it('UnknownCustomer_IsSkipped', async () => {
