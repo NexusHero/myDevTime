@@ -4,6 +4,7 @@ import {
   assignLanes,
   dropTarget,
   findFreeSlot,
+  cascadeFreeSlots,
   formatDuration,
   maxConcurrency,
   plannerBlockRect,
@@ -1149,6 +1150,59 @@ export function PlannerScreen(): React.JSX.Element {
     }
     setInboxNote(`No free slot in week ${String(week)} — "${task.key}" stays in the inbox.`)
   }
+
+  // "✦ Fill week" (ADR-0063, backlog K2): the Co-Planner distributes the whole inbox
+  // across the week's free slots at once — deterministically (`cascadeFreeSlots`,
+  // ADR-0005): never past `now`, never over the day window, no collisions. Tasks that
+  // fit nowhere stay in the inbox. One undo restores both the blocks and the inbox.
+  const [fillUndo, setFillUndo] = useState<{
+    readonly blocks: readonly CanvasBlock[]
+    readonly tasks: readonly InboxTask[]
+  } | null>(null)
+  const fillWeek = (): void => {
+    if (tasks.length === 0) return
+    const occupiedByDay = weekDays.map((_, day) =>
+      blocks.filter(b => b.day === day).map(b => ({ startMin: b.start, lenMin: b.len })),
+    )
+    const notBeforeByDay = weekDays.map(d => (d.today === true ? NOW_MIN : 0))
+    const durations = tasks.map(task => Math.round(task.est * 60))
+    const placements = cascadeFreeSlots(durations, occupiedByDay, 0, SPAN, notBeforeByDay)
+    if (placements.length === 0) {
+      setInboxNote(`No free slots in week ${String(week)} — the inbox is unchanged.`)
+      return
+    }
+    const snapshot = { blocks, tasks }
+    const newBlocks: CanvasBlock[] = placements.map(p => {
+      const task = tasks[p.index]
+      const projectId =
+        task === undefined ? undefined : (INBOX_PROJECTS[task.project]?.id ?? task.key)
+      return {
+        day: p.day,
+        start: p.startMin,
+        len: durations[p.index] ?? 0,
+        label: task === undefined ? '' : `${task.key} · ${task.title}`,
+        kind: 'ghost' as const,
+        ...(projectId !== undefined ? { project: projectId } : {}),
+      }
+    })
+    const placedKeys = new Set(placements.map(p => tasks[p.index]?.key))
+    setBlocks(bs => [...bs, ...newBlocks])
+    setTasks(ts => ts.filter(task => !placedKeys.has(task.key)))
+    setFillUndo(snapshot)
+    const left = tasks.length - placements.length
+    setInboxNote(
+      `Filled ${String(placements.length)} task${placements.length === 1 ? '' : 's'} into free slots as proposals${
+        left > 0 ? `, ${String(left)} didn’t fit` : ''
+      }.`,
+    )
+  }
+  const undoFill = (): void => {
+    if (fillUndo === null) return
+    setBlocks(fillUndo.blocks)
+    setTasks(fillUndo.tasks)
+    setFillUndo(null)
+    setInboxNote('Fill undone — blocks and inbox restored.')
+  }
   const [scope, setScope] = useState<'Time' | 'Budgets'>('Time')
   const [ask, setAsk] = useState('')
   const [answer, setAnswer] = useState<string | null>(null)
@@ -1272,6 +1326,11 @@ export function PlannerScreen(): React.JSX.Element {
               {`Inbox · ${String(tasks.length)}`}
             </Button>
           )}
+          {view === 'Week' && tasks.length > 0 && (
+            <Button size="sm" variant="ghost" onPress={fillWeek}>
+              ✦ Fill week
+            </Button>
+          )}
           <Button size="sm">
             {view === 'Year' ? 'Plan year' : view === 'Month' ? 'Plan month' : 'Plan week'}
           </Button>
@@ -1329,7 +1388,19 @@ export function PlannerScreen(): React.JSX.Element {
                 <Text style={{ flex: 1, fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>
                   ✦ {inboxNote}
                 </Text>
-                <Button size="sm" variant="ghost" onPress={() => setInboxNote(null)}>
+                {fillUndo !== null && (
+                  <Button size="sm" variant="ghost" onPress={undoFill}>
+                    Undo
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onPress={() => {
+                    setInboxNote(null)
+                    setFillUndo(null)
+                  }}
+                >
                   OK
                 </Button>
               </View>

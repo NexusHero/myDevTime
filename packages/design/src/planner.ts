@@ -213,6 +213,50 @@ export function findFreeSlot(
   return null
 }
 
+/** A placement chosen by {@link cascadeFreeSlots}: which task went where. */
+export interface FillPlacement {
+  /** Index into the input `durationsMin` array. */
+  readonly index: number
+  /** Day column the task was placed in. */
+  readonly day: number
+  /** Start minute within the day window. */
+  readonly startMin: number
+}
+
+/**
+ * The deterministic core of "✦ Fill week" (ADR-0063, backlog K2): greedily place a
+ * list of task durations into the earliest free slots across the week's day columns.
+ * Each task takes the first day (left-to-right) that has a gap via {@link findFreeSlot},
+ * and that gap is then occupied so later tasks never collide with it. Tasks that fit
+ * nowhere are simply omitted — the caller keeps them in the inbox rather than
+ * overbooking. `notBeforeByDay` protects already-elapsed time (e.g. today up to now).
+ * Pure and total (ADR-0005): the past is never touched, the week's window is never
+ * exceeded, and the same inputs always yield the same placements. Undo is the caller's.
+ */
+export function cascadeFreeSlots(
+  durationsMin: readonly number[],
+  occupiedByDay: readonly (readonly Interval[])[],
+  windowStart: number,
+  windowEnd: number,
+  notBeforeByDay: readonly number[] = [],
+): readonly FillPlacement[] {
+  // Mutable per-day occupancy, seeded from the input, so each placement blocks the next.
+  const occ: Interval[][] = occupiedByDay.map(day => day.map(i => ({ ...i })))
+  const placements: FillPlacement[] = []
+  for (const [index, lenMin] of durationsMin.entries()) {
+    for (let day = 0; day < occ.length; day++) {
+      const notBefore = notBeforeByDay[day] ?? windowStart
+      const start = findFreeSlot(occ[day] ?? [], lenMin, windowStart, windowEnd, notBefore)
+      if (start !== null) {
+        ;(occ[day] ??= []).push({ startMin: start, lenMin })
+        placements.push({ index, day, startMin: start })
+        break
+      }
+    }
+  }
+  return placements
+}
+
 /**
  * The maximum number of intervals overlapping at any instant (design v6 day-head
  * "N×" overbooking badge). 1 (or 0) means no conflict. A sweep over sorted
