@@ -5,6 +5,7 @@ import { useFonts } from 'expo-font'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from '../src/theme/ThemeProvider'
 import { ShellChrome } from '../src/shell/ShellChrome'
+import { BrandSplash, hasPlayedSplash } from '../src/components/canvas/BrandSplash'
 import { AuthGate } from '../src/shell/AuthGate'
 import { OnboardingGate } from '../src/onboarding/OnboardingGate'
 import { TimerProvider } from '../src/timer/TimerContext'
@@ -52,6 +53,10 @@ export default function RootLayout(): React.JSX.Element | null {
   // stable across re-renders.
   const [queryClient] = useState(makeQueryClient)
 
+  // The brand splash sting plays once per launch, over the app, then unmounts
+  // (ADR-0061). `hasPlayedSplash` keeps it from replaying on a hot re-render.
+  const [splashDone, setSplashDone] = useState(hasPlayedSplash)
+
   if (!fontsLoaded) return null
 
   return (
@@ -68,6 +73,7 @@ export default function RootLayout(): React.JSX.Element | null {
               </TimerProvider>
             </OnboardingGate>
           </AuthGate>
+          {!splashDone && <BrandSplash onDone={() => setSplashDone(true)} />}
         </ThemeProvider>
       </QueryClientProvider>
     </SafeAreaProvider>

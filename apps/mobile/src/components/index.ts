@@ -36,6 +36,7 @@ export { LiveButton } from './canvas/LiveButton'
 export { LiveMark, type LiveMarkState } from './canvas/LiveMark'
 export { Sevi, type SeviMood } from './canvas/Sevi'
 export { Blocky, type BlockyVariant } from './canvas/Blocky'
+export { BrandSplash, hasPlayedSplash } from './canvas/BrandSplash'
 export { PauseCounter } from './canvas/PauseCounter'
 export { OverflowShelf, type OverflowItem } from './canvas/OverflowShelf'
 
