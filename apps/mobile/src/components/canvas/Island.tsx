@@ -41,6 +41,12 @@ interface IslandProps {
    */
   readonly pausedSinceMs?: number | null
   readonly punched?: boolean
+  /**
+   * The active focus-mode (Pomodoro) phase + its `MM:SS` countdown, or null when no
+   * focus session is running — shown as a small badge so the Island carries the cadence
+   * on every screen (REQ-032).
+   */
+  readonly focus?: { readonly label: string; readonly remaining: string } | null
   readonly expanded?: boolean
   readonly onToggle?: () => void
   readonly actions?: readonly IslandAction[]
@@ -119,6 +125,7 @@ export function Island({
   accumulatedMs = 0,
   pausedSinceMs = null,
   punched = true,
+  focus = null,
   expanded = false,
   onToggle,
   actions = [],
@@ -184,6 +191,39 @@ export function Island({
         <Text style={{ fontSize: t.fontSize.xs, color: 'rgba(255,255,255,0.55)' }}>
           {punched ? 'Punched in' : 'Punched out'}
         </Text>
+        {focus && (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+              paddingVertical: 2,
+              paddingHorizontal: 8,
+              borderRadius: t.radius.pill,
+              backgroundColor: 'rgba(255,255,255,0.12)',
+            }}
+          >
+            <Text
+              style={{
+                fontSize: t.fontSize['2xs'],
+                fontWeight: '700',
+                color: 'rgba(255,255,255,0.95)',
+                letterSpacing: 0.5,
+              }}
+            >
+              {focus.label.toUpperCase()}
+            </Text>
+            <Text
+              style={{
+                fontFamily: t.fontFamily.numeric,
+                fontSize: t.fontSize['2xs'],
+                color: 'rgba(255,255,255,0.85)',
+              }}
+            >
+              {focus.remaining}
+            </Text>
+          </View>
+        )}
       </View>
       {expanded && actions.length > 0 && (
         <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
