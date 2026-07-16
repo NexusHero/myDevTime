@@ -10,6 +10,8 @@ import type { StartTimerInput, TimeEntry } from '../api/timer.js'
 export interface PersistedTimerSession {
   readonly accumulatedMs: number
   readonly pausedInput: StartTimerInput | null
+  /** When the current pause began (ms epoch), so the pause counter survives a reload. */
+  readonly pausedSinceMs?: number | null
 }
 
 /** The reconciled timer state to hydrate the hook with after a restart. */
@@ -17,6 +19,7 @@ export interface RestoredTimer {
   readonly running: TimeEntry | null
   readonly accumulatedMs: number
   readonly pausedInput: StartTimerInput | null
+  readonly pausedSinceMs: number | null
 }
 
 /**
@@ -36,12 +39,18 @@ export function reconcileTimer(
   if (serverRunning !== null) {
     // A segment is running server-side: continue the session, keep the banked time,
     // and drop any paused flag (running wins over an inconsistent persisted pause).
-    return { running: serverRunning, accumulatedMs: banked, pausedInput: null }
+    return { running: serverRunning, accumulatedMs: banked, pausedInput: null, pausedSinceMs: null }
   }
   if (persisted && persisted.pausedInput !== null) {
-    // No running segment, but a paused context persisted → restore the paused session.
-    return { running: null, accumulatedMs: banked, pausedInput: persisted.pausedInput }
+    // No running segment, but a paused context persisted → restore the paused session
+    // and the instant the pause began, so the pause counter keeps counting.
+    return {
+      running: null,
+      accumulatedMs: banked,
+      pausedInput: persisted.pausedInput,
+      pausedSinceMs: persisted.pausedSinceMs ?? null,
+    }
   }
   // Nothing active anywhere → idle.
-  return { running: null, accumulatedMs: 0, pausedInput: null }
+  return { running: null, accumulatedMs: 0, pausedInput: null, pausedSinceMs: null }
 }

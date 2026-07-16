@@ -10,6 +10,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import { Text } from '../core/Text'
 import { ReanimatedTimer } from '../ReanimatedTimer'
+import { PauseCounter } from './PauseCounter'
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
@@ -34,6 +35,11 @@ interface IslandProps {
    */
   readonly startedAt?: string
   readonly accumulatedMs?: number
+  /**
+   * When the current pause began (ms epoch), or null when not paused — drives the
+   * "Pause MM:SS" counter shown beside the frozen worked time while the pill is paused.
+   */
+  readonly pausedSinceMs?: number | null
   readonly punched?: boolean
   readonly expanded?: boolean
   readonly onToggle?: () => void
@@ -111,6 +117,7 @@ export function Island({
   elapsed = '00:00:00',
   startedAt,
   accumulatedMs = 0,
+  pausedSinceMs = null,
   punched = true,
   expanded = false,
   onToggle,
@@ -162,6 +169,17 @@ export function Island({
           >
             {elapsed}
           </Text>
+        )}
+        {!running && pausedSinceMs !== null && (
+          <PauseCounter
+            pausedSinceMs={pausedSinceMs}
+            style={{
+              fontFamily: t.fontFamily.numeric,
+              fontSize: t.fontSize.xs,
+              fontWeight: '600',
+              color: t.color.warn,
+            }}
+          />
         )}
         <Text style={{ fontSize: t.fontSize.xs, color: 'rgba(255,255,255,0.55)' }}>
           {punched ? 'Punched in' : 'Punched out'}

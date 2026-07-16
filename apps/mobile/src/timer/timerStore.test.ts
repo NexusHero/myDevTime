@@ -8,10 +8,15 @@ afterEach(() => {
 
 describe('timerStore', () => {
   it('SaveThenLoad_RoundTripsThePausedSession', () => {
-    saveTimerSession({ accumulatedMs: 1_800_000, pausedInput: { projectId: 'p1', note: 'x' } })
+    saveTimerSession({
+      accumulatedMs: 1_800_000,
+      pausedInput: { projectId: 'p1', note: 'x' },
+      pausedSinceMs: 1_700_000_000_000,
+    })
     expect(loadTimerSession()).toEqual({
       accumulatedMs: 1_800_000,
       pausedInput: { projectId: 'p1', note: 'x' },
+      pausedSinceMs: 1_700_000_000_000,
     })
   })
 
@@ -32,6 +37,6 @@ describe('timerStore', () => {
 
   it('LoadMalformedShape_FallsBackToSafeDefaults', () => {
     localStorage.setItem('mydevtime.timer.session', JSON.stringify({ accumulatedMs: 'nope' }))
-    expect(loadTimerSession()).toEqual({ accumulatedMs: 0, pausedInput: null })
+    expect(loadTimerSession()).toEqual({ accumulatedMs: 0, pausedInput: null, pausedSinceMs: null })
   })
 })
