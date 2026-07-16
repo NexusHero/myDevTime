@@ -5,6 +5,7 @@ import { Button, Switch } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
 import { apiBaseUrl } from '../config'
 import { createRate, eurosToMinor } from '../api/rates'
+import { createProject } from '../api/tracking'
 
 /**
  * First-run onboarding (design v3) — the moment users decide to stay.
@@ -47,14 +48,26 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
   // (REQ-005) — best-effort, so onboarding never blocks on the network; the Rates
   // screen is the durable place to manage rates. Only runs when an API is wired.
   const finish = (): void => {
-    const minor = eurosToMinor(rate)
-    if (minor !== null && minor > 0 && apiBaseUrl !== null) {
-      void createRate(apiBaseUrl, {
-        level: 'workspace',
-        scopeId: null,
-        amountMinorPerHour: minor,
-        effectiveFrom: new Date().toISOString(),
-      }).catch(() => undefined)
+    if (apiBaseUrl !== null) {
+      const minor = eurosToMinor(rate)
+      if (minor !== null && minor > 0) {
+        void createRate(apiBaseUrl, {
+          level: 'workspace',
+          scopeId: null,
+          amountMinorPerHour: minor,
+          effectiveFrom: new Date().toISOString(),
+        }).catch(() => undefined)
+      }
+      // Persist the projects created during onboarding (REQ-044, fixes audit H8):
+      // they were accumulated in local state and the Done step claimed "N created",
+      // but `finish` never sent them — they were discarded. Best-effort like the
+      // rate, so onboarding never blocks on the network; the Projects screen is the
+      // durable place to manage them afterwards.
+      for (const project of projects) {
+        void createProject(apiBaseUrl, { name: project.name, color: project.color }).catch(
+          () => undefined,
+        )
+      }
     }
     onDone()
   }
