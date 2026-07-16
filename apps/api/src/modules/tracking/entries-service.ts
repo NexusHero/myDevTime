@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, isNull, lt, ne } from 'drizzle-orm'
+import { and, desc, eq, gte, ilike, isNull, lt, ne } from 'drizzle-orm'
 import { isValidEntry, type TimeEntry as CoreEntry } from '@mydevtime/domain'
 import type { Db } from '../../db/client.js'
 import { timeEntries } from '../../db/schema.js'
@@ -185,9 +185,23 @@ export interface ListEntriesFilter {
   from?: Date | undefined
   /** Exclusive upper bound on `startedAt`. */
   to?: Date | undefined
+  /** Case-insensitive note substring search (REQ-036); blank/absent = no filter. */
+  q?: string | undefined
 }
 
-/** List a workspace's entries, newest first, optionally within a time window. */
+/**
+ * Escape a user query for a SQL `LIKE`/`ILIKE` pattern so `%` and `_` in the
+ * search text match literally instead of acting as wildcards.
+ */
+function escapeLike(term: string): string {
+  return term.replace(/[\\%_]/g, ch => `\\${ch}`)
+}
+
+/**
+ * List a workspace's entries, newest first, optionally within a time window and/or
+ * matching a note search. `q` mirrors the deterministic `matchesNoteQuery`
+ * semantics (case-insensitive substring) at the database via `ILIKE` (REQ-036).
+ */
 export function listEntries(
   db: Db,
   workspaceId: string,
@@ -196,6 +210,8 @@ export function listEntries(
   const bounds = [eq(timeEntries.workspaceId, workspaceId), isNull(timeEntries.deletedAt)]
   if (filter.from) bounds.push(gte(timeEntries.startedAt, filter.from))
   if (filter.to) bounds.push(lt(timeEntries.startedAt, filter.to))
+  const q = filter.q?.trim()
+  if (q) bounds.push(ilike(timeEntries.note, `%${escapeLike(q)}%`))
   return db
     .select()
     .from(timeEntries)

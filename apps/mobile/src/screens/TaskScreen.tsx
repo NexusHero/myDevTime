@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { ScrollView, View } from 'react-native'
 import { formatDuration, projectColor, type Screen } from '@mydevtime/design'
+import { searchEntriesByNote } from '@mydevtime/domain'
 import { Text } from '../components/core/Text'
-import { Badge, Card, Row, ScreenListScaffold } from '../components/index'
+import { Badge, Card, Input, Row, ScreenListScaffold } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
 import { SubScreenHeader } from './SubScreenHeader'
 import { findTask } from './projectsData'
@@ -45,6 +47,7 @@ export function TaskScreen({
   const found = findTask(catalog.data ?? [], taskId)
   const entries = useTaskEntries(taskId)
   const now = new Date()
+  const [query, setQuery] = useState('')
 
   if (!found) {
     const message =
@@ -73,12 +76,19 @@ export function TaskScreen({
   // body — it is the one unbounded list here, so only its visible rows mount
   // (ADR-0045 §Perf). Loading/error/empty collapse to the empty slot.
   const rows = entries.loading || entries.error ? [] : (entries.data ?? [])
+  // Note search (REQ-036): filter the loaded entries by the deterministic note
+  // match — instant and offline, sharing the exact semantics the server's `?q=`
+  // uses over the full dataset.
+  const visibleRows = searchEntriesByNote(rows, query)
+  const searching = query.trim() !== ''
   const emptyNode = (
     <Card>
       {entries.loading && !entries.data ? (
         <Text style={{ color: t.color.ink2 }}>Loading entries…</Text>
       ) : entries.error ? (
         <Text style={{ color: t.color.crit }}>Couldn’t load entries — {entries.error.message}</Text>
+      ) : searching && rows.length > 0 ? (
+        <Text style={{ color: t.color.ink2 }}>No entries match “{query.trim()}”.</Text>
       ) : (
         <Text style={{ color: t.color.ink2 }}>No time entries for this task yet.</Text>
       )}
@@ -150,6 +160,10 @@ export function TaskScreen({
           Recent entries
         </Text>
       </View>
+
+      {rows.length > 0 ? (
+        <Input placeholder="Search notes…" value={query} onChangeText={setQuery} />
+      ) : null}
     </View>
   )
 
@@ -163,15 +177,19 @@ export function TaskScreen({
           onBack={() => onNavigate('project', { projectId: project.id })}
         />
       }
-      data={rows}
+      data={visibleRows}
       keyExtractor={entry => entry.id}
       estimatedItemSize={64}
       listHeader={listHeader}
       listEmpty={emptyNode}
       renderItem={({ item: entry }) => (
         <Row
-          title={`${formatDuration(entryDurationMs(entry, now))} h`}
-          subtitle={whenLabel(entry.startedAt)}
+          title={
+            entry.note && entry.note.trim() !== ''
+              ? entry.note
+              : `${sourceLabel(entry.source)} entry`
+          }
+          subtitle={`${formatDuration(entryDurationMs(entry, now))} h · ${whenLabel(entry.startedAt)}`}
           trailing={
             <Badge tone="neutral" size="sm">
               {sourceLabel(entry.source)}
