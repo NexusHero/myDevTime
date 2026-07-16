@@ -64,11 +64,11 @@ export function ShellChrome(): React.JSX.Element {
   const islandActions: readonly IslandAction[] = timerActive
     ? [
         timer.paused
-          ? { label: timer.busy ? '…' : 'Weiter', onPress: timer.resume }
+          ? { label: timer.busy ? '…' : 'Resume', onPress: timer.resume }
           : { label: 'Pause', onPress: timer.pause },
-        { label: timer.busy ? '…' : 'Ausstempeln', onPress: timer.punchOut },
+        { label: timer.busy ? '…' : 'Punch out', onPress: timer.punchOut },
       ]
-    : [{ label: timer.busy ? '…' : 'Einstempeln', onPress: () => timer.punchIn() }]
+    : [{ label: timer.busy ? '…' : 'Punch in', onPress: () => timer.punchIn() }]
   // Command Bar (design v10 §D11): a global palette wired to the real timer, punch
   // clock, catalog projects and navigation. ⌘K / Ctrl-K opens it on web; a trigger
   // pill opens it everywhere. Its actions dispatch to the same seams the screens use.
@@ -171,6 +171,7 @@ export function ShellChrome(): React.JSX.Element {
         elapsed={timer.elapsed}
         {...(timer.running ? { startedAt: timer.running.startedAt } : {})}
         accumulatedMs={timer.accumulatedMs}
+        pausedSinceMs={timer.pausedSinceMs}
         punched={timerActive}
         expanded={islandExpanded}
         onToggle={() => setIslandExpanded(e => !e)}

@@ -33,6 +33,7 @@ export { Tabs, type TabItem } from './navigation/Tabs'
 export { DayBlock } from './canvas/DayBlock'
 export { Island, type IslandAction } from './canvas/Island'
 export { LiveButton } from './canvas/LiveButton'
+export { PauseCounter } from './canvas/PauseCounter'
 export { OverflowShelf, type OverflowItem } from './canvas/OverflowShelf'
 
 // Data

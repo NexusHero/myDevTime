@@ -8,6 +8,7 @@ import {
   parseEntries,
   parseEntry,
   parseRunning,
+  pauseDurationMs,
   provisionalEntry,
   resumeInput,
   sessionElapsedMs,
@@ -139,6 +140,20 @@ describe('formatStopwatch', () => {
   it('NegativeOrNaN_ClampToZero', () => {
     expect(formatStopwatch(-5000)).toBe('00:00:00')
     expect(formatStopwatch(Number.NaN)).toBe('00:00:00')
+  })
+})
+
+describe('pauseDurationMs', () => {
+  it('NotPaused_IsZero', () => {
+    expect(pauseDurationMs(null, new Date('2026-07-10T09:05:00Z'))).toBe(0)
+  })
+  it('CountsFromPausedSince', () => {
+    const since = Date.parse('2026-07-10T09:00:00Z')
+    expect(pauseDurationMs(since, new Date('2026-07-10T09:03:20Z'))).toBe(200_000)
+  })
+  it('ClampsANegativeDeltaToZero', () => {
+    const since = Date.parse('2026-07-10T09:05:00Z')
+    expect(pauseDurationMs(since, new Date('2026-07-10T09:00:00Z'))).toBe(0)
   })
 })
 

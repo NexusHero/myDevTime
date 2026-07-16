@@ -15,6 +15,7 @@ import {
   LiveButton,
   MoodCheck,
   OverflowShelf,
+  PauseCounter,
   ReanimatedTimer,
   type OverflowItem,
 } from '../components/index'
@@ -227,31 +228,48 @@ export function TodayScreen(): React.JSX.Element {
           €
         </Text>
       </Pressable>
-      {isRunning && timer.running ? (
-        <ReanimatedTimer
-          startedAt={timer.running.startedAt}
-          accumulatedMs={timer.accumulatedMs}
-          style={{
-            fontFamily: t.fontFamily.numeric,
-            fontSize: t.fontSize.xl,
-            fontWeight: '600',
-            color: t.color.live,
-            textAlign: 'right',
-          }}
-        />
-      ) : (
-        <Text
-          style={{
-            fontFamily: t.fontFamily.numeric,
-            fontSize: t.fontSize.xl,
-            fontWeight: '600',
-            color: paused ? t.color.warn : t.color.ink3,
-            textAlign: 'right',
-          }}
-        >
-          {timer.elapsed}
-        </Text>
-      )}
+      {/* Worked time is live-orange while a segment runs and frozen ink-3 while paused
+          or idle; the pause counter stacks under it in warn, so the paused total holds
+          and the pause visibly climbs instead (design v10). */}
+      <View style={{ alignItems: 'flex-end', gap: 2 }}>
+        {isRunning && timer.running ? (
+          <ReanimatedTimer
+            startedAt={timer.running.startedAt}
+            accumulatedMs={timer.accumulatedMs}
+            style={{
+              fontFamily: t.fontFamily.numeric,
+              fontSize: t.fontSize.xl,
+              fontWeight: '600',
+              color: t.color.live,
+              textAlign: 'right',
+            }}
+          />
+        ) : (
+          <Text
+            style={{
+              fontFamily: t.fontFamily.numeric,
+              fontSize: t.fontSize.xl,
+              fontWeight: '600',
+              color: t.color.ink3,
+              textAlign: 'right',
+            }}
+          >
+            {timer.elapsed}
+          </Text>
+        )}
+        {paused && (
+          <PauseCounter
+            pausedSinceMs={timer.pausedSinceMs}
+            style={{
+              fontFamily: t.fontFamily.numeric,
+              fontSize: t.fontSize.xs,
+              fontWeight: '600',
+              color: t.color.warn,
+              textAlign: 'right',
+            }}
+          />
+        )}
+      </View>
       {active && (
         <Pressable
           onPress={() => (paused ? timer.resume() : timer.pause())}

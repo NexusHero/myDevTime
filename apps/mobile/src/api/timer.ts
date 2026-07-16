@@ -183,6 +183,17 @@ export function sessionElapsedMs(
   return acc + (running === null ? 0 : entryDurationMs(running, now))
 }
 
+/**
+ * How long the session has been paused, in ms: `now − pausedSince` (clamped at 0), or
+ * 0 when not paused (`pausedSince === null`). The design stacks this under the frozen
+ * worked time — the pause counts up, the work total does not.
+ */
+export function pauseDurationMs(pausedSinceMs: number | null, now: Date): number {
+  if (pausedSinceMs === null) return 0
+  const elapsed = now.getTime() - pausedSinceMs
+  return elapsed > 0 ? elapsed : 0
+}
+
 /** The start-input that resumes a paused entry as a new segment (same project/task/note). */
 export function resumeInput(entry: TimeEntry): StartTimerInput {
   return {
