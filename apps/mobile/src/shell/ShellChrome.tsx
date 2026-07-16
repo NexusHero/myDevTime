@@ -13,6 +13,7 @@ import {
 import { useTheme } from '../theme/ThemeProvider'
 import { Island, type IslandAction } from '../components/index'
 import { LiveMark } from '../components/canvas/LiveMark'
+import { initialsOf, useSessionContext } from './SessionContext'
 import { useTimerContext } from '../timer/TimerContext'
 import { usePomodoro } from '../focus/PomodoroContext'
 import { useWorktime } from '../hooks/useWorktime'
@@ -64,6 +65,13 @@ export function ShellChrome(): React.JSX.Element {
   const go = (screen: Screen): void => {
     router.push(buildPath(screen))
   }
+
+  // Profile is "me", not a peer place (calendar-centric IA, ADR-0063): the sidebar
+  // pins it as an avatar in the footer rather than as a rail item. Initials + name
+  // come from the live session — never a fabricated user.
+  const session = useSessionContext()
+  const profileInitials = session.user ? initialsOf(session.user) : '·'
+  const profileName = session.user?.name.trim() || session.user?.email || 'Profile'
 
   // One shared timer drives the persistent Island. It shows on every screen EXCEPT
   // Today, where the hero tracker carries the clock — never two clocks (design v2).
@@ -260,9 +268,52 @@ export function ShellChrome(): React.JSX.Element {
             </Text>
           </View>
           {nav}
-          {/* The Island docks in the sidebar footer — always visible, never over
-              the working surface (design v2). Hidden on Today (hero tracker). */}
-          {dockedIsland && <View style={styles.dock}>{dockedIsland}</View>}
+          {/* Footer pinned to the bottom (calendar-centric IA, ADR-0063): the docked
+              Island over the Profile avatar. The Island is always visible, never over
+              the working surface (design v2), and hidden on Today (hero tracker). The
+              avatar is "me" — Profile & Settings — not a peer place in the rail. */}
+          <View style={styles.footer}>
+            {dockedIsland && <View style={styles.dock}>{dockedIsland}</View>}
+            <Pressable
+              onPress={() => go('profile')}
+              accessibilityRole="link"
+              accessibilityState={{ selected: active === 'profile' }}
+              accessibilityLabel="Profile and settings"
+              style={[
+                styles.avatarRow,
+                { minHeight: t.touchTarget },
+                active === 'profile' && { backgroundColor: t.color.accentSoft },
+              ]}
+            >
+              <View style={[styles.avatarDisc, { backgroundColor: t.color.accent }]}>
+                <Text
+                  style={{
+                    fontFamily: t.fontFamily.numeric,
+                    fontSize: t.fontSize['2xs'],
+                    fontWeight: '700',
+                    color: t.color.accentInk,
+                  }}
+                >
+                  {profileInitials}
+                </Text>
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontSize: t.fontSize.sm,
+                    fontWeight: '600',
+                    color: active === 'profile' ? t.color.accentText : t.color.ink,
+                  }}
+                >
+                  {profileName}
+                </Text>
+                <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>
+                  Profile & Settings
+                </Text>
+              </View>
+            </Pressable>
+          </View>
         </View>
         <View style={styles.content}>
           <Slot />
@@ -312,7 +363,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingBottom: 16,
   },
-  dock: { marginTop: 'auto', paddingTop: 12 },
+  footer: { marginTop: 'auto' },
+  dock: { paddingTop: 12 },
+  avatarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  avatarDisc: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   floatWrap: { position: 'absolute', bottom: 84, left: 0, right: 0, alignItems: 'center' },
   navItem: { alignItems: 'center', justifyContent: 'center', flex: 1, paddingVertical: 8 },
   navItemSidebar: { alignItems: 'flex-start', flex: 0, paddingHorizontal: 12, borderRadius: 8 },
