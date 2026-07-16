@@ -1,5 +1,6 @@
 import { Platform } from 'react-native'
 import type { ActivitySample } from '@mydevtime/domain'
+import { nativeUsageCapture, type NativeUsageModule } from './nativeUsage.js'
 
 /**
  * Auto-Tracker capture (REQ-042, ADR-0057) — the volatile, platform-specific seam
@@ -133,8 +134,26 @@ export function webCapture(opts: WebCaptureOptions = {}): ActivityCapture {
   }
 }
 
+/**
+ * The OS app-usage native module for the current build, or `null` when there is none
+ * (the managed / web build). A Dev Client build that includes `modules/mydevtime-usage`
+ * replaces this body with `requireNativeModule('MydevtimeUsage')` (ADR-0058) — the one
+ * line that turns the dormant Android path live. Kept as a null-returning seam so the
+ * managed build degrades to an honest empty state instead of a fake breakdown.
+ */
+function nativeUsageModule(): NativeUsageModule | null {
+  return null
+}
+
 /** The capture adapter for the current platform: the real web adapter on web, the
- *  honest no-op everywhere else until a native adapter lands (ADR-0057). */
+ *  native OS usage adapter on Android **when a Dev Client build provides the module**
+ *  (else the honest no-op), and the no-op elsewhere — iOS cannot see other apps
+ *  (ADR-0057/0058). */
 export function platformCapture(opts?: WebCaptureOptions): ActivityCapture {
-  return Platform.OS === 'web' ? webCapture(opts) : nullCapture()
+  if (Platform.OS === 'web') return webCapture(opts)
+  if (Platform.OS === 'android') {
+    const native = nativeUsageModule()
+    if (native !== null) return nativeUsageCapture(native)
+  }
+  return nullCapture()
 }
