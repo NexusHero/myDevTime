@@ -34,7 +34,10 @@ export function Tabs({ items, active, onChange }: TabsProps): React.JSX.Element 
           <Pressable
             key={it.value}
             onPress={() => onChange?.(it.value)}
-            accessibilityRole="tab"
+            // A `tab` role requires a `tablist` parent + `aria-selected`, which
+            // react-native-web does not emit from `accessibilityState` — so axe
+            // fails it (REQ-043). `button` conveys the switch without those attrs.
+            accessibilityRole="button"
             accessibilityState={{ selected: on }}
             accessibilityLabel={it.label}
             style={{

@@ -45,8 +45,11 @@ export default function RootLayout(): React.JSX.Element | null {
   // Web/PWA: link the manifest + register the app-shell service worker (installable
   // web build, #199). This caches the shell only — it does not restore offline
   // *data* (removed in ADR-0049); a client-side effect, no-op on native / during SSR.
+  // Also set the document title on web — the static export ships no <title>, which
+  // fails axe's `document-title` (WCAG 2.4.2, REQ-043).
   useEffect(() => {
     registerPwa()
+    if (typeof document !== 'undefined' && !document.title) document.title = 'myDevTime'
   }, [])
 
   // One QueryClient for the app's lifetime (ADR-0047), created lazily so it is
