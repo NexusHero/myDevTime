@@ -24,6 +24,7 @@ import {
   SegmentedControl,
 } from '../components/index'
 import { TaskInbox } from '../components/planner/TaskInbox'
+import { PlannerEntryDrawer, type DrawerEntry } from '../components/planner/PlannerEntryDrawer'
 import { useTheme } from '../theme/ThemeProvider'
 import { usePlanner } from '../hooks/usePlanner'
 import type { PlanBlock } from '../api/planner'
@@ -189,6 +190,7 @@ function CanvasBlockView({
   placement,
   onResize,
   onMove,
+  onOpen,
   colWidth,
 }: {
   readonly block: CanvasBlock
@@ -197,6 +199,8 @@ function CanvasBlockView({
   readonly onResize?: ((lenMin: number) => void) | undefined
   /** Commit a new (day, startMin) when the block is dragged across days/times. */
   readonly onMove?: ((day: number, startMin: number) => void) | undefined
+  /** Open the typed entry drawer for this block (ADR-0063, H2) — a tap, not a drag. */
+  readonly onOpen?: (() => void) | undefined
   /** One day column's on-screen width, to map a horizontal drag to day steps. */
   readonly colWidth: number
 }): React.JSX.Element {
@@ -359,9 +363,6 @@ function CanvasBlockView({
             }
           : null),
         borderRadius: t.radius.chip,
-        paddingHorizontal: 7,
-        paddingVertical: px >= 26 ? 4 : 0,
-        justifyContent: 'center',
         overflow: 'hidden',
         borderWidth: isGhost ? 1.5 : isBreak ? 1 : tentative ? 1.5 : fyi ? 1 : 0,
         borderStyle: isGhost || isBreak ? 'dashed' : fyi ? 'dotted' : 'solid',
@@ -387,6 +388,58 @@ function CanvasBlockView({
         opacity: dragXY !== null ? 0.9 : fyi ? 0.85 : 1,
       }}
     >
+      {/* A tap (not a drag) opens the typed entry drawer (ADR-0063, H2). This inner
+          Pressable fills the block and carries the content; the parent's drag pan
+          responder steals the gesture on movement, so tap-to-open and drag never
+          fight. The resize strip below stays on top of the bottom edge. */}
+      <Pressable
+        onPress={onOpen}
+        disabled={onOpen === undefined}
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${block.label}`}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          paddingHorizontal: 7,
+          paddingVertical: px >= 26 ? 4 : 0,
+          justifyContent: 'center',
+        }}
+      >
+        {px >= 24 && (
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {block.rec === true && <BlockBadge label="↻" color={badgeColor} />}
+            {block.ext !== undefined && <BlockBadge label="⇄ OL" color={badgeColor} />}
+            {tentative && <BlockBadge label="?" color={badgeColor} />}
+            {fyi && <BlockBadge label="FYI" color={badgeColor} dotted />}
+            <Text
+              numberOfLines={1}
+              style={{
+                flex: 1,
+                fontSize: t.fontSize['2xs'],
+                fontWeight: '600',
+                color: labelColor,
+                fontStyle: isGhost ? 'italic' : 'normal',
+              }}
+            >
+              {isGhost ? `◇ ${block.label}` : block.label}
+            </Text>
+          </View>
+        )}
+        {px >= 40 && !isBreak && (
+          <Text
+            style={{
+              fontFamily: t.fontFamily.numeric,
+              fontSize: t.fontSize['2xs'],
+              color: timeColor,
+            }}
+          >
+            {clock(block.start)}–{clock(block.start + block.len)}
+          </Text>
+        )}
+      </Pressable>
       {showTime && (
         <View
           style={{
@@ -412,37 +465,6 @@ function CanvasBlockView({
             {clock(previewStart)}–{clock(previewStart + block.len)}
           </Text>
         </View>
-      )}
-      {px >= 24 && (
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          {block.rec === true && <BlockBadge label="↻" color={badgeColor} />}
-          {block.ext !== undefined && <BlockBadge label="⇄ OL" color={badgeColor} />}
-          {tentative && <BlockBadge label="?" color={badgeColor} />}
-          {fyi && <BlockBadge label="FYI" color={badgeColor} dotted />}
-          <Text
-            numberOfLines={1}
-            style={{
-              flex: 1,
-              fontSize: t.fontSize['2xs'],
-              fontWeight: '600',
-              color: labelColor,
-              fontStyle: isGhost ? 'italic' : 'normal',
-            }}
-          >
-            {isGhost ? `◇ ${block.label}` : block.label}
-          </Text>
-        </View>
-      )}
-      {px >= 40 && !isBreak && (
-        <Text
-          style={{
-            fontFamily: t.fontFamily.numeric,
-            fontSize: t.fontSize['2xs'],
-            color: timeColor,
-          }}
-        >
-          {clock(block.start)}–{clock(block.start + block.len)}
-        </Text>
       )}
       {onResize !== undefined && !isBreak && (
         <View
@@ -495,6 +517,7 @@ function DayColumn({
   colWidth,
   onResizeBlock,
   onMoveBlock,
+  onOpenBlock,
 }: {
   readonly day: DemoDay
   readonly index: number
@@ -506,6 +529,8 @@ function DayColumn({
   readonly onResizeBlock: (globalIndex: number, lenMin: number) => void
   /** Commit a moved (day, startMin) by the block's index in the shared list. */
   readonly onMoveBlock: (globalIndex: number, day: number, startMin: number) => void
+  /** Open the typed entry drawer for a block by its index (ADR-0063, H2). */
+  readonly onOpenBlock: (globalIndex: number) => void
 }): React.JSX.Element {
   const t = useTheme()
   const hours: number[] = []
@@ -622,6 +647,7 @@ function DayColumn({
             colWidth={colWidth}
             onResize={len => onResizeBlock(globalIndex, len)}
             onMove={(day, start) => onMoveBlock(globalIndex, day, start)}
+            onOpen={() => onOpenBlock(globalIndex)}
           />
         ))}
         {day.today && (
@@ -1060,6 +1086,34 @@ export function PlannerScreen(): React.JSX.Element {
   const moveBlock = (globalIndex: number, day: number, startMin: number): void =>
     setBlocks(bs => bs.map((b, i) => (i === globalIndex ? { ...b, day, start: startMin } : b)))
 
+  // Typed entry drawer (ADR-0063, H2): a tap on a block opens it, typed by kind, and
+  // every action mutates the real block state — attendance, delete, accept/dismiss a
+  // Co-Planner proposal. The block is the entry; the drawer is its detail.
+  const [openIndex, setOpenIndex] = useState<number | null>(null)
+  const openBlock = openIndex === null ? undefined : blocks[openIndex]
+  const drawerEntry: DrawerEntry | null =
+    openBlock === undefined
+      ? null
+      : {
+          kind: openBlock.kind,
+          title: openBlock.label,
+          timeLabel: `${clock(openBlock.start)}–${clock(openBlock.start + openBlock.len)}`,
+          color: canvasBlockColor(t, openBlock),
+          ...(openBlock.rsvp !== undefined ? { rsvp: openBlock.rsvp } : {}),
+          ...(openBlock.ext !== undefined ? { ext: openBlock.ext } : {}),
+          ...(openBlock.rec !== undefined ? { rec: openBlock.rec } : {}),
+        }
+  const setOpenRsvp = (rsvp: Rsvp): void =>
+    setBlocks(bs => bs.map((b, i) => (i === openIndex ? { ...b, rsvp } : b)))
+  const removeOpen = (): void => {
+    setBlocks(bs => bs.filter((_, i) => i !== openIndex))
+    setOpenIndex(null)
+  }
+  const acceptOpen = (): void => {
+    setBlocks(bs => bs.map((b, i) => (i === openIndex ? { ...b, kind: 'actual' } : b)))
+    setOpenIndex(null)
+  }
+
   // Task-Inbox (design v6): assigned tickets; "Plan" drops one into the next free
   // slot as a ghost proposal (deterministic `findFreeSlot` — ADR-0005), never onto a
   // busy slot; a full week says so honestly instead of silently dropping the task.
@@ -1134,221 +1188,232 @@ export function PlannerScreen(): React.JSX.Element {
   }
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: t.color.bg }}
-      contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s4 }}
-    >
-      {/* Header — title · KW week selector · week total · plan action */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: t.spacing.s3,
-          rowGap: t.spacing.s2,
-        }}
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: t.color.bg }}
+        contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s4 }}
       >
-        <Text
+        {/* Header — title · KW week selector · week total · plan action */}
+        <View
           style={{
-            flex: 1,
-            minWidth: 140,
-            fontWeight: '700',
-            fontSize: t.fontSize.xl,
-            color: t.color.ink,
-            fontFamily: t.fontFamily.display,
-            letterSpacing: t.fontSize.xl * t.letterSpacing.tight,
+            flexDirection: 'row',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: t.spacing.s3,
+            rowGap: t.spacing.s2,
           }}
         >
-          Planner
-        </Text>
-        <View style={{ maxWidth: 260, minWidth: 200, flexGrow: 1 }}>
-          <SegmentedControl
-            segments={[
-              { value: 'Week', label: 'Week' },
-              { value: 'Month', label: 'Month' },
-              { value: 'Year', label: 'Year' },
-            ]}
-            active={view}
-            onChange={setView}
-          />
-        </View>
-        {view === 'Week' && (
-          <>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                borderWidth: 1,
-                borderColor: t.color.border,
-                borderRadius: t.radius.pill,
-                paddingVertical: 6,
-                paddingHorizontal: 14,
-                backgroundColor: t.color.surface,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: t.fontSize.xs,
-                  fontWeight: '600',
-                  color: t.color.ink,
-                  textAlign: 'center',
-                }}
-              >
-                This week · KW {week}
-              </Text>
-            </View>
-            <Text
-              style={{
-                fontFamily: t.fontFamily.numeric,
-                fontSize: t.fontSize.xs,
-                color: t.color.ink2,
-              }}
-            >
-              <Text style={{ color: t.color.ink, fontWeight: '600' }}>—</Text>
-            </Text>
-          </>
-        )}
-        {view === 'Week' && (
-          <Button
-            size="sm"
-            variant={inboxOpen ? 'primary' : 'ghost'}
-            onPress={() => setInboxOpen(o => !o)}
-          >
-            {`Inbox · ${String(tasks.length)}`}
-          </Button>
-        )}
-        <Button size="sm">
-          {view === 'Year' ? 'Plan year' : view === 'Month' ? 'Plan month' : 'Plan week'}
-        </Button>
-      </View>
-
-      {view === 'Month' && (
-        <Card>
-          <EmptyState
-            title="Month view — coming soon"
-            hint="The planned load per day across the month appears here once utilization aggregation is live."
-          />
-        </Card>
-      )}
-
-      {view === 'Year' && (
-        <Card>
-          <EmptyState
-            title="Year view — coming soon"
-            hint="The weekly intensity across the year appears here once utilization aggregation is live."
-          />
-        </Card>
-      )}
-
-      {view === 'Week' && (
-        <>
-          {/* AI in context — reachable here, not only in the Assistant tab */}
-          <View style={{ gap: t.spacing.s2, maxWidth: 680 }}>
-            <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
-              {scopeChip('Time')}
-              {scopeChip('Budgets')}
-            </View>
-            <AIAskBar
-              value={ask}
-              onChange={setAsk}
-              onSubmit={() => submitAsk(ask)}
-              placeholder="Ask about your week…"
-            />
-            {answer !== null && <AICallout title="✦ Assistant">{answer}</AICallout>}
-          </View>
-
-          {inboxNote !== null && (
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: t.spacing.s2,
-                paddingVertical: t.spacing.s2,
-                paddingHorizontal: t.spacing.s3,
-                borderRadius: t.radius.block,
-                borderWidth: 1,
-                borderColor: t.color.border,
-                backgroundColor: t.color.surface,
-              }}
-            >
-              <Text style={{ flex: 1, fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>
-                ✦ {inboxNote}
-              </Text>
-              <Button size="sm" variant="ghost" onPress={() => setInboxNote(null)}>
-                OK
-              </Button>
-            </View>
-          )}
-
-          {/* Week canvas + Task-Inbox rail — plan (dashed) and actuals share one
-              surface per day; the inbox sits beside it on wide screens. */}
-          <View
+          <Text
             style={{
-              flexDirection: stacked ? 'column' : 'row',
-              gap: t.spacing.s4,
-              alignItems: 'flex-start',
+              flex: 1,
+              minWidth: 140,
+              fontWeight: '700',
+              fontSize: t.fontSize.xl,
+              color: t.color.ink,
+              fontFamily: t.fontFamily.display,
+              letterSpacing: t.fontSize.xl * t.letterSpacing.tight,
             }}
           >
-            <Card padding={false} style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}>
-              <View style={{ flexDirection: 'row' }}>
-                <HourGutter />
-                {stacked ? (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={{ flexDirection: 'row' }}>
+            Planner
+          </Text>
+          <View style={{ maxWidth: 260, minWidth: 200, flexGrow: 1 }}>
+            <SegmentedControl
+              segments={[
+                { value: 'Week', label: 'Week' },
+                { value: 'Month', label: 'Month' },
+                { value: 'Year', label: 'Year' },
+              ]}
+              active={view}
+              onChange={setView}
+            />
+          </View>
+          {view === 'Week' && (
+            <>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  borderWidth: 1,
+                  borderColor: t.color.border,
+                  borderRadius: t.radius.pill,
+                  paddingVertical: 6,
+                  paddingHorizontal: 14,
+                  backgroundColor: t.color.surface,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: t.fontSize.xs,
+                    fontWeight: '600',
+                    color: t.color.ink,
+                    textAlign: 'center',
+                  }}
+                >
+                  This week · KW {week}
+                </Text>
+              </View>
+              <Text
+                style={{
+                  fontFamily: t.fontFamily.numeric,
+                  fontSize: t.fontSize.xs,
+                  color: t.color.ink2,
+                }}
+              >
+                <Text style={{ color: t.color.ink, fontWeight: '600' }}>—</Text>
+              </Text>
+            </>
+          )}
+          {view === 'Week' && (
+            <Button
+              size="sm"
+              variant={inboxOpen ? 'primary' : 'ghost'}
+              onPress={() => setInboxOpen(o => !o)}
+            >
+              {`Inbox · ${String(tasks.length)}`}
+            </Button>
+          )}
+          <Button size="sm">
+            {view === 'Year' ? 'Plan year' : view === 'Month' ? 'Plan month' : 'Plan week'}
+          </Button>
+        </View>
+
+        {view === 'Month' && (
+          <Card>
+            <EmptyState
+              title="Month view — coming soon"
+              hint="The planned load per day across the month appears here once utilization aggregation is live."
+            />
+          </Card>
+        )}
+
+        {view === 'Year' && (
+          <Card>
+            <EmptyState
+              title="Year view — coming soon"
+              hint="The weekly intensity across the year appears here once utilization aggregation is live."
+            />
+          </Card>
+        )}
+
+        {view === 'Week' && (
+          <>
+            {/* AI in context — reachable here, not only in the Assistant tab */}
+            <View style={{ gap: t.spacing.s2, maxWidth: 680 }}>
+              <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
+                {scopeChip('Time')}
+                {scopeChip('Budgets')}
+              </View>
+              <AIAskBar
+                value={ask}
+                onChange={setAsk}
+                onSubmit={() => submitAsk(ask)}
+                placeholder="Ask about your week…"
+              />
+              {answer !== null && <AICallout title="✦ Assistant">{answer}</AICallout>}
+            </View>
+
+            {inboxNote !== null && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: t.spacing.s2,
+                  paddingVertical: t.spacing.s2,
+                  paddingHorizontal: t.spacing.s3,
+                  borderRadius: t.radius.block,
+                  borderWidth: 1,
+                  borderColor: t.color.border,
+                  backgroundColor: t.color.surface,
+                }}
+              >
+                <Text style={{ flex: 1, fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>
+                  ✦ {inboxNote}
+                </Text>
+                <Button size="sm" variant="ghost" onPress={() => setInboxNote(null)}>
+                  OK
+                </Button>
+              </View>
+            )}
+
+            {/* Week canvas + Task-Inbox rail — plan (dashed) and actuals share one
+              surface per day; the inbox sits beside it on wide screens. */}
+            <View
+              style={{
+                flexDirection: stacked ? 'column' : 'row',
+                gap: t.spacing.s4,
+                alignItems: 'flex-start',
+              }}
+            >
+              <Card padding={false} style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}>
+                <View style={{ flexDirection: 'row' }}>
+                  <HourGutter />
+                  {stacked ? (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <View style={{ flexDirection: 'row' }}>
+                        {weekDays.map((day, di) => (
+                          <DayColumn
+                            key={day.name}
+                            day={day}
+                            index={di}
+                            flex={false}
+                            blocks={blocks}
+                            colWidth={COL_WIDTH}
+                            onResizeBlock={resizeBlock}
+                            onMoveBlock={moveBlock}
+                            onOpenBlock={setOpenIndex}
+                          />
+                        ))}
+                      </View>
+                    </ScrollView>
+                  ) : (
+                    <View
+                      style={{ flexDirection: 'row', flex: 1 }}
+                      onLayout={e => {
+                        const w = e.nativeEvent.layout.width / weekDays.length
+                        if (w > 0) setColWidth(w)
+                      }}
+                    >
                       {weekDays.map((day, di) => (
                         <DayColumn
                           key={day.name}
                           day={day}
                           index={di}
-                          flex={false}
+                          flex
                           blocks={blocks}
-                          colWidth={COL_WIDTH}
+                          colWidth={colWidth}
                           onResizeBlock={resizeBlock}
                           onMoveBlock={moveBlock}
+                          onOpenBlock={setOpenIndex}
                         />
                       ))}
                     </View>
-                  </ScrollView>
-                ) : (
-                  <View
-                    style={{ flexDirection: 'row', flex: 1 }}
-                    onLayout={e => {
-                      const w = e.nativeEvent.layout.width / weekDays.length
-                      if (w > 0) setColWidth(w)
-                    }}
-                  >
-                    {weekDays.map((day, di) => (
-                      <DayColumn
-                        key={day.name}
-                        day={day}
-                        index={di}
-                        flex
-                        blocks={blocks}
-                        colWidth={colWidth}
-                        onResizeBlock={resizeBlock}
-                        onMoveBlock={moveBlock}
-                      />
-                    ))}
-                  </View>
-                )}
-              </View>
-            </Card>
-            {inboxOpen && <TaskInbox tasks={tasks} onPlan={planTask} onDone={doneTask} />}
-          </View>
+                  )}
+                </View>
+              </Card>
+              {inboxOpen && <TaskInbox tasks={tasks} onPlan={planTask} onDone={doneTask} />}
+            </View>
 
-          <Legend />
+            <Legend />
 
-          <CoPlannerProposal />
+            <CoPlannerProposal />
 
-          <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, lineHeight: 18 }}>
-            Drag blocks (across days &amp; times) or change their duration at the bottom edge — both
-            snap to 15 min. Overlapping blocks share the column (lanes); the &quot;N×&quot; chip in
-            the day header counts real conflicts (breaks &amp; FYI don&apos;t count). ↻ recurring ·
-            ⇄ OL = Outlook · ? = tentative · FYI = no attendance. Dashed blocks are Co-Planner
-            proposals.
-          </Text>
-        </>
-      )}
-    </ScrollView>
+            <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, lineHeight: 18 }}>
+              Drag blocks (across days &amp; times) or change their duration at the bottom edge —
+              both snap to 15 min. Overlapping blocks share the column (lanes); the &quot;N×&quot;
+              chip in the day header counts real conflicts (breaks &amp; FYI don&apos;t count). ↻
+              recurring · ⇄ OL = Outlook · ? = tentative · FYI = no attendance. Dashed blocks are
+              Co-Planner proposals.
+            </Text>
+          </>
+        )}
+      </ScrollView>
+      <PlannerEntryDrawer
+        entry={drawerEntry}
+        onClose={() => setOpenIndex(null)}
+        {...(drawerEntry?.kind === 'meeting' ? { onRsvp: setOpenRsvp } : {})}
+        {...(drawerEntry?.kind === 'actual' ? { onDelete: removeOpen } : {})}
+        {...(drawerEntry?.kind === 'ghost' ? { onAccept: acceptOpen, onDismiss: removeOpen } : {})}
+      />
+    </View>
   )
 }
