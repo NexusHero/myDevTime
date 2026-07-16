@@ -35,7 +35,7 @@ export function Gauge({ value, range, size = 132, label }: GaugeProps): React.JS
   return (
     <View
       accessibilityRole="image"
-      accessibilityLabel={`${label ?? 'Balance'} gauge`}
+      accessibilityLabel={`${label ?? 'Balance'}: ${value >= 0 ? '+' : ''}${String(value)} of ±${String(range)}`}
       style={{ width: size, height }}
     >
       <Svg width={size} height={height}>

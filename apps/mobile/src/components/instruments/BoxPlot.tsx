@@ -21,7 +21,12 @@ export function BoxPlot({ label, min, q1, median, q3, max }: BoxPlotProps): Reac
   return (
     <View style={{ gap: t.spacing.s2 }}>
       <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>{label}</Text>
-      <View style={{ height: 40, justifyContent: 'center' }}>
+      {/* The box/whisker bars carry no text — announce the five-number summary. */}
+      <View
+        accessibilityRole="image"
+        accessibilityLabel={`${label}: median ${String(median)}, interquartile ${String(q1)} to ${String(q3)}, range ${String(min)} to ${String(max)}`}
+        style={{ height: 40, justifyContent: 'center' }}
+      >
         <View
           style={{
             height: 20,

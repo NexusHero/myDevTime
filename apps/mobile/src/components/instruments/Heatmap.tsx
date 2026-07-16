@@ -33,7 +33,12 @@ export function Heatmap({
       <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2, fontWeight: '500' }}>
         {label}
       </Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s1 }}>
+      {/* The colour grid is invisible to assistive tech; summarise it as one image. */}
+      <View
+        accessibilityRole="image"
+        accessibilityLabel={`${label}: activity across ${String(data.length)} days, peak ${String(max)}`}
+        style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s1 }}
+      >
         {data.map((cell, i) => {
           const intensity = cell.value / max
           const bgColor =
