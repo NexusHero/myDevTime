@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   budgetStatus,
+  burndownProjection,
   consumedDuration,
   deadlineStatus,
   evaluateThresholds,
   isDueWithin,
   type Budget,
+  type BurndownPoint,
 } from './budget.js'
 import { DAY_MS, HOUR_MS } from '../tracking/time.js'
 
@@ -107,5 +109,71 @@ describe('deadlineStatus', () => {
     expect(isDueWithin(now + 2 * DAY_MS, now, 3)).toBe(true)
     expect(isDueWithin(now + 5 * DAY_MS, now, 3)).toBe(false)
     expect(isDueWithin(now - DAY_MS, now, 3)).toBe(false)
+  })
+})
+
+describe('burndownProjection', () => {
+  const pts = (samples: readonly (readonly [number, number])[]): BurndownPoint[] =>
+    samples.map(([at, consumed]) => ({ at, consumed }))
+
+  it('ProjectsExhaustionFromTheRecentRate', () => {
+    // 0 → 40h over 4 days = 10h/day; an 80h limit is reached 4 days after the last sample.
+    const day = DAY_MS
+    const p = pts([
+      [0, 0],
+      [day, 10 * HOUR_MS],
+      [2 * day, 20 * HOUR_MS],
+      [4 * day, 40 * HOUR_MS],
+    ])
+    const proj = burndownProjection(p, 80 * HOUR_MS)
+    expect(proj.over).toBe(false)
+    expect(proj.ratePerMs).toBeCloseTo((10 * HOUR_MS) / day)
+    // last sample 40h at t=4d, +40h remaining ÷ 10h/day = +4 days → t = 8 days.
+    expect(proj.exhaustsAt).toBeCloseTo(8 * day)
+  })
+
+  it('AlreadyOverBudget_IsOverWithNoProjection', () => {
+    const proj = burndownProjection(
+      pts([
+        [0, 90 * HOUR_MS],
+        [DAY_MS, 95 * HOUR_MS],
+      ]),
+      80 * HOUR_MS,
+    )
+    expect(proj.over).toBe(true)
+    expect(proj.exhaustsAt).toBeNull()
+  })
+
+  it('FlatTrajectory_HasNoExhaustion', () => {
+    const proj = burndownProjection(
+      pts([
+        [0, 20 * HOUR_MS],
+        [DAY_MS, 20 * HOUR_MS],
+      ]),
+      80 * HOUR_MS,
+    )
+    expect(proj.ratePerMs).toBe(0)
+    expect(proj.exhaustsAt).toBeNull()
+  })
+
+  it('FewerThanTwoPoints_IsInert', () => {
+    expect(burndownProjection(pts([[0, 10]]), 80)).toEqual({
+      ratePerMs: 0,
+      exhaustsAt: null,
+      over: false,
+    })
+    expect(burndownProjection([], 80)).toEqual({ ratePerMs: 0, exhaustsAt: null, over: false })
+  })
+
+  it('UnsetLimit_NeverExhausts', () => {
+    const proj = burndownProjection(
+      pts([
+        [0, 0],
+        [DAY_MS, 5 * HOUR_MS],
+      ]),
+      0,
+    )
+    expect(proj.over).toBe(false)
+    expect(proj.exhaustsAt).toBeNull()
   })
 })

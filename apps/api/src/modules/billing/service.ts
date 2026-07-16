@@ -355,6 +355,69 @@ async function consumedFor(
   }, 0)
 }
 
+/**
+ * Consumption **as of** an instant, with each entry clamped to `[start, min(asOf, end)]`
+ * and entries not yet started excluded — a genuine point-in-time value for the burn-down
+ * curve (unlike `consumedFor`, which counts a completed entry's full duration the moment it
+ * exists). Reuses the same effective-dated rate math (`rateForEntry`/`costOf`) for money.
+ */
+async function consumedAsOf(
+  db: Db,
+  workspaceId: string,
+  budget: BudgetRow,
+  asOf: Date,
+): Promise<number> {
+  if (budget.scope !== 'project') return 0
+  const asOfMs = asOf.getTime()
+  const entries = await db
+    .select()
+    .from(timeEntries)
+    .where(
+      and(
+        eq(timeEntries.workspaceId, workspaceId),
+        eq(timeEntries.projectId, budget.scopeId),
+        isNull(timeEntries.deletedAt),
+      ),
+    )
+  const clamped = (e: (typeof entries)[number]): number => {
+    const startMs = e.startedAt.getTime()
+    if (startMs >= asOfMs) return 0 // not started yet at this instant
+    const endMs = e.endedAt ? Math.min(e.endedAt.getTime(), asOfMs) : asOfMs
+    return Math.max(0, endMs - startMs)
+  }
+  if (budget.basis !== 'money') {
+    return entries.reduce((total, e) => total + clamped(e), 0)
+  }
+  const project = await getBudgetProject(db, workspaceId, budget.scopeId)
+  const rules = (await listRates(db, workspaceId)).map(toRule)
+  const costs = entries.map(e => {
+    const dur = clamped(e)
+    if (dur === 0) return 0
+    const rate = rateForEntry(
+      rules,
+      { projectId: budget.scopeId, clientId: project.clientId, taskId: e.taskId },
+      e.startedAt.getTime(),
+    )
+    return rate === null ? 0 : costOf(rate, dur)
+  })
+  return sumMoney(costs)
+}
+
+/** The project row a project-scoped budget points at (for the client id in rate lookup). */
+async function getBudgetProject(
+  db: Db,
+  workspaceId: string,
+  projectId: string,
+): Promise<{ clientId: string | null }> {
+  return one(
+    await db
+      .select({ clientId: projects.clientId })
+      .from(projects)
+      .where(and(eq(projects.workspaceId, workspaceId), eq(projects.id, projectId))),
+    'project',
+  )
+}
+
 export interface BudgetStatusResult {
   budget: BudgetRow
   status: BudgetStatus
@@ -376,6 +439,49 @@ export async function budgetStatusFor(
     'workspace',
   ).currencyCode
   return { budget, status, currencyCode: currency }
+}
+
+export interface BudgetBurndownPoint {
+  /** Sample instant. */
+  at: Date
+  /** Cumulative consumed as of that instant, in the budget's basis unit (ms or minor). */
+  consumed: number
+}
+
+export interface BudgetBurndownResult {
+  budget: BudgetRow
+  currencyCode: string
+  points: BudgetBurndownPoint[]
+}
+
+/**
+ * The budget's cumulative-consumption trajectory (REQ-005) — the burn-down curve. Samples
+ * the SAME as-of consumption `budgetStatusFor` uses at `points` evenly-spaced instants from
+ * `from` to `to`, so every value is the deterministic core's, never a stored series. The
+ * client extrapolates the projection from these points (`burndownProjection`).
+ */
+export async function budgetBurndownFor(
+  db: Db,
+  workspaceId: string,
+  id: string,
+  opts: { from: Date; to: Date; points: number },
+): Promise<BudgetBurndownResult> {
+  const budget = await getBudget(db, workspaceId, id)
+  const currency = one(
+    await db.select().from(workspaces).where(eq(workspaces.id, workspaceId)),
+    'workspace',
+  ).currencyCode
+  const n = Math.max(2, Math.min(30, Math.trunc(opts.points)))
+  const fromMs = opts.from.getTime()
+  const toMs = opts.to.getTime()
+  const span = Math.max(0, toMs - fromMs)
+  const sampled = await Promise.all(
+    Array.from({ length: n }, (_v, i) => {
+      const at = new Date(fromMs + Math.round((span * i) / (n - 1)))
+      return consumedAsOf(db, workspaceId, budget, at).then(consumed => ({ at, consumed }))
+    }),
+  )
+  return { budget, currencyCode: currency, points: sampled }
 }
 
 export interface BudgetEvaluation extends BudgetStatusResult {

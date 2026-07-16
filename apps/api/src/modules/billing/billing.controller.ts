@@ -28,6 +28,7 @@ import { BillingContext } from './billing.context.js'
 import {
   AsOfQueryDto,
   BillingSummaryQueryDto,
+  BudgetBurndownQueryDto,
   CreateBudgetDto,
   CreateRateDto,
   ExportQueryDto,
@@ -119,6 +120,20 @@ export class BillingController {
   ) {
     const { db, workspaceId } = await this.ctx.workspaceOf(user)
     return svc.evaluateBudget(db, workspaceId, params.id, query.asOf ?? new Date())
+  }
+
+  // The cumulative-consumption trajectory for the burn-down card (REQ-005). Defaults to the
+  // trailing 12 weeks; the client extrapolates the exhaustion projection from the points.
+  @Get('budgets/:id/burndown')
+  async budgetBurndown(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param() params: IdParamDto,
+    @Query() query: BudgetBurndownQueryDto,
+  ) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    const to = query.to ?? new Date()
+    const from = query.from ?? new Date(to.getTime() - 84 * 24 * 60 * 60 * 1000)
+    return svc.budgetBurndownFor(db, workspaceId, params.id, { from, to, points: query.points })
   }
 
   // ── Cost ───────────────────────────────────────────────────────────────

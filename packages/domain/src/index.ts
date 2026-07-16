@@ -58,12 +58,15 @@ export type {
   BudgetPeriod,
   Budget,
   BudgetStatus,
+  BurndownPoint,
+  BurndownProjection,
   ThresholdEvaluation,
   DeadlineStatus,
 } from './budgets/budget.js'
 export {
   budgetStatus,
   consumedDuration,
+  burndownProjection,
   evaluateThresholds,
   deadlineStatus,
   isDueWithin,
