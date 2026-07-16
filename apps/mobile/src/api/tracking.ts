@@ -1,4 +1,4 @@
-import { getJson } from './http.js'
+import { getJson, postJson } from './http.js'
 import { nullableStr, parseArray, str } from './parse.js'
 import type { Client, Project, Task } from '../screens/projectsData'
 
@@ -45,6 +45,32 @@ export function parseTasks(value: unknown): TaskDTO[] {
     projectId: str(o, 'projectId'),
     archived: o.archived === true,
   }))
+}
+
+/** Parse a single project row (the create-project response). */
+export function parseProject(value: unknown): ProjectDTO {
+  const [project] = parseProjects([value])
+  if (!project) throw new Error('parseProject: malformed project response')
+  return project
+}
+
+/** A project to create; `name` is required, `color` optional (REQ-001). */
+export interface NewProject {
+  readonly name: string
+  readonly color?: string | null
+}
+
+/**
+ * Create a project and return the persisted row (REQ-001). Used by onboarding to
+ * persist the projects the user creates there, so they land in the workspace
+ * instead of being discarded (REQ-044, fixes audit H8).
+ */
+export async function createProject(
+  baseUrl: string,
+  input: NewProject,
+  fetchImpl: typeof fetch = fetch,
+): Promise<ProjectDTO> {
+  return parseProject(await postJson(baseUrl, '/api/tracking/projects', input, fetchImpl))
 }
 
 const UNASSIGNED_ID = '__unassigned__'
