@@ -26,9 +26,12 @@ export function Switch({
   return (
     <Pressable
       onPress={() => onChange?.(!checked)}
-      accessibilityRole="switch"
+      // A `switch` role requires `aria-checked`, which react-native-web does not
+      // emit from `accessibilityState` — so axe fails it (REQ-043). Present it as a
+      // button and fold the on/off state into the accessible name instead.
+      accessibilityRole="button"
       accessibilityState={{ checked }}
-      accessibilityLabel={accessibilityLabel ?? label ?? 'toggle'}
+      accessibilityLabel={`${accessibilityLabel ?? label ?? 'toggle'}, ${checked ? 'on' : 'off'}`}
       style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s3 }}
     >
       <View

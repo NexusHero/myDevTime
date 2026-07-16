@@ -232,9 +232,12 @@ export function TodayScreen(): React.JSX.Element {
       <Pressable
         onPress={() => timer.setBillable(!timer.billable)}
         disabled={timer.busy}
-        accessibilityRole="switch"
+        // `button`, not `switch`: react-native-web doesn't emit aria-checked from
+        // accessibilityState, so a switch role fails axe (REQ-043); the on/off state
+        // rides the accessible name instead.
+        accessibilityRole="button"
         accessibilityState={{ checked: timer.billable }}
-        accessibilityLabel="Billable"
+        accessibilityLabel={`Billable, ${timer.billable ? 'on' : 'off'}`}
         style={{
           width: 34,
           height: 34,

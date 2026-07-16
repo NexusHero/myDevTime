@@ -210,7 +210,10 @@ export function ShellChrome(): React.JSX.Element {
       <Pressable
         key={screen}
         onPress={() => go(screen)}
-        accessibilityRole="tab"
+        // The shell nav switches routes, so these are navigation links, not tabs —
+        // a `tab` role (react-native-web doesn't emit `aria-selected`) fails axe's
+        // aria-required-attr/parent (REQ-043); `link` needs neither.
+        accessibilityRole="link"
         accessibilityState={{ selected: on }}
         accessibilityLabel={SCREEN_TITLES[screen]}
         style={[

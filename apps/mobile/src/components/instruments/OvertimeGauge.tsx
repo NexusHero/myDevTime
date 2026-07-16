@@ -20,7 +20,7 @@ export function OvertimeGauge({ label, value, max }: OvertimeGaugeProps): React.
       <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2, fontWeight: '500' }}>
         {label}
       </Text>
-      <Gauge value={value} range={max} size={120} />
+      <Gauge value={value} range={max} label={label} size={120} />
       <Text
         style={{ fontFamily: t.fontFamily.numeric, fontSize: t.fontSize.sm, color: t.color.ink }}
       >
