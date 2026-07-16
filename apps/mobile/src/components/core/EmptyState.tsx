@@ -10,6 +10,11 @@ interface EmptyStateProps {
   readonly compact?: boolean
   /** Glyph shown in the badge; defaults to a neutral inbox so it never reads as a broken image. */
   readonly icon?: string
+  /**
+   * An optional edge mascot (Sevi/Blocky) shown in place of the icon badge — used
+   * only in the margins (empty states), per the design-system playfulness rule.
+   */
+  readonly mascot?: React.ReactNode
 }
 
 export function EmptyState({
@@ -18,6 +23,7 @@ export function EmptyState({
   action,
   compact = false,
   icon = 'inbox',
+  mascot,
 }: EmptyStateProps): React.JSX.Element {
   const t = useTheme()
 
@@ -33,18 +39,20 @@ export function EmptyState({
         borderRadius: t.radius.xl,
       }}
     >
-      <View
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 22,
-          backgroundColor: t.color.accentSoft,
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        <Icon name={icon} size={22} color={t.color.accentText} />
-      </View>
+      {mascot ?? (
+        <View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: t.color.accentSoft,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <Icon name={icon} size={22} color={t.color.accentText} />
+        </View>
+      )}
       <Text
         style={{
           fontWeight: '600',

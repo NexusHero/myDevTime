@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Pressable, ScrollView, TextInput, View } from 'react-native'
 import { Text } from '../components/core/Text'
-import { Button, Switch } from '../components/index'
+import { Button, Switch, Sevi, Blocky } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
 import { apiBaseUrl } from '../config'
 import { createRate, eurosToMinor } from '../api/rates'
@@ -251,6 +251,19 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
         {/* ── 1 · Work time ── */}
         {step === 1 && (
           <View style={card}>
+            {/* Blocky duo — a solid "tracked" block and a dashed "planned" ghost —
+                introduces plan-vs-reality, the app's core idea (edge-only, ADR-0061). */}
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'center',
+                gap: 20,
+                marginBottom: 12,
+              }}
+            >
+              <Blocky variant="solid" size={52} />
+              <Blocky variant="ghost" size={52} />
+            </View>
             <Text style={h1}>Your daily target hours</Text>
             <Text style={sub}>
               myDevTime uses this to calculate overtime, drift, and your balance. Change it anytime
@@ -599,18 +612,9 @@ export function OnboardingFlow({ onDone }: { onDone: () => void }): React.JSX.El
         {/* ── 4 · Done ── */}
         {step === 4 && (
           <View style={{ ...card, alignItems: 'center' }}>
-            <View
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 28,
-                backgroundColor: t.color.goodSoft,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 14,
-              }}
-            >
-              <Text style={{ color: t.color.good, fontSize: 26 }}>✓</Text>
+            {/* The onboarding-completion moment: Sevi celebrates (edge-only, ADR-0061). */}
+            <View style={{ marginBottom: 14 }}>
+              <Sevi mood="celebrate" size={72} />
             </View>
             <Text style={h1}>All set.</Text>
             <Text style={{ ...sub, textAlign: 'center' }}>

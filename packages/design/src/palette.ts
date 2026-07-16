@@ -1,9 +1,10 @@
 /**
  * Color palettes (ux-vision §4) — dark-first, light a first-class sibling, now
- * across **three swappable accent themes** (ADR-0022): **Blueprint** (royal blue
- * "Königsblau" `#2563EB`, the default — ADR-0023), **Sovereign** (indigo royal
- * blue) and **Ember** (vivid signal orange `#FF5320` — an evolution of the
- * validated "now/live" amber, pushed to full signal energy after the user tests).
+ * across **three swappable accent themes** (ADR-0022): **Sovereign** (royal blue
+ * `#3654E0`, the flagship default — ADR-0061, superseding ADR-0023), **Ember**
+ * (vivid signal orange `#FF5320` — an evolution of the validated "now/live" amber,
+ * pushed to full signal energy after the user tests) and **Blueprint** (myJob's
+ * steel blue `#2563EB`, ported 1:1 for direct family resemblance).
  *
  * The design system separates two independent axes (mirroring the source design
  * project's `colors.css` × `modes.css` split): the **neutral** surfaces/inks and
@@ -20,14 +21,14 @@
  * contrast helper can parse.
  */
 
-/** The three accent themes. Blueprint (Königsblau) is the default (ADR-0023). */
+/** The three accent themes. Sovereign (royal blue) is the flagship default (ADR-0061). */
 export type AccentTheme = 'sovereign' | 'ember' | 'blueprint'
 
 /** All accent themes, in historical order; the default is `DEFAULT_ACCENT`. */
 export const ACCENT_THEMES = ['sovereign', 'ember', 'blueprint'] as const
 
-/** The default accent — Blueprint / "Königsblau" (ADR-0023, superseding ADR-0022). */
-export const DEFAULT_ACCENT: AccentTheme = 'blueprint'
+/** The default accent — Sovereign royal blue, the flagship (ADR-0061, superseding ADR-0023). */
+export const DEFAULT_ACCENT: AccentTheme = 'sovereign'
 
 export interface Palette {
   /** Base canvas, below everything. */
@@ -220,7 +221,7 @@ export const palettes: Record<AccentTheme, { readonly dark: Palette; readonly li
   },
 }
 
-/** The default-accent (Blueprint) palettes, exported for convenience; track `DEFAULT_ACCENT`. */
+/** The default-accent (Sovereign) palettes, exported for convenience; track `DEFAULT_ACCENT`. */
 export const dark: Palette = palettes[DEFAULT_ACCENT].dark
 export const light: Palette = palettes[DEFAULT_ACCENT].light
 

@@ -8,7 +8,7 @@ import {
 } from './palette.js'
 import {
   blueprintFontFamily,
-  systemFontFamily,
+  sovereignFontFamily,
   fontSize,
   motion,
   easing,
@@ -43,7 +43,7 @@ export interface Theme {
   readonly letterSpacing: typeof letterSpacing
   readonly motion: typeof motion
   readonly easing: typeof easing
-  readonly fontFamily: typeof blueprintFontFamily | typeof systemFontFamily
+  readonly fontFamily: typeof blueprintFontFamily | typeof sovereignFontFamily
   readonly touchTarget: number
   readonly padCard: number
   readonly gapList: number
@@ -71,7 +71,7 @@ export function theme(
     letterSpacing,
     motion,
     easing,
-    fontFamily: accent === 'blueprint' ? blueprintFontFamily : systemFontFamily,
+    fontFamily: accent === 'blueprint' ? blueprintFontFamily : sovereignFontFamily,
     touchTarget: densityScale[density].touchTarget,
     padCard: densityScale[density].padCard,
     gapList: densityScale[density].gapList,
