@@ -2,9 +2,12 @@ import { and, desc, eq, gte, lt, sql } from 'drizzle-orm'
 import {
   canDebit,
   creditBalance,
+  monthlyCreditAllowance,
+  topUpPackCredits,
   usageByCategory,
   type CreditEntry as CoreEntry,
   type CreditEntryKind,
+  type Plan,
   type UsageBucket,
 } from '@mydevtime/domain'
 import type { Db } from '../../db/client.js'
@@ -186,5 +189,50 @@ export async function grant(
     category: input.category,
     reason: input.reason,
     operationId: input.operationId,
+  })
+}
+
+/**
+ * Grant a plan's monthly credit allowance for one billing period (REQ-027, #148) —
+ * called from verified subscription events, never a client. Idempotent per
+ * `(source, periodRef)`, so a re-delivered renewal webhook never double-grants, and a
+ * plan with no allowance (e.g. `free`) grants nothing (returns null). The amount is the
+ * deterministic core's (`monthlyCreditAllowance`).
+ */
+export async function grantMonthlyAllowance(
+  db: Db,
+  workspaceId: string,
+  input: { plan: Plan; source: string; periodRef: string },
+): Promise<CreditEntryRow | null> {
+  const amount = monthlyCreditAllowance(input.plan)
+  if (amount <= 0) return null
+  return grant(db, workspaceId, {
+    amount,
+    kind: 'grant',
+    category: 'allowance',
+    reason: `${input.plan} monthly allowance`,
+    operationId: `allowance:${input.source}:${input.periodRef}`,
+  })
+}
+
+/**
+ * Grant a top-up pack's credits for a verified one-time purchase (REQ-027, #148) —
+ * called from verified purchase processing on any rail, never a client. Idempotent on
+ * `(source, purchaseRef)`; rejects an unknown pack id. The credit amount is the
+ * deterministic core's (`topUpPackCredits`).
+ */
+export async function grantTopUp(
+  db: Db,
+  workspaceId: string,
+  input: { packId: string; source: string; purchaseRef: string },
+): Promise<CreditEntryRow> {
+  const credits = topUpPackCredits(input.packId)
+  if (credits === null) throw new ValidationError(`unknown top-up pack: ${input.packId}`)
+  return grant(db, workspaceId, {
+    amount: credits,
+    kind: 'topup',
+    category: 'topup',
+    reason: `top-up ${input.packId}`,
+    operationId: `topup:${input.source}:${input.purchaseRef}`,
   })
 }
