@@ -2,6 +2,10 @@
 
 ## Status
 
+**Superseded by [ADR-0049](0049-abandon-offline-first-architecture.md)** — offline-first is abandoned: the
+client SQLite store (`packages/local-db`) was removed, so Drizzle-on-the-client no longer exists. The
+original decision is kept below for the record.
+
 Accepted (owner decision) — **supersedes the hand-written raw-SQL queries** in
 `packages/local-db` (the repositories of [ADR-0040](0040-offline-first-local-store-as-sync-client.md)).
 The `LocalDb` port, the runtime DDL (`SCHEMA_SQL` / `ensureSchema`), workspace

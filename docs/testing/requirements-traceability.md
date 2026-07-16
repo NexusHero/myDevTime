@@ -3,7 +3,7 @@
 _Every requirement in the register maps here to the automated tests that exercise it._
 
 This is the machine-checked bridge between the **Requirements Register**
-(`docs/architecture.md` §1, REQ-001…REQ-042) and the test suite. The gate
+(`docs/architecture.md` §1, REQ-001…REQ-046) and the test suite. The gate
 (`scripts/check-req-coverage.mjs`, run by `./test.sh`) enforces two invariants:
 
 1. **Completeness** — every `REQ-NNN` in the register has a row here. A new
@@ -94,11 +94,15 @@ without an acceptance test standing behind it.
 | REQ-035 | Planned | — | Dev-tool export (Jira/Linear/Slack) — Proposed, tracked by [#44](https://github.com/NexusHero/myDevTime/issues/44). |
 | REQ-036 | Verified | `packages/domain/src/tracking/search.test.ts`, `apps/api/src/modules/tracking/entries-search.integration.test.ts`, `apps/mobile/src/screens/TaskScreen.test.tsx` | Deterministic note-match core (`matchesNoteQuery`/`searchEntriesByNote`: case-insensitive substring, blank = no filter). **Acceptance:** `GET /api/tracking/entries?q=` finds entries by note against real Postgres — case-insensitive, LIKE-wildcards escaped (`100%` matches literally), blank returns all, workspace-isolated. The Task screen surfaces the note as the row title and filters the loaded entries with the same core. Note capture on the running timer + timesheet position text ship with REQ-004/009. |
 | REQ-037 | Partial | `packages/design/src/calendar.test.ts` | The deterministic month-grid geometry (activity dots / Woche⇄Monat) is tested; the booking-gap markers + month overview screen pending (#47). |
-| REQ-038 | Planned | — | Budget burn-down forecast — Proposed, tracked by [#48](https://github.com/NexusHero/myDevTime/issues/48). |
+| REQ-038 | Verified | `packages/domain/src/budgets/budget.test.ts`, `apps/api/src/modules/billing/billing.integration.test.ts` | Delivered under the Reports analytics work (REQ-005): the pure `burndownProjection` extrapolates run-rate exhaustion; `GET /api/billing/budgets/:id/burndown` samples as-of consumption across the period. **Acceptance:** the burndown endpoint is exercised against real Postgres in the billing integration test. |
 | REQ-039 | Planned | — | System quick actions (App Intents / Quick Settings Tile) — Proposed, tracked by [#49](https://github.com/NexusHero/myDevTime/issues/49). |
 | REQ-040 | Planned | — | Classic day list (Canvas ⇄ Liste) — Proposed, tracked by [#50](https://github.com/NexusHero/myDevTime/issues/50). |
 | REQ-041 | Planned | — | Task effort estimation — Proposed, tracked by [#90](https://github.com/NexusHero/myDevTime/issues/90). |
 | REQ-042 | Partial | `packages/domain/src/autotracker/activity.test.ts`, `apps/mobile/src/autotracker/capture.test.ts`, `apps/mobile/src/autotracker/activityStore.test.ts`, `apps/mobile/src/autotracker/nativeUsage.test.ts` | Auto-Tracker (ADR-0057/0058, **local-only**): deterministic `summarizeActivity` breakdown + the capture port's pure `SpanAccumulator` and first-party `webCapture` adapter + a same-device session buffer (`activityStore`, merged-by-source, cleared on session end) + the native-usage adapter (`diffUsage` cumulative→span accounting, `nativeUsageCapture` polling), tested with an injected module. The Android `UsageStatsManager` native module is a Dev-Client-only scaffold (`apps/mobile/native/mydevtime-usage/`); desktop capture is a follow-up behind the same port. |
+| REQ-043 | Planned | — | Accessibility baseline (semantic HTML/ARIA, keyboard, screen-reader) — Proposed, builds on the a11y spike [#190](https://github.com/NexusHero/myDevTime/issues/190); tracked by [#263](https://github.com/NexusHero/myDevTime/issues/263). Contrast is already enforced by `packages/design`. |
+| REQ-044 | Partial | `apps/mobile/src/onboarding/OnboardingGate.test.tsx`, `apps/mobile/src/onboarding/onboardingStore.test.ts` | First-run onboarding flow + one-boolean gate ship (ADR-0036); durable persistence of the captured answers (created projects) and a durable native "onboarded" flag are pending — tracked by [#264](https://github.com/NexusHero/myDevTime/issues/264) (audit H8/M11). |
+| REQ-045 | Planned | — | Reports/analytics export (distinct from the timesheet export) — Proposed, tracked by [#265](https://github.com/NexusHero/myDevTime/issues/265). |
+| REQ-046 | Planned | — | Planner utilization aggregation (Month/Year load views) — Proposed, tracked by [#266](https://github.com/NexusHero/myDevTime/issues/266). |
 
 ---
 

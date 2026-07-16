@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted
+Accepted — but **the offline-first client half is retired by [ADR-0049](0049-abandon-offline-first-architecture.md)**:
+the app is online-only, so the `sync` module and `/api/sync/*` are removed and **REQ-006 is Deferred**. The
+server-authoritative delta model and the pure per-entity conflict engine (`packages/domain/src/sync`) are
+kept **dormant** and fully tested as the documented re-entry point should multi-device offline return post-1.0.
 
 ## Context
 
