@@ -15,6 +15,7 @@ const patchSchema = z
     breakReminders: z.boolean(),
     calendarSync: z.boolean(),
     autoTracker: z.boolean(),
+    onboarded: z.boolean(),
   })
   .partial()
 

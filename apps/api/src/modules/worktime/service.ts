@@ -81,10 +81,18 @@ export interface ClockInInput {
   source?: string | undefined
 }
 
+/** A Postgres `unique_violation` (SQLSTATE 23505) surfacing through the driver. */
+function isUniqueViolation(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && (err as { code?: unknown }).code === '23505'
+}
+
 /**
- * Clock in: open a shift. At most one open shift per workspace (enforced by a
- * partial unique index); we reject a second clock-in with a clear error rather
- * than let the constraint surface as a 500.
+ * Clock in: open a shift. At most one open shift per workspace (enforced by the
+ * partial unique index `attendance_shifts_one_open_per_ws`). The read-then-insert
+ * rejects a sequential second clock-in with a clear error; a **concurrent** second
+ * clock-in (both pass the read, both insert) is caught from the index violation and
+ * mapped to the same `ValidationError` — so the loser gets a 400, never a raw 500
+ * (audit M9). Data integrity holds either way: exactly one open shift persists.
  */
 export async function clockIn(
   db: Db,
@@ -95,18 +103,23 @@ export async function clockIn(
   if (await getRunningShift(db, workspaceId)) {
     throw new ValidationError('already clocked in')
   }
-  const rows = await db
-    .insert(attendanceShifts)
-    .values({
-      workspaceId,
-      userId,
-      startedAt: input.startedAt ?? new Date(),
-      endedAt: null,
-      breakMs: 0,
-      source: input.source ?? 'clock',
-    })
-    .returning()
-  return first(rows)
+  try {
+    const rows = await db
+      .insert(attendanceShifts)
+      .values({
+        workspaceId,
+        userId,
+        startedAt: input.startedAt ?? new Date(),
+        endedAt: null,
+        breakMs: 0,
+        source: input.source ?? 'clock',
+      })
+      .returning()
+    return first(rows)
+  } catch (err) {
+    if (isUniqueViolation(err)) throw new ValidationError('already clocked in')
+    throw err
+  }
 }
 
 export interface ClockOutInput {

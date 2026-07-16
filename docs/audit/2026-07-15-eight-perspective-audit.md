@@ -349,7 +349,9 @@ Führe einen intensiven, mehrperspektivischen Qualitäts- und Bug-Audit dieses R
   easy to accept.
 - **Fix (M):** Only treat H:MM as a duration when it is not preceded by a time-of-day cue
   (at/um/@) and not part of a range, or require an explicit unit; otherwise ignore clock-shaped
-  tokens and let the note/LLM path handle them.
+  tokens and let the note/LLM path handle them. *(Fixed: `TIME_OF_DAY_RE` (at/um/ab/von/gegen/@)
+  and `CLOCK_RANGE_RE` (a `H:MM–H:MM` window) are stripped before the duration pass; a bare
+  `2:30` is still a duration.)*
 
 #### M6 — Readiness probe ignores Redis; REDIS_URL optional in production · RISIKO
 
@@ -417,6 +419,8 @@ Führe einen intensiven, mehrperspektivischen Qualitäts- und Bug-Audit dieses R
 - **Fix (S):** Catch the `unique_violation` on the open-shift index in `clockIn()` and map it to the
   same `ValidationError('already clocked in')` (or use `ON CONFLICT DO NOTHING` and translate the
   no-op). Add a concurrency test asserting exactly one open shift and a 4xx (not 500) for the loser.
+  *(Fixed: `clockIn` catches SQLSTATE 23505 and throws `ValidationError`; a concurrency integration
+  test asserts one open shift + a `ValidationError` (not a raw 500) for the loser.)*
 
 #### M10 — Fabricated subscription plan/renewal shown as fact · FAKT / RISIKO
 

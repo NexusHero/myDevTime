@@ -1,5 +1,27 @@
 import { describe, expect, it } from 'vitest'
-import { assembleCatalog, parseProjects, parseTasks, parseClients } from './tracking.js'
+import {
+  assembleCatalog,
+  createProject,
+  parseClients,
+  parseProject,
+  parseProjects,
+  parseTasks,
+} from './tracking.js'
+
+interface Seen {
+  url: string
+  method: string
+  body: unknown
+}
+const spyFetch = (body: unknown, seen: Seen[]): typeof fetch =>
+  ((url: string, init?: RequestInit) => {
+    seen.push({
+      url,
+      method: init?.method ?? 'GET',
+      body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+    })
+    return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))
+  }) as unknown as typeof fetch
 
 /**
  * The catalog assembly and DTO parsing are the deterministic bridge from the
@@ -69,5 +91,30 @@ describe('DTO parsers', () => {
   it('MalformedPayload_Throws', () => {
     expect(() => parseClients([{ id: 5, name: 'A' }])).toThrow('expected string field "id"')
     expect(() => parseProjects('nope')).toThrow('expected an array')
+  })
+
+  it('parseProject_SingleRow_ReturnsDto', () => {
+    expect(
+      parseProject({ id: 'p9', name: 'Finanzo', clientId: null, hourlyRateOverride: null }),
+    ).toEqual({ id: 'p9', name: 'Finanzo', clientId: null, hourlyRateOverride: null })
+  })
+})
+
+describe('createProject', () => {
+  it('CreateProject_PostsNameAndColor_ReturnsPersistedRow', async () => {
+    const seen: Seen[] = []
+    const persisted = { id: 'p-new', name: 'Finanzo', clientId: null, hourlyRateOverride: null }
+    const fetchImpl = spyFetch(persisted, seen)
+
+    const row = await createProject(
+      'https://api.test',
+      { name: 'Finanzo', color: '#3b82f6' },
+      fetchImpl,
+    )
+
+    expect(seen[0]?.method).toBe('POST')
+    expect(seen[0]?.url).toBe('https://api.test/api/tracking/projects')
+    expect(seen[0]?.body).toEqual({ name: 'Finanzo', color: '#3b82f6' })
+    expect(row).toEqual({ id: 'p-new', name: 'Finanzo', clientId: null, hourlyRateOverride: null })
   })
 })

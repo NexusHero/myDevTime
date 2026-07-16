@@ -21,6 +21,13 @@ export interface Preferences {
   readonly calendarSync: boolean
   /** Auto-track app/editor usage into suggestions. */
   readonly autoTracker: boolean
+  /**
+   * First-run onboarding completed (REQ-044). App state, **not** a user-facing
+   * toggle — it is not rendered in Settings. Persisting it here makes the
+   * onboarding gate durable and cross-device instead of an in-memory native flag
+   * that reset on every cold start (audit M11).
+   */
+  readonly onboarded: boolean
 }
 
 export const PREFERENCE_KEYS: readonly (keyof Preferences)[] = [
@@ -31,6 +38,7 @@ export const PREFERENCE_KEYS: readonly (keyof Preferences)[] = [
   'breakReminders',
   'calendarSync',
   'autoTracker',
+  'onboarded',
 ]
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -41,6 +49,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   breakReminders: true,
   calendarSync: false,
   autoTracker: false,
+  onboarded: false,
 }
 
 /**
