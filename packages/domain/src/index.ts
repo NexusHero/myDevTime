@@ -181,5 +181,17 @@ export { summarizeActivity } from './autotracker/activity.js'
 // Focus streak + workload balance (REQ-032, ADR-0012) — deterministic wellbeing
 // signals over real tracked time (ADR-0005). The balance level is a neutral
 // workload metric (actual vs target), never a diagnosis.
-export type { DayFocus, StreakOptions, LoadLevel, LoadInput, Load } from './insights/balance.js'
-export { focusStreak, workloadLoad } from './insights/balance.js'
+export type {
+  DayFocus,
+  StreakOptions,
+  LoadLevel,
+  LoadInput,
+  Load,
+  FocusQuartiles,
+} from './insights/balance.js'
+export {
+  focusStreak,
+  workloadLoad,
+  weeklyFocusTrend,
+  dailyHoursDistribution,
+} from './insights/balance.js'

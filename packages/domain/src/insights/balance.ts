@@ -88,3 +88,76 @@ export function workloadLoad(input: LoadInput): Load {
     ratio < CALM_BELOW ? 'calm' : ratio > ELEVATED_ABOVE ? 'elevated' : 'steady'
   return { level, ratio, actualMin, targetMin }
 }
+
+/**
+ * The trailing focus trend as `weeks` weekly totals (focus minutes), oldest→newest —
+ * the input to the Balance card's 10-week sparkline. Days are bucketed into 7-day
+ * windows anchored on the **last** day in `days` (so the math is pure — no clock),
+ * counting back; each bucket sums its days' focus minutes (absence days contribute
+ * their `focusMin`, normally 0). Exactly `weeks` buckets are returned, zero-filled on
+ * the left when the data is shorter, so the sparkline always has a stable width.
+ * `days` is assumed ordered oldest→newest (as `focusStreak` consumes it).
+ */
+export function weeklyFocusTrend(days: readonly DayFocus[], weeks: number): number[] {
+  const out = new Array<number>(Math.max(0, weeks)).fill(0)
+  if (weeks <= 0 || days.length === 0) return out
+  // Walk from the newest day backwards, filling the rightmost bucket first.
+  let bucket = weeks - 1
+  let inBucket = 0
+  for (let i = days.length - 1; i >= 0 && bucket >= 0; i -= 1) {
+    out[bucket] = (out[bucket] ?? 0) + (days[i]?.focusMin ?? 0)
+    inBucket += 1
+    if (inBucket === 7) {
+      bucket -= 1
+      inBucket = 0
+    }
+  }
+  return out
+}
+
+/** A five-number summary of a day-length distribution, in focus minutes. */
+export interface FocusQuartiles {
+  readonly min: number
+  readonly q1: number
+  readonly median: number
+  readonly q3: number
+  readonly max: number
+}
+
+/** The value at fractional rank `p` (0…1) in an ascending list, linearly interpolated. */
+function quantile(sorted: readonly number[], p: number): number {
+  const n = sorted.length
+  if (n === 1) return sorted[0] ?? 0
+  const pos = p * (n - 1)
+  const lo = Math.floor(pos)
+  const hi = Math.ceil(pos)
+  const lower = sorted[lo] ?? 0
+  const upper = sorted[hi] ?? 0
+  return lower + (upper - lower) * (pos - lo)
+}
+
+/**
+ * The five-number summary (min / Q1 / median / Q3 / max) of **active** days' focus
+ * minutes — the Balance card's day-length box plot. Absence days and days with no
+ * tracked time are excluded (a day off is not a short work day), so the plot describes
+ * the spread of days actually worked. Returns `null` when fewer than `minDays` (default
+ * 4) active days exist, so the view shows an honest empty state instead of a box drawn
+ * from too little data. Pure quartile math (linear interpolation), no clock, no I/O.
+ */
+export function dailyHoursDistribution(
+  days: readonly DayFocus[],
+  minDays = 4,
+): FocusQuartiles | null {
+  const active = days
+    .filter(d => !d.absence && d.focusMin > 0)
+    .map(d => d.focusMin)
+    .sort((a, b) => a - b)
+  if (active.length < minDays) return null
+  return {
+    min: active[0] ?? 0,
+    q1: quantile(active, 0.25),
+    median: quantile(active, 0.5),
+    q3: quantile(active, 0.75),
+    max: active[active.length - 1] ?? 0,
+  }
+}
