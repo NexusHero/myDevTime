@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   parseClientsOpen,
   parseIssuedInvoice,
+  parseOpenAging,
   parsePreview,
   fetchClientsOpen,
+  fetchOpenAging,
   issueInvoice,
 } from './invoicing.js'
 
@@ -17,6 +19,34 @@ describe('parseClientsOpen', () => {
       currencyCode: 'EUR',
       clients: [{ clientId: 'c1', openMs: 3600000, openMinor: 10000 }],
     })
+  })
+})
+
+describe('parseOpenAging', () => {
+  it('ReadsBucketsAndTotals', () => {
+    const parsed = parseOpenAging({
+      currencyCode: 'EUR',
+      totalMinor: 1980,
+      totalMs: 3600000,
+      buckets: [
+        { key: 'recent', minor: 1240, ms: 1200000 },
+        { key: 'mid', minor: 520, ms: 1200000 },
+        { key: 'old', minor: 220, ms: 1200000 },
+      ],
+    })
+    expect(parsed.totalMinor).toBe(1980)
+    expect(parsed.buckets[0]).toEqual({ key: 'recent', minor: 1240, ms: 1200000 })
+  })
+
+  it('RejectsAnUnknownBucketKey', () => {
+    expect(() =>
+      parseOpenAging({
+        currencyCode: 'EUR',
+        totalMinor: 0,
+        totalMs: 0,
+        buckets: [{ key: 'x', minor: 0, ms: 0 }],
+      }),
+    ).toThrow()
   })
 })
 
@@ -96,6 +126,21 @@ describe('invoicing fetchers use the right routes', () => {
     }
     await fetchClientsOpen('http://api', fake)
     expect(seen).toBe('http://api/api/billing/clients/open')
+  })
+
+  it('fetchOpenAging_getsTheAgingRoute', async () => {
+    let seen = ''
+    const fake: typeof fetch = input => {
+      if (typeof input === 'string') seen = input
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({ currencyCode: 'EUR', totalMinor: 0, totalMs: 0, buckets: [] }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      )
+    }
+    await fetchOpenAging('http://api', fake)
+    expect(seen).toBe('http://api/api/billing/aging')
   })
 
   it('issueInvoice_postsSelectedEntryIds', async () => {

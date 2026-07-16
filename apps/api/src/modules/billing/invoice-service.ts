@@ -1,5 +1,13 @@
 import { and, desc, eq, gte, inArray, isNull, lt } from 'drizzle-orm'
-import { invoiceLines, summarizeInvoice, type InvoiceLine, type TimeEntry } from '@mydevtime/domain'
+import {
+  agingBuckets,
+  invoiceLines,
+  summarizeInvoice,
+  type AgingReport,
+  type InvoiceLine,
+  type OpenItem,
+  type TimeEntry,
+} from '@mydevtime/domain'
 import type { Db } from '../../db/client.js'
 import { clients, invoices, projects, timeEntries, workspaces } from '../../db/schema.js'
 import { NotFoundError, ValidationError } from '../../errors.js'
@@ -215,10 +223,15 @@ export interface ClientOpen {
   readonly openMinor: number
 }
 
-export async function openBillableByClient(
+/**
+ * Every open (un-invoiced) billable line for the workspace, all-time, plus the
+ * project→client map — the shared basis for both the per-client rollup and the
+ * aging report, so the two always agree. Priced by the same effective-dated rates.
+ */
+async function openBillableLines(
   db: Db,
   workspaceId: string,
-): Promise<{ clients: ClientOpen[]; currencyCode: string }> {
+): Promise<{ lines: readonly InvoiceLine[]; clientByProject: Map<string, string | null> }> {
   const clientByProject = new Map<string, string | null>()
   for (const p of await db
     .select({ id: projects.id, clientId: projects.clientId })
@@ -244,6 +257,14 @@ export async function openBillableByClient(
     from: 0,
     to: Number.MAX_SAFE_INTEGER,
   })
+  return { lines, clientByProject }
+}
+
+export async function openBillableByClient(
+  db: Db,
+  workspaceId: string,
+): Promise<{ clients: ClientOpen[]; currencyCode: string }> {
+  const { lines, clientByProject } = await openBillableLines(db, workspaceId)
 
   const byClient = new Map<string, { ms: number; minor: number }>()
   for (const l of lines) {
@@ -259,6 +280,36 @@ export async function openBillableByClient(
     .map(([clientId, v]) => ({ clientId, openMs: v.ms, openMinor: v.minor }))
     .sort((a, b) => b.openMinor - a.openMinor || a.clientId.localeCompare(b.clientId))
   return { clients, currencyCode: await workspaceCurrency(db, workspaceId) }
+}
+
+/** Open (un-invoiced) billable amounts bucketed by age (Reports "Revenue & Budget",
+ *  D13). Reuses the same open-billable lines as {@link openBillableByClient} — so
+ *  the aging total equals the sum of the per-client open totals — and buckets them
+ *  with the deterministic `agingBuckets` core. Only client-billable work counts (it
+ *  is what can actually be invoiced), matching the open-rollup definition. */
+export interface OpenAging {
+  readonly buckets: AgingReport['buckets']
+  readonly totalMinor: number
+  readonly totalMs: number
+  readonly currencyCode: string
+}
+
+export async function openBillableAging(
+  db: Db,
+  workspaceId: string,
+  asOf: Date = new Date(),
+): Promise<OpenAging> {
+  const { lines, clientByProject } = await openBillableLines(db, workspaceId)
+  const items: OpenItem[] = lines
+    .filter(l => clientByProject.get(l.projectId)) // only client work can be invoiced
+    .map(l => ({ startMs: l.start, amountMinor: l.amountMinor, durationMs: l.durationMs }))
+  const report = agingBuckets(items, asOf.getTime())
+  return {
+    buckets: report.buckets,
+    totalMinor: report.totalMinor,
+    totalMs: report.totalMs,
+    currencyCode: await workspaceCurrency(db, workspaceId),
+  }
 }
 
 /**
