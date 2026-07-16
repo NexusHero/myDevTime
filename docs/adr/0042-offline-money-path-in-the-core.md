@@ -2,6 +2,9 @@
 
 ## Status
 
+**Superseded by [ADR-0049](0049-abandon-offline-first-architecture.md)** — offline-first is abandoned: the
+local store was removed and the app is online-only. The original decision is kept below for the record.
+
 Accepted (owner decision) — **realizes [ADR-0040](0040-offline-first-local-store-as-sync-client.md)**
 (offline store = ADR-0019 client) and is bound by
 [ADR-0005](0005-deterministic-core-llm-assist.md) (deterministic core). Delivered as a slice of the

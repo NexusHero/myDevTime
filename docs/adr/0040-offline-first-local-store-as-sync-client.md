@@ -2,6 +2,9 @@
 
 ## Status
 
+**Superseded by [ADR-0049](0049-abandon-offline-first-architecture.md)** — offline-first is abandoned: the
+local store was removed and the app is online-only. The original decision is kept below for the record.
+
 Accepted (owner decision) — **extends [ADR-0019](0019-sync-protocol.md)** (cross-device sync) and is
 bound by [ADR-0005](0005-deterministic-core-llm-assist.md) (deterministic core). Supersedes the
 offline-only approach proposed in PR #172 (its draft offline-SQLite ADR), which is reworked under the

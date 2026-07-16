@@ -2,6 +2,10 @@
 
 ## Status
 
+**Superseded by [ADR-0049](0049-abandon-offline-first-architecture.md)** — offline-first is abandoned:
+PowerSync was never shipped and the client sync engine was removed; the app is online-only. The original
+decision is kept below for the record.
+
 Accepted (owner decision) — **supersedes the _client half_ of [ADR-0019](0019-sync-protocol.md) and the
 hand-rolled client store/sync of [ADR-0040](0040-offline-first-local-store-as-sync-client.md)**. The
 deterministic conflict policy in `packages/domain` and the offline compute of
