@@ -75,7 +75,12 @@ export class CreateEntryDto extends createZodDto(
   }),
 ) {}
 export class ListEntriesQueryDto extends createZodDto(
-  z.object({ from: wireDate.optional(), to: wireDate.optional() }),
+  z.object({
+    from: wireDate.optional(),
+    to: wireDate.optional(),
+    /** Free-text note search (REQ-036): case-insensitive substring over the entry note. */
+    q: z.string().trim().min(1).max(200).optional(),
+  }),
 ) {}
 export class SummaryQueryDto extends createZodDto(
   z.object({ from: wireDate, to: wireDate, tz: z.string().min(1).default('UTC') }),
