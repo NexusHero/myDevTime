@@ -54,7 +54,11 @@ export interface TimerResource {
    */
   readonly billable: boolean
   readonly punchIn: (input?: StartTimerInput) => void
-  readonly punchOut: () => void
+  /**
+   * Stop the session. An optional `endedAt` (ISO) trims the run to an earlier end — the
+   * forgotten-timer proposal uses it (REQ-033); omitted, it stops at now.
+   */
+  readonly punchOut: (endedAt?: string) => void
   /** Stop the running segment (persisting it) and hold the context to resume. */
   readonly pause: () => void
   /** Start a fresh segment from the paused context; the total keeps climbing. */
@@ -227,29 +231,32 @@ export function useTimer(): TimerResource {
     setPausedSince(null)
   }, [pausedInput, beginEntry])
 
-  const punchOut = useCallback(() => {
-    setAccumulatedMs(0)
-    setPausedInput(null)
-    setPausedSince(null)
-    setRunning(previous => {
-      if (previous === null) return null
-      if (base !== null) {
-        setBusy(true)
-        stopTimer(base)
-          .then(() => {
-            setError(null)
-          })
-          .catch((cause: unknown) => {
-            setRunning(previous) // roll back
-            setError(cause instanceof Error ? cause : new Error(String(cause)))
-          })
-          .finally(() => {
-            setBusy(false)
-          })
-      }
-      return null // optimistic clear
-    })
-  }, [base])
+  const punchOut = useCallback(
+    (endedAt?: string) => {
+      setAccumulatedMs(0)
+      setPausedInput(null)
+      setPausedSince(null)
+      setRunning(previous => {
+        if (previous === null) return null
+        if (base !== null) {
+          setBusy(true)
+          stopTimer(base, endedAt)
+            .then(() => {
+              setError(null)
+            })
+            .catch((cause: unknown) => {
+              setRunning(previous) // roll back
+              setError(cause instanceof Error ? cause : new Error(String(cause)))
+            })
+            .finally(() => {
+              setBusy(false)
+            })
+        }
+        return null // optimistic clear
+      })
+    },
+    [base],
+  )
 
   const elapsed = formatStopwatch(sessionElapsedMs(accumulatedMs, running, new Date()))
   const paused = pausedInput !== null
