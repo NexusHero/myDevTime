@@ -349,7 +349,9 @@ Führe einen intensiven, mehrperspektivischen Qualitäts- und Bug-Audit dieses R
   easy to accept.
 - **Fix (M):** Only treat H:MM as a duration when it is not preceded by a time-of-day cue
   (at/um/@) and not part of a range, or require an explicit unit; otherwise ignore clock-shaped
-  tokens and let the note/LLM path handle them.
+  tokens and let the note/LLM path handle them. *(Fixed: `TIME_OF_DAY_RE` (at/um/ab/von/gegen/@)
+  and `CLOCK_RANGE_RE` (a `H:MM–H:MM` window) are stripped before the duration pass; a bare
+  `2:30` is still a duration.)*
 
 #### M6 — Readiness probe ignores Redis; REDIS_URL optional in production · RISIKO
 
