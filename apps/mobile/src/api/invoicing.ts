@@ -17,6 +17,19 @@ export interface ClientsOpen {
   readonly currencyCode: string
 }
 
+export type AgingKey = 'recent' | 'mid' | 'old'
+export interface AgingBucketDTO {
+  readonly key: AgingKey
+  readonly minor: number
+  readonly ms: number
+}
+export interface OpenAging {
+  readonly buckets: readonly AgingBucketDTO[]
+  readonly totalMinor: number
+  readonly totalMs: number
+  readonly currencyCode: string
+}
+
 export interface InvoiceLineDTO {
   readonly entryId: string
   readonly projectId: string
@@ -93,6 +106,30 @@ export async function fetchClientsOpen(
   fetchImpl: typeof fetch = fetch,
 ): Promise<ClientsOpen> {
   return parseClientsOpen(await getJson(baseUrl, '/api/billing/clients/open', fetchImpl))
+}
+
+const AGING_KEYS: readonly AgingKey[] = ['recent', 'mid', 'old']
+
+export function parseOpenAging(value: unknown): OpenAging {
+  const o = record(value)
+  return {
+    currencyCode: str(o, 'currencyCode'),
+    totalMinor: num(o, 'totalMinor'),
+    totalMs: num(o, 'totalMs'),
+    buckets: parseArray(o.buckets, b => {
+      const key = str(b, 'key')
+      if (!AGING_KEYS.includes(key as AgingKey)) throw new Error(`bad aging key: ${key}`)
+      return { key: key as AgingKey, minor: num(b, 'minor'), ms: num(b, 'ms') }
+    }),
+  }
+}
+
+/** Open (un-invoiced) billable amounts bucketed by age — Reports "Revenue & Budget". */
+export async function fetchOpenAging(
+  baseUrl: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<OpenAging> {
+  return parseOpenAging(await getJson(baseUrl, '/api/billing/aging', fetchImpl))
 }
 
 export interface InvoiceWindowInput {

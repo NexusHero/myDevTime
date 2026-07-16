@@ -197,6 +197,37 @@ describe.skipIf(!databaseUrl)('invoicing (integration)', () => {
     expect(after.clients).toEqual([{ clientId, openMs: 1 * 3_600_000, openMinor: 10_000 }])
   })
 
+  it('openBillableAging_bucketsOpenAmountsByAge', async () => {
+    const client = await createClient(db, wsA, { name: 'Finanzo AG' })
+    const project = await createProject(db, wsA, { name: 'Website', clientId: client.id })
+    await billing.createRate(db, wsA, {
+      level: 'workspace',
+      amountMinorPerHour: 10_000, // 100 €/h → 10 000 minor per 1 h entry
+      effectiveFrom: d('2020-01-01T00:00:00Z'),
+    })
+    const asOf = d('2026-08-20T00:00:00Z')
+    // One 1 h billable entry in each age band relative to asOf.
+    for (const day of ['2026-08-15', '2026-07-11', '2026-06-01']) {
+      // 5 d → recent · 40 d → mid · 80 d → old
+      await createManualEntry(db, wsA, idA, {
+        startedAt: d(`${day}T09:00:00Z`),
+        endedAt: d(`${day}T10:00:00Z`),
+        projectId: project.id,
+        billable: true,
+      })
+    }
+    const aging = await invoicing.openBillableAging(db, wsA, asOf)
+    expect(aging.buckets).toEqual([
+      { key: 'recent', minor: 10_000, ms: 3_600_000 },
+      { key: 'mid', minor: 10_000, ms: 3_600_000 },
+      { key: 'old', minor: 10_000, ms: 3_600_000 },
+    ])
+    expect(aging.totalMinor).toBe(30_000)
+    // Aging total equals the sum of the per-client open totals — the two cards agree.
+    const open = await invoicing.openBillableByClient(db, wsA)
+    expect(open.clients[0]?.openMinor).toBe(aging.totalMinor)
+  })
+
   it('getInvoiceExport_returnsFrozenTotalsAndPricedLines', async () => {
     const { clientId, ids } = await seed(wsA, idA)
     const invoice = await invoicing.issueInvoice(db, wsA, { clientId, from, to, entryIds: ids })

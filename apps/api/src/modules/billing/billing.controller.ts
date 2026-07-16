@@ -149,6 +149,14 @@ export class BillingController {
     return invoicing.openBillableByClient(db, workspaceId)
   }
 
+  // Open billable amounts bucketed by age — the Reports "Revenue & Budget" aging
+  // card (D13). `asOf` lets the caller pin "now" (tests); defaults to the server clock.
+  @Get('aging')
+  async openBillableAging(@CurrentUser() user: AuthenticatedUser, @Query() query: AsOfQueryDto) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    return invoicing.openBillableAging(db, workspaceId, query.asOf ?? new Date())
+  }
+
   @Get('invoices')
   async listInvoices(@CurrentUser() user: AuthenticatedUser) {
     const { db, workspaceId } = await this.ctx.workspaceOf(user)

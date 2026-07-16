@@ -427,7 +427,7 @@ export function TodayScreen(): React.JSX.Element {
   )
 
   const autoTrackerHint = !consented
-    ? "Auto-Tracker is off. Turn it on in Settings to see where this session's time goes — local, exclusible, only while tracking."
+    ? "Auto-Tracker is off. Turn it on in Settings to see where this session's time goes — local to your device, only while tracking."
     : !captureAvailable
       ? "App-usage capture isn't available on this platform yet — it runs in the web app today; local to your device."
       : !active
@@ -506,6 +506,16 @@ export function TodayScreen(): React.JSX.Element {
               </View>
             ))}
           </View>
+          {/* Local-only guarantee, stated where the data actually appears (ADR-0057). */}
+          <Text
+            style={{
+              marginTop: t.spacing.s3,
+              fontSize: t.fontSize['2xs'],
+              color: t.color.ink3,
+            }}
+          >
+            Stays on this device — never uploaded.
+          </Text>
         </>
       ) : (
         <EmptyState title="App usage while tracking" hint={autoTrackerHint} compact />
