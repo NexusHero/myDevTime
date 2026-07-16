@@ -1,7 +1,9 @@
 import { and, eq } from 'drizzle-orm'
+import type { EntitlementEventType } from '@mydevtime/domain'
 import type { Db } from '../../../../db/client.js'
 import { billingCustomers } from '../../../../db/schema.js'
 import * as entitlements from '../../entitlements-service.js'
+import * as credits from '../../credits-service.js'
 import type { PaymentProviderPort, RawWebhook } from '../port.js'
 import type { StripeGateway } from './gateway.js'
 
@@ -13,6 +15,9 @@ import type { StripeGateway } from './gateway.js'
  * and ordering are guaranteed downstream by #21.
  */
 const PROVIDER = 'stripe'
+
+/** Event types that start or renew a paid period — each earns the plan's monthly allowance. */
+const PERIOD_START_TYPES: readonly EntitlementEventType[] = ['subscribed', 'renewed', 'recovered']
 
 export async function getCustomerId(db: Db, workspaceId: string): Promise<string | null> {
   const rows = await db
@@ -69,6 +74,16 @@ export async function handleWebhook(
       periodEnd: event.periodEnd === undefined ? null : new Date(event.periodEnd),
       graceUntil: event.graceUntil === undefined ? null : new Date(event.graceUntil),
     })
+    // A paid period starting/renewing earns the plan's monthly credit allowance (#148).
+    // Idempotent per event id, so webhook redelivery never double-grants; a Stripe paid
+    // subscription confers `pro`.
+    if (PERIOD_START_TYPES.includes(event.type)) {
+      await credits.grantMonthlyAllowance(db, workspaceId, {
+        plan: 'pro',
+        source: PROVIDER,
+        periodRef: event.id,
+      })
+    }
     recorded++
   }
   return { recorded, skipped }

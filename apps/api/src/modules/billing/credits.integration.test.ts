@@ -91,6 +91,72 @@ describe.skipIf(!databaseUrl)('credit ledger (integration)', () => {
     expect(await credits.listLedger(db, wsB)).toEqual([])
   })
 
+  it('MonthlyAllowance_GrantsThePlanAmountOncePerPeriod', async () => {
+    // pro earns 500/period; re-running the same period ref is idempotent.
+    await credits.grantMonthlyAllowance(db, wsA, {
+      plan: 'pro',
+      source: 'stripe',
+      periodRef: 'evt_period_1',
+    })
+    await credits.grantMonthlyAllowance(db, wsA, {
+      plan: 'pro',
+      source: 'stripe',
+      periodRef: 'evt_period_1',
+    })
+    expect(await credits.balanceFor(db, wsA)).toBe(500)
+    // A new period ref grants again.
+    await credits.grantMonthlyAllowance(db, wsA, {
+      plan: 'pro',
+      source: 'stripe',
+      periodRef: 'evt_period_2',
+    })
+    expect(await credits.balanceFor(db, wsA)).toBe(1000)
+  })
+
+  it('MonthlyAllowance_FreePlanGrantsNothing', async () => {
+    const res = await credits.grantMonthlyAllowance(db, wsA, {
+      plan: 'free',
+      source: 'stripe',
+      periodRef: 'evt_free',
+    })
+    expect(res).toBeNull()
+    expect(await credits.balanceFor(db, wsA)).toBe(0)
+  })
+
+  it('TopUp_GrantsThePackCreditsIdempotentlyPerPurchase', async () => {
+    await credits.grantTopUp(db, wsA, {
+      packId: 'pack_medium',
+      source: 'stripe',
+      purchaseRef: 'pi_1',
+    })
+    await credits.grantTopUp(db, wsA, {
+      packId: 'pack_medium',
+      source: 'stripe',
+      purchaseRef: 'pi_1',
+    })
+    expect(await credits.balanceFor(db, wsA)).toBe(550) // billed once
+  })
+
+  it('TopUp_RejectsAnUnknownPack', async () => {
+    await expect(
+      credits.grantTopUp(db, wsA, { packId: 'pack_bogus', source: 'stripe', purchaseRef: 'pi_2' }),
+    ).rejects.toThrow()
+  })
+
+  it('CreditAutomation_IsWorkspaceIsolated', async () => {
+    await credits.grantMonthlyAllowance(db, wsA, {
+      plan: 'pro',
+      source: 'stripe',
+      periodRef: 'evt_iso',
+    })
+    await credits.grantTopUp(db, wsA, {
+      packId: 'pack_small',
+      source: 'stripe',
+      purchaseRef: 'pi_iso',
+    })
+    expect(await credits.balanceFor(db, wsB)).toBe(0)
+  })
+
   it('GetCredits_Unauthenticated_Returns401', async () => {
     const app = await buildApp({
       config: loadConfig({ LOG_LEVEL: 'silent', AUTH_SECRET: 'x'.repeat(32) }),

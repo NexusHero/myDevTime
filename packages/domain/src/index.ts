@@ -149,6 +149,8 @@ export { buildDayPlan, reviewDayPlan } from './planner/plan.js'
 // usage derived from the log; deterministic, LLM-free (ADR-0005).
 export type { CreditEntryKind, CreditEntry, UsageBucket } from './credits/ledger.js'
 export { creditBalance, usageByCategory, canDebit } from './credits/ledger.js'
+export type { TopUpPack } from './credits/allowance.js'
+export { monthlyCreditAllowance, TOPUP_PACKS, topUpPackCredits } from './credits/allowance.js'
 
 // Natural-language time entry (REQ-013, ADR-0005) — deterministic pre-parser that
 // turns a phrase into a draft the user confirms; LLM only for what it can't parse.
