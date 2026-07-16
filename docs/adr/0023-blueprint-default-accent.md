@@ -2,6 +2,9 @@
 
 ## Status
 
+**Superseded by [ADR-0061](0061-design-refresh-v11-sovereign-default-clash-display-live-mark-mascots.md)**
+(Blueprint → Sovereign, v11 design refresh). Retained for history.
+
 Accepted — **supersedes the default-accent selection of [ADR-0022](0022-three-accent-themable-design-system.md)**
 (Sovereign → Blueprint). Everything else in ADR-0022 stands unchanged: the two-axis token
 architecture (accent × mode), the three swappable accents on shared neutrals, and the WCAG-AA

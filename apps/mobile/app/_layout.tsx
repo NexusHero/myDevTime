@@ -21,7 +21,9 @@ import { registerPwa } from '../src/web/registerPwa'
  * and route-level code-splitting on web (§Perf). One codebase, iOS/Android/web.
  *
  * The exact weight files are required directly (not via the package index) so the
- * bundle carries only the ~10 faces the design system actually uses.
+ * bundle carries only the faces the design system actually uses. Clash Display —
+ * the Sovereign/Ember display face (ADR-0061) — is self-hosted from `assets/fonts`
+ * (ITF Free Font License); it is not an `@expo-google-fonts` package.
  */
 export default function RootLayout(): React.JSX.Element | null {
   const [fontsLoaded] = useFonts({
@@ -35,6 +37,8 @@ export default function RootLayout(): React.JSX.Element | null {
     JetBrainsMono_500Medium: require('@expo-google-fonts/jetbrains-mono/500Medium/JetBrainsMono_500Medium.ttf'),
     JetBrainsMono_600SemiBold: require('@expo-google-fonts/jetbrains-mono/600SemiBold/JetBrainsMono_600SemiBold.ttf'),
     JetBrainsMono_700Bold: require('@expo-google-fonts/jetbrains-mono/700Bold/JetBrainsMono_700Bold.ttf'),
+    ClashDisplay_600SemiBold: require('../assets/fonts/ClashDisplay-Semibold.ttf'),
+    ClashDisplay_700Bold: require('../assets/fonts/ClashDisplay-Bold.ttf'),
   })
 
   // Web/PWA: link the manifest + register the app-shell service worker (installable
