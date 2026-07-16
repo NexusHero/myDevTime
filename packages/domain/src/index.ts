@@ -87,6 +87,15 @@ export type {
   BudgetConsumption,
 } from './reporting/finance.js'
 export { priceBillableEntries, budgetConsumptions } from './reporting/finance.js'
+export type {
+  ClientRevenue,
+  OpenItem,
+  AgingKey,
+  AgingBucket,
+  AgingReport,
+  AgingOptions,
+} from './reporting/rollups.js'
+export { revenueByClient, effectiveRateMinorPerHour, agingBuckets } from './reporting/rollups.js'
 
 // Invoicing / "Abrechnung" (design v6, REQ-005/009) — the deterministic freelancer
 // billing flow: priced invoice lines + a selectable draft total, same money math.
