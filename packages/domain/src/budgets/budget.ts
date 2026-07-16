@@ -46,6 +46,52 @@ export function consumedDuration(durations: readonly DurationMs[]): DurationMs {
   return durations.reduce((a, b) => a + b, 0)
 }
 
+/** One sample of a budget's cumulative consumption over time (the burn-down curve). */
+export interface BurndownPoint {
+  /** Sample instant (ms epoch). */
+  readonly at: Instant
+  /** Cumulative consumed at that instant, in the budget's basis unit (ms or minor). */
+  readonly consumed: number
+}
+
+export interface BurndownProjection {
+  /** Consumption rate in the basis unit per millisecond over the sampled span (≥ 0). */
+  readonly ratePerMs: number
+  /**
+   * Projected instant the limit is reached if the recent rate holds, or null when it
+   * won't be — a flat/declining trajectory, an unset limit, or already at/over budget.
+   */
+  readonly exhaustsAt: Instant | null
+  /** True once the latest sample is at or over the limit. */
+  readonly over: boolean
+}
+
+/**
+ * Project when a budget runs out from its recent burn-down (REQ-005). The rate is the
+ * average slope across the sampled span (never negative — a budget's cumulative
+ * consumption only rises), and the exhaustion instant extrapolates the latest sample at
+ * that rate. Returns no projection when the trajectory is flat, the limit is unset, or
+ * the budget is already spent — never false precision. Pure (ADR-0005); the sampling of
+ * the points themselves is the caller's (the server computes consumption as-of each date).
+ */
+export function burndownProjection(
+  points: readonly BurndownPoint[],
+  limit: number,
+): BurndownProjection {
+  const first = points[0]
+  const last = points[points.length - 1]
+  const over = limit > 0 && last !== undefined && last.consumed >= limit
+  if (first === undefined || last === undefined || points.length < 2) {
+    return { ratePerMs: 0, exhaustsAt: null, over }
+  }
+  const spanMs = last.at - first.at
+  const delta = last.consumed - first.consumed
+  const ratePerMs = spanMs > 0 && delta > 0 ? delta / spanMs : 0
+  const exhaustsAt =
+    !over && ratePerMs > 0 && limit > 0 ? last.at + (limit - last.consumed) / ratePerMs : null
+  return { ratePerMs, exhaustsAt, over }
+}
+
 // ── Threshold alerts with hysteresis (no flapping) ───────────────────────────
 
 export interface ThresholdEvaluation {

@@ -11,6 +11,14 @@ import { wireDate } from '../../core/wire-schemas.js'
 
 export class IdParamDto extends createZodDto(z.object({ id: z.uuid() })) {}
 export class AsOfQueryDto extends createZodDto(z.object({ asOf: wireDate.optional() })) {}
+/** Burn-down curve query: optional window (defaults to the trailing 12 weeks) + sample count. */
+export class BudgetBurndownQueryDto extends createZodDto(
+  z.object({
+    from: wireDate.optional(),
+    to: wireDate.optional(),
+    points: z.coerce.number().int().min(2).max(30).default(12),
+  }),
+) {}
 export class BillingSummaryQueryDto extends createZodDto(
   z.object({ from: wireDate, to: wireDate, asOf: wireDate.optional() }),
 ) {}

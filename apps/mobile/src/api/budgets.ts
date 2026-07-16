@@ -76,6 +76,40 @@ export async function fetchBudgetStatus(
   return parseBudgetStatus(await getJson(baseUrl, `/api/billing/budgets/${id}/status`, fetchImpl))
 }
 
+/** One burn-down sample: an instant (ms epoch) and the cumulative consumption then. */
+export interface BurndownSample {
+  readonly atMs: number
+  readonly consumed: number
+}
+export interface BudgetBurndownData {
+  readonly budget: Budget
+  readonly currencyCode: string
+  readonly points: BurndownSample[]
+}
+
+export function parseBudgetBurndown(value: unknown): BudgetBurndownData {
+  const o = record(value)
+  return {
+    budget: parseBudget(o.budget),
+    currencyCode: str(o, 'currencyCode'),
+    points: parseArray(o.points, p => {
+      const r = record(p)
+      return { atMs: Date.parse(str(r, 'at')), consumed: num(r, 'consumed') }
+    }),
+  }
+}
+
+/** The cumulative-consumption trajectory (burn-down) for one budget over the default window. */
+export async function fetchBudgetBurndown(
+  baseUrl: string,
+  id: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<BudgetBurndownData> {
+  return parseBudgetBurndown(
+    await getJson(baseUrl, `/api/billing/budgets/${id}/burndown`, fetchImpl),
+  )
+}
+
 const PROJECT_SCOPE = 'project'
 
 export interface BudgetRingRow {
