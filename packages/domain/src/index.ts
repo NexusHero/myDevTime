@@ -19,6 +19,7 @@ export {
 } from './tracking/time.js'
 export type { TimeEntry, EntrySource } from './tracking/time-entry.js'
 export { isRunning, entryDuration, isValidEntry } from './tracking/time-entry.js'
+export { normalizeQuery, matchesNoteQuery, searchEntriesByNote } from './tracking/search.js'
 export type { RoundingMode, RoundingIncrementMinutes, RoundingRule } from './tracking/rounding.js'
 export { NO_ROUNDING, roundDuration } from './tracking/rounding.js'
 export type { OverlapPolicy, OverlapConflict } from './tracking/overlap.js'
