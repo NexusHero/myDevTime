@@ -419,6 +419,8 @@ Führe einen intensiven, mehrperspektivischen Qualitäts- und Bug-Audit dieses R
 - **Fix (S):** Catch the `unique_violation` on the open-shift index in `clockIn()` and map it to the
   same `ValidationError('already clocked in')` (or use `ON CONFLICT DO NOTHING` and translate the
   no-op). Add a concurrency test asserting exactly one open shift and a 4xx (not 500) for the loser.
+  *(Fixed: `clockIn` catches SQLSTATE 23505 and throws `ValidationError`; a concurrency integration
+  test asserts one open shift + a `ValidationError` (not a raw 500) for the loser.)*
 
 #### M10 — Fabricated subscription plan/renewal shown as fact · FAKT / RISIKO
 

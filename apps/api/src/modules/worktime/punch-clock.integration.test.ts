@@ -1,10 +1,11 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { HOUR_MS, MINUTE_MS } from '@mydevtime/domain'
 import { createDb } from '../../db/client.js'
 import { user } from '../../db/auth-schema.js'
 import { attendanceShifts, workspaces } from '../../db/schema.js'
 import { resolveWorkspaceId } from '../../core/workspace.js'
+import { ValidationError } from '../../errors.js'
 import * as worktime from './service.js'
 
 /**
@@ -66,6 +67,28 @@ describe.skipIf(!databaseUrl)('worktime punch clock (integration)', () => {
   it('RejectsASecondClockInWhileOpen', async () => {
     await worktime.clockIn(db, wsA, idA, { startedAt: d('2026-07-06T08:00:00Z') })
     await expect(worktime.clockIn(db, wsA, idA)).rejects.toThrow(/already clocked in/)
+  })
+
+  it('ConcurrentClockIn_KeepsOneOpenShiftAndMapsTheLoserTo4xx', async () => {
+    // Two clock-ins race: both may pass the read-then guard and insert. The partial
+    // unique index lets exactly one win; the loser must be a clean ValidationError
+    // (→ 400), never a raw unique-violation surfacing as a 500 (audit M9).
+    const results = await Promise.allSettled([
+      worktime.clockIn(db, wsA, idA, { startedAt: d('2026-07-06T08:00:00Z') }),
+      worktime.clockIn(db, wsA, idA, { startedAt: d('2026-07-06T08:00:01Z') }),
+    ])
+
+    expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1)
+    const rejected = results.filter(r => r.status === 'rejected')
+    expect(rejected).toHaveLength(1)
+    expect(rejected[0]?.reason).toBeInstanceOf(ValidationError)
+
+    // Exactly one open shift persisted — data integrity holds under the race.
+    const open = await db
+      .select()
+      .from(attendanceShifts)
+      .where(and(eq(attendanceShifts.workspaceId, wsA), isNull(attendanceShifts.endedAt)))
+    expect(open).toHaveLength(1)
   })
 
   it('ClockOutWithoutAnOpenShiftThrows', async () => {
