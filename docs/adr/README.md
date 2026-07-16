@@ -115,7 +115,7 @@ One line per technology so the stack's shape stays visible without re-reading th
 | expo-sqlite (offline-first local store) | Retired (offline-first abandoned) | ADR-0004/0019 → 0049 |
 | Themable design tokens (`@mydevtime/design`: accent × mode, 3 accents; **Sovereign default** (ADR-0061); density regular/compact, 12-color project palette, absolute soft colors) | Adopt | ADR-0011/0022/0026/0061 |
 | Living brand mark `LiveMark` + edge mascots `Sevi`/`Blocky` (Now-dot blinks/pulses/jumps bound to the timer; mascots in empty states + onboarding only, reduced-motion-safe) | Adopt | ADR-0061 (bound by ADR-0048 motion) |
-| Calendar-centric IA — four places (Today · Planner · Projects · Reports) + a Profile avatar footer; Meetings/Absence/Assistant fold into a typed Planner drawer + Assistant overlay (routes kept for deep links) | Trial (H1 nav change landed; drawer H2 + overlay H3 follow) | ADR-0063 (supersedes ux-vision §3 IA) |
+| Calendar-centric IA — four places (Today · Planner · Projects · Reports) + a Profile avatar footer; Meetings/Absence/Assistant fold into a typed Planner drawer + Assistant overlay (routes kept for deep links) | Trial (H1 nav change + Assistant overlay H3 landed — `✦`/`⌘K` floats the grounded chat over any screen; typed Planner drawer H2 follows) | ADR-0063 (supersedes ux-vision §3 IA) |
 | `@testing-library/react-native` + `react-test-renderer` (mobile component tests, run by Vitest) | Adopt | ADR-0027 |
 | jsdom (DOM env for component tests that mount react-native-web `TextInput` etc., per-file `@vitest-environment`) | Adopt | ADR-0027 |
 | react-native-svg (instrument viz: budget rings, balance gauge, sparklines) | Adopt | ADR-0011/0022 (ux-vision §2.5) |

@@ -11,8 +11,9 @@ import {
   type Screen,
 } from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
-import { Island, type IslandAction } from '../components/index'
+import { Icon, Island, type IslandAction } from '../components/index'
 import { LiveMark } from '../components/canvas/LiveMark'
+import { AssistantOverlay } from '../components/assistant/AssistantOverlay'
 import { initialsOf, useSessionContext } from './SessionContext'
 import { useTimerContext } from '../timer/TimerContext'
 import { usePomodoro } from '../focus/PomodoroContext'
@@ -22,14 +23,17 @@ import { CommandBar } from '../command/CommandBar'
 import { buildCommands, type CommandAction } from '../command/commands'
 import { SCREEN_TITLES } from './titles'
 
-/** The Command Bar's "Go to" destinations — the primary navigable screens, in order. */
+/**
+ * The Command Bar's "Go to" destinations — the primary navigable screens, in order.
+ * The Assistant is deliberately absent: it is a layer, not a place (ADR-0063), so the
+ * palette offers "Open Assistant" (the overlay) instead of routing to a tab.
+ */
 const COMMAND_DESTINATIONS: readonly Screen[] = [
   'today',
   'planner',
   'projects',
   'reports',
   'meetings',
-  'assistant',
   'worktime',
   'absences',
   'credits',
@@ -93,6 +97,9 @@ export function ShellChrome(): React.JSX.Element {
   const worktime = useWorktime()
   const catalog = useCatalog()
   const [cmdOpen, setCmdOpen] = useState(false)
+  // The Assistant overlay (ADR-0063): opened by the ✦ button or ⌘K, floats over the
+  // current screen — a layer, not a place.
+  const [assistantOpen, setAssistantOpen] = useState(false)
   const commands = useMemo(
     () =>
       buildCommands({
@@ -135,6 +142,9 @@ export function ShellChrome(): React.JSX.Element {
       case 'navigate':
         go(action.screen)
         break
+      case 'open-assistant':
+        setAssistantOpen(true)
+        break
     }
   }
 
@@ -153,6 +163,16 @@ export function ShellChrome(): React.JSX.Element {
 
   const commandUi = (
     <>
+      {/* The ✦ button opens the Assistant overlay — a layer, not a place (ADR-0063),
+          sat just above the ⌘K pill. Both reach the same grounded, read-only chat. */}
+      <Pressable
+        onPress={() => setAssistantOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Open assistant"
+        style={[styles.aiTrigger, { backgroundColor: t.color.accent }]}
+      >
+        <Icon name="assistant" size={18} color={t.color.accentInk} />
+      </Pressable>
       <Pressable
         onPress={() => setCmdOpen(true)}
         accessibilityRole="button"
@@ -172,6 +192,7 @@ export function ShellChrome(): React.JSX.Element {
           {Platform.OS === 'web' ? '⌘K' : 'Actions'}
         </Text>
       </Pressable>
+      <AssistantOverlay open={assistantOpen} onClose={() => setAssistantOpen(false)} />
       <CommandBar
         open={cmdOpen}
         onClose={() => setCmdOpen(false)}
@@ -394,5 +415,16 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
+  },
+  // The ✦ Assistant button sits just above the ⌘K pill (bottom-right stack).
+  aiTrigger: {
+    position: 'absolute',
+    right: 16,
+    bottom: 136,
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 })
