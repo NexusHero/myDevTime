@@ -13,6 +13,7 @@ import {
 import { useTheme } from '../theme/ThemeProvider'
 import { Island, type IslandAction } from '../components/index'
 import { useTimerContext } from '../timer/TimerContext'
+import { usePomodoro } from '../focus/PomodoroContext'
 import { useWorktime } from '../hooks/useWorktime'
 import { useCatalog } from '../screens/useCatalog'
 import { CommandBar } from '../command/CommandBar'
@@ -44,6 +45,13 @@ const COMMAND_DESTINATIONS: readonly Screen[] = [
  * navigates by pushing real paths (`buildPath`). The nav model is still the single
  * source of truth; the chrome just draws it and maps it onto URLs.
  */
+/** Milliseconds as `MM:SS` for the Island's focus-mode countdown. */
+function pomodoroMmss(ms: number): string {
+  const total = ms > 0 ? Math.floor(ms / 1000) : 0
+  const p = (n: number): string => String(n).padStart(2, '0')
+  return `${p(Math.floor(total / 60))}:${p(total % 60)}`
+}
+
 export function ShellChrome(): React.JSX.Element {
   const t = useTheme()
   const { width } = useWindowDimensions()
@@ -59,6 +67,7 @@ export function ShellChrome(): React.JSX.Element {
   // One shared timer drives the persistent Island. It shows on every screen EXCEPT
   // Today, where the hero tracker carries the clock — never two clocks (design v2).
   const timer = useTimerContext()
+  const pomodoro = usePomodoro()
   const [islandExpanded, setIslandExpanded] = useState(false)
   const timerActive = timer.running !== null || timer.paused
   const islandActions: readonly IslandAction[] = timerActive
@@ -163,6 +172,20 @@ export function ShellChrome(): React.JSX.Element {
     </>
   )
 
+  // Focus mode (REQ-032): when a Pomodoro runs, the Island carries its phase + countdown
+  // on every screen, so the cadence stays glanceable away from Today.
+  const focusBadge = pomodoro.active
+    ? {
+        label:
+          pomodoro.phase === 'focus'
+            ? 'Focus'
+            : pomodoro.phase === 'longBreak'
+              ? 'Long break'
+              : 'Break',
+        remaining: pomodoroMmss(pomodoro.remainingMs),
+      }
+    : null
+
   const islandFor = (posture: 'floating' | 'docked'): React.JSX.Element | null =>
     active === 'today' ? null : (
       <Island
@@ -173,6 +196,7 @@ export function ShellChrome(): React.JSX.Element {
         accumulatedMs={timer.accumulatedMs}
         pausedSinceMs={timer.pausedSinceMs}
         punched={timerActive}
+        focus={focusBadge}
         expanded={islandExpanded}
         onToggle={() => setIslandExpanded(e => !e)}
         actions={islandActions}

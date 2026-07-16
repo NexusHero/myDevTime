@@ -25,6 +25,7 @@ import { usePreferences } from '../hooks/usePreferences'
 import { useInsights } from '../hooks/useInsights'
 import { useTrackReminder } from '../hooks/useTrackReminder'
 import { useForgottenTimer } from '../hooks/useForgottenTimer'
+import { usePomodoro } from '../focus/PomodoroContext'
 import { useAutoTracker } from '../autotracker/useAutoTracker'
 import { NlQuickAdd } from './NlQuickAdd'
 import { useCatalog } from './useCatalog'
@@ -43,6 +44,13 @@ function clockTime(iso: string): string {
   const d = new Date(iso)
   const p = (n: number): string => String(n).padStart(2, '0')
   return `${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+/** Milliseconds as `MM:SS` (the Pomodoro phase countdown). */
+function mmss(ms: number): string {
+  const total = ms > 0 ? Math.floor(ms / 1000) : 0
+  const p = (n: number): string => String(n).padStart(2, '0')
+  return `${p(Math.floor(total / 60))}:${p(total % 60)}`
 }
 
 /**
@@ -126,6 +134,12 @@ export function TodayScreen(): React.JSX.Element {
     timer.running ? Date.parse(timer.running.startedAt) : null,
     timer.running?.id ?? null,
   )
+
+  // Focus mode / Pomodoro (REQ-032): focus intervals run as ordinary timer segments,
+  // breaks pause them; this reads the shared session and drives it from the control below.
+  const pomodoro = usePomodoro()
+  const pomodoroPhaseLabel =
+    pomodoro.phase === 'focus' ? 'Focus' : pomodoro.phase === 'longBreak' ? 'Long break' : 'Break'
 
   // Neutral, judgement-free colours for the workload chip: a calm week reads as good,
   // an ordinary one as quiet ink, a heavy one as a gentle warning — never alarm.
@@ -612,6 +626,77 @@ export function TodayScreen(): React.JSX.Element {
     )
   }
 
+  // Focus mode control (REQ-032): start a Pomodoro (25/5) or, while one runs, show the
+  // phase + countdown with skip/stop. Each focus interval is an ordinary timer segment.
+  const pomodoroActive = pomodoro.active
+  const pomodoroIsBreak = pomodoro.phase === 'break' || pomodoro.phase === 'longBreak'
+  const pomodoroTone = pomodoroIsBreak ? t.color.good : t.color.accent
+  const pomodoroCard = pomodoroActive ? (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: t.spacing.s3,
+        padding: t.spacing.s4,
+        borderRadius: t.radius.card,
+        borderWidth: 1,
+        borderColor: pomodoroTone,
+        backgroundColor: t.color.surface,
+      }}
+    >
+      <View style={{ flex: 1, minWidth: 160 }}>
+        <Text style={{ fontSize: t.fontSize['2xs'], fontWeight: '700', color: pomodoroTone }}>
+          {`${pomodoroPhaseLabel.toUpperCase()} · ${String(pomodoro.completedFocus)} done`}
+        </Text>
+        <Text
+          style={{
+            fontFamily: t.fontFamily.numeric,
+            fontSize: t.fontSize['2xl'],
+            fontWeight: '600',
+            color: t.color.ink,
+          }}
+        >
+          {mmss(pomodoro.remainingMs)}
+        </Text>
+      </View>
+      <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
+        <Button size="sm" variant="ghost" onPress={() => pomodoro.skip()}>
+          {pomodoroIsBreak ? 'Skip break' : 'Skip'}
+        </Button>
+        <Button size="sm" variant="ghost" onPress={() => pomodoro.stop()}>
+          End focus
+        </Button>
+      </View>
+    </View>
+  ) : !active ? (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: t.spacing.s3,
+        padding: t.spacing.s4,
+        borderRadius: t.radius.card,
+        borderWidth: 1,
+        borderColor: t.color.border,
+        backgroundColor: t.color.surface,
+      }}
+    >
+      <View style={{ flex: 1, minWidth: 160 }}>
+        <Text style={{ fontSize: t.fontSize.sm, fontWeight: '700', color: t.color.ink }}>
+          Focus mode
+        </Text>
+        <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2, marginTop: 2 }}>
+          25 min focus, 5 min break — each focus block is tracked like any timer.
+        </Text>
+      </View>
+      <Button size="sm" onPress={() => pomodoro.start()}>
+        Start focus
+      </Button>
+    </View>
+  ) : null
+
   // Today carries the clock in its hero tracker, so the persistent Island is hidden
   // here and shown on every other screen from the AppShell (design v2 — never two
   // clocks). A little bottom clearance keeps the last card off the tab bar.
@@ -686,6 +771,8 @@ export function TodayScreen(): React.JSX.Element {
         </View>
 
         {heroBar}
+
+        {pomodoroCard}
 
         {reminder.show && (
           <View

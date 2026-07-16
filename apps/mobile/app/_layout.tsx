@@ -8,6 +8,7 @@ import { ShellChrome } from '../src/shell/ShellChrome'
 import { AuthGate } from '../src/shell/AuthGate'
 import { OnboardingGate } from '../src/onboarding/OnboardingGate'
 import { TimerProvider } from '../src/timer/TimerContext'
+import { PomodoroProvider } from '../src/focus/PomodoroContext'
 import { makeQueryClient } from '../src/query/queryClient'
 import { registerPwa } from '../src/web/registerPwa'
 
@@ -57,7 +58,9 @@ export default function RootLayout(): React.JSX.Element | null {
           <AuthGate>
             <OnboardingGate>
               <TimerProvider>
-                <ShellChrome />
+                <PomodoroProvider>
+                  <ShellChrome />
+                </PomodoroProvider>
               </TimerProvider>
             </OnboardingGate>
           </AuthGate>
