@@ -266,6 +266,33 @@ a re-read of the same checklist:
    checkbox, for anything touching a trust boundary.
 4. **Docs currency** — does the changed behavior show up in the docs a future reader would consult?
 
+### The eight review perspectives — the standing review lens
+
+The four passes above are the *shape* of a review. **Who** performs them — and the specific class
+of failure each is hunting — is fixed by eight standing perspectives. Every non-trivial change is
+reviewed through all eight; on a small change one reviewer wears several hats, but no perspective
+is skipped by default. These are the same eight the periodic codebase audit fans out (see
+[`docs/audit/`](../../docs/audit/)), promoted from a point-in-time exercise to the everyday lens —
+so a review is not "one person's read" but a checklist of eight distinct failure modes.
+
+| # | Perspective | The question this lens asks |
+|---|-------------|-----------------------------|
+| 1 | **Requirements Engineer** | Does the change match its `REQ-NNN` and the register's stated status? Are the register **and** the traceability matrix updated in *this* PR? Is any delivered scope left undocumented, or any status overstated? |
+| 2 | **Architect** | Does it conform to the ADRs and the module boundaries, or smuggle in a new pattern that needs its own ADR? Is the deterministic core kept pure (ADR-0005)? Are volatile vendors confined to one adapter (§2.2)? No god classes; dependencies through interfaces, not concretes (SOLID)? |
+| 3 | **Software Developer** | Is the code correct at the edges — null/empty/boundary/overflow, timezone/DST, integer-money? Is it readable and idiomatic to its neighbours? Are error paths handled, not swallowed? |
+| 4 | **DevOps Engineer** | Does it deploy and roll back safely — migrations under a lock, replicas, secrets, health/readiness, non-root containers? Is anything that can fail in production observable (§8)? |
+| 5 | **Tester** | Do the tests assert *behaviour*, and would they fail if the logic were subtly wrong? Are the concurrency, negative-isolation, and error-mapping paths covered — not just the happy path? Is there an **acceptance-tier test** exercising the requirement end-to-end against the real system (§7)? |
+| 6 | **UX Designer** | Does the UI honour the UX vision and the design system? English-only copy, honest empty/loading/error states, no fabricated numbers, touch targets and motion within spec? |
+| 7 | **Customer / User** | Does the feature actually do what it claims from the user's seat — no silently-discarded input, no dead affordance, no false confirmation, no data loss on the real render target? |
+| 8 | **Security & Correctness** | Every trust boundary checked: authz, workspace isolation by construction, idempotency/replay, no self-mint / self-grant, no PII in logs, deterministic numbers correct to the last minor unit? |
+
+**Adversarial verification — the rule that keeps the review honest.** A finding is not reported
+because it *looks* wrong; it is reported because a second, skeptical pass tried to **disprove** it
+and failed. Every candidate separates **FAKT** (proven from the code, cited `file:line`) from
+**RISIKO** (a real but conditional failure) from **MEINUNG** (taste); only FAKT/RISIKO that
+survive the disprove-pass reach the author, each carrying its `file:line` evidence. No false
+alarms, no vibes — a claim without a citation is not a finding.
+
 ---
 
 ## 7. Definition of Done — the master checklist
@@ -275,6 +302,11 @@ A change is done, and its PR mergeable, only when **all** hold:
 - [ ] Build succeeds; strict/lint checks pass with zero suppressions added without justification
 - [ ] All tests green, none skipped; new behavior has a test written before the implementation
 - [ ] Line coverage on core logic stays **≥ 90%**, achieved architecturally, not by shallow tests
+- [ ] **Every delivered requirement carries an acceptance-tier test** — the requirement exercised
+      end-to-end against the real system (API-integration against a real datastore, or a browser
+      E2E for a user-facing golden path; a client render test for a client-only requirement) —
+      named in the requirements-traceability matrix. A requirement reaching Done/Verified without
+      one is not done
 - [ ] **SOLID holds**: no god classes, dependencies through interfaces across boundaries
 - [ ] Every new endpoint/entry point is exercised by a test **and** documented (OpenAPI/equivalent)
 - [ ] No secrets, API keys, or PII committed
