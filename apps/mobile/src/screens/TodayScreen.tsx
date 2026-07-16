@@ -22,6 +22,7 @@ import { useTimerContext } from '../timer/TimerContext'
 import { usePlanner } from '../hooks/usePlanner'
 import { usePreferences } from '../hooks/usePreferences'
 import { useInsights } from '../hooks/useInsights'
+import { useTrackReminder } from '../hooks/useTrackReminder'
 import { useAutoTracker } from '../autotracker/useAutoTracker'
 import { NlQuickAdd } from './NlQuickAdd'
 import { useCatalog } from './useCatalog'
@@ -105,6 +106,10 @@ export function TodayScreen(): React.JSX.Element {
   // focus streak and a neutral workload level. Both render as header chips only when
   // there is something honest to show; nothing is fabricated.
   const insights = useInsights().data
+
+  // Smart Reminder (REQ-033/§D12): a deterministic nudge when clocked in but not
+  // tracking — start a timer, or add it below. Never AI (no gradient), always dismissible.
+  const reminder = useTrackReminder()
 
   // Neutral, judgement-free colours for the workload chip: a calm week reads as good,
   // an ordinary one as quiet ink, a heavy one as a gentle warning — never alarm.
@@ -597,6 +602,39 @@ export function TodayScreen(): React.JSX.Element {
         </View>
 
         {heroBar}
+
+        {reminder.show && (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: t.spacing.s3,
+              padding: t.spacing.s4,
+              borderRadius: t.radius.card,
+              borderWidth: 1,
+              borderColor: t.color.warn,
+              backgroundColor: t.color.warnSoft,
+            }}
+          >
+            <View style={{ flex: 1, minWidth: 180 }}>
+              <Text style={{ fontSize: t.fontSize.sm, fontWeight: '700', color: t.color.ink }}>
+                Clocked in, but not tracking
+              </Text>
+              <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2, marginTop: 2 }}>
+                Start a timer so this time lands on a project — or add it below.
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
+              <Button size="sm" onPress={() => timer.punchIn()}>
+                Start timer
+              </Button>
+              <Button size="sm" variant="ghost" onPress={reminder.dismiss}>
+                Dismiss
+              </Button>
+            </View>
+          </View>
+        )}
 
         {askMood && <MoodCheck onDone={() => setAskMood(false)} />}
 
