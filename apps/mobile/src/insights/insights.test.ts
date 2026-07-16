@@ -5,6 +5,7 @@ import {
   absenceDateSet,
   buildBalance,
   buildDayFocus,
+  dailyMinutesSeries,
   focusMinutesByDate,
   lastNDates,
   weekToDateMinutes,
@@ -85,6 +86,21 @@ describe('weekToDateMinutes', () => {
       ['2026-07-12', 999], // Sunday of the previous week — excluded
     ])
     expect(weekToDateMinutes(focus, '2026-07-15')).toBe(350)
+  })
+})
+
+describe('dailyMinutesSeries', () => {
+  it('MapsEachDateToItsTrackedMinutes_ZeroWhenAbsent', () => {
+    const dates = ['2026-07-13', '2026-07-14', '2026-07-15']
+    const focus = new Map([
+      ['2026-07-13', 120],
+      ['2026-07-15', 45],
+    ])
+    expect(dailyMinutesSeries(dates, focus)).toEqual([
+      { date: '2026-07-13', value: 120 },
+      { date: '2026-07-14', value: 0 },
+      { date: '2026-07-15', value: 45 },
+    ])
   })
 })
 

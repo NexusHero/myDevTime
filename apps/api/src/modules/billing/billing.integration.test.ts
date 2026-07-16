@@ -118,6 +118,57 @@ describe.skipIf(!databaseUrl)('billing (integration)', () => {
     expect(status.reached).toEqual([0.8])
   })
 
+  it('BudgetBurndown_SamplesCumulativeConsumptionAcrossTheWindow', async () => {
+    // One 2h entry on 2026-06-01; an hours budget. Sampling before→after must climb
+    // from 0 to the full 2h, monotonically, and match the as-of status at the end.
+    const projectId = await projectWithEntry('2026-06-01T09:00:00Z', 2)
+    const budget = await billing.createBudget(db, wsA, {
+      scope: 'project',
+      scopeId: projectId,
+      basis: 'hours',
+      limitAmount: 10 * 3_600_000, // 10h cap
+      period: 'total',
+      thresholds: [0.8, 1],
+    })
+    const result = await billing.budgetBurndownFor(db, wsA, budget.id, {
+      from: d('2026-05-01T00:00:00Z'),
+      to: d('2026-07-01T00:00:00Z'),
+      points: 5,
+    })
+    const consumed = result.points.map(p => p.consumed)
+    expect(consumed).toHaveLength(5)
+    // Non-decreasing cumulative curve.
+    for (let i = 1; i < consumed.length; i += 1) {
+      expect(consumed[i]!).toBeGreaterThanOrEqual(consumed[i - 1]!)
+    }
+    // First sample predates the entry (0), the last includes the full 2h.
+    expect(consumed[0]).toBe(0)
+    expect(consumed[consumed.length - 1]).toBe(2 * 3_600_000)
+    // The final point matches the as-of status consumption exactly.
+    const status = await billing.budgetStatusFor(db, wsA, budget.id, d('2026-07-01T00:00:00Z'))
+    expect(consumed[consumed.length - 1]).toBe(status.status.consumed)
+  })
+
+  it('BudgetBurndown_IsWorkspaceIsolated', async () => {
+    const projectId = await projectWithEntry('2026-06-01T09:00:00Z', 1)
+    const budget = await billing.createBudget(db, wsA, {
+      scope: 'project',
+      scopeId: projectId,
+      basis: 'hours',
+      limitAmount: 3_600_000,
+      period: 'total',
+      thresholds: [1],
+    })
+    // Workspace B must not be able to read A's budget burn-down.
+    await expect(
+      billing.budgetBurndownFor(db, wsB, budget.id, {
+        from: d('2026-05-01T00:00:00Z'),
+        to: d('2026-07-01T00:00:00Z'),
+        points: 3,
+      }),
+    ).rejects.toThrow()
+  })
+
   it('EvaluateBudget_CrossesThreshold_FiresOnceThenHoldsViaHysteresis', async () => {
     const projectId = await projectWithEntry('2026-06-01T09:00:00Z', 1)
     await billing.createRate(db, wsA, {

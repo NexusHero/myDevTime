@@ -107,6 +107,25 @@ export interface BalanceView {
   readonly hasData: boolean
 }
 
+/** One heatmap cell: a calendar date and the minutes tracked that day. */
+export interface HeatCell {
+  readonly date: string
+  readonly value: number
+}
+
+/**
+ * The daily tracked-minutes series for the Reports heatmap (REQ-005): one `{date, value}`
+ * per date in `dates` (ascending), the value being that day's total tracked minutes (0
+ * when nothing was tracked). Pure — the same composed summary the other insights use —
+ * so it is unit-tested directly and shows real data or an honest all-zero grid.
+ */
+export function dailyMinutesSeries(
+  dates: readonly string[],
+  focusByDate: ReadonlyMap<string, number>,
+): HeatCell[] {
+  return dates.map(date => ({ date, value: focusByDate.get(date) ?? 0 }))
+}
+
 export function buildBalance(
   dates: readonly string[],
   focusByDate: ReadonlyMap<string, number>,

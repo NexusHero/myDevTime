@@ -10,6 +10,7 @@ import {
   Card,
   CheckinCard,
   EmptyState,
+  Heatmap,
   LoadMeter,
   ScreenScaffold,
   Sparkline,
@@ -20,6 +21,8 @@ import { useReports } from '../hooks/useReports'
 import { useRevenueBudget } from '../hooks/useRevenueBudget'
 import { useBalance } from '../hooks/useBalance'
 import { useCheckin } from '../hooks/useCheckin'
+import { useTrackingHeatmap } from '../hooks/useTrackingHeatmap'
+import { useBudgetBurndown } from '../hooks/useBudgetBurndown'
 import { rangeLabel, type ReportRange } from '../reports/window'
 import type { ClientRevenueRow } from '../reports/revenueBudget'
 import type { AgingKey, OpenAging } from '../api/invoicing'
@@ -28,12 +31,13 @@ import type { AgingKey, OpenAging } from '../api/invoicing'
  * Reports (REQ-005/009/032, ux-vision §3) — three views. Overview + Revenue & Budget
  * show the selected window (Week/Month/Year) from the live `useReports`/`useRevenueBudget`
  * resources (ADR-0005): Worked, Revenue, Overtime balance, the per-project distribution,
- * the budget rings, revenue-by-client and aging. Balance (design v10) shows the trailing
- * ten weeks from `useBalance` — the neutral workload meter, the focus trend and the
- * day-length spread — plus the local-only weekly check-in (`useCheckin`, ADR-0060). There
- * is no fabricated data: with no tracked time the cards show their empty state, and the
- * analytics without a live source yet (burn-down, heatmap) show an honest "coming soon"
- * placeholder. Every figure renders through the pure formatters in `@mydevtime/design`.
+ * the budget rings, revenue-by-client and aging, plus the 12-week tracking heatmap and the
+ * most-committed budget's burn-down (`useTrackingHeatmap`/`useBudgetBurndown`). Balance
+ * (design v10) shows the trailing ten weeks from `useBalance` — the neutral workload meter,
+ * the focus trend and the day-length spread — plus the local-only weekly check-in
+ * (`useCheckin`, ADR-0060). There is no fabricated data: with no tracked time every card
+ * shows its honest empty state. Every figure renders through the pure formatters in
+ * `@mydevtime/design`.
  */
 type Range = ReportRange
 
@@ -334,7 +338,14 @@ export function ReportsScreen(): React.JSX.Element {
   const rb = useRevenueBudget(range)
   const balance = useBalance()
   const checkin = useCheckin()
+  const heatmap = useTrackingHeatmap()
   const label = rangeLabel(range)
+  // The burn-down follows the most-committed budget — the one closest to exhausting.
+  const topBudget =
+    [...(reports.data?.budgets ?? [])]
+      .filter(b => b.ratio > 0)
+      .sort((a, b) => b.ratio - a.ratio)[0] ?? null
+  const burndown = useBudgetBurndown(topBudget?.id ?? null)
 
   const data = reports.data
   const trackedMs = data?.totalMs ?? 0
@@ -350,12 +361,6 @@ export function ReportsScreen(): React.JSX.Element {
 
   const loading = reports.loading && data === null
   const error = reports.error !== null && data === null ? reports.error : null
-
-  const soon = (title: string, hint: string): React.JSX.Element => (
-    <Card title={title}>
-      <EmptyState title="Coming soon" hint={hint} compact />
-    </Card>
-  )
 
   const summaryTiles = (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s3 }}>
@@ -481,6 +486,119 @@ export function ReportsScreen(): React.JSX.Element {
     </>
   )
 
+  // Tracking heatmap (REQ-005): twelve weeks of real daily tracked minutes. Renders the
+  // deterministic `dailyMinutesSeries`; an all-zero grid is honest, not a placeholder.
+  const heatCells = heatmap.data ?? []
+  const heatMax = heatCells.reduce((m, c) => Math.max(m, c.value), 0)
+  const heatmapCard = (
+    <Card title="Consistency" subtitle="Tracked time · last 12 weeks">
+      {heatmap.loading && heatmap.data === null ? (
+        <Text style={{ color: t.color.ink2 }}>Loading…</Text>
+      ) : heatMax === 0 ? (
+        <EmptyState
+          title="No tracked time yet"
+          hint="Track a few days and the last twelve weeks light up here — darker means more tracked that day."
+          compact
+        />
+      ) : (
+        <>
+          <Heatmap label="Minutes tracked per day" data={heatCells} max={heatMax} />
+          <Text
+            style={{ marginTop: t.spacing.s2, fontSize: t.fontSize['2xs'], color: t.color.ink3 }}
+          >
+            Darker = more tracked that day · peak {formatDuration(heatMax * 60_000)} h.
+          </Text>
+        </>
+      )}
+    </Card>
+  )
+
+  // Budget burn-down (REQ-005, design v10): the most-committed budget's cumulative
+  // consumption curve + a deterministic exhaustion projection (`burndownProjection`).
+  const DAY_MS = 86_400_000
+  const MONTHS_ABBR = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ]
+  const monthDay = (ms: number): string => {
+    const dt = new Date(ms)
+    return `${MONTHS_ABBR[dt.getUTCMonth()] ?? ''} ${String(dt.getUTCDate())}`
+  }
+  const burnData = burndown.data
+  const fmtBudget = (v: number): string =>
+    burnData && burnData.budget.basis === 'money'
+      ? formatMoneyMinor(v, burnData.currencyCode)
+      : `${formatDuration(v)} h`
+  const bdPoints = burnData?.points ?? []
+  const bdLast = bdPoints[bdPoints.length - 1]?.consumed ?? 0
+  const bdLimit = burnData?.budget.limitAmount ?? 0
+  const bdPct = bdLimit > 0 ? Math.round((bdLast / bdLimit) * 100) : 0
+  const proj = burndown.projection
+  const projText = !proj
+    ? ''
+    : proj.over
+      ? 'Over budget — every further hour is unbudgeted.'
+      : proj.exhaustsAt !== null
+        ? `At ${fmtBudget(proj.ratePerMs * DAY_MS)}/day, projected to run out around ${monthDay(proj.exhaustsAt)}.`
+        : 'On track — no exhaustion at the current pace.'
+  const burndownCard = (
+    <Card
+      title="Budget burn-down"
+      subtitle={
+        topBudget ? `${topBudget.name} · ${fmtBudget(bdLimit)} budget` : 'Most-committed budget'
+      }
+    >
+      {topBudget === null ? (
+        <EmptyState
+          title="No budget to track yet"
+          hint="Set a project budget (Projects → a project → Budget) and its burn-down appears here."
+          compact
+        />
+      ) : burndown.loading && burnData === null ? (
+        <Text style={{ color: t.color.ink2 }}>Loading…</Text>
+      ) : bdPoints.length < 2 ? (
+        <EmptyState
+          title="Not enough history yet"
+          hint="A little more tracked time and the consumption curve appears here."
+          compact
+        />
+      ) : (
+        <View style={{ gap: t.spacing.s3 }}>
+          <Sparkline
+            values={bdPoints.map(p => p.consumed)}
+            width={300}
+            height={48}
+            color={proj?.over ? t.color.crit : t.color.accent}
+          />
+          <Text
+            style={{
+              fontFamily: t.fontFamily.numeric,
+              fontSize: t.fontSize.xs,
+              color: t.color.ink,
+            }}
+          >
+            {`${fmtBudget(bdLast)} of ${fmtBudget(bdLimit)} used · ${String(bdPct)}%`}
+          </Text>
+          <Text
+            style={{ fontSize: t.fontSize['2xs'], color: proj?.over ? t.color.crit : t.color.ink3 }}
+          >
+            {projText}
+          </Text>
+        </View>
+      )}
+    </Card>
+  )
+
   const overviewView = (
     <>
       {summaryTiles}
@@ -494,10 +612,8 @@ export function ReportsScreen(): React.JSX.Element {
         {distributionCard}
         {budgetsCard}
       </View>
-      {soon(
-        'More analytics',
-        'Budget burn-down and the weekly heatmap appear here once their aggregation is live. Workload, the day-length spread and the weekly check-in are live under the Balance tab.',
-      )}
+      {heatmapCard}
+      {burndownCard}
     </>
   )
 
