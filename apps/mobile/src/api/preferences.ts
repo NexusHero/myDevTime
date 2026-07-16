@@ -15,6 +15,8 @@ export interface Preferences {
   readonly breakReminders: boolean
   readonly calendarSync: boolean
   readonly autoTracker: boolean
+  /** First-run onboarding completed (REQ-044) — app state, durable + cross-device, not a Settings toggle. */
+  readonly onboarded: boolean
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -25,6 +27,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   breakReminders: true,
   calendarSync: false,
   autoTracker: false,
+  onboarded: false,
 }
 
 export type PreferenceKey = keyof Preferences
