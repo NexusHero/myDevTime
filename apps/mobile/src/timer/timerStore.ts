@@ -39,7 +39,11 @@ export function loadTimerSession(): PersistedTimerSession | null {
       typeof rec.pausedInput === 'object' && rec.pausedInput !== null
         ? (rec.pausedInput as StartTimerInput)
         : null
-    return { accumulatedMs, pausedInput }
+    const pausedSinceMs =
+      typeof rec.pausedSinceMs === 'number' && Number.isFinite(rec.pausedSinceMs)
+        ? rec.pausedSinceMs
+        : null
+    return { accumulatedMs, pausedInput, pausedSinceMs }
   } catch {
     return null
   }

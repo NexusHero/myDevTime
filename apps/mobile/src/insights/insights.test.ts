@@ -3,6 +3,7 @@ import type { Summary } from '../api/reports.js'
 import type { Absence } from '../api/absences.js'
 import {
   absenceDateSet,
+  buildBalance,
   buildDayFocus,
   focusMinutesByDate,
   lastNDates,
@@ -84,5 +85,37 @@ describe('weekToDateMinutes', () => {
       ['2026-07-12', 999], // Sunday of the previous week — excluded
     ])
     expect(weekToDateMinutes(focus, '2026-07-15')).toBe(350)
+  })
+})
+
+describe('buildBalance', () => {
+  // A 14-day window (two weeks), 2026-07-02 … 2026-07-15 (a Wednesday).
+  const dates = lastNDates('2026-07-15', 14)
+  // 120 focus minutes on every day → known trend + distribution.
+  const focus = new Map(dates.map(d => [d, 120]))
+
+  it('ComposesLoadTrendAndDistributionFromTheCore', () => {
+    const b = buildBalance(dates, focus, new Set(), '2026-07-15', 2400, 2)
+    // Load: week-to-date is Mon–Wed = 3×120 = 360 min vs 2400 target → calm.
+    expect(b.load.level).toBe('calm')
+    expect(b.load.actualMin).toBe(360)
+    // Trend: 2 weeks of 7×120 = 840 each.
+    expect(b.trend).toEqual([840, 840])
+    // Distribution: every active day is 120 → all five numbers 120.
+    expect(b.distribution).toEqual({ min: 120, q1: 120, median: 120, q3: 120, max: 120 })
+    expect(b.hasData).toBe(true)
+  })
+
+  it('NoTrackedTime_HasDataFalseAndNullDistribution', () => {
+    const empty = new Map<string, number>()
+    const b = buildBalance(dates, empty, new Set(), '2026-07-15', 2400, 2)
+    expect(b.hasData).toBe(false)
+    expect(b.distribution).toBeNull()
+    expect(b.trend).toEqual([0, 0])
+  })
+
+  it('UnknownTarget_LoadRatioIsNull', () => {
+    const b = buildBalance(dates, focus, new Set(), '2026-07-15', 0, 2)
+    expect(b.load.ratio).toBeNull()
   })
 })

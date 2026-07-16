@@ -4,30 +4,38 @@ import { formatDuration, formatMoneyMinor, formatPercent, projectColor } from '@
 import { Text } from '../components/core/Text'
 import { useTheme } from '../theme/ThemeProvider'
 import {
+  BoxPlot,
   BudgetRing,
   Button,
   Card,
+  CheckinCard,
   EmptyState,
+  LoadMeter,
   ScreenScaffold,
+  Sparkline,
   StatTile,
   Tabs,
 } from '../components/index'
 import { useReports } from '../hooks/useReports'
 import { useRevenueBudget } from '../hooks/useRevenueBudget'
+import { useBalance } from '../hooks/useBalance'
+import { useCheckin } from '../hooks/useCheckin'
+import { rangeLabel, type ReportRange } from '../reports/window'
 import type { ClientRevenueRow } from '../reports/revenueBudget'
 import type { AgingKey, OpenAging } from '../api/invoicing'
 
 /**
- * Reports (REQ-005/009, ux-vision §3) — the trailing-week figures are the live
- * `useReports` resource's (ADR-0005): Worked, Revenue, Overtime balance, the
- * per-project distribution and the budget rings, all computed by the deterministic
- * core. There is no fabricated data: with no tracked time the cards show their
- * empty state, and the analytics that have no live source yet (Month/Year,
- * workload, burn-down, day-length distribution, heatmap, check-in) show an honest
- * "coming soon" placeholder rather than demo numbers. Every figure renders
- * through the pure formatters in `@mydevtime/design`.
+ * Reports (REQ-005/009/032, ux-vision §3) — three views. Overview + Revenue & Budget
+ * show the selected window (Week/Month/Year) from the live `useReports`/`useRevenueBudget`
+ * resources (ADR-0005): Worked, Revenue, Overtime balance, the per-project distribution,
+ * the budget rings, revenue-by-client and aging. Balance (design v10) shows the trailing
+ * ten weeks from `useBalance` — the neutral workload meter, the focus trend and the
+ * day-length spread — plus the local-only weekly check-in (`useCheckin`, ADR-0060). There
+ * is no fabricated data: with no tracked time the cards show their empty state, and the
+ * analytics without a live source yet (burn-down, heatmap) show an honest "coming soon"
+ * placeholder. Every figure renders through the pure formatters in `@mydevtime/design`.
  */
-type Range = 'week' | 'month' | 'year'
+type Range = ReportRange
 
 interface DistItem {
   readonly id: string
@@ -320,12 +328,13 @@ export function ReportsScreen(): React.JSX.Element {
   const t = useTheme()
   const { width } = useWindowDimensions()
   const stacked = width < 720
-  const reports = useReports()
-  const rb = useRevenueBudget()
-
   const [range, setRange] = useState<Range>('week')
-  const [view, setView] = useState<'overview' | 'money'>('overview')
-  const isWeek = range === 'week'
+  const [view, setView] = useState<'overview' | 'money' | 'balance'>('overview')
+  const reports = useReports(range)
+  const rb = useRevenueBudget(range)
+  const balance = useBalance()
+  const checkin = useCheckin()
+  const label = rangeLabel(range)
 
   const data = reports.data
   const trackedMs = data?.totalMs ?? 0
@@ -351,7 +360,7 @@ export function ReportsScreen(): React.JSX.Element {
   const summaryTiles = (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s3 }}>
       {[
-        { key: 'worked', label: 'Worked · Week', value: `${formatDuration(trackedMs)} h` },
+        { key: 'worked', label: `Worked · ${label}`, value: `${formatDuration(trackedMs)} h` },
         { key: 'revenue', label: 'Revenue', value: formatMoneyMinor(revenueMinor, currencyCode) },
         { key: 'saldo', label: 'Overtime balance', value: overtimeLabel(overtimeMs) },
       ].map(tile => (
@@ -363,7 +372,7 @@ export function ReportsScreen(): React.JSX.Element {
   )
 
   const distributionCard = (
-    <Card title="Where did the time go?" subtitle="Week · by project" style={{ flex: 1 }}>
+    <Card title="Where did the time go?" subtitle={`${label} · by project`} style={{ flex: 1 }}>
       {loading ? (
         <Text style={{ color: t.color.ink2 }}>Loading…</Text>
       ) : error !== null ? (
@@ -377,7 +386,7 @@ export function ReportsScreen(): React.JSX.Element {
   )
 
   const budgetsCard = (
-    <Card title="Budgets" subtitle="Week · usage by project">
+    <Card title="Budgets" subtitle="Usage by project">
       {loading ? (
         <Text style={{ color: t.color.ink2 }}>Loading…</Text>
       ) : budgets.length === 0 ? (
@@ -436,7 +445,7 @@ export function ReportsScreen(): React.JSX.Element {
         {[
           {
             key: 'rev',
-            label: 'Revenue · Week',
+            label: `Revenue · ${label}`,
             value: formatMoneyMinor(rbData?.revenueMinor ?? 0, rbCurrency),
           },
           {
@@ -455,7 +464,7 @@ export function ReportsScreen(): React.JSX.Element {
           </View>
         ))}
       </View>
-      <Card title="Revenue by client" subtitle="Week · hours, billable share, revenue">
+      <Card title="Revenue by client" subtitle={`${label} · hours, billable share, revenue`}>
         {rbLoading ? (
           <Text style={{ color: t.color.ink2 }}>Loading…</Text>
         ) : rbError !== null ? (
@@ -487,10 +496,99 @@ export function ReportsScreen(): React.JSX.Element {
       </View>
       {soon(
         'More analytics',
-        'Workload, budget burn-down, day-length distribution, heatmap and weekly check-in appear here once their aggregation is live.',
+        'Budget burn-down and the weekly heatmap appear here once their aggregation is live. Workload, the day-length spread and the weekly check-in are live under the Balance tab.',
       )}
     </>
   )
+
+  // Balance (design v10 §Balance, REQ-032): strain made visible from the user's OWN
+  // tracked time — never a diagnosis. The passive signals (workload vs target, the
+  // 10-week focus trend, the day-length spread) come from the deterministic core via
+  // `useBalance`; the self-report check-in is local-only (`useCheckin`), never uploaded.
+  const bd = balance.data
+  const load = bd?.load
+  const loadPct = load && load.ratio !== null ? Math.round(load.ratio * 100) : null
+  const trend = bd?.trend ?? []
+  const dist = bd?.distribution ?? null
+  const hoursLabel = (min: number): string => `${formatDuration(min * 60_000)} h`
+  const balanceView = (
+    <>
+      <Card title="Balance" subtitle="From your own tracked time — a signal, never a diagnosis">
+        {balance.loading && bd === null ? (
+          <Text style={{ color: t.color.ink2 }}>Loading…</Text>
+        ) : bd === null || !bd.hasData ? (
+          <EmptyState
+            title="No tracked time yet"
+            hint="Track a few days and your workload, focus trend and day-length spread appear here — computed only from your own hours."
+            compact
+          />
+        ) : (
+          <View style={{ gap: t.spacing.s5 }}>
+            {/* Passive signal 1: workload vs the week's target (neutral calm/steady/elevated). */}
+            {loadPct !== null ? (
+              <LoadMeter label="This week vs your target" value={loadPct} />
+            ) : (
+              <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>
+                Set a weekly target in Work Time to see this week&apos;s workload.
+              </Text>
+            )}
+            {/* Passive signal 2: the trailing 10-week focus trend. */}
+            <View style={{ gap: t.spacing.s2 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2, fontWeight: '500' }}>
+                  Focus · last 10 weeks
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: t.fontFamily.numeric,
+                    fontSize: t.fontSize['2xs'],
+                    color: t.color.ink3,
+                  }}
+                >
+                  {`this week ${hoursLabel(trend[trend.length - 1] ?? 0)}`}
+                </Text>
+              </View>
+              <Sparkline values={trend} width={300} height={44} />
+            </View>
+            {/* Passive signal 3: the spread of the days actually worked. */}
+            {dist !== null && dist.max > dist.min ? (
+              <View style={{ gap: t.spacing.s2 }}>
+                <BoxPlot
+                  label="Day length · shortest → longest"
+                  min={dist.min}
+                  q1={dist.q1}
+                  median={dist.median}
+                  q3={dist.q3}
+                  max={dist.max}
+                />
+                <Text
+                  style={{
+                    fontFamily: t.fontFamily.numeric,
+                    fontSize: t.fontSize['2xs'],
+                    color: t.color.ink3,
+                  }}
+                >
+                  {`shortest ${hoursLabel(dist.min)} · median ${hoursLabel(dist.median)} · longest ${hoursLabel(dist.max)}`}
+                </Text>
+              </View>
+            ) : dist !== null ? (
+              <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>
+                {`Your tracked days are all about ${hoursLabel(dist.median)} long.`}
+              </Text>
+            ) : (
+              <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>
+                A few more tracked days and the day-length spread appears here.
+              </Text>
+            )}
+          </View>
+        )}
+      </Card>
+      {/* Self-report half of the honest signal — local-only by contract. */}
+      <CheckinCard done={checkin.done} onSubmit={checkin.submit} />
+    </>
+  )
+
+  const body = view === 'money' ? moneyView : view === 'balance' ? balanceView : overviewView
 
   return (
     <ScreenScaffold
@@ -528,6 +626,7 @@ export function ReportsScreen(): React.JSX.Element {
               [
                 ['overview', 'Overview'],
                 ['money', 'Revenue & Budget'],
+                ['balance', 'Balance'],
               ] as const
             ).map(([v, label]) => (
               <Pressable
@@ -558,24 +657,21 @@ export function ReportsScreen(): React.JSX.Element {
         </View>
       }
     >
-      <Tabs
-        items={[
-          { value: 'week', label: 'Week' },
-          { value: 'month', label: 'Month' },
-          { value: 'year', label: 'Year' },
-        ]}
-        active={range}
-        onChange={value => setRange(value as Range)}
-      />
+      {/* Balance is a fixed ten-week retrospective, so the Week/Month/Year window
+          selector only applies to the Overview and Revenue & Budget views. */}
+      {view !== 'balance' && (
+        <Tabs
+          items={[
+            { value: 'week', label: 'Week' },
+            { value: 'month', label: 'Month' },
+            { value: 'year', label: 'Year' },
+          ]}
+          active={range}
+          onChange={value => setRange(value as Range)}
+        />
+      )}
 
-      {isWeek
-        ? view === 'money'
-          ? moneyView
-          : overviewView
-        : soon(
-            range === 'month' ? 'Monthly report' : 'Yearly report',
-            'The report for this period appears here once the aggregation is live. The week view is already connected to your real data.',
-          )}
+      {body}
     </ScreenScaffold>
   )
 }

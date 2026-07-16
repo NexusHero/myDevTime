@@ -27,6 +27,7 @@ describe('reconcileTimer', () => {
       running: running(),
       accumulatedMs: 0,
       pausedInput: null,
+      pausedSinceMs: null,
     })
   })
 
@@ -35,14 +36,42 @@ describe('reconcileTimer', () => {
     // running wins, the banked time is preserved, the stale pause flag is dropped.
     const out = reconcileTimer(
       running(),
-      session({ accumulatedMs: 600_000, pausedInput: pausedCtx }),
+      session({ accumulatedMs: 600_000, pausedInput: pausedCtx, pausedSinceMs: 1_700_000_000_000 }),
     )
-    expect(out).toEqual({ running: running(), accumulatedMs: 600_000, pausedInput: null })
+    expect(out).toEqual({
+      running: running(),
+      accumulatedMs: 600_000,
+      pausedInput: null,
+      pausedSinceMs: null,
+    })
   })
 
-  it('NoServerRunning_PersistedPaused_RestoresThePausedSession', () => {
+  it('NoServerRunning_PersistedPaused_RestoresThePausedSessionAndPauseInstant', () => {
+    const out = reconcileTimer(
+      null,
+      session({
+        accumulatedMs: 1_500_000,
+        pausedInput: pausedCtx,
+        pausedSinceMs: 1_700_000_000_000,
+      }),
+    )
+    expect(out).toEqual({
+      running: null,
+      accumulatedMs: 1_500_000,
+      pausedInput: pausedCtx,
+      pausedSinceMs: 1_700_000_000_000,
+    })
+  })
+
+  it('NoServerRunning_PersistedPausedWithoutInstant_PauseSinceIsNull', () => {
+    // A session persisted before the pause-instant existed restores paused, sinceMs null.
     const out = reconcileTimer(null, session({ accumulatedMs: 1_500_000, pausedInput: pausedCtx }))
-    expect(out).toEqual({ running: null, accumulatedMs: 1_500_000, pausedInput: pausedCtx })
+    expect(out).toEqual({
+      running: null,
+      accumulatedMs: 1_500_000,
+      pausedInput: pausedCtx,
+      pausedSinceMs: null,
+    })
   })
 
   it('NoServerRunning_NoPersisted_IsIdle', () => {
@@ -50,13 +79,19 @@ describe('reconcileTimer', () => {
       running: null,
       accumulatedMs: 0,
       pausedInput: null,
+      pausedSinceMs: null,
     })
   })
 
   it('NoServerRunning_BankedButNotPaused_CollapsesToIdle', () => {
     // Banked time with no running segment and no paused context can't be resumed.
     const out = reconcileTimer(null, session({ accumulatedMs: 999_000, pausedInput: null }))
-    expect(out).toEqual({ running: null, accumulatedMs: 0, pausedInput: null })
+    expect(out).toEqual({
+      running: null,
+      accumulatedMs: 0,
+      pausedInput: null,
+      pausedSinceMs: null,
+    })
   })
 
   it('NegativeOrZeroAccumulated_ClampsToZero', () => {

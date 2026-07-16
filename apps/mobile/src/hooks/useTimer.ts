@@ -45,6 +45,9 @@ export interface TimerResource {
   readonly busy: boolean
   /** True while the session is paused (no running segment, but time is banked to resume). */
   readonly paused: boolean
+  /** When the current pause began (ms epoch), or null when not paused — drives the
+   *  "Pause MM:SS" counter that stacks under the frozen worked time. */
+  readonly pausedSinceMs: number | null
   /**
    * Whether the current (or next) session is billable — the running entry's flag
    * when one is active, else the default the next punch-in will carry (design v6 B5).
@@ -75,6 +78,9 @@ export function useTimer(): TimerResource {
   // `pausedInput` is set the session is paused (no running segment) and can resume.
   const [accumulatedMs, setAccumulatedMs] = useState(0)
   const [pausedInput, setPausedInput] = useState<StartTimerInput | null>(null)
+  // When the current pause began (ms epoch), so the "Pause MM:SS" counter can tick and
+  // survive a reload; null whenever the session is not paused.
+  const [pausedSince, setPausedSince] = useState<number | null>(null)
   // The billable default the next punch-in carries; a running entry's own flag wins.
   const [billableDefault, setBillableDefault] = useState(true)
   // Whether the session state has been restored from persistence yet — the persist
@@ -100,6 +106,7 @@ export function useTimer(): TimerResource {
         setRunning(restored.running)
         setAccumulatedMs(restored.accumulatedMs)
         setPausedInput(restored.pausedInput)
+        setPausedSince(restored.pausedSinceMs)
         setError(null)
       })
       .catch((cause: unknown) => {
@@ -122,8 +129,8 @@ export function useTimer(): TimerResource {
   useEffect(() => {
     if (!hydrated || base === null) return
     const active = running !== null || pausedInput !== null
-    saveTimerSession(active ? { accumulatedMs, pausedInput } : null)
-  }, [hydrated, base, running, pausedInput, accumulatedMs])
+    saveTimerSession(active ? { accumulatedMs, pausedInput, pausedSinceMs: pausedSince } : null)
+  }, [hydrated, base, running, pausedInput, accumulatedMs, pausedSince])
 
   // Start a segment (optimistic, then reconcile with the server or the local store).
   const beginEntry = useCallback(
@@ -178,6 +185,7 @@ export function useTimer(): TimerResource {
     (input: StartTimerInput = {}) => {
       setAccumulatedMs(0) // a fresh session starts the total at zero
       setPausedInput(null)
+      setPausedSince(null)
       beginEntry(input)
     },
     [beginEntry],
@@ -189,10 +197,12 @@ export function useTimer(): TimerResource {
       const segMs = entryDurationMs(previous, new Date())
       setAccumulatedMs(a => a + segMs) // bank the worked segment
       setPausedInput(resumeInput(previous))
+      setPausedSince(Date.now()) // start the pause counter
       const rollback = (cause: unknown): void => {
         setRunning(previous)
         setAccumulatedMs(a => a - segMs)
         setPausedInput(null)
+        setPausedSince(null)
         setError(cause instanceof Error ? cause : new Error(String(cause)))
       }
       if (base !== null) {
@@ -214,11 +224,13 @@ export function useTimer(): TimerResource {
     if (pausedInput === null) return
     beginEntry(pausedInput) // new segment; accumulatedMs is preserved
     setPausedInput(null)
+    setPausedSince(null)
   }, [pausedInput, beginEntry])
 
   const punchOut = useCallback(() => {
     setAccumulatedMs(0)
     setPausedInput(null)
+    setPausedSince(null)
     setRunning(previous => {
       if (previous === null) return null
       if (base !== null) {
@@ -252,6 +264,7 @@ export function useTimer(): TimerResource {
     live,
     busy,
     paused,
+    pausedSinceMs: pausedSince,
     billable,
     punchIn,
     punchOut,
