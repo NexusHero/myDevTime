@@ -26,6 +26,25 @@ describe('parseTimeEntry — duration', () => {
   it('ReturnsNullWithoutADuration', () => {
     expect(parseTimeEntry('worked on Finanzo yesterday')).toBeNull()
   })
+  it('ClockTimeWithAnAtOrUmCue_IsNotADuration', () => {
+    // "9:30" here is a time of day, not 9 h 30 m (M5).
+    expect(parseTimeEntry('call at 9:30')).toBeNull()
+    expect(parseTimeEntry('um 9:30 standup')).toBeNull()
+    expect(parseTimeEntry('meeting @ 14:00')).toBeNull()
+  })
+  it('ClockRange_IsNotADuration', () => {
+    // A meeting window, not 2:30 + 3:30 summed to 6 h (M5).
+    expect(parseTimeEntry('meeting 2:30-3:30')).toBeNull()
+    expect(parseTimeEntry('call 9:00 bis 9:45')).toBeNull()
+  })
+  it('BareClockToken_IsStillADuration', () => {
+    // No cue, no range → "2:30" remains 2 h 30 m (regression guard).
+    expect(parseTimeEntry('2:30 Finanzo')?.durationMs).toBe(150 * MINUTE_MS)
+  })
+  it('ExplicitDurationSurvivesATimeOfDay', () => {
+    // "2h" is the duration; "at 9:00" is when — ignore the clock time.
+    expect(parseTimeEntry('2h standup at 9:00')?.durationMs).toBe(2 * HOUR_MS)
+  })
 })
 
 describe('parseTimeEntry — day', () => {

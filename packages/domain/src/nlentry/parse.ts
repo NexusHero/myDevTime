@@ -22,6 +22,14 @@ export interface TimeEntryDraft {
 }
 
 const CLOCK_RE = /\b(\d{1,2}):(\d{2})\b/g
+/**
+ * A clock-shaped token reads as a **time of day**, not a duration, when it is
+ * preceded by an at/um/ab/von/gegen cue or an `@`. These must not be summed as a
+ * duration (M5): "call at 9:30" is not a 9 h 30 m entry.
+ */
+const TIME_OF_DAY_RE = /(?:\b(?:at|um|ab|von|gegen)\s+|@\s*)\d{1,2}:\d{2}\b/gi
+/** A `H:MM–H:MM` window (a meeting range) is a time span, not a duration to sum (M5). */
+const CLOCK_RANGE_RE = /\b\d{1,2}:\d{2}\s*(?:[-–—]|bis|to|till|until)\s*\d{1,2}:\d{2}\b/gi
 const HOURS_RE = /(\d+(?:[.,]\d+)?)\s*(?:stunden|stunde|hours|hour|hrs|hr|std|h)\b/gi
 const MINUTES_RE = /(\d+)\s*(?:minuten|minute|minutes|mins|min|m)\b/gi
 /** An issue-tracker key like `PROJ-142`, `AUTH-7` (Jira/Linear/GitHub/Azure style). */
@@ -46,6 +54,11 @@ function escapeRegExp(s: string): string {
 export function parseTimeEntry(text: string, opts: ParseOptions = {}): TimeEntryDraft | null {
   let rest = ` ${text} `
   let durationMs = 0
+
+  // Strip clock tokens that read as a time of day (a range, or an at/um/@ cue)
+  // BEFORE the duration pass, so they contribute no duration (M5). A bare `2:30`
+  // that survives is still a duration.
+  rest = rest.replace(CLOCK_RANGE_RE, ' ').replace(TIME_OF_DAY_RE, ' ')
 
   rest = rest.replace(CLOCK_RE, (_m, h: string, min: string) => {
     durationMs += Number(h) * HOUR_MS + Number(min) * MINUTE_MS
