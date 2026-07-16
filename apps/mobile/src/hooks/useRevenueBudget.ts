@@ -4,12 +4,14 @@ import { fetchBillingSummary, fetchSummary } from '../api/reports.js'
 import { fetchCatalog } from '../api/tracking.js'
 import { fetchOpenAging, type OpenAging } from '../api/invoicing.js'
 import { buildClientRevenueRows, type ClientRevenueRow } from '../reports/revenueBudget.js'
+import { reportWindow, type ReportRange } from '../reports/window.js'
 import { useAsync, type AsyncResource } from './useAsync.js'
 
 /**
- * The Reports "Revenue & Budget" data source (D13, REQ-005). For the trailing week it
- * fetches the time summary, the billable-money summary, the catalog (client grouping)
- * and the all-time open-billable aging, then derives — via the deterministic core —
+ * The Reports "Revenue & Budget" data source (D13, REQ-005). For the selected window
+ * (`week`/`month`/`year`) it fetches the time summary, the billable-money summary, the
+ * catalog (client grouping) and the all-time open-billable aging, then derives — via
+ * the deterministic core —
  * revenue per client, the average effective rate and the billable share. When no API
  * is configured it resolves **empty** (no fabricated money); `live` flags API-backed
  * data. Every figure is the server core's; this hook only joins and rolls up.
@@ -38,25 +40,15 @@ const EMPTY: RevenueBudgetData = {
   aging: null,
 }
 
-/** The trailing 7-day window ending at the next UTC midnight (matches `useReports`). */
-function trailingWeek(): { from: string; to: string; tz: string } {
-  const to = new Date()
-  to.setUTCHours(0, 0, 0, 0)
-  to.setUTCDate(to.getUTCDate() + 1)
-  const from = new Date(to)
-  from.setUTCDate(from.getUTCDate() - 7)
-  return { from: from.toISOString(), to: to.toISOString(), tz: 'UTC' }
-}
-
-export function useRevenueBudget(): RevenueBudgetResource {
+export function useRevenueBudget(range: ReportRange = 'week'): RevenueBudgetResource {
   const base = apiBaseUrl
-  const range = trailingWeek()
+  const window = reportWindow(range, new Date())
   const resource = useAsync<RevenueBudgetData>(
     async () => {
       if (base === null) return Promise.resolve(EMPTY)
       const [summary, billing, catalog, aging] = await Promise.all([
-        fetchSummary(base, range),
-        fetchBillingSummary(base, range),
+        fetchSummary(base, window),
+        fetchBillingSummary(base, window),
         fetchCatalog(base),
         fetchOpenAging(base),
       ])
@@ -83,7 +75,7 @@ export function useRevenueBudget(): RevenueBudgetResource {
         aging,
       }
     },
-    `${base ?? 'demo'}:revbudget:${range.from}`,
+    `${base ?? 'demo'}:revbudget:${range}:${window.from}`,
   )
   return { ...resource, live: base !== null }
 }

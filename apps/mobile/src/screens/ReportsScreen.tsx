@@ -14,20 +14,21 @@ import {
 } from '../components/index'
 import { useReports } from '../hooks/useReports'
 import { useRevenueBudget } from '../hooks/useRevenueBudget'
+import { rangeLabel, type ReportRange } from '../reports/window'
 import type { ClientRevenueRow } from '../reports/revenueBudget'
 import type { AgingKey, OpenAging } from '../api/invoicing'
 
 /**
- * Reports (REQ-005/009, ux-vision §3) — the trailing-week figures are the live
- * `useReports` resource's (ADR-0005): Worked, Revenue, Overtime balance, the
- * per-project distribution and the budget rings, all computed by the deterministic
- * core. There is no fabricated data: with no tracked time the cards show their
- * empty state, and the analytics that have no live source yet (Month/Year,
- * workload, burn-down, day-length distribution, heatmap, check-in) show an honest
- * "coming soon" placeholder rather than demo numbers. Every figure renders
- * through the pure formatters in `@mydevtime/design`.
+ * Reports (REQ-005/009, ux-vision §3) — the figures for the selected window
+ * (Week/Month/Year) are the live `useReports` resource's (ADR-0005): Worked, Revenue,
+ * Overtime balance, the per-project distribution and the budget rings, all computed by
+ * the deterministic core over that window. There is no fabricated data: with no tracked
+ * time the cards show their empty state, and the analytics that have no live source yet
+ * (workload, burn-down, day-length distribution, heatmap, check-in) show an honest
+ * "coming soon" placeholder rather than demo numbers. Every figure renders through the
+ * pure formatters in `@mydevtime/design`.
  */
-type Range = 'week' | 'month' | 'year'
+type Range = ReportRange
 
 interface DistItem {
   readonly id: string
@@ -320,12 +321,11 @@ export function ReportsScreen(): React.JSX.Element {
   const t = useTheme()
   const { width } = useWindowDimensions()
   const stacked = width < 720
-  const reports = useReports()
-  const rb = useRevenueBudget()
-
   const [range, setRange] = useState<Range>('week')
   const [view, setView] = useState<'overview' | 'money'>('overview')
-  const isWeek = range === 'week'
+  const reports = useReports(range)
+  const rb = useRevenueBudget(range)
+  const label = rangeLabel(range)
 
   const data = reports.data
   const trackedMs = data?.totalMs ?? 0
@@ -351,7 +351,7 @@ export function ReportsScreen(): React.JSX.Element {
   const summaryTiles = (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s3 }}>
       {[
-        { key: 'worked', label: 'Worked · Week', value: `${formatDuration(trackedMs)} h` },
+        { key: 'worked', label: `Worked · ${label}`, value: `${formatDuration(trackedMs)} h` },
         { key: 'revenue', label: 'Revenue', value: formatMoneyMinor(revenueMinor, currencyCode) },
         { key: 'saldo', label: 'Overtime balance', value: overtimeLabel(overtimeMs) },
       ].map(tile => (
@@ -363,7 +363,7 @@ export function ReportsScreen(): React.JSX.Element {
   )
 
   const distributionCard = (
-    <Card title="Where did the time go?" subtitle="Week · by project" style={{ flex: 1 }}>
+    <Card title="Where did the time go?" subtitle={`${label} · by project`} style={{ flex: 1 }}>
       {loading ? (
         <Text style={{ color: t.color.ink2 }}>Loading…</Text>
       ) : error !== null ? (
@@ -377,7 +377,7 @@ export function ReportsScreen(): React.JSX.Element {
   )
 
   const budgetsCard = (
-    <Card title="Budgets" subtitle="Week · usage by project">
+    <Card title="Budgets" subtitle="Usage by project">
       {loading ? (
         <Text style={{ color: t.color.ink2 }}>Loading…</Text>
       ) : budgets.length === 0 ? (
@@ -436,7 +436,7 @@ export function ReportsScreen(): React.JSX.Element {
         {[
           {
             key: 'rev',
-            label: 'Revenue · Week',
+            label: `Revenue · ${label}`,
             value: formatMoneyMinor(rbData?.revenueMinor ?? 0, rbCurrency),
           },
           {
@@ -455,7 +455,7 @@ export function ReportsScreen(): React.JSX.Element {
           </View>
         ))}
       </View>
-      <Card title="Revenue by client" subtitle="Week · hours, billable share, revenue">
+      <Card title="Revenue by client" subtitle={`${label} · hours, billable share, revenue`}>
         {rbLoading ? (
           <Text style={{ color: t.color.ink2 }}>Loading…</Text>
         ) : rbError !== null ? (
@@ -568,14 +568,7 @@ export function ReportsScreen(): React.JSX.Element {
         onChange={value => setRange(value as Range)}
       />
 
-      {isWeek
-        ? view === 'money'
-          ? moneyView
-          : overviewView
-        : soon(
-            range === 'month' ? 'Monthly report' : 'Yearly report',
-            'The report for this period appears here once the aggregation is live. The week view is already connected to your real data.',
-          )}
+      {view === 'money' ? moneyView : overviewView}
     </ScreenScaffold>
   )
 }
