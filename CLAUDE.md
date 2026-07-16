@@ -11,7 +11,7 @@ backlog are fully specified in documentation, and the milestones now ship agains
 2. **[`docs/adr/README.md`](docs/adr/README.md)** — all decisions + Tech Radar. Never edit an
    accepted ADR; amend or supersede with a new one (ADR-0008 is the worked example).
 3. **[`docs/architecture.md`](docs/architecture.md)** — arc42 documentation. §1 contains the
-   **Requirements Register (REQ-001…REQ-040)**: every requirement with the issue that delivers
+   **Requirements Register (REQ-001…REQ-046)**: every requirement with the issue that delivers
    it and its status. Keep this register and the Runtime View current in the same PR that
    changes them.
 4. **[`docs/roadmap.md`](docs/roadmap.md)** — milestones M0–M5, the dependency graph (what
