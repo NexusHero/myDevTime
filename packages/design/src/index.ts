@@ -17,7 +17,7 @@ export {
   motion,
   easing,
   blueprintFontFamily,
-  systemFontFamily,
+  sovereignFontFamily,
   resolveFontFamily,
   FONT_FACES_TO_LOAD,
   densityScale,

@@ -11,6 +11,7 @@ import Animated, {
 import { Text } from '../core/Text'
 import { ReanimatedTimer } from '../ReanimatedTimer'
 import { PauseCounter } from './PauseCounter'
+import { LiveMark } from './LiveMark'
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
@@ -158,12 +159,20 @@ export function Island({
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s3 }}>
-        <LiveDot
-          running={running}
-          live={t.color.live}
-          liveSoft={t.color.liveSoft}
-          ink3={t.color.ink3}
-        />
+        {/* The floating phone pill leads with the living brand mark (its Now-dot blinks
+            idle / pulses while running) — the phone's equivalent of the desktop sidebar
+            logo (ADR-0061). Docked (desktop) keeps the plain live dot, since the sidebar
+            header already carries the mark — never two living marks in one region. */}
+        {docked ? (
+          <LiveDot
+            running={running}
+            live={t.color.live}
+            liveSoft={t.color.liveSoft}
+            ink3={t.color.ink3}
+          />
+        ) : (
+          <LiveMark state={running ? 'tracking' : 'idle'} size={22} />
+        )}
         {running && startedAt ? (
           <ReanimatedTimer
             startedAt={startedAt}

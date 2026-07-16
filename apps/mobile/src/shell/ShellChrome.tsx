@@ -12,6 +12,7 @@ import {
 } from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
 import { Island, type IslandAction } from '../components/index'
+import { LiveMark } from '../components/canvas/LiveMark'
 import { useTimerContext } from '../timer/TimerContext'
 import { usePomodoro } from '../focus/PomodoroContext'
 import { useWorktime } from '../hooks/useWorktime'
@@ -241,6 +242,20 @@ export function ShellChrome(): React.JSX.Element {
             { backgroundColor: t.color.surface, borderRightColor: t.color.border },
           ]}
         >
+          {/* The living brand mark: its Now-dot blinks idle and pulses while a timer
+              runs — the sidebar logo bound to the shared timer state (ADR-0061). */}
+          <View style={styles.brand}>
+            <LiveMark state={timer.running !== null ? 'tracking' : 'idle'} size={26} />
+            <Text
+              style={{
+                fontFamily: t.fontFamily.display,
+                fontSize: t.fontSize.md,
+                color: t.color.ink,
+              }}
+            >
+              myDevTime
+            </Text>
+          </View>
           {nav}
           {/* The Island docks in the sidebar footer — always visible, never over
               the working surface (design v2). Hidden on Today (hero tracker). */}
@@ -287,6 +302,13 @@ const styles = StyleSheet.create({
   content: { flex: 1, minWidth: 0, overflow: 'hidden' },
   row: { flex: 1, flexDirection: 'row' },
   sidebar: { width: 200, paddingTop: 48, borderRightWidth: 1, gap: 4, paddingHorizontal: 8 },
+  brand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingBottom: 16,
+  },
   dock: { marginTop: 'auto', paddingTop: 12 },
   floatWrap: { position: 'absolute', bottom: 84, left: 0, right: 0, alignItems: 'center' },
   navItem: { alignItems: 'center', justifyContent: 'center', flex: 1, paddingVertical: 8 },

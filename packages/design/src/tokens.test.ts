@@ -18,6 +18,14 @@ describe('resolveFontFamily', () => {
     expect(resolveFontFamily('SpaceGrotesk_600SemiBold', 700)).toBe('SpaceGrotesk_700Bold')
   })
 
+  it('resolveFontFamily_ClashDisplay_MapsToClashFaces_SemiboldAndBold', () => {
+    // Clash Display is the Sovereign/Ember display face (ADR-0061). Only Semibold +
+    // Bold ship as native faces, so lighter weights snap up to Semibold.
+    expect(resolveFontFamily('ClashDisplay_600SemiBold')).toBe('ClashDisplay_600SemiBold')
+    expect(resolveFontFamily('ClashDisplay_600SemiBold', 500)).toBe('ClashDisplay_600SemiBold')
+    expect(resolveFontFamily('ClashDisplay_600SemiBold', 700)).toBe('ClashDisplay_700Bold')
+  })
+
   it('resolveFontFamily_SystemFonts_PassThrough', () => {
     expect(resolveFontFamily(undefined)).toBeUndefined()
     expect(resolveFontFamily('System')).toBeUndefined()
@@ -36,5 +44,7 @@ describe('resolveFontFamily', () => {
     expect(FONT_FACES_TO_LOAD).toContain('Inter_700Bold')
     expect(FONT_FACES_TO_LOAD).toContain('JetBrainsMono_700Bold')
     expect(FONT_FACES_TO_LOAD).toContain('SpaceGrotesk_600SemiBold')
+    expect(FONT_FACES_TO_LOAD).toContain('ClashDisplay_600SemiBold')
+    expect(FONT_FACES_TO_LOAD).toContain('ClashDisplay_700Bold')
   })
 })

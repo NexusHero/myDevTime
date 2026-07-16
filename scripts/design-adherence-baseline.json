@@ -1,5 +1,7 @@
 {
+  "apps/mobile/src/components/canvas/Blocky.tsx": 1,
   "apps/mobile/src/components/canvas/DayBlock.tsx": 2,
+  "apps/mobile/src/components/canvas/Sevi.tsx": 1,
   "apps/mobile/src/components/canvas/Island.tsx": 5,
   "apps/mobile/src/components/core/Button.tsx": 1,
   "apps/mobile/src/components/forms/SegmentedControl.tsx": 1,

@@ -98,9 +98,13 @@ export const easing = {
 } as const
 
 /**
- * Font families — The design system specifies two stacks: Blueprint uses the custom trio
- * (Inter, Space Grotesk, JetBrains Mono), while Sovereign and Ember use native system fonts.
- * The `theme` resolver selects the correct object based on the active accent.
+ * Font families — the design system specifies two stacks (readme "Typography").
+ * **Numerals are always JetBrains Mono, in every theme** ("numbers are the
+ * product"), so both stacks share the numeric face. The display face differs:
+ * Sovereign & Ember use **Clash Display** (the brand display voice), Blueprint
+ * swaps display→**Space Grotesk** + body→**Inter** (myJob 1:1). Sovereign/Ember
+ * keep the native system-sans body for a light native-app feel. The `theme`
+ * resolver selects the correct object based on the active accent (ADR-0061).
  */
 export const blueprintFontFamily = {
   ui: 'Inter_400Regular',
@@ -108,13 +112,13 @@ export const blueprintFontFamily = {
   display: 'SpaceGrotesk_600SemiBold',
 } as const
 
-export const systemFontFamily = {
+export const sovereignFontFamily = {
   ui: 'System',
-  numeric: 'monospace',
-  display: 'System',
+  numeric: 'JetBrainsMono_500Medium',
+  display: 'ClashDisplay_600SemiBold',
 } as const
 
-type FontRole = 'ui' | 'numeric' | 'display'
+type FontRole = 'ui' | 'numeric' | 'display' | 'clash'
 
 /** The concrete weighted families per role — exactly the faces the client loads. */
 const FONT_FACES: Record<FontRole, Record<400 | 500 | 600 | 700, string>> = {
@@ -135,6 +139,14 @@ const FONT_FACES: Record<FontRole, Record<400 | 500 | 600 | 700, string>> = {
     500: 'SpaceGrotesk_500Medium',
     600: 'SpaceGrotesk_600SemiBold',
     700: 'SpaceGrotesk_700Bold',
+  },
+  // Clash Display — the Sovereign/Ember display face. Only Semibold + Bold ship as
+  // native-loadable faces, so lighter weights snap up to Semibold (ADR-0061).
+  clash: {
+    400: 'ClashDisplay_600SemiBold',
+    500: 'ClashDisplay_600SemiBold',
+    600: 'ClashDisplay_600SemiBold',
+    700: 'ClashDisplay_700Bold',
   },
 }
 
@@ -161,6 +173,7 @@ export function resolveFontFamily(family: string | undefined, weight = 400): str
   if (family.startsWith('Inter')) return FONT_FACES.ui[snapWeight(weight)]
   if (family.startsWith('JetBrainsMono')) return FONT_FACES.numeric[snapWeight(weight)]
   if (family.startsWith('SpaceGrotesk')) return FONT_FACES.display[snapWeight(weight)]
+  if (family.startsWith('ClashDisplay')) return FONT_FACES.clash[snapWeight(weight)]
   return family
 }
 
