@@ -44,6 +44,12 @@ pnpm start
   (System Settings → Privacy & Security → Screen Recording) to read window/app titles.
 - **Windows**: no special permission for the foreground-app owner name.
 
+## Verifying on your machine
+
+After it runs, follow the on-hardware verification protocol —
+[`docs/verification/native-trackers.md`](../docs/verification/native-trackers.md)
+(Track B) — for the acceptance criteria and what to record in the repo when it passes.
+
 ## Privacy
 
 Local-only + consent-first: capture runs **only** while you have the companion open and

@@ -49,6 +49,12 @@ registerNativeUsageModule(native)
 export default native
 ```
 
+## Verifying on a device
+
+Once activated, follow the on-hardware verification protocol —
+[`docs/verification/native-trackers.md`](../../../../docs/verification/native-trackers.md)
+(Track A) — for the acceptance criteria and what to record in the repo when it passes.
+
 ## Privacy
 
 Capture stays **consent- and session-gated** (the `autoTracker` opt-in, only while a
