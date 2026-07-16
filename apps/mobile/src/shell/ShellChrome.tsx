@@ -11,8 +11,10 @@ import {
   type Screen,
 } from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
-import { Island, type IslandAction } from '../components/index'
+import { Icon, Island, type IslandAction } from '../components/index'
 import { LiveMark } from '../components/canvas/LiveMark'
+import { AssistantOverlay } from '../components/assistant/AssistantOverlay'
+import { initialsOf, useSessionContext } from './SessionContext'
 import { useTimerContext } from '../timer/TimerContext'
 import { usePomodoro } from '../focus/PomodoroContext'
 import { useWorktime } from '../hooks/useWorktime'
@@ -21,14 +23,17 @@ import { CommandBar } from '../command/CommandBar'
 import { buildCommands, type CommandAction } from '../command/commands'
 import { SCREEN_TITLES } from './titles'
 
-/** The Command Bar's "Go to" destinations — the primary navigable screens, in order. */
+/**
+ * The Command Bar's "Go to" destinations — the primary navigable screens, in order.
+ * The Assistant is deliberately absent: it is a layer, not a place (ADR-0063), so the
+ * palette offers "Open Assistant" (the overlay) instead of routing to a tab.
+ */
 const COMMAND_DESTINATIONS: readonly Screen[] = [
   'today',
   'planner',
   'projects',
   'reports',
   'meetings',
-  'assistant',
   'worktime',
   'absences',
   'credits',
@@ -65,6 +70,13 @@ export function ShellChrome(): React.JSX.Element {
     router.push(buildPath(screen))
   }
 
+  // Profile is "me", not a peer place (calendar-centric IA, ADR-0063): the sidebar
+  // pins it as an avatar in the footer rather than as a rail item. Initials + name
+  // come from the live session — never a fabricated user.
+  const session = useSessionContext()
+  const profileInitials = session.user ? initialsOf(session.user) : '·'
+  const profileName = session.user?.name.trim() || session.user?.email || 'Profile'
+
   // One shared timer drives the persistent Island. It shows on every screen EXCEPT
   // Today, where the hero tracker carries the clock — never two clocks (design v2).
   const timer = useTimerContext()
@@ -85,6 +97,9 @@ export function ShellChrome(): React.JSX.Element {
   const worktime = useWorktime()
   const catalog = useCatalog()
   const [cmdOpen, setCmdOpen] = useState(false)
+  // The Assistant overlay (ADR-0063): opened by the ✦ button or ⌘K, floats over the
+  // current screen — a layer, not a place.
+  const [assistantOpen, setAssistantOpen] = useState(false)
   const commands = useMemo(
     () =>
       buildCommands({
@@ -127,6 +142,9 @@ export function ShellChrome(): React.JSX.Element {
       case 'navigate':
         go(action.screen)
         break
+      case 'open-assistant':
+        setAssistantOpen(true)
+        break
     }
   }
 
@@ -145,6 +163,16 @@ export function ShellChrome(): React.JSX.Element {
 
   const commandUi = (
     <>
+      {/* The ✦ button opens the Assistant overlay — a layer, not a place (ADR-0063),
+          sat just above the ⌘K pill. Both reach the same grounded, read-only chat. */}
+      <Pressable
+        onPress={() => setAssistantOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Open assistant"
+        style={[styles.aiTrigger, { backgroundColor: t.color.accent }]}
+      >
+        <Icon name="assistant" size={18} color={t.color.accentInk} />
+      </Pressable>
       <Pressable
         onPress={() => setCmdOpen(true)}
         accessibilityRole="button"
@@ -164,6 +192,7 @@ export function ShellChrome(): React.JSX.Element {
           {Platform.OS === 'web' ? '⌘K' : 'Actions'}
         </Text>
       </Pressable>
+      <AssistantOverlay open={assistantOpen} onClose={() => setAssistantOpen(false)} />
       <CommandBar
         open={cmdOpen}
         onClose={() => setCmdOpen(false)}
@@ -260,9 +289,52 @@ export function ShellChrome(): React.JSX.Element {
             </Text>
           </View>
           {nav}
-          {/* The Island docks in the sidebar footer — always visible, never over
-              the working surface (design v2). Hidden on Today (hero tracker). */}
-          {dockedIsland && <View style={styles.dock}>{dockedIsland}</View>}
+          {/* Footer pinned to the bottom (calendar-centric IA, ADR-0063): the docked
+              Island over the Profile avatar. The Island is always visible, never over
+              the working surface (design v2), and hidden on Today (hero tracker). The
+              avatar is "me" — Profile & Settings — not a peer place in the rail. */}
+          <View style={styles.footer}>
+            {dockedIsland && <View style={styles.dock}>{dockedIsland}</View>}
+            <Pressable
+              onPress={() => go('profile')}
+              accessibilityRole="link"
+              accessibilityState={{ selected: active === 'profile' }}
+              accessibilityLabel="Profile and settings"
+              style={[
+                styles.avatarRow,
+                { minHeight: t.touchTarget },
+                active === 'profile' && { backgroundColor: t.color.accentSoft },
+              ]}
+            >
+              <View style={[styles.avatarDisc, { backgroundColor: t.color.accent }]}>
+                <Text
+                  style={{
+                    fontFamily: t.fontFamily.numeric,
+                    fontSize: t.fontSize['2xs'],
+                    fontWeight: '700',
+                    color: t.color.accentInk,
+                  }}
+                >
+                  {profileInitials}
+                </Text>
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontSize: t.fontSize.sm,
+                    fontWeight: '600',
+                    color: active === 'profile' ? t.color.accentText : t.color.ink,
+                  }}
+                >
+                  {profileName}
+                </Text>
+                <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>
+                  Profile & Settings
+                </Text>
+              </View>
+            </Pressable>
+          </View>
         </View>
         <View style={styles.content}>
           <Slot />
@@ -312,7 +384,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingBottom: 16,
   },
-  dock: { marginTop: 'auto', paddingTop: 12 },
+  footer: { marginTop: 'auto' },
+  dock: { paddingTop: 12 },
+  avatarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  avatarDisc: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   floatWrap: { position: 'absolute', bottom: 84, left: 0, right: 0, alignItems: 'center' },
   navItem: { alignItems: 'center', justifyContent: 'center', flex: 1, paddingVertical: 8 },
   navItemSidebar: { alignItems: 'flex-start', flex: 0, paddingHorizontal: 12, borderRadius: 8 },
@@ -326,5 +415,16 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
+  },
+  // The ✦ Assistant button sits just above the ⌘K pill (bottom-right stack).
+  aiTrigger: {
+    position: 'absolute',
+    right: 16,
+    bottom: 136,
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 })

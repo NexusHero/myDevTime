@@ -37,6 +37,13 @@ describe('buildCommands', () => {
     expect(ids).not.toContain('clock-in')
   })
 
+  it('AlwaysOffersOpenAssistant_TheOverlayEntryPoint', () => {
+    // The Assistant is a layer, not a place (ADR-0063): ⌘K opens the overlay.
+    const cmd = buildCommands(base).find(c => c.id === 'open-assistant')
+    expect(cmd?.action).toEqual({ type: 'open-assistant' })
+    expect(cmd?.group).toBe('Assistant')
+  })
+
   it('EmitsAStartCommandPerProject_AndANavCommandPerDestination', () => {
     const cmds = buildCommands(base)
     expect(cmds.find(c => c.id === 'start:p1')?.action).toEqual({

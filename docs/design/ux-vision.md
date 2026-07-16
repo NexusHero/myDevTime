@@ -71,22 +71,51 @@ Reports (#13) use a restrained, consistent viz language: budget **rings** per pr
 **small-multiple** week sparklines instead of one giant chart, calendar **heatmap** for
 intensity. Every figure clickable → drills to the exact entries (auditability as UX).
 
-## 3. Information architecture
+### 2.6 The reality layer (plan meets reality on one surface)
+The direct expression of principle 3, in the Planner: a "**● Reality**" toggle overlays what the
+auto-tracker actually saw (app + span) as a slim trace along each day's right edge, and a **drift
+chip** in the day head shows tracked-vs-booked (±h:mm, in live orange). No competitor shows plan
+and reality on one surface. Companions live in the same view: a "**✦ Fill week**" cascade that
+distributes the task inbox into free slots as ghosts (never past the weekly target, never
+overwriting the past, always undoable), and a **yesterday-healing** banner that offers to book a
+detected unbooked gap from what the tracker observed. All are proposals with provenance (ADR-0005),
+never silent writes.
 
-| Surface | Content | Primary platform bias |
+## 3. Information architecture — the calendar is the living place
+
+The IA is **four places + an avatar** (ADR-0063). The calendar (Today's Day Canvas and the
+Planner week) is where the day is lived, so everything that acts *on* time collapses into it
+instead of standing beside it as its own tab. Fewer destinations, more depth per destination —
+navigation stays boring on purpose (§5), the novelty budget is spent on the canvas.
+
+| Place | Content | Primary platform bias |
 |---|---|---|
 | **Today** | Day Canvas + Island + briefing/review cards | Phone-first, everywhere |
-| **Planner** | Week view of canvases; drag blocks across days; absence overlay | Tablet/desktop |
+| **Planner** | Week of canvases; drag blocks across days; the **reality layer** (§2.6); the **typed entry drawer** (below) | Tablet/desktop |
 | **Projects** | Clients → projects → tasks, budget rings, rates | All |
-| **Reports** | Instruments (2.5), report builder, exports (#14/#38) | Desktop-first |
-| **Meetings** | Transcript list, AI insights, custom prompts (#32/#33) | Desktop/tablet |
-| **Assistant** | Grounded, read-only chat over your own data (#20) | All |
-| **Profile** | Absences calendar (#37), schedules, credits balance (#34), settings, hub to secondary surfaces | All |
+| **Reports** | Instruments (§2.5), report builder, exports (#14/#38) | Desktop-first |
 
-Bottom tabs (phone): Today · Planner · Projects · Reports · Profile. Sidebar (tablet/desktop)
-with the same five + Meetings + Assistant promoted to top level. The phone keeps exactly five
-tabs; the secondary surfaces (Meetings, Assistant) are reached there from the **Profile hub**,
-never a sixth tab.
+**Profile is "me", not a place.** It carries identity, absences balance (#37), schedules,
+credits (#34) and settings. The tablet/desktop sidebar pins it as an **avatar in the footer**
+(initials + name), below the docked Island; the phone keeps it as the fifth bottom tab.
+
+**Meetings, Absence and the Assistant are no longer destinations — their content moved into the
+calendar.** A meeting or an absence *is* a block on the canvas, so clicking a Planner block opens
+a **typed entry drawer** (right sheet, ADR-0063 / backlog H2): Meeting (attendance Yes/Tentative/
+FYI, transcript & AI notes), Task/Booked (project, billable, status, start timer, duplicate/
+delete), Ghost (Co-Planner proposal — accept/dismiss), Pause, Absence (request, period, balance —
+the former Absence tab), and Event (read-only). The **Assistant is a layer, not a place** (backlog
+H3): a `✦` button beside `⌘K` — and `⌘K` itself — opens it as a right overlay panel over whatever
+screen you are on, so "ask your data" is reachable everywhere without leaving the calendar.
+
+**Progressive disclosure** (backlog H4): invoicing UI appears once a client has a rate; the
+absence-balance card appears after the first absence entry. Surfaces introduce themselves when
+they become relevant, keeping the four places uncluttered on day one.
+
+Bottom tabs (phone): Today · Planner · Projects · Reports · Profile. Sidebar (tablet/desktop):
+the four places in the rail, Profile as the avatar footer. Until the drawer and overlay ship, the
+off-rail surfaces (Meetings, Assistant) stay reachable from the **Profile hub**, the command bar,
+and their deep-link routes — every surface always keeps an entry point.
 
 ## 4. Visual & motion language
 

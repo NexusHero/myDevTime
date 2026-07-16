@@ -16,6 +16,7 @@ export type CommandAction =
   | { readonly type: 'clock-out' }
   | { readonly type: 'start-project'; readonly projectId: string; readonly name: string }
   | { readonly type: 'navigate'; readonly screen: Screen }
+  | { readonly type: 'open-assistant' }
 
 export interface Command {
   readonly id: string
@@ -77,7 +78,16 @@ export function buildCommands(ctx: CommandContext): Command[] {
     action: { type: 'navigate', screen: d.screen },
   }))
 
-  return [...timer, punch, ...projects, ...navigate]
+  // The Assistant is a layer, not a place (ADR-0063): `⌘K` opens the overlay rather
+  // than routing to a tab. Always available, grouped on its own.
+  const assistant: Command = {
+    id: 'open-assistant',
+    group: 'Assistant',
+    label: 'Open Assistant',
+    action: { type: 'open-assistant' },
+  }
+
+  return [...timer, punch, assistant, ...projects, ...navigate]
 }
 
 /** Case-insensitive substring filter over "group + label"; empty query keeps all. */

@@ -65,27 +65,22 @@ const BY_SCREEN: ReadonlyMap<Screen, RouteDef> = new Map(ROUTES.map(r => [r.scre
 export const PHONE_TABS: readonly Screen[] = ['today', 'planner', 'projects', 'reports', 'profile']
 
 /**
- * Sidebar items on tablet/desktop (ux-vision §3, design v3): the five phone tabs
- * plus the secondary surfaces (Absence, Meetings, Assistant) promoted to top level
- * — wide layouts have the room, phones do not (Absence stays under the Profile hub
- * on phone). Absence sits next to Planner, its natural planning neighbour.
+ * Sidebar rail items on tablet/desktop — the **four places** of the calendar-centric
+ * IA (ux-vision §3, ADR-0063): Today · Planner · Projects · Reports. Profile is *not*
+ * a rail item here; the shell pins it as an avatar in the sidebar footer ("me", not a
+ * peer place). The former sidebar promotions — Meetings, Absence, Assistant — are no
+ * longer nav destinations: their content moves into the Planner entry drawer (Meeting,
+ * Absence) and an Assistant overlay (ADR-0063), and they stay reachable meanwhile via
+ * the Profile hub, the command bar, and their deep-link routes.
  */
-export const SIDEBAR_ITEMS: readonly Screen[] = [
-  'today',
-  'planner',
-  'absences',
-  'projects',
-  'reports',
-  'meetings',
-  'assistant',
-  'profile',
-]
+export const SIDEBAR_ITEMS: readonly Screen[] = ['today', 'planner', 'projects', 'reports']
 
 /**
- * Surfaces the Profile hub links into so the phone can reach them (ux-vision §3):
- * the top-level screens that are deliberately kept off the five-tab bar. Without
- * this the Assistant is orphaned and Meetings is desktop-only. The desktop sidebar
- * also promotes these, so the hub is the phone's path, not the only one.
+ * Surfaces the Profile hub links into so every platform can still reach them while the
+ * calendar-centric IA (ADR-0063) folds them out of the nav rails: the top-level screens
+ * deliberately kept off the phone's five tabs *and* the desktop's four places. Without
+ * this the Assistant would be orphaned and Meetings unreachable off its URL. Absence is
+ * reached from the Profile screen itself, not this list.
  */
 export const PROFILE_HUB_LINKS = ['meetings', 'assistant'] as const satisfies readonly Screen[]
 export type ProfileHubLink = (typeof PROFILE_HUB_LINKS)[number]
