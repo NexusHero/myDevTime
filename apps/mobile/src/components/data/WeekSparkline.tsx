@@ -18,7 +18,7 @@ export function WeekSparkline({ label, data }: WeekSparklineProps): React.JSX.El
       <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2, fontWeight: '500' }}>
         {label}
       </Text>
-      <Sparkline values={data} height={40} color={t.color.accent} />
+      <Sparkline values={data} height={40} color={t.color.accent} label={`${label} trend`} />
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         {days.map(day => (
           <Text key={day} style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>
