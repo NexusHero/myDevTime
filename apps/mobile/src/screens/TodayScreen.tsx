@@ -24,6 +24,7 @@ import { usePlanner } from '../hooks/usePlanner'
 import { usePreferences } from '../hooks/usePreferences'
 import { useInsights } from '../hooks/useInsights'
 import { useTrackReminder } from '../hooks/useTrackReminder'
+import { useForgottenTimer } from '../hooks/useForgottenTimer'
 import { useAutoTracker } from '../autotracker/useAutoTracker'
 import { NlQuickAdd } from './NlQuickAdd'
 import { useCatalog } from './useCatalog'
@@ -35,6 +36,13 @@ function hhmm(min: number): string {
   const m = min % 60
   const p = (n: number): string => String(n).padStart(2, '0')
   return `${p(h)}:${p(m)}`
+}
+
+/** An ISO instant as local `HH:MM` (for the forgotten-timer "since …" label). */
+function clockTime(iso: string): string {
+  const d = new Date(iso)
+  const p = (n: number): string => String(n).padStart(2, '0')
+  return `${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
 /**
@@ -111,6 +119,13 @@ export function TodayScreen(): React.JSX.Element {
   // Smart Reminder (REQ-033/§D12): a deterministic nudge when clocked in but not
   // tracking — start a timer, or add it below. Never AI (no gradient), always dismissible.
   const reminder = useTrackReminder()
+
+  // Forgotten-tracking (REQ-033): a dismissible, evidence-based proposal when the running
+  // timer has been going implausibly long (from its own runtime — never surveillance).
+  const forgotten = useForgottenTimer(
+    timer.running ? Date.parse(timer.running.startedAt) : null,
+    timer.running?.id ?? null,
+  )
 
   // Neutral, judgement-free colours for the workload chip: a calm week reads as good,
   // an ordinary one as quiet ink, a heavy one as a gentle warning — never alarm.
@@ -546,6 +561,57 @@ export function TodayScreen(): React.JSX.Element {
     </Card>
   )
 
+  // Forgotten-tracking proposal card (REQ-033): evidence is the running timer's own
+  // runtime; the user confirms Stop / Trim / Keep — nothing auto-corrects. Bound to
+  // locals so the trim handler narrows the (non-null) proposal + run cleanly.
+  let forgottenCard: React.JSX.Element | null = null
+  if (forgotten.proposal !== null && timer.running !== null) {
+    const fp = forgotten.proposal
+    const startIso = timer.running.startedAt
+    forgottenCard = (
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: t.spacing.s3,
+          padding: t.spacing.s4,
+          borderRadius: t.radius.card,
+          borderWidth: 1,
+          borderColor: t.color.warn,
+          backgroundColor: t.color.warnSoft,
+        }}
+      >
+        <View style={{ flex: 1, minWidth: 180 }}>
+          <Text style={{ fontSize: t.fontSize.sm, fontWeight: '700', color: t.color.ink }}>
+            {`Still running after ${formatDuration(fp.elapsedMs)} h`}
+          </Text>
+          <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2, marginTop: 2 }}>
+            {`Tracking since ${clockTime(startIso)} — forgot to stop it? Nothing changes until you choose.`}
+          </Text>
+        </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s2 }}>
+          <Button size="sm" disabled={timer.busy} onPress={() => timer.punchOut()}>
+            Stop now
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={timer.busy}
+            onPress={() => {
+              timer.punchOut(new Date(fp.suggestedEndMs).toISOString())
+            }}
+          >
+            {`Trim to ${formatDuration(fp.suggestedEndMs - Date.parse(startIso))} h`}
+          </Button>
+          <Button size="sm" variant="ghost" onPress={forgotten.dismiss}>
+            Keep
+          </Button>
+        </View>
+      </View>
+    )
+  }
+
   // Today carries the clock in its hero tracker, so the persistent Island is hidden
   // here and shown on every other screen from the AppShell (design v2 — never two
   // clocks). A little bottom clearance keeps the last card off the tab bar.
@@ -653,6 +719,8 @@ export function TodayScreen(): React.JSX.Element {
             </View>
           </View>
         )}
+
+        {forgottenCard}
 
         {askMood && <MoodCheck onDone={() => setAskMood(false)} />}
 
