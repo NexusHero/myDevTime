@@ -257,6 +257,13 @@ export { deriveEntitlement } from './entitlements/derive.js'
 export type { Feature } from './entitlements/features.js'
 export { can, featuresFor } from './entitlements/features.js'
 
+// Role & tier visibility (REQ-056, design v14 §R) — role is a visibility *preset* over the
+// existing modules, never a fork. Enforces the hard tier floors: a Stempler (Free) never sees
+// €/clients/billing; Health is visible in every tier and never paywalled; Family is an
+// orthogonal add-on. Pure (ADR-0005); distinct from the `can()` payment gate.
+export type { UserRole, VisibilityModule, VisibilityContext } from './roles/visibility.js'
+export { ALL_MODULES, isModuleVisible, visibleModules } from './roles/visibility.js'
+
 // Auto-Tracker (REQ-042, ADR-0057) — deterministic aggregation of "app usage while
 // tracking" spans into a percentage-correct breakdown. OS/browser capture is a
 // client adapter behind a narrow port; this core is pure and framework-free (ADR-0005).
