@@ -117,3 +117,24 @@ export async function clockOut(
   const body = breakMs === undefined ? {} : { breakMs }
   return parseShift(await postJson(baseUrl, '/api/worktime/clock-out', body, fetchImpl))
 }
+
+/**
+ * The download URL for the signable monthly work-time statement (REQ-052, design v13 X) —
+ * the "real punch clock" PDF, one month per A4 page. The browser (or a native link)
+ * fetches it with the session cookie, so the endpoint stays auth-guarded and
+ * workspace-scoped. `tz` defaults to the device zone; `locale` picks EN/DE headings.
+ */
+export function statementUrl(
+  baseUrl: string,
+  opts: { year: number; month: number; tz?: string; locale?: 'en' | 'de' },
+): string {
+  const tz =
+    opts.tz ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC'
+  const qs = new URLSearchParams({
+    year: String(opts.year),
+    month: String(opts.month),
+    tz,
+    locale: opts.locale ?? 'en',
+  })
+  return `${baseUrl}/api/worktime/statement?${qs.toString()}`
+}

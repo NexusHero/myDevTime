@@ -1,11 +1,25 @@
-import { View } from 'react-native'
+import { Linking, Platform, View } from 'react-native'
 import { Text } from '../components/core/Text'
 import { formatDuration } from '@mydevtime/design'
 import { useTheme } from '../theme/ThemeProvider'
 import { Badge, Button, Card, ScreenScaffold } from '../components/index'
 import { SubScreenHeader } from './SubScreenHeader'
 import { useWorktime } from '../hooks/useWorktime'
-import type { Shift } from '../api/worktime'
+import { statementUrl, type Shift } from '../api/worktime'
+import { apiBaseUrl } from '../config'
+
+/** Open the current month's signable statement PDF (REQ-052, X). Web opens a tab; native
+ *  hands the URL to the OS. Needs a configured backend and an authenticated session. */
+function openMonthlyStatement(): void {
+  if (apiBaseUrl === null) return
+  const now = new Date()
+  const url = statementUrl(apiBaseUrl, { year: now.getFullYear(), month: now.getMonth() + 1 })
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    window.open(url, '_blank', 'noopener')
+  } else {
+    void Linking.openURL(url)
+  }
+}
 
 /**
  * Work time — the punch clock (REQ-028, ADR-0010): clock in/out, the running
@@ -114,6 +128,28 @@ export function WorkTimeScreen({ onBack }: { onBack: () => void }): React.JSX.El
           >
             {formatDuration(wt.overtimeMs)} h
           </Text>
+        </View>
+      </Card>
+
+      {/* Monthly statement export — the "real punch clock" PDF (REQ-052, X) */}
+      <Card>
+        <View style={{ gap: t.spacing.s2 }}>
+          <Text style={{ fontSize: t.fontSize.sm, fontWeight: '700', color: t.color.ink }}>
+            Monthly statement
+          </Text>
+          <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>
+            A signable PDF for this month — begin, pause, end, ± against target and a running
+            balance, one page.
+          </Text>
+          {apiBaseUrl === null ? (
+            <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>
+              Connect a backend to export your statement.
+            </Text>
+          ) : (
+            <Button variant="secondary" onPress={openMonthlyStatement}>
+              Export this month (PDF)
+            </Button>
+          )}
         </View>
       </Card>
 
