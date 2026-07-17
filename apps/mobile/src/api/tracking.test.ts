@@ -35,8 +35,8 @@ describe('assembleCatalog', () => {
     { id: 'c2', name: 'Empty client' },
   ]
   const projects = [
-    { id: 'p1', name: 'Finanzo', clientId: 'c1', hourlyRateOverride: '12000' },
-    { id: 'p2', name: 'Loose ends', clientId: null, hourlyRateOverride: null },
+    { id: 'p1', name: 'Finanzo', clientId: 'c1', hourlyRateOverride: '12000', fixedFeeMinor: null },
+    { id: 'p2', name: 'Loose ends', clientId: null, hourlyRateOverride: null, fixedFeeMinor: null },
   ]
   const tasks = [
     { id: 't1', name: 'Ledger', projectId: 'p1', archived: true },
@@ -81,7 +81,9 @@ describe('DTO parsers', () => {
   it('parseProjects_KeepsNullableFields', () => {
     expect(
       parseProjects([{ id: 'p1', name: 'P', clientId: null, hourlyRateOverride: null }]),
-    ).toEqual([{ id: 'p1', name: 'P', clientId: null, hourlyRateOverride: null }])
+    ).toEqual([
+      { id: 'p1', name: 'P', clientId: null, hourlyRateOverride: null, fixedFeeMinor: null },
+    ])
   })
 
   it('parseTasks_CoercesArchivedToBoolean', () => {
@@ -96,7 +98,13 @@ describe('DTO parsers', () => {
   it('parseProject_SingleRow_ReturnsDto', () => {
     expect(
       parseProject({ id: 'p9', name: 'Finanzo', clientId: null, hourlyRateOverride: null }),
-    ).toEqual({ id: 'p9', name: 'Finanzo', clientId: null, hourlyRateOverride: null })
+    ).toEqual({
+      id: 'p9',
+      name: 'Finanzo',
+      clientId: null,
+      hourlyRateOverride: null,
+      fixedFeeMinor: null,
+    })
   })
 })
 
@@ -115,6 +123,12 @@ describe('createProject', () => {
     expect(seen[0]?.method).toBe('POST')
     expect(seen[0]?.url).toBe('https://api.test/api/tracking/projects')
     expect(seen[0]?.body).toEqual({ name: 'Finanzo', color: '#3b82f6' })
-    expect(row).toEqual({ id: 'p-new', name: 'Finanzo', clientId: null, hourlyRateOverride: null })
+    expect(row).toEqual({
+      id: 'p-new',
+      name: 'Finanzo',
+      clientId: null,
+      hourlyRateOverride: null,
+      fixedFeeMinor: null,
+    })
   })
 })
