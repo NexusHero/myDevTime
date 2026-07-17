@@ -120,6 +120,12 @@ export {
 } from './attendance/break-rule.js'
 export type { WorktimeReportDay, WorktimeReport, WorktimeReportInput } from './attendance/report.js'
 export { buildWorktimeReport } from './attendance/report.js'
+
+// Monthly work-time statement (REQ-052, ADR-0065 · design v13 X) — the "real punch
+// clock": begin/pause/end per day, ± against target, a cumulative balance from carryover
+// to closing, absence rows, and an audit note. Renders the signable monthly PDF.
+export type { StatementDay, MonthlyStatement, MonthlyStatementInput } from './attendance/statement.js'
+export { buildMonthlyStatement } from './attendance/statement.js'
 export type { BookedInterval, CoverageReport } from './attendance/coverage.js'
 export { reconcileCoverage } from './attendance/coverage.js'
 export type { HolidayRegion } from './absences/holidays.js'
@@ -157,6 +163,55 @@ export { monthlyCreditAllowance, TOPUP_PACKS, topUpPackCredits } from './credits
 // turns a phrase into a draft the user confirms; LLM only for what it can't parse.
 export type { TimeEntryDraft, ParseOptions } from './nlentry/parse.js'
 export { parseTimeEntry } from './nlentry/parse.js'
+
+// Smart-Add typed-entry parser (REQ-047, ADR-0065) — Stage 1 of the one-plus/one-field
+// quick-add (design v13, K6). Classifies a phrase into a typed draft (task/meeting/
+// absence/travel/private) with times, day, and project/ticket hints; a weak parse asks
+// for the grounded LLM Stage-2 fallback (`needsAi`). Pure, de/en, ADR-0005.
+export type { SmartEntryKind, SmartEntryDraft, SmartParseOptions } from './smartadd/parse.js'
+export { parseEntry } from './smartadd/parse.js'
+
+// Economics read models (REQ-048/049/050, ADR-0065 · design v13 G1–G3) — pure decision
+// support: effective-rate truth (revenue ÷ all tracked hours), overtime compound
+// (running balance + linear forecast), and Price of the week (intensity solver). All
+// rule-based (ADR-0005); the AI never places a block or prices an hour.
+export type { EffectiveRate } from './economics/effective-rate.js'
+export { effectiveRate, perHourRate } from './economics/effective-rate.js'
+export type {
+  OvertimeWeek,
+  OvertimePoint,
+  OvertimeTrend,
+  OvertimeForecast,
+  OvertimeForecastOptions,
+} from './economics/overtime-forecast.js'
+export { overtimeForecast } from './economics/overtime-forecast.js'
+export type { WeekIntensity, WeekLoadInput, WeekPrice } from './economics/week-price.js'
+export {
+  WEEK_INTENSITIES,
+  priceWeek,
+  priceWeekAt,
+  weekLoadFromMinutes,
+} from './economics/week-price.js'
+
+// Travel entry type (REQ-051, ADR-0065 · design v13 G4) — deterministic travel pricing
+// (reduced-fraction time + per-km allowance, train = full worktime) plus the G4b
+// proposal helpers (return-trip nudge, magnetic chaining, commute favourites). Pure,
+// location used only at start/stop (ADR-0058/0059 privacy).
+export type {
+  TravelMode,
+  TravelLeg,
+  TravelRatePolicy,
+  TravelCost,
+  TravelLegProposal,
+  RouteFrequency,
+} from './travel/travel.js'
+export {
+  effectiveFraction,
+  priceTravel,
+  returnTrip,
+  nextLegStart,
+  frequentRoutes,
+} from './travel/travel.js'
 
 // Entitlements — the domain of monetization (REQ-016, ADR-0006/0008). Provider-
 // agnostic plan/state machine; payment providers are adapters layered on later.
