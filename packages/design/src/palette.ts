@@ -281,3 +281,15 @@ export const projectColors: Record<'dark' | 'light', readonly string[]> = {
     '#b54242',
   ],
 }
+
+/**
+ * Per-person shades of the sage `--life` tone (design v17 §F6). Family/personal is one person,
+ * one timeline — a person is **not** a project, so people never wear the rainbow project palette;
+ * they get a small set of **sage** shades so a life block reads calm and clearly non-work while
+ * still telling family members apart. No new palette — three tints of the existing `life` sage,
+ * assigned to a person deterministically (see `personShade`). The base shade equals `life`.
+ */
+export const lifeShades: Record<'dark' | 'light', readonly string[]> = {
+  dark: ['#8faa8b', '#a7c4a0', '#6f9276'],
+  light: ['#4f7a52', '#6b9a6e', '#3d6342'],
+}

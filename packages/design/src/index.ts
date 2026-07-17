@@ -39,6 +39,7 @@ export {
   light,
   palettes,
   projectColors,
+  lifeShades,
   AI_GRADIENT,
   ACCENT_THEMES,
   DEFAULT_ACCENT,
@@ -47,7 +48,9 @@ export {
 } from './palette.js'
 export { theme, themes, type Theme, type ThemeMode } from './theme.js'
 export { boundedList, type Bounded } from './bounded.js'
+export { fnv1a } from './hash.js'
 export { projectColor, projectColorIndex } from './projects.js'
+export { personShade, personShadeIndex } from './people.js'
 export {
   contrastRatio,
   relativeLuminance,
