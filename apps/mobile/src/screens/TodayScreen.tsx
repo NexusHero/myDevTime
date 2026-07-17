@@ -28,6 +28,7 @@ import { useForgottenTimer } from '../hooks/useForgottenTimer'
 import { usePomodoro } from '../focus/PomodoroContext'
 import { useAutoTracker } from '../autotracker/useAutoTracker'
 import { SmartAdd } from './SmartAdd'
+import { TravelEntry } from './TravelEntry'
 import { useCatalog } from './useCatalog'
 import { findProject } from './projectsData'
 
@@ -815,6 +816,7 @@ export function TodayScreen(): React.JSX.Element {
         {askMood && <MoodCheck onDone={() => setAskMood(false)} />}
 
         <SmartAdd />
+        <TravelEntry />
 
         <View
           style={{
