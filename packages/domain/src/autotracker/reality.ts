@@ -95,6 +95,19 @@ function overlapMs(s: TimedSpan, a: number, b: number): number {
   return Math.max(0, Math.min(s.endMs, b) - Math.max(s.startMs, a))
 }
 
+/** The active source that logged the most ms inside `[a, b)` (ties → alphabetical). */
+function dominantSource(active: readonly TimedSpan[], a: number, b: number): string {
+  const bySource = new Map<string, number>()
+  for (const s of active) {
+    const ms = overlapMs(s, a, b)
+    if (ms > 0) bySource.set(s.source, (bySource.get(s.source) ?? 0) + ms)
+  }
+  return (
+    [...bySource.entries()].sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]))[0]?.[0] ??
+    'Unknown'
+  )
+}
+
 /** Total real-work time the tracker observed (idle/away excluded), in ms. */
 export function trackedMs(spans: readonly TimedSpan[], opts: RealityOptions = {}): number {
   const idle = new Set(opts.idleSources ?? DEFAULT_IDLE)
@@ -144,15 +157,51 @@ export function detectUnbookedGap(
     return lb > la || (lb === la && b.startMs < a.startMs) ? b : a
   })
 
-  // Label with the active source that logged the most ms inside the gap.
-  const bySource = new Map<string, number>()
-  for (const s of active) {
-    const ms = overlapMs(s, best.startMs, best.endMs)
-    if (ms > 0) bySource.set(s.source, (bySource.get(s.source) ?? 0) + ms)
+  return {
+    startMs: best.startMs,
+    endMs: best.endMs,
+    source: dominantSource(active, best.startMs, best.endMs),
   }
-  const source =
-    [...bySource.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ??
-    'Unknown'
+}
 
-  return { startMs: best.startMs, endMs: best.endMs, source }
+/** A bookable draft entry the auto-tracker's reality suggests (KI6). */
+export interface TimesheetDraft {
+  readonly startMs: number
+  readonly endMs: number
+  readonly durationMs: number
+  /** The dominant active source — the hint the grounded LLM phrases into a title. */
+  readonly source: string
+}
+
+export interface TimesheetDraftResult {
+  readonly drafts: readonly TimesheetDraft[]
+  /** Total time these drafts would recover ("2:08h wären sonst weg"). */
+  readonly recoveredMs: number
+}
+
+/**
+ * Timesheet drafts (REQ-062, design v17 §K/KI6) — the **deterministic** half of "your day,
+ * already written": every unbooked active stretch ≥ `minDraftMs` becomes a bookable draft,
+ * labelled with the source that dominated it. Unlike `detectUnbookedGap` (the single largest
+ * healing candidate), this returns **all** qualifying stretches as a review queue. The AI only
+ * phrases titles from the source; nothing is written until the user accepts (ADR-0005). Pure.
+ */
+export function timesheetDrafts(
+  spans: readonly TimedSpan[],
+  booked: readonly BookedSpan[],
+  opts: RealityOptions & { readonly minDraftMs: number },
+): TimesheetDraftResult {
+  const idle = new Set(opts.idleSources ?? DEFAULT_IDLE)
+  const active = activeSpans(spans, idle)
+  const coverage = mergeIntervals(active)
+  const unbooked = subtractIntervals(coverage, booked).filter(
+    g => g.endMs - g.startMs >= opts.minDraftMs,
+  )
+  const drafts = unbooked.map(g => ({
+    startMs: g.startMs,
+    endMs: g.endMs,
+    durationMs: g.endMs - g.startMs,
+    source: dominantSource(active, g.startMs, g.endMs),
+  }))
+  return { drafts, recoveredMs: drafts.reduce((n, d) => n + d.durationMs, 0) }
 }
