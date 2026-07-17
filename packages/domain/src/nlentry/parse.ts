@@ -30,8 +30,10 @@ const CLOCK_RE = /\b(\d{1,2}):(\d{2})\b/g
 const TIME_OF_DAY_RE = /(?:\b(?:at|um|ab|von|gegen)\s+|@\s*)\d{1,2}:\d{2}\b/gi
 /** A `H:MM–H:MM` window (a meeting range) is a time span, not a duration to sum (M5). */
 const CLOCK_RANGE_RE = /\b\d{1,2}:\d{2}\s*(?:[-–—]|bis|to|till|until)\s*\d{1,2}:\d{2}\b/gi
-const HOURS_RE = /(\d+(?:[.,]\d+)?)\s*(?:stunden|stunde|hours|hour|hrs|hr|std|h)\b/gi
-const MINUTES_RE = /(\d+)\s*(?:minuten|minute|minutes|mins|min|m)\b/gi
+// Bounded digit runs so the optional-decimal group can't backtrack polynomially on a
+// long run of digits with no trailing unit (CodeQL ReDoS-hardening; durations are small).
+const HOURS_RE = /(\d{1,4}(?:[.,]\d{1,2})?)\s*(?:stunden|stunde|hours|hour|hrs|hr|std|h)\b/gi
+const MINUTES_RE = /(\d{1,4})\s*(?:minuten|minute|minutes|mins|min|m)\b/gi
 /** An issue-tracker key like `PROJ-142`, `AUTH-7` (Jira/Linear/GitHub/Azure style). */
 const TICKET_RE = /\b([A-Z][A-Z0-9]+-\d+)\b/
 
