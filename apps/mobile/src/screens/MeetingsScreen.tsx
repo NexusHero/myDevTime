@@ -4,6 +4,7 @@ import { projectColor } from '@mydevtime/design'
 import { Text } from '../components/core/Text'
 import { Badge, Button, Card, EmptyState, ScreenScaffold } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
+import { MeetingNote } from './MeetingNote'
 
 /**
  * Meetings — transcript list + AI insights (ux-vision §3, #32/#33). Consent-first
@@ -63,9 +64,12 @@ export function MeetingsScreen(): React.JSX.Element {
   if (sel === undefined) {
     return (
       <ScreenScaffold header={header}>
+        {/* KI4 — turn your own meeting notes into grounded follow-ups (no ASR needed). */}
+        <MeetingNote />
         <EmptyState
-          title="No meetings yet"
-          hint="Opt a meeting into recording and its transcript and AI insights show up here. Consent-first by design — every figure comes from the deterministic core, never the model."
+          title="No recorded meetings yet"
+          hint="Auto-capture with a transcript is coming (consent-first); until then, jot notes above and get grounded follow-ups. Every figure comes from the deterministic core, never the model."
+          compact
         />
       </ScreenScaffold>
     )
