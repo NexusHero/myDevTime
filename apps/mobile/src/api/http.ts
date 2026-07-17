@@ -65,7 +65,12 @@ export async function getJson(
 ): Promise<unknown> {
   return send(
     `${baseUrl}${path}`,
-    { method: 'GET', credentials: 'include', headers: { accept: 'application/json' } },
+    {
+      method: 'GET',
+      credentials: 'include',
+      headers: { accept: 'application/json' },
+      cache: 'no-store',
+    },
     fetchImpl,
   )
 }

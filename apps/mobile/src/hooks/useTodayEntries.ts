@@ -40,7 +40,7 @@ export function useTodayEntries(): TodayEntriesResource {
   const booked: readonly BookedSpan[] = closedEntries
     .map(e => ({
       startMs: Date.parse(e.startedAt),
-      endMs: Date.parse(e.endedAt as string),
+      endMs: Date.parse(e.endedAt ?? ''),
     }))
     .filter(b => Number.isFinite(b.startMs) && b.endMs > b.startMs)
   const bookedMs = closedEntries.reduce((n, e) => n + entryDurationMs(e, now), 0)
