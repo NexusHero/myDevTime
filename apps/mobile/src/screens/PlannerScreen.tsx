@@ -27,6 +27,8 @@ import { weekCapacityFromBlocks } from '../planner/capacityTrace'
 import { inLayer, PLANNER_LAYERS, type PlannerLayer } from '../planner/layer'
 import { apiBaseUrl } from '../config'
 import { createSeries } from '../api/recurrence'
+import { occurrencesToBlocks, type RecurringBlock } from '../planner/recurring'
+import { useWeekOccurrences } from '../hooks/useWeekOccurrences'
 import { Text } from '../components/core/Text'
 import {
   AICallout,
@@ -598,6 +600,7 @@ function DayColumn({
   index,
   flex,
   blocks,
+  recurring,
   colWidth,
   onResizeBlock,
   onMoveBlock,
@@ -608,6 +611,9 @@ function DayColumn({
   readonly index: number
   readonly flex: boolean
   readonly blocks: readonly CanvasBlock[]
+  /** Recurring-series occurrences for the week (design v17 §F4) — read-only ↻ ghosts, not
+   *  part of the editable block list, so they never touch the drag/index model. */
+  readonly recurring: readonly RecurringBlock[]
   /** One day column's on-screen width, for the cross-day drag mapping. */
   readonly colWidth: number
   /** Commit a resized duration by the block's index in the shared list. */
@@ -627,6 +633,8 @@ function DayColumn({
     .map((b, globalIndex) => ({ b, globalIndex }))
     .filter(x => x.b.day === index)
   const dayBlocks = dayEntries.map(x => x.b)
+  // Recurring occurrences for this day (design v17 §F4) — read-only ↻ ghosts.
+  const dayRecurring = recurring.filter(rb => rb.day === index)
   // Lanes split the column when blocks overlap; the badge counts real conflicts —
   // breaks and FYI meetings never count (design v6).
   const placements = assignLanes(dayBlocks.map(b => ({ startMin: b.start, lenMin: b.len })))
@@ -789,6 +797,38 @@ function DayColumn({
             onMove={(day, start) => onMoveBlock(globalIndex, day, start)}
             onOpen={() => onOpenBlock(globalIndex)}
           />
+        ))}
+        {/* Recurring occurrences (design v17 §F4): projected from a stored series, so they are
+            read-only ↻ ghosts (dashed, muted) — never editable canvas blocks. Positioned on the
+            window like reality; `pointerEvents="none"` keeps them off the drag/index model. */}
+        {dayRecurring.map((rb, i) => (
+          <View
+            key={`rec-${String(rb.start)}-${String(i)}`}
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              left: 2,
+              right: 8,
+              top: (rb.start / SPAN) * BODY_HEIGHT + 1,
+              height: Math.max((rb.len / SPAN) * BODY_HEIGHT - 2, 12),
+              borderRadius: t.radius.block,
+              borderWidth: 1,
+              borderStyle: 'dashed',
+              borderColor: t.color.border,
+              backgroundColor: t.color.surface,
+              opacity: 0.85,
+              paddingHorizontal: 6,
+              paddingVertical: 2,
+              overflow: 'hidden',
+            }}
+          >
+            <Text
+              numberOfLines={1}
+              style={{ fontSize: t.fontSize['2xs'], fontWeight: '600', color: t.color.ink2 }}
+            >
+              {`↻ ${rb.label}`}
+            </Text>
+          </View>
         ))}
         {day.today && (
           <View
@@ -1516,6 +1556,17 @@ export function PlannerScreen(): React.JSX.Element {
   // feeds capacity and price so the numbers never lie about what exists.
   const shownBlocks = blocks.filter(b => inLayer(b.kind, layer))
 
+  // Recurring-series occurrences for the shown week (design v17 §F4): fetched from the API and
+  // placed on the canvas as read-only ↻ ghosts. Empty without an API — the canvas then shows
+  // only real blocks. The layer filter applies to them too (a `life` series hides under Work).
+  const weekDates = weekDays.map(d => localDayKey(d.dateMs))
+  const occurrences = useWeekOccurrences(weekDates).data ?? []
+  const recurringBlocks: readonly RecurringBlock[] = occurrencesToBlocks(
+    occurrences,
+    weekDates,
+    START_HOUR,
+  ).filter(rb => inLayer(rb.kind, layer))
+
   return (
     <View style={{ flex: 1 }}>
       <ScrollView
@@ -1850,6 +1901,7 @@ export function PlannerScreen(): React.JSX.Element {
                             index={di}
                             flex={false}
                             blocks={shownBlocks}
+                            recurring={recurringBlocks}
                             colWidth={COL_WIDTH}
                             onResizeBlock={resizeBlock}
                             onMoveBlock={moveBlock}
@@ -1874,6 +1926,7 @@ export function PlannerScreen(): React.JSX.Element {
                           index={di}
                           flex
                           blocks={shownBlocks}
+                          recurring={recurringBlocks}
                           colWidth={colWidth}
                           onResizeBlock={resizeBlock}
                           onMoveBlock={moveBlock}
