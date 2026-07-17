@@ -84,6 +84,18 @@ export type {
 export { buildTimesheet } from './reporting/timesheet.js'
 export type { ProjectSummary, WorkspaceSummary, SummaryOptions } from './reporting/summary.js'
 export { summarizeEntries } from './reporting/summary.js'
+// AI standup / summary (REQ-014, ADR-0005) — the deterministic report with **protected numeric
+// slots** the LLM narrates around but may never change; `renderStandupPlain` is the AI-free
+// degradation, `slotsPreserved` verifies a draft kept every number (slot integrity).
+export type { StandupLine, StandupInput, StandupReport } from './reporting/standup.js'
+export {
+  buildStandup,
+  formatHm,
+  standupSlots,
+  slotsPreserved,
+  renderStandupPlain,
+  msToHours,
+} from './reporting/standup.js'
 export type {
   ProjectCost,
   BillingBreakdown,
@@ -173,6 +185,12 @@ export { monthlyCreditAllowance, TOPUP_PACKS, topUpPackCredits } from './credits
 // turns a phrase into a draft the user confirms; LLM only for what it can't parse.
 export type { TimeEntryDraft, ParseOptions } from './nlentry/parse.js'
 export { parseTimeEntry } from './nlentry/parse.js'
+
+// Grounded-assistant retrieval (REQ-020/flagship AI, ADR-0005) — IDF-weighted relevance ranking to
+// ground the LLM on the *most relevant* of the caller's own facts, and `isOffData` for a clean
+// off-data refusal that never even calls the model. Pure; the LLM only phrases the selected facts.
+export type { ScoredFact, GroundingOptions } from './assistant/grounding.js'
+export { tokenize, rankFacts, selectGroundingFacts, isOffData } from './assistant/grounding.js'
 
 // Smart-Add typed-entry parser (REQ-047, ADR-0065) — Stage 1 of the one-plus/one-field
 // quick-add (design v13, K6). Classifies a phrase into a typed draft (task/meeting/
