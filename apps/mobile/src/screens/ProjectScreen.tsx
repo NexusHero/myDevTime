@@ -8,11 +8,12 @@ import {
   type Screen,
 } from '@mydevtime/design'
 import { Text } from '../components/core/Text'
-import { Badge, BudgetRing, Card, Row } from '../components/index'
+import { Badge, BudgetRing, Card, InsightCard, Row } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
 import { SubScreenHeader } from './SubScreenHeader'
 import { findProject } from './projectsData'
 import { useCatalog } from './useCatalog'
+import { quoteFacts } from '../insights/quoteFacts'
 
 /**
  * Project detail (REQ-001/005, ux-vision §3) — the drill-down from the Projects
@@ -182,6 +183,26 @@ export function ProjectScreen({
             />
           ))}
         </Card>
+
+        {/* KI2 — a quote grounded in this project's own task-duration history (design v13). */}
+        {(() => {
+          const facts = quoteFacts(
+            project.tasks.map(task => task.spentMs).filter(ms => ms > 0),
+            { ratePerHourMinor: project.rateMinorPerHour, currency: project.currency },
+          )
+          if (facts.length === 0) return null
+          return (
+            <View style={{ marginTop: t.spacing.s4 }}>
+              <InsightCard
+                kind="quote"
+                title="Quote from history"
+                subtitle="Grounded in how long similar tasks took here"
+                cta="Draft a quote"
+                facts={facts}
+              />
+            </View>
+          )
+        })()}
       </View>
     </ScrollView>
   )
