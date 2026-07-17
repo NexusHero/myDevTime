@@ -7,6 +7,7 @@ const occ = (
   lenMin: number,
   title: string,
   projectId: string | null = null,
+  priority: number | null = null,
 ): Occurrence => ({
   seriesId: 's',
   kind: 'focus',
@@ -15,6 +16,8 @@ const occ = (
   startMin: 540,
   lenMin,
   projectId,
+  priority,
+  note: null,
 })
 
 describe('buildMonthDays', () => {
@@ -41,12 +44,48 @@ describe('buildMonthDays', () => {
     expect(day17?.load).toBe(0)
   })
 
+  it('LifeOccurrencesShow_butNeverCountTowardLoad', () => {
+    // Life is personal, never work time (design v19): it appears on the day but the
+    // load bar (planned-work severity) must ignore it.
+    const life: Occurrence = {
+      seriesId: 'l',
+      kind: 'life',
+      title: 'Kita pickup',
+      date: '2026-07-13',
+      startMin: 990,
+      lenMin: 60,
+      projectId: null,
+      priority: null,
+      note: null,
+    }
+    const days = buildMonthDays([occ('2026-07-13', 120, 'Sync engine', 'p1'), life], [], {
+      year: 2026,
+      month0: 6,
+    })
+    const day13 = days.get(13)
+    expect(day13?.tasks).toHaveLength(2) // both still surface in the cell
+    expect(day13?.tasks.find(t => t.label === 'Kita pickup')?.isLife).toBe(true)
+    expect(day13?.tasks.find(t => t.label === 'Sync engine')?.isLife).toBe(false)
+    expect(day13?.load).toBe(2) // only the 2h focus block counts; life excluded
+  })
+
   it('IgnoresOccurrencesOutsideTheMonth', () => {
     const days = buildMonthDays([occ('2026-08-01', 60, 'Next month')], [], {
       year: 2026,
       month0: 6,
     })
     expect(days.size).toBe(0)
+  })
+
+  it('CarriesTheSeriesPriority_orDefaultsToMedium', () => {
+    const days = buildMonthDays(
+      [occ('2026-07-13', 60, 'High one', 'p1', 1), occ('2026-07-13', 60, 'No prio', 'p2')],
+      [],
+      { year: 2026, month0: 6 },
+    )
+    const tasks = days.get(13)?.tasks ?? []
+    expect(tasks.find(t => t.label === 'High one')?.prio).toBe(1) // real stored priority
+    expect(tasks.find(t => t.label === 'No prio')?.prio).toBe(2) // default medium
   })
 
   it('EmptyInput_EmptyMap', () => {
@@ -77,6 +116,23 @@ describe('buildYearMonths', () => {
       nowMonth0: 6,
     })
     expect(months[2]?.eventCount).toBe(1)
+  })
+
+  it('LifeHoursDoNotCountAsPlannedWork', () => {
+    const life: Occurrence = {
+      seriesId: 'l',
+      kind: 'life',
+      title: 'School run',
+      date: '2026-07-05',
+      startMin: 990,
+      lenMin: 120,
+      projectId: null,
+      priority: null,
+      note: null,
+    }
+    const months = buildYearMonths([life], [], { year: 2026, nowMonth0: 6 })
+    expect(months[6]?.hours).toBe(0) // life is not planned work
+    expect(months[6]?.weekLoads).toEqual([0, 0, 0, 0, 0])
   })
 
   it('EmptyMonth_ZeroHoursAllIdle', () => {

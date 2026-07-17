@@ -186,7 +186,8 @@ export function PlannerMonth({
                   </View>
                 ))}
 
-                {/* Tasks — filled chip: project-color left border + priority dot */}
+                {/* Tasks — filled chip: project-color left border + priority dot. Life is
+                    personal (design v19 §F): sage left-border, no priority dot, never counted. */}
                 {shown.map((task, ti) => (
                   <View
                     key={ti}
@@ -197,23 +198,33 @@ export function PlannerMonth({
                       paddingHorizontal: 5,
                       paddingVertical: 2,
                       borderRadius: 4,
-                      backgroundColor: t.color.sunk,
+                      backgroundColor: task.isLife ? t.color.lifeSoft : t.color.sunk,
                       borderLeftWidth: 2.5,
-                      borderLeftColor:
-                        task.projectId != null
+                      borderLeftColor: task.isLife
+                        ? t.color.life
+                        : task.projectId != null
                           ? projectColor(task.projectId, t.mode)
                           : t.color.accent,
                     }}
                   >
-                    <View
+                    {!task.isLife && (
+                      <View
+                        style={{
+                          width: 5,
+                          height: 5,
+                          borderRadius: 3,
+                          backgroundColor: PRIO_DOT(t, task.prio),
+                        }}
+                      />
+                    )}
+                    <Text
+                      numberOfLines={1}
                       style={{
-                        width: 5,
-                        height: 5,
-                        borderRadius: 3,
-                        backgroundColor: PRIO_DOT(t, task.prio),
+                        flex: 1,
+                        fontSize: 9,
+                        color: task.isLife ? t.color.life : t.color.ink,
                       }}
-                    />
-                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 9, color: t.color.ink }}>
+                    >
                       {task.label}
                     </Text>
                   </View>
