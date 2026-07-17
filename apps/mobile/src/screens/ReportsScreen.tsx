@@ -19,6 +19,7 @@ import {
   Tabs,
 } from '../components/index'
 import { effectiveRate, priceWeek, weekLoadFromMinutes } from '@mydevtime/domain'
+import { useVisibility } from '../roles/RoleContext'
 import { useReports } from '../hooks/useReports'
 import { useRevenueBudget } from '../hooks/useRevenueBudget'
 import { useOvertimeTrend } from '../hooks/useOvertimeTrend'
@@ -337,6 +338,9 @@ export function ReportsScreen(): React.JSX.Element {
   const stacked = width < 720
   const [range, setRange] = useState<Range>('week')
   const [view, setView] = useState<'overview' | 'money' | 'balance'>('overview')
+  // Role visibility (design v14 §R): a Stempler (Employed) never sees €/clients/billing, so
+  // the Revenue & Budget view is hidden for them; Overview and Balance stay for every role.
+  const showMoney = useVisibility().isVisible('invoicing')
   const reports = useReports(range)
   const rb = useRevenueBudget(range)
   const balance = useBalance()
@@ -857,7 +861,10 @@ export function ReportsScreen(): React.JSX.Element {
     </>
   )
 
-  const body = view === 'money' ? moneyView : view === 'balance' ? balanceView : overviewView
+  // Guard: if the money view is hidden by the role, fall back to Overview.
+  const effectiveView = view === 'money' && !showMoney ? 'overview' : view
+  const body =
+    effectiveView === 'money' ? moneyView : effectiveView === 'balance' ? balanceView : overviewView
 
   return (
     <ScreenScaffold
@@ -894,7 +901,7 @@ export function ReportsScreen(): React.JSX.Element {
             {(
               [
                 ['overview', 'Overview'],
-                ['money', 'Revenue & Budget'],
+                ...(showMoney ? ([['money', 'Revenue & Budget']] as const) : []),
                 ['balance', 'Balance'],
               ] as const
             ).map(([v, label]) => (
@@ -905,14 +912,14 @@ export function ReportsScreen(): React.JSX.Element {
                   borderRadius: t.radius.pill,
                   paddingVertical: 5,
                   paddingHorizontal: 12,
-                  backgroundColor: view === v ? t.color.surface : 'transparent',
+                  backgroundColor: effectiveView === v ? t.color.surface : 'transparent',
                 }}
               >
                 <Text
                   style={{
                     fontSize: t.fontSize['2xs'],
                     fontWeight: '700',
-                    color: view === v ? t.color.ink : t.color.ink3,
+                    color: effectiveView === v ? t.color.ink : t.color.ink3,
                   }}
                 >
                   {label}
