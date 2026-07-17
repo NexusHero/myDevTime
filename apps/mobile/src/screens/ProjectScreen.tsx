@@ -9,6 +9,7 @@ import {
 } from '@mydevtime/design'
 import { Text } from '../components/core/Text'
 import { Badge, BudgetRing, Card, InsightCard, Row } from '../components/index'
+import { PlanVarianceChip } from '../components/reports/PlanVarianceChip'
 import { useTheme } from '../theme/ThemeProvider'
 import { SubScreenHeader } from './SubScreenHeader'
 import { findProject } from './projectsData'
@@ -133,6 +134,33 @@ export function ProjectScreen({
             {formatMoneyMinor(project.rateMinorPerHour, project.currency)} / h
           </Text>
         </View>
+
+        {/* Fixed-fee revenue plan vs realized (design v17 §K4): only for a fixed-fee project.
+            Realized is the cost to date (tracked value); the deterministic core owns the %. */}
+        {typeof project.fixedFeeMinor === 'number' && project.fixedFeeMinor > 0 && (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: t.spacing.s2,
+              marginTop: t.spacing.s3,
+            }}
+          >
+            <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>Fixed fee</Text>
+            <Text
+              style={{
+                fontFamily: t.fontFamily.numeric,
+                fontSize: t.fontSize.sm,
+                color: t.color.ink,
+              }}
+            >
+              {formatMoneyMinor(project.fixedFeeMinor, project.currency)}
+            </Text>
+            <View style={{ marginLeft: 'auto' }}>
+              <PlanVarianceChip expectedMinor={project.fixedFeeMinor} realizedMinor={cost} />
+            </View>
+          </View>
+        )}
       </Card>
 
       <View>

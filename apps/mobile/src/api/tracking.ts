@@ -19,6 +19,7 @@ export interface ProjectDTO {
   readonly name: string
   readonly clientId: string | null
   readonly hourlyRateOverride: string | null
+  readonly fixedFeeMinor: number | null
 }
 export interface TaskDTO {
   readonly id: string
@@ -36,6 +37,7 @@ export function parseProjects(value: unknown): ProjectDTO[] {
     name: str(o, 'name'),
     clientId: nullableStr(o, 'clientId'),
     hourlyRateOverride: nullableStr(o, 'hourlyRateOverride'),
+    fixedFeeMinor: typeof o.fixedFeeMinor === 'number' ? o.fixedFeeMinor : null,
   }))
 }
 export function parseTasks(value: unknown): TaskDTO[] {
@@ -105,6 +107,7 @@ export function assembleCatalog(
       rateMinorPerHour: Number.isFinite(rate) ? rate : 0,
       currency: 'EUR',
       tasks: tasksByProject.get(p.id) ?? [],
+      fixedFeeMinor: p.fixedFeeMinor,
     }
     const list = projectsByClient.get(clientKey) ?? []
     list.push(project)
