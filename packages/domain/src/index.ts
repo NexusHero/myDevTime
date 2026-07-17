@@ -197,6 +197,18 @@ export {
   weekLoadFromMinutes,
 } from './economics/week-price.js'
 
+// Capacity honesty (REQ-055, design v14 §F Stufe 2) — one person, one timeline: the week
+// you can truly work is the contracted target minus your own life/protected commitments
+// ("KW32 nur 24h"). Fill-week, overbooking and the quote calculator plan against this.
+export type {
+  CommitmentKind,
+  Commitment,
+  CapacityDay,
+  DayCapacity,
+  WeekCapacity,
+} from './capacity/plannable.js'
+export { committedMinutes, dayCapacity, weekCapacity, overbookedMs } from './capacity/plannable.js'
+
 // Travel entry type (REQ-051, ADR-0065 · design v13 G4) — deterministic travel pricing
 // (reduced-fraction time + per-km allowance, train = full worktime) plus the G4b
 // proposal helpers (return-trip nudge, magnetic chaining, commute favourites). Pure,
@@ -244,6 +256,30 @@ export { FREE } from './entitlements/types.js'
 export { deriveEntitlement } from './entitlements/derive.js'
 export type { Feature } from './entitlements/features.js'
 export { can, featuresFor } from './entitlements/features.js'
+
+// Role & tier visibility (REQ-056, design v14 §R) — role is a visibility *preset* over the
+// existing modules, never a fork. Enforces the hard tier floors: a Stempler (Free) never sees
+// €/clients/billing; Health is visible in every tier and never paywalled; Family is an
+// orthogonal add-on. Pure (ADR-0005); distinct from the `can()` payment gate.
+export type { UserRole, VisibilityModule, VisibilityContext } from './roles/visibility.js'
+export { ALL_MODULES, isModuleVisible, visibleModules } from './roles/visibility.js'
+
+// Protection flag "🛡 Geschützt" (REQ-057, design v14 D14) — a flag on existing entries that
+// governs communication only, never time-tracking: nudges/requests are held during a protected
+// block and surface as exactly one digest afterwards; the Island prompts once at a protected
+// start while punched in and never auto-punches-out. Pure (ADR-0005), no time-tracking math.
+export type {
+  HeldKind,
+  HeldItem,
+  ProtectedBlock,
+  ProtectionDigest,
+} from './protection/protection.js'
+export {
+  isProtectedAt,
+  partitionByProtection,
+  buildDigest,
+  transitionPromptDue,
+} from './protection/protection.js'
 
 // Auto-Tracker (REQ-042, ADR-0057) — deterministic aggregation of "app usage while
 // tracking" spans into a percentage-correct breakdown. OS/browser capture is a
