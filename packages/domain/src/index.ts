@@ -311,6 +311,18 @@ export {
 export type { OwnerBlock, FreeBusySlot, Window } from './sharing/freebusy.js'
 export { toFreeBusy, freeGaps } from './sharing/freebusy.js'
 
+// Calendar-sync merge (REQ-064, design v17 §F6) — the deterministic diff behind the calendar
+// port: external events (Google/Apple, via an adapter) vs already-imported blocks → new / changed
+// / orphaned **proposals**, keyed on the event uid. It never writes: calendar events become ghost
+// blocks to confirm, never auto-booked (ADR-0005). Vendor SDKs stay confined to the port adapter.
+export type {
+  ExternalEvent,
+  ImportedBlock,
+  MergeChange,
+  MergeProposal,
+} from './calendarsync/merge.js'
+export { mergeCalendar } from './calendarsync/merge.js'
+
 // Auto-Tracker (REQ-042, ADR-0057) — deterministic aggregation of "app usage while
 // tracking" spans into a percentage-correct breakdown. OS/browser capture is a
 // client adapter behind a narrow port; this core is pure and framework-free (ADR-0005).
