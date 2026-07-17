@@ -84,7 +84,10 @@ export function monthlyStatementToPdf(
   locale: ExportLocale = 'en',
 ): Promise<Buffer> {
   const intlLocale = locale === 'de' ? 'de-DE' : 'en-US'
-  const nf = new Intl.NumberFormat(intlLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const nf = new Intl.NumberFormat(intlLocale, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
   const L = locale === 'de' ? DE : EN
   const hours = (ms: number): string => nf.format(ms / 3_600_000)
   const signed = (ms: number): string => (ms >= 0 ? `+${hours(ms)}` : `−${hours(Math.abs(ms))}`)
@@ -106,7 +109,9 @@ export function monthlyStatementToPdf(
     })
     const chunks: Buffer[] = []
     doc.on('data', (c: Buffer) => chunks.push(c))
-    doc.on('end', () => resolve(Buffer.concat(chunks)))
+    doc.on('end', () => {
+      resolve(Buffer.concat(chunks))
+    })
     doc.on('error', reject)
 
     // Header
@@ -114,7 +119,10 @@ export function monthlyStatementToPdf(
     doc.font('Helvetica').fontSize(11).fillColor('#888').text(L.title)
     doc.fillColor('#111').moveDown(0.4)
     doc.fontSize(10).text(`${L.period}: ${meta.monthLabel} (${meta.from} – ${meta.to})`)
-    doc.fontSize(9).fillColor('#555').text(`${L.carryover}: ${signed(statement.carryoverMs)} h`)
+    doc
+      .fontSize(9)
+      .fillColor('#555')
+      .text(`${L.carryover}: ${signed(statement.carryoverMs)} h`)
     doc.fillColor('#111').moveDown(0.8)
 
     // Table header
@@ -181,13 +189,33 @@ function header(doc: PDFKit.PDFDocument, text: string, col: Column, y: number): 
   doc.text(text, col.x, y, { width: col.width, align: col.align, lineBreak: false })
 }
 function rule(doc: PDFKit.PDFDocument, y: number): void {
-  doc.moveTo(40, y).lineTo(555, y).strokeColor('#cccccc').lineWidth(0.5).stroke().strokeColor('#111')
+  doc
+    .moveTo(40, y)
+    .lineTo(555, y)
+    .strokeColor('#cccccc')
+    .lineWidth(0.5)
+    .stroke()
+    .strokeColor('#111')
 }
-function signature(doc: PDFKit.PDFDocument, x: number, y: number, role: string, L: typeof EN): void {
-  doc.moveTo(x, y).lineTo(x + 200, y).strokeColor('#111').lineWidth(0.5).stroke()
+function signature(
+  doc: PDFKit.PDFDocument,
+  x: number,
+  y: number,
+  role: string,
+  L: typeof EN,
+): void {
+  doc
+    .moveTo(x, y)
+    .lineTo(x + 200, y)
+    .strokeColor('#111')
+    .lineWidth(0.5)
+    .stroke()
   doc.font('Helvetica').fontSize(8).fillColor('#555')
   doc.text(`${role} — ${L.signature}`, x, y + 4, { width: 200, lineBreak: false })
-  doc.moveTo(x, y + 40).lineTo(x + 200, y + 40).stroke()
+  doc
+    .moveTo(x, y + 40)
+    .lineTo(x + 200, y + 40)
+    .stroke()
   doc.text(L.dateLine, x, y + 44, { width: 200, lineBreak: false })
   doc.fillColor('#111')
 }

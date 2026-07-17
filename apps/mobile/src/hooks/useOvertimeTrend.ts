@@ -26,7 +26,7 @@ function mondayOf(d: Date): Date {
 
 export function useOvertimeTrend(): OvertimeTrendResource {
   const base = apiBaseUrl
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC'
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
   const thisMonday = mondayOf(new Date())
 
   const resource = useAsync<OvertimeForecast | null>(
@@ -46,7 +46,10 @@ export function useOvertimeTrend(): OvertimeTrendResource {
         ),
       )
       return overtimeForecast(
-        summaries.map((s, i) => ({ weekStartMs: weeks[i]?.from.getTime() ?? 0, deltaMs: s.balanceMs })),
+        summaries.map((s, i) => ({
+          weekStartMs: weeks[i]?.from.getTime() ?? 0,
+          deltaMs: s.balanceMs,
+        })),
       )
     },
     `${base ?? 'demo'}:otrend:${thisMonday.toISOString().slice(0, 10)}`,

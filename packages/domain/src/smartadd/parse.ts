@@ -63,7 +63,8 @@ const WEEKDAYS: readonly (readonly string[])[] = [
 const TRAVEL_RE = /\b(fahrt|drive|driving|bahn|zug|train|reise|travel|trip|commute|pendeln)\b/i
 const ABSENCE_RE =
   /\b(urlaub|vacation|holiday|krank|sick|krankheit|frei|day ?off|abwesenheit|absence|gleitzeit|zeitausgleich)\b/i
-const PRIVATE_RE = /\b(privat|private|personal|arzt|doctor|gym|sport|lunch|mittag|errand|termin privat)\b/i
+const PRIVATE_RE =
+  /\b(privat|private|personal|arzt|doctor|gym|sport|lunch|mittag|errand|termin privat)\b/i
 const MEETING_RE =
   /\b(meeting|call|termin|sync|standup|stand-up|1:1|jour ?fixe|review|besprechung|kickoff|kick-off|retro|planning|workshop|interview)\b/i
 
@@ -154,14 +155,9 @@ export function parseEntry(text: string, opts: SmartParseOptions = {}): SmartEnt
   }
 
   // 4. Billable: private/absence are never billable; otherwise on unless said otherwise.
-  let billableSaid: boolean | null = null
-  rest = rest.replace(
-    /\b(?:non-?billable|unbillable|nicht abrechenbar|nicht berechenbar)\b/i,
-    () => {
-      billableSaid = false
-      return ' '
-    },
-  )
+  const NONBILLABLE_RE = /\b(?:non-?billable|unbillable|nicht abrechenbar|nicht berechenbar)\b/i
+  const saidNonBillable = NONBILLABLE_RE.test(rest)
+  rest = rest.replace(NONBILLABLE_RE, ' ')
 
   // 5. Type detection — precedence: absence, travel, private, meeting, else task.
   let kind: SmartEntryKind
@@ -191,7 +187,7 @@ export function parseEntry(text: string, opts: SmartParseOptions = {}): SmartEnt
 
   const title = rest.replace(/\s+/g, ' ').trim()
 
-  const billable = kind === 'absence' || kind === 'private' ? false : (billableSaid ?? true)
+  const billable = kind === 'absence' || kind === 'private' ? false : !saidNonBillable
 
   let confidence = typed ? 0.5 : 0.2
   if (ticketKey !== null || projectHint !== null) confidence += 0.2

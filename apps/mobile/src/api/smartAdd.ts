@@ -83,7 +83,10 @@ export function smartDraftToEntryTimes(draft: SmartEntryDraft, now: Date): Smart
   const HOUR = 3_600_000
 
   if (draft.startMin !== null && draft.endMin !== null) {
-    return { startedAt: atMin(draft.startMin).toISOString(), endedAt: atMin(draft.endMin).toISOString() }
+    return {
+      startedAt: atMin(draft.startMin).toISOString(),
+      endedAt: atMin(draft.endMin).toISOString(),
+    }
   }
   if (draft.startMin !== null) {
     const start = atMin(draft.startMin)

@@ -7,7 +7,13 @@ import {
   type Instant,
   type TimeZone,
 } from '../tracking/time.js'
-import { isValidShift, shiftNetMs, targetForDay, type Shift, type WeeklyTarget } from './worktime.js'
+import {
+  isValidShift,
+  shiftNetMs,
+  targetForDay,
+  type Shift,
+  type WeeklyTarget,
+} from './worktime.js'
 import { breakShortfallMs, type BreakRulePreset } from './break-rule.js'
 import { coversDate, type Absence, type AbsenceKind } from '../absences/absence.js'
 
@@ -120,7 +126,12 @@ export function buildMonthlyStatement(input: MonthlyStatementInput): MonthlyStat
   }
 
   const days: StatementDay[] = []
-  const absenceDaysByKind: Record<AbsenceKind, number> = { vacation: 0, sick: 0, holiday: 0, other: 0 }
+  const absenceDaysByKind: Record<AbsenceKind, number> = {
+    vacation: 0,
+    sick: 0,
+    holiday: 0,
+    other: 0,
+  }
   let totalActualMs = 0
   let totalTargetMs = 0
   let totalCreditedMs = 0
@@ -129,7 +140,11 @@ export function buildMonthlyStatement(input: MonthlyStatementInput): MonthlyStat
   let breakViolationDays = 0
   let cumulative = carryoverMs
 
-  for (let cursor = startOfLocalDay(from, tz); cursor < to; cursor = startOfNextLocalDay(cursor, tz)) {
+  for (
+    let cursor = startOfLocalDay(from, tz);
+    cursor < to;
+    cursor = startOfNextLocalDay(cursor, tz)
+  ) {
     const date = dayKey(cursor, tz)
     const targetMs = targetForDay(target, cursor, tz)
     const dayShifts = byDay.get(date) ?? []
@@ -179,7 +194,7 @@ export function buildMonthlyStatement(input: MonthlyStatementInput): MonthlyStat
 
   const periodDeltaMs = totalActualMs + totalCreditedMs - totalTargetMs
   const closingBalanceMs = carryoverMs + periodDeltaMs
-  const auditNote = `Generated from ${workedDays} punched day(s) and ${days.length - workedDays} non-working day(s); figures are computed deterministically from recorded punch events.`
+  const auditNote = `Generated from ${String(workedDays)} punched day(s) and ${String(days.length - workedDays)} non-working day(s); figures are computed deterministically from recorded punch events.`
 
   return {
     year,

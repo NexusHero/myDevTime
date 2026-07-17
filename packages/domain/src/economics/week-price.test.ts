@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { HOUR_MS } from '../tracking/time.js'
-import {
-  priceWeek,
-  priceWeekAt,
-  weekLoadFromMinutes,
-  type WeekLoadInput,
-} from './week-price.js'
+import { priceWeek, priceWeekAt, weekLoadFromMinutes, type WeekLoadInput } from './week-price.js'
 
 /**
  * Acceptance for Price of the week (REQ-050, design v13 G1). The solver trades peak-day
@@ -52,7 +47,11 @@ describe('priceWeekAt', () => {
 
   it('SurfacesOvertimeWhenPackedIntoFewDays', () => {
     // 45h of work: dense packs it tighter and incurs overtime beyond the 8h target.
-    const heavy: WeekLoadInput = { ...base, totalWorkMs: 45 * HOUR_MS, billableWorkMs: 45 * HOUR_MS }
+    const heavy: WeekLoadInput = {
+      ...base,
+      totalWorkMs: 45 * HOUR_MS,
+      billableWorkMs: 45 * HOUR_MS,
+    }
     const dense = priceWeekAt(heavy, 'dense')
     expect(dense.overtimeMs).toBeGreaterThan(0)
     expect(dense.loadScore).toBeGreaterThan(0)
@@ -60,7 +59,11 @@ describe('priceWeekAt', () => {
 
   it('OverflowsHonestlyWhenWorkExceedsEvenFullStretch', () => {
     // 60h can't fit 5×(8×1.6=12.8h)=64h? it can — push to 80h to force overflow.
-    const overflow: WeekLoadInput = { ...base, totalWorkMs: 80 * HOUR_MS, billableWorkMs: 80 * HOUR_MS }
+    const overflow: WeekLoadInput = {
+      ...base,
+      totalWorkMs: 80 * HOUR_MS,
+      billableWorkMs: 80 * HOUR_MS,
+    }
     const dense = priceWeekAt(overflow, 'dense')
     expect(dense.activeDays).toBe(5) // clamped to availableDays
     expect(dense.perDayMs).toBe(16 * HOUR_MS)
