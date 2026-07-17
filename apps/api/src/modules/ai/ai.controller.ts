@@ -4,12 +4,16 @@ import { ApiTags } from '@nestjs/swagger'
 import { AuthGuard, CurrentUser, type AuthenticatedUser } from '../auth/contract.js'
 import { balanceFor, debit } from '../billing/contract.js'
 import { NlEntryService } from './nl-entry.service.js'
+import { SmartAddService } from './smart-add.service.js'
 import { AiContext } from './ai.context.js'
 import { ASSISTANT, type Assistant } from './assistant.js'
-import { AssistantDto, NlEntryDto } from './ai.dto.js'
+import { AI_INSIGHTS, type AiInsightsPort } from './insights.js'
+import { AssistantDto, InsightDto, NlEntryDto, SmartAddDto } from './ai.dto.js'
 
 /** One grounded-assistant answer costs one credit (ADR-0008). */
 const ASSISTANT_CREDIT_COST = 1
+/** One grounded insight (KI1–KI4) costs one credit, charged only on a real AI proposal. */
+const INSIGHT_CREDIT_COST = 1
 
 /**
  * The `ai` module (LLM proposals, NL entry, assistant — ADR-0025/0029). The status
@@ -22,8 +26,10 @@ const ASSISTANT_CREDIT_COST = 1
 export class AiController {
   constructor(
     private readonly nlEntry: NlEntryService,
+    private readonly smartAdd: SmartAddService,
     private readonly ctx: AiContext,
     @Inject(ASSISTANT) private readonly assistant: Assistant,
+    @Inject(AI_INSIGHTS) private readonly insights: AiInsightsPort,
   ) {}
 
   @Get('status')
@@ -35,6 +41,57 @@ export class AiController {
   @UseGuards(AuthGuard)
   async parseNlEntry(@Body() body: NlEntryDto) {
     return this.nlEntry.draft(body.text, body.knownProjects ?? [])
+  }
+
+  /**
+   * Smart-Add (K6): classify a phrase into a typed draft. Stage 1 is deterministic and
+   * free; only a vague phrase reaches the LLM (Stage 2), and even then the re-parsed
+   * result is a **draft the user confirms** — nothing is written (ADR-0005). The Stage-2
+   * rewrite is metered like the assistant: one credit, only when the AI actually helped.
+   */
+  @Post('smart-add')
+  @UseGuards(AuthGuard)
+  async smartAddDraft(@CurrentUser() user: AuthenticatedUser, @Body() body: SmartAddDto) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    const allowAi = (await balanceFor(db, workspaceId)) >= ASSISTANT_CREDIT_COST
+    // When AI isn't affordable/allowed we still return the deterministic Stage-1 draft.
+    const result = await this.smartAdd.draft(body.text, body.knownProjects ?? [], { allowAi })
+    let charged = false
+    if (result.source === 'ai-proposal') {
+      await debit(db, workspaceId, {
+        amount: ASSISTANT_CREDIT_COST,
+        category: 'assistant',
+        reason: 'Smart-Add AI classification',
+        operationId: `smart-add:${workspaceId}:${randomUUID()}`,
+      })
+      charged = true
+    }
+    return { ...result, charged }
+  }
+
+  /**
+   * A grounded insight (KI1–KI4): the LLM phrases the caller's own facts into a coach
+   * note, a history-grounded quote, a client-friendly invoice, or meeting follow-ups.
+   * One credit is debited only for a real AI proposal (not a deterministic fallback or a
+   * refusal), ADR-0008. Violet provenance is the client's job; the source flag drives it.
+   */
+  @Post('insight')
+  @UseGuards(AuthGuard)
+  async insight(@CurrentUser() user: AuthenticatedUser, @Body() body: InsightDto) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    const allowAi = (await balanceFor(db, workspaceId)) >= INSIGHT_CREDIT_COST
+    const proposal = await this.insights.propose(body.kind, body.facts, { allowAi })
+    let charged = false
+    if (proposal.source === 'ai-proposal' && !proposal.refused) {
+      await debit(db, workspaceId, {
+        amount: INSIGHT_CREDIT_COST,
+        category: 'assistant',
+        reason: `Grounded insight (${proposal.kind})`,
+        operationId: `insight:${proposal.kind}:${workspaceId}:${randomUUID()}`,
+      })
+      charged = true
+    }
+    return { ...proposal, charged }
   }
 
   /**

@@ -9,7 +9,9 @@ import { balanceFor, grant } from '../billing/credits-service.js'
 import { AiController } from './ai.controller.js'
 import { AiContext } from './ai.context.js'
 import { NlEntryService } from './nl-entry.service.js'
+import { SmartAddService } from './smart-add.service.js'
 import { LlmAssistant } from './assistant.js'
+import { LlmInsights } from './insights.js'
 import { NullLlm } from './llm/null-llm.js'
 import { LlmUnavailableError, type LlmPort, type LlmRequest, type LlmResult } from './llm/port.js'
 
@@ -66,7 +68,13 @@ describe.skipIf(!databaseUrl)('ai module (integration)', () => {
 
   /** The controller wired with a grounded assistant over an available LLM that echoes a fixed answer. */
   function controllerWith(llm: LlmPort): AiController {
-    return new AiController(new NlEntryService(llm), ctx, new LlmAssistant(llm))
+    return new AiController(
+      new NlEntryService(llm),
+      new SmartAddService(llm),
+      ctx,
+      new LlmAssistant(llm),
+      new LlmInsights(llm),
+    )
   }
 
   beforeAll(async () => {

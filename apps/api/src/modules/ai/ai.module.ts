@@ -3,7 +3,9 @@ import { AuthModule } from '../auth/auth.module.js'
 import { AiController } from './ai.controller.js'
 import { AiContext } from './ai.context.js'
 import { NlEntryService } from './nl-entry.service.js'
+import { SmartAddService } from './smart-add.service.js'
 import { assistantProvider } from './assistant.js'
+import { aiInsightsProvider } from './insights.js'
 import { llmProvider } from './llm/llm.provider.js'
 
 /**
@@ -15,6 +17,13 @@ import { llmProvider } from './llm/llm.provider.js'
 @Module({
   imports: [AuthModule],
   controllers: [AiController],
-  providers: [llmProvider, NlEntryService, AiContext, assistantProvider],
+  providers: [
+    llmProvider,
+    NlEntryService,
+    SmartAddService,
+    AiContext,
+    assistantProvider,
+    aiInsightsProvider,
+  ],
 })
 export class AiModule {}
