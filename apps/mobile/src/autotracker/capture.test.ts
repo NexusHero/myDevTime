@@ -18,6 +18,27 @@ describe('SpanAccumulator', () => {
     ])
   })
 
+  it('EmitsTimestampedSpans_ToTheOptionalSpanSink', () => {
+    const samples: ActivitySample[] = []
+    const spans: { source: string; startMs: number; endMs: number }[] = []
+    const acc = new SpanAccumulator(
+      s => samples.push(s),
+      sp => spans.push(sp),
+    )
+    acc.transition('Active', 1_000)
+    acc.transition('Away', 4_000) // closes Active 1000–4000
+    acc.end(6_000) // closes Away 4000–6000
+    expect(spans).toEqual([
+      { source: 'Active', startMs: 1_000, endMs: 4_000 },
+      { source: 'Away', startMs: 4_000, endMs: 6_000 },
+    ])
+    // The duration-only sink still fires in lock-step (unchanged behaviour).
+    expect(samples).toEqual([
+      { source: 'Active', ms: 3_000 },
+      { source: 'Away', ms: 2_000 },
+    ])
+  })
+
   it('IgnoresARedundantTransition_ToTheSameSource', () => {
     const out: ActivitySample[] = []
     const acc = new SpanAccumulator(s => out.push(s))

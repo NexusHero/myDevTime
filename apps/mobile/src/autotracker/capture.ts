@@ -1,5 +1,5 @@
 import { Platform } from 'react-native'
-import type { ActivitySample } from '@mydevtime/domain'
+import type { ActivitySample, TimedSpan } from '@mydevtime/domain'
 import { nativeUsageCapture, type NativeUsageModule } from './nativeUsage.js'
 
 /**
@@ -17,11 +17,16 @@ import { nativeUsageCapture, type NativeUsageModule } from './nativeUsage.js'
  */
 
 export type SampleSink = (sample: ActivitySample) => void
+/** Receives each closed span *with wall-clock bounds* — the timestamped form the
+ *  per-day reality history needs (ADR-0064), distinct from the duration-only sample. */
+export type SpanSink = (span: TimedSpan) => void
 
 export interface ActivityCapture {
-  /** Begin capturing; `onSample` receives each closed span. Returns a `stop()` that
-   *  flushes the final open span and detaches every listener/timer. Idempotent. */
-  start(onSample: SampleSink): () => void
+  /** Begin capturing; `onSample` receives each closed span (duration only), and the
+   *  optional `onSpan` the same span with `startMs`/`endMs` for the day history. Returns
+   *  a `stop()` that flushes the final open span and detaches every listener/timer.
+   *  Idempotent. */
+  start(onSample: SampleSink, onSpan?: SpanSink): () => void
 }
 
 /**
@@ -34,7 +39,11 @@ export class SpanAccumulator {
   private source: string | null = null
   private since = 0
 
-  constructor(private readonly emit: SampleSink) {}
+  constructor(
+    private readonly emit: SampleSink,
+    /** Optional timestamped sink — receives each closed span with `startMs`/`endMs`. */
+    private readonly onSpan?: SpanSink,
+  ) {}
 
   /** Switch to `source` at `now`, closing + emitting the previous span if any. */
   transition(source: string, now: number): void {
@@ -49,6 +58,7 @@ export class SpanAccumulator {
   flush(now: number): void {
     if (this.source !== null && now > this.since) {
       this.emit({ source: this.source, ms: now - this.since })
+      this.onSpan?.({ source: this.source, startMs: this.since, endMs: now })
       this.since = now
     }
   }
@@ -95,8 +105,8 @@ export function webCapture(opts: WebCaptureOptions = {}): ActivityCapture {
   const now = opts.now ?? ((): number => Date.now())
 
   return {
-    start(onSample: SampleSink): () => void {
-      const acc = new SpanAccumulator(onSample)
+    start(onSample: SampleSink, onSpan?: SpanSink): () => void {
+      const acc = new SpanAccumulator(onSample, onSpan)
       let lastInput = now()
       let stopped = false
 
