@@ -1,6 +1,6 @@
 import { Pressable, View, useWindowDimensions } from 'react-native'
 import { Text } from '../core/Text'
-import { Badge, Button, Icon, IconButton, SegmentedControl } from '../index'
+import { Badge, Button, Icon, IconButton, SegmentedControl, Switch } from '../index'
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
@@ -31,6 +31,8 @@ export interface DrawerEntry {
   /** External source label, e.g. `Outlook`. */
   readonly ext?: string
   readonly rec?: boolean
+  /** Whether the 🛡 protection flag is on (design v14 D14). */
+  readonly protected?: boolean
 }
 
 const KIND_LABEL: Record<EntryKind, string> = {
@@ -63,6 +65,8 @@ export interface PlannerEntryDrawerProps {
   readonly onAccept?: () => void
   /** Ghost: dismiss the proposal. */
   readonly onDismiss?: () => void
+  /** Toggle the 🛡 protection flag (D14). When set, the row is shown for the entry. */
+  readonly onProtect?: (next: boolean) => void
 }
 
 export function PlannerEntryDrawer({
@@ -73,6 +77,7 @@ export function PlannerEntryDrawer({
   onDelete,
   onAccept,
   onDismiss,
+  onProtect,
 }: PlannerEntryDrawerProps): React.JSX.Element | null {
   const t = useTheme()
   const { width } = useWindowDimensions()
@@ -221,6 +226,30 @@ export function PlannerEntryDrawer({
             <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, lineHeight: 18 }}>
               A break — counts toward your daily break target, not billable time.
             </Text>
+          )}
+
+          {/* Protection flag (design v14 D14): a flag on this existing entry that governs
+              communication only — it mutes your own nudges and reports "Busy" to Outlook,
+              never touching the timer or punch clock. */}
+          {onProtect !== undefined && (
+            <View
+              style={{
+                gap: t.spacing.s2,
+                borderTopWidth: 1,
+                borderTopColor: t.color.border,
+                paddingTop: t.spacing.s3,
+              }}
+            >
+              <Switch
+                label="🛡 Protected"
+                checked={entry.protected === true}
+                onChange={next => onProtect(next)}
+              />
+              <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3, lineHeight: 16 }}>
+                Mutes your own nudges and shows you as Busy — communication only, never your time
+                tracking. You are asked once, never punched out automatically.
+              </Text>
+            </View>
           )}
         </View>
       </View>
