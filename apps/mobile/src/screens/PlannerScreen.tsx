@@ -13,7 +13,14 @@ import {
   type LanePlacement,
   type Theme,
 } from '@mydevtime/design'
-import { detectUnbookedGap, realityDrift, type RealityGap, type TimedSpan } from '@mydevtime/domain'
+import {
+  detectUnbookedGap,
+  pickBanner,
+  realityDrift,
+  type RealityGap,
+  type TimedSpan,
+} from '@mydevtime/domain'
+import { ContextBanner, type ContextBannerProps } from '../components/planner/ContextBanner'
 import { priceWeekFromBlocks } from '../planner/weekPrice'
 import { weekCapacityFromBlocks } from '../planner/capacityTrace'
 import { Text } from '../components/core/Text'
@@ -1633,75 +1640,46 @@ export function PlannerScreen(): React.JSX.Element {
 
             {/* Yesterday-healing banner (ADR-0064, K3): a proposal to book a stretch the
                 tracker saw yesterday but that was never booked. Adopt/Dismiss, once a day. */}
-            {healGap !== null && (
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: t.spacing.s3,
-                  padding: t.spacing.s3,
-                  borderRadius: t.radius.block,
-                  borderWidth: 1,
-                  borderColor: t.color.border,
-                  borderLeftWidth: 3,
-                  borderLeftColor: t.color.live,
-                  backgroundColor: t.color.surface,
-                  maxWidth: 680,
-                }}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: t.fontSize.sm, fontWeight: '600', color: t.color.ink }}>
-                    {`Yesterday: ${String(Math.round((healGap.gap.endMs - healGap.gap.startMs) / 60_000))} min unbooked`}
-                  </Text>
-                  <Text
-                    style={{ fontSize: t.fontSize['2xs'], color: t.color.ink2, lineHeight: 16 }}
-                  >
-                    {`The Auto-Tracker saw ${healGap.gap.source} but nothing was booked. Book it?`}
-                  </Text>
-                </View>
-                <Button size="sm" onPress={adoptHeal}>
-                  Adopt
-                </Button>
-                <Button size="sm" variant="ghost" onPress={dismissHeal}>
-                  Dismiss
-                </Button>
-              </View>
-            )}
-
-            {inboxNote !== null && (
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: t.spacing.s2,
-                  paddingVertical: t.spacing.s2,
-                  paddingHorizontal: t.spacing.s3,
-                  borderRadius: t.radius.block,
-                  borderWidth: 1,
-                  borderColor: t.color.border,
-                  backgroundColor: t.color.surface,
-                }}
-              >
-                <Text style={{ flex: 1, fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>
-                  ✦ {inboxNote}
-                </Text>
-                {fillUndo !== null && (
-                  <Button size="sm" variant="ghost" onPress={undoFill}>
-                    Undo
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onPress={() => {
-                    setInboxNote(null)
-                    setFillUndo(null)
-                  }}
-                >
-                  OK
-                </Button>
-              </View>
-            )}
+            {/* Context banner (design v14 §M2): at most ONE banner shows, chosen by the
+                deterministic `pickBanner` in the fixed priority Conflict > Price > Healing >
+                Note. Each candidate is the same `ContextBanner`, only the variant differs; the
+                Price-of-week detail panel below is a separate follow-panel, not a banner. */}
+            {(() => {
+              const candidates: ContextBannerProps[] = []
+              if (healGap !== null) {
+                candidates.push({
+                  variant: 'healing',
+                  title: `Yesterday: ${String(Math.round((healGap.gap.endMs - healGap.gap.startMs) / 60_000))} min unbooked`,
+                  body: `The Auto-Tracker saw ${healGap.gap.source} but nothing was booked. Book it?`,
+                  actions: [
+                    { label: 'Adopt', onPress: adoptHeal },
+                    { label: 'Dismiss', onPress: dismissHeal, variant: 'ghost' },
+                  ],
+                })
+              }
+              if (inboxNote !== null) {
+                candidates.push({
+                  variant: 'note',
+                  title: inboxNote,
+                  leadGlyph: '✦',
+                  actions: [
+                    ...(fillUndo !== null
+                      ? [{ label: 'Undo', onPress: undoFill, variant: 'ghost' as const }]
+                      : []),
+                    {
+                      label: 'OK',
+                      onPress: () => {
+                        setInboxNote(null)
+                        setFillUndo(null)
+                      },
+                      variant: 'ghost' as const,
+                    },
+                  ],
+                })
+              }
+              const active = pickBanner(candidates)
+              return active === null ? null : <ContextBanner {...active} />
+            })()}
 
             {/* Price of the week (G1): after Fill-week, what this planned week costs across
               intensities — deterministic `priceWeek` over the planned blocks (ADR-0005). */}
