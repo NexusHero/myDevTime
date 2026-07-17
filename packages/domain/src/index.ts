@@ -187,6 +187,12 @@ export { parseEntry } from './smartadd/parse.js'
 // rule-based (ADR-0005); the AI never places a block or prices an hour.
 export type { EffectiveRate } from './economics/effective-rate.js'
 export { effectiveRate, perHourRate } from './economics/effective-rate.js'
+
+// Plan-vs-realized revenue (REQ-061, design v17 §K4) — the deterministic "Plan ±x%" chip for
+// fixed-fee projects: calculated plan vs realized, signed delta + rounded variance, over/on/under
+// within a tolerance. Pure (ADR-0005); AI-free, no forecast.
+export type { VarianceStatus, PlanVariance } from './economics/plan-variance.js'
+export { planVsRealized } from './economics/plan-variance.js'
 export type {
   OvertimeWeek,
   OvertimePoint,
