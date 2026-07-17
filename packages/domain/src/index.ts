@@ -223,6 +223,13 @@ export {
 export type { QuoteEstimate, QuoteOptions } from './estimating/quote.js'
 export { estimateFromHistory } from './estimating/quote.js'
 
+// Meeting-notes core (REQ-054, ADR-0065 · design v13 KI4) — turns the user's own typed
+// meeting notes into ordered, deduped fact lines (action-like first) that the grounded LLM
+// phrases into follow-up actions. Pure, consent-first; ASR auto-capture (ADR-0009) is a
+// future adapter feeding the same function.
+export type { MeetingNotesOptions } from './meetings/notes.js'
+export { meetingNotesFacts, looksLikeAction } from './meetings/notes.js'
+
 // Entitlements — the domain of monetization (REQ-016, ADR-0006/0008). Provider-
 // agnostic plan/state machine; payment providers are adapters layered on later.
 export type {
