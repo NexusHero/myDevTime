@@ -103,6 +103,16 @@ describe.skipIf(!databaseUrl)('tracking catalog (integration)', () => {
     expect((await svc.listProjects(db, wsA, true)).some(x => x.id === p.id)).toBe(true)
   })
 
+  it('Project_FixedFeeMinor_RoundTripsAndClears', async () => {
+    // Design v17 §K4: the expected (fixed-fee) revenue persists, and a later null clears it.
+    const p = await svc.createProject(db, wsA, { name: 'FixedFee', fixedFeeMinor: 500000 })
+    expect(p.fixedFeeMinor).toBe(500000)
+    const updated = await svc.updateProject(db, wsA, p.id, { fixedFeeMinor: 750000 })
+    expect(updated.fixedFeeMinor).toBe(750000)
+    const cleared = await svc.updateProject(db, wsA, p.id, { fixedFeeMinor: null })
+    expect(cleared.fixedFeeMinor).toBeNull()
+  })
+
   it('GetClients_Unauthenticated_Returns401', async () => {
     const app = await buildApp({
       config: loadConfig({ LOG_LEVEL: 'silent', AUTH_SECRET: 'x'.repeat(32) }),

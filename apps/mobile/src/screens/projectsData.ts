@@ -21,6 +21,8 @@ export interface Project {
   readonly rateMinorPerHour: number
   readonly currency: string
   readonly tasks: readonly Task[]
+  /** Fixed-fee / expected revenue in minor units (design v17 §K4); null = not a fixed-fee project. */
+  readonly fixedFeeMinor?: number | null
 }
 
 export interface Client {

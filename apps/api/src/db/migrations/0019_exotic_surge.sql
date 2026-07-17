@@ -1,0 +1,1 @@
+ALTER TABLE "projects" ADD COLUMN "fixed_fee_minor" bigint;
