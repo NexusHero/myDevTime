@@ -1,6 +1,9 @@
+import { useState } from 'react'
 import { Pressable, View, useWindowDimensions } from 'react-native'
+import type { RecurrenceRule } from '@mydevtime/domain'
 import { Text } from '../core/Text'
 import { Badge, Button, Icon, IconButton, SegmentedControl, Switch } from '../index'
+import { RecurrenceEditor } from './RecurrenceEditor'
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
@@ -67,6 +70,8 @@ export interface PlannerEntryDrawerProps {
   readonly onDismiss?: () => void
   /** Toggle the 🛡 protection flag (D14). When set, the row is shown for the entry. */
   readonly onProtect?: (next: boolean) => void
+  /** Make this entry a recurring series (design v17 §F4). When set, the ↻ editor is shown. */
+  readonly onRecurrence?: (rule: RecurrenceRule) => void
 }
 
 export function PlannerEntryDrawer({
@@ -78,9 +83,12 @@ export function PlannerEntryDrawer({
   onAccept,
   onDismiss,
   onProtect,
+  onRecurrence,
 }: PlannerEntryDrawerProps): React.JSX.Element | null {
   const t = useTheme()
   const { width } = useWindowDimensions()
+  // The in-progress recurrence rule for the ↻ editor; the Planner persists it on save.
+  const [rule, setRule] = useState<RecurrenceRule>({ freq: 'none', end: { kind: 'never' } })
   if (entry === null) return null
 
   const panelWidth = Math.min(380, width - 24)
@@ -255,6 +263,39 @@ export function PlannerEntryDrawer({
                 Mutes your own nudges and shows you as Busy — communication only, never your time
                 tracking. You are asked once, never punched out automatically.
               </Text>
+            </View>
+          )}
+
+          {/* Recurrence (design v17 §F4): make this entry a series — a rule (frequency + end)
+              that repeats across days. Series are a core feature for every entry kind, not a
+              family extra. The occurrence math is deterministic (ADR-0005); this only captures
+              the rule and hands it to the Planner to persist. */}
+          {onRecurrence !== undefined && entry.kind !== 'ghost' && entry.kind !== 'break' && (
+            <View
+              style={{
+                gap: t.spacing.s2,
+                borderTopWidth: 1,
+                borderTopColor: t.color.border,
+                paddingTop: t.spacing.s3,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
+                <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>↻</Text>
+                <Text style={{ fontSize: t.fontSize.sm, fontWeight: '600', color: t.color.ink }}>
+                  Repeat
+                </Text>
+              </View>
+              <RecurrenceEditor value={rule} onChange={setRule} />
+              <View style={{ flexDirection: 'row' }}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={rule.freq === 'none'}
+                  onPress={() => onRecurrence(rule)}
+                >
+                  Make recurring
+                </Button>
+              </View>
             </View>
           )}
         </View>

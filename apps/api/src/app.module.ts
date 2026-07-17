@@ -11,6 +11,7 @@ import { AbsencesModule } from './modules/absences/absences.module.js'
 import { PlannerModule } from './modules/planner/planner.module.js'
 import { PreferencesModule } from './modules/preferences/preferences.module.js'
 import { ConnectorsModule } from './modules/connectors/connectors.module.js'
+import { RecurrenceModule } from './modules/recurrence/recurrence.module.js'
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler'
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis'
 import { APP_GUARD } from '@nestjs/core'
@@ -56,6 +57,7 @@ export class AppModule {
         PlannerModule,
         PreferencesModule,
         ConnectorsModule,
+        RecurrenceModule,
       ],
       providers: [
         {
