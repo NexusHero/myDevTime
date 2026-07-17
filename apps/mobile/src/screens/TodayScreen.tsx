@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Platform, Pressable, ScrollView, TextInput, View, useWindowDimensions } from 'react-native'
 import { formatDuration, projectColor } from '@mydevtime/design'
-import type { LoadLevel } from '@mydevtime/domain'
+import type { LoadLevel, TimesheetDraft } from '@mydevtime/domain'
+import { apiBaseUrl } from '../config'
+import { createEntry } from '../api/timer'
 import { Text } from '../components/core/Text'
 import { useTheme } from '../theme/ThemeProvider'
 import {
@@ -46,6 +48,13 @@ function hhmm(min: number): string {
 /** An ISO instant as local `HH:MM` (for the forgotten-timer "since …" label). */
 function clockTime(iso: string): string {
   const d = new Date(iso)
+  const p = (n: number): string => String(n).padStart(2, '0')
+  return `${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+/** A millisecond instant as local `HH:MM` (the KI6 draft window labels). */
+function clockFromMs(ms: number): string {
+  const d = new Date(ms)
   const p = (n: number): string => String(n).padStart(2, '0')
   return `${p(d.getHours())}:${p(d.getMinutes())}`
 }
@@ -597,6 +606,105 @@ export function TodayScreen(): React.JSX.Element {
     bookedMs: todayEntries.bookedMs,
     tomorrowFirst: null,
   })
+
+  // KI6 "your day, already written" (REQ-062, design v17 §K/KI6): the Auto-Tracker's unbooked
+  // reality stretches become a review queue of **bookable drafts**. Accepting one books the
+  // tracked time as a real manual entry over its window (deterministic — ADR-0005); the project
+  // and an AI-phrased title are a later step, never auto-applied. The queue only shows when a
+  // real API is configured (booking must actually persist) and the tracker has captured drafts.
+  const [booking, setBooking] = useState(false)
+  const bookDraft = async (d: TimesheetDraft): Promise<void> => {
+    if (apiBaseUrl === null) return
+    setBooking(true)
+    try {
+      await createEntry(apiBaseUrl, {
+        startedAt: new Date(d.startMs).toISOString(),
+        endedAt: new Date(d.endMs).toISOString(),
+        note: d.source,
+      })
+      todayEntries.reload()
+    } finally {
+      setBooking(false)
+    }
+  }
+  const bookAllDrafts = async (): Promise<void> => {
+    if (apiBaseUrl === null) return
+    setBooking(true)
+    try {
+      for (const d of shutdown.drafts) {
+        await createEntry(apiBaseUrl, {
+          startedAt: new Date(d.startMs).toISOString(),
+          endedAt: new Date(d.endMs).toISOString(),
+          note: d.source,
+        })
+      }
+      todayEntries.reload()
+    } finally {
+      setBooking(false)
+    }
+  }
+  const reviewCard =
+    !todayEntries.live || shutdown.drafts.length === 0 ? null : (
+      <Card title="Review your tracked day" subtitle="Drafts from the Auto-Tracker — you book them">
+        <View style={{ gap: t.spacing.s3 }}>
+          {shutdown.drafts.map(d => (
+            <View
+              key={`${String(d.startMs)}-${String(d.endMs)}`}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: t.spacing.s3,
+              }}
+            >
+              <View style={{ flex: 1, minWidth: 160 }}>
+                <Text style={{ fontSize: t.fontSize.sm, fontWeight: '600', color: t.color.ink }}>
+                  {d.source}
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: t.fontFamily.numeric,
+                    fontSize: t.fontSize.xs,
+                    color: t.color.ink2,
+                    marginTop: 2,
+                  }}
+                >
+                  {`${clockFromMs(d.startMs)}–${clockFromMs(d.endMs)} · ${formatDuration(d.durationMs)} h`}
+                </Text>
+              </View>
+              <Button size="sm" disabled={booking} onPress={() => void bookDraft(d)}>
+                Book
+              </Button>
+            </View>
+          ))}
+        </View>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: t.spacing.s3,
+            marginTop: t.spacing.s4,
+          }}
+        >
+          <Text
+            style={{ flex: 1, fontSize: t.fontSize['2xs'], color: t.color.ink3, minWidth: 160 }}
+          >
+            {`${formatDuration(shutdown.recoveredMs)} h of tracked time to recover. Booked as-is — assign a project (and let AI title them) after.`}
+          </Text>
+          {shutdown.drafts.length > 1 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={booking}
+              onPress={() => void bookAllDrafts()}
+            >
+              {`Book all · ${String(shutdown.drafts.length)}`}
+            </Button>
+          )}
+        </View>
+      </Card>
+    )
   const shutdownCard =
     dayClosed || shutdown.state === 'idle' ? null : (
       <Card title="Close the day" subtitle="Feierabend">
@@ -928,6 +1036,7 @@ export function TodayScreen(): React.JSX.Element {
           </View>
         </View>
 
+        {reviewCard}
         {shutdownCard}
       </ScrollView>
     </View>

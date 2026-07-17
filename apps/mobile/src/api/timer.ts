@@ -88,6 +88,33 @@ export async function startTimer(
   return parseEntry(body)
 }
 
+export interface CreateEntryInput {
+  /** ISO instant the entry starts. */
+  readonly startedAt: string
+  /** ISO instant the entry ends. */
+  readonly endedAt: string
+  readonly projectId?: string | null
+  readonly taskId?: string | null
+  readonly billable?: boolean
+  readonly note?: string | null
+}
+
+/**
+ * Book a manual time entry over an explicit `[startedAt, endedAt]` window: `POST /entries`.
+ * This is the write behind the KI6 "accept a draft" flow (design v17 §K/KI6) — a tracked
+ * reality stretch becomes a real booked entry. The project/AI-title stay optional: the
+ * deterministic core books the *time*; categorization and titling are a separate step
+ * (ADR-0005 — the AI proposes, it never books).
+ */
+export async function createEntry(
+  baseUrl: string,
+  input: CreateEntryInput,
+  fetchImpl: typeof fetch = fetch,
+): Promise<TimeEntry> {
+  const body = await postJson(baseUrl, '/api/tracking/entries', input, fetchImpl)
+  return parseEntry(body)
+}
+
 /** Stop the running timer; returns the closed entry. `endedAt` defaults server-side to now. */
 export async function stopTimer(
   baseUrl: string,
