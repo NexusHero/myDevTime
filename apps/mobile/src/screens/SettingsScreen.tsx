@@ -3,9 +3,11 @@ import { Text } from '../components/core/Text'
 import { Badge, Card, Row, ScreenScaffold, Switch, SegmentedControl } from '../components/index'
 import { useTheme, useThemePref, useAccent, useDensity } from '../theme/ThemeProvider'
 import { usePreferences } from '../hooks/usePreferences'
+import { useVisibility } from '../roles/RoleContext'
 import { SubScreenHeader } from './SubScreenHeader'
 import type { ThemePref } from '../theme/resolveMode'
 import type { AccentTheme, Density } from '@mydevtime/design'
+import type { UserRole } from '@mydevtime/domain'
 
 /**
  * Settings (ux-vision §3) — the preferences, subscription, and data controls the
@@ -38,6 +40,8 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
   const { pref, setPref } = useThemePref()
   const { accent, setAccent } = useAccent()
   const { density, setDensity } = useDensity()
+  // Role visibility preset (design v14 §R): the role decides which modules a person sees.
+  const { role, setRole } = useVisibility()
 
   // Persisted per user + workspace (M10); optimistic, saved via the preferences API.
   const { prefs, setPref: setToggle, live: prefsLive } = usePreferences()
@@ -113,6 +117,36 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
               active={density}
               onChange={setDensity}
             />
+          </View>
+        </Card>
+      </View>
+
+      {/* Role (design v14 §R): a visibility preset, not a fork. Freelance reveals clients,
+          rates, billing, travel and the AI features; Employed keeps the work-time story only
+          (no €/clients/billing). Health & Balance stays in every role. */}
+      <View>
+        <SectionLabel>What do you use DevTime for?</SectionLabel>
+        <Card>
+          <View style={{ padding: t.spacing.s4, gap: t.spacing.s3 }}>
+            <SegmentedControl<UserRole>
+              segments={[
+                { value: 'employee', label: 'Employed' },
+                { value: 'freelancer', label: 'Freelance' },
+                { value: 'both', label: 'Both' },
+              ]}
+              active={role}
+              onChange={setRole}
+            />
+            <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2, lineHeight: 18 }}>
+              {role === 'employee'
+                ? 'Employed: the work-time story — punch clock, overtime, absences, timesheet export. No clients, rates or billing.'
+                : role === 'freelancer'
+                  ? 'Freelance: everything above plus clients, rates, invoicing, travel and the AI features.'
+                  : 'Both: the full set — the work-time story and the freelance tools together.'}
+            </Text>
+            <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
+              Health & Balance is always available — it is never paywalled.
+            </Text>
           </View>
         </Card>
       </View>
