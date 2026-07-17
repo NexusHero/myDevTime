@@ -81,6 +81,10 @@ export const projects = pgTable('projects', {
   billableDefault: boolean('billable_default').notNull().default(true),
   // Rate override slot; the rate values themselves land in the budgets issue (#10).
   hourlyRateOverride: numeric('hourly_rate_override'),
+  // Fixed-fee / expected (planned) revenue in integer minor units (design v17 §K4): the agreed
+  // fee for a fixed-fee project. Null = not a fixed-fee project. Realized revenue is the priced
+  // billable time (the billing module); the deterministic `planVsRealized` core compares them.
+  fixedFeeMinor: bigint('fixed_fee_minor', { mode: 'number' }),
   archived: boolean('archived').notNull().default(false),
   ...timestamps,
   ...syncColumns,
