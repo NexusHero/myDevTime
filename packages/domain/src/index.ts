@@ -187,6 +187,12 @@ export { parseEntry } from './smartadd/parse.js'
 // rule-based (ADR-0005); the AI never places a block or prices an hour.
 export type { EffectiveRate } from './economics/effective-rate.js'
 export { effectiveRate, perHourRate } from './economics/effective-rate.js'
+
+// Plan-vs-realized revenue (REQ-061, design v17 §K4) — the deterministic "Plan ±x%" chip for
+// fixed-fee projects: calculated plan vs realized, signed delta + rounded variance, over/on/under
+// within a tolerance. Pure (ADR-0005); AI-free, no forecast.
+export type { VarianceStatus, PlanVariance } from './economics/plan-variance.js'
+export { planVsRealized } from './economics/plan-variance.js'
 export type {
   OvertimeWeek,
   OvertimePoint,
@@ -248,6 +254,17 @@ export { estimateFromHistory } from './estimating/quote.js'
 export type { MeetingNotesOptions } from './meetings/notes.js'
 export { meetingNotesFacts, looksLikeAction } from './meetings/notes.js'
 
+// Recurring entries (REQ-060, design v17 §F4) — a core feature for every entry type. A rule
+// (none/daily-weekdays/weekly/monthly + end never/until/count) expands to occurrence dates over
+// a window; editing "this vs the series from here" splits it the Outlook way. Pure (ADR-0005).
+export type { RecurrenceFreq, RecurrenceEnd, RecurrenceRule } from './recurrence/recur.js'
+export {
+  expandRecurrence,
+  isOccurrence,
+  truncateBefore,
+  describeRecurrence,
+} from './recurrence/recur.js'
+
 // Entitlements — the domain of monetization (REQ-016, ADR-0006/0008). Provider-
 // agnostic plan/state machine; payment providers are adapters layered on later.
 export type {
@@ -297,8 +314,26 @@ export type {
   SummarizeOptions,
 } from './autotracker/activity.js'
 export { summarizeActivity } from './autotracker/activity.js'
-export type { TimedSpan, BookedSpan, RealityGap, RealityOptions } from './autotracker/reality.js'
-export { trackedMs, realityDrift, detectUnbookedGap } from './autotracker/reality.js'
+export type {
+  TimedSpan,
+  BookedSpan,
+  RealityGap,
+  RealityOptions,
+  TimesheetDraft,
+  TimesheetDraftResult,
+} from './autotracker/reality.js'
+export {
+  trackedMs,
+  realityDrift,
+  detectUnbookedGap,
+  timesheetDrafts,
+} from './autotracker/reality.js'
+
+// Shutdown / Feierabend ritual (REQ-063, design v17 §K5) — the deterministic day-close summary
+// (booked / reality / unbooked remainder / open drafts / tomorrow-first); the day is "clean"
+// when nothing is open. Pure (ADR-0005).
+export type { ShutdownInput, ShutdownSummary } from './shutdown/summary.js'
+export { shutdownSummary } from './shutdown/summary.js'
 
 // Focus streak + workload balance (REQ-032, ADR-0012) — deterministic wellbeing
 // signals over real tracked time (ADR-0005). The balance level is a neutral
