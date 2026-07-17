@@ -264,6 +264,23 @@ export { can, featuresFor } from './entitlements/features.js'
 export type { UserRole, VisibilityModule, VisibilityContext } from './roles/visibility.js'
 export { ALL_MODULES, isModuleVisible, visibleModules } from './roles/visibility.js'
 
+// Protection flag "🛡 Geschützt" (REQ-057, design v14 D14) — a flag on existing entries that
+// governs communication only, never time-tracking: nudges/requests are held during a protected
+// block and surface as exactly one digest afterwards; the Island prompts once at a protected
+// start while punched in and never auto-punches-out. Pure (ADR-0005), no time-tracking math.
+export type {
+  HeldKind,
+  HeldItem,
+  ProtectedBlock,
+  ProtectionDigest,
+} from './protection/protection.js'
+export {
+  isProtectedAt,
+  partitionByProtection,
+  buildDigest,
+  transitionPromptDue,
+} from './protection/protection.js'
+
 // Auto-Tracker (REQ-042, ADR-0057) — deterministic aggregation of "app usage while
 // tracking" spans into a percentage-correct breakdown. OS/browser capture is a
 // client adapter behind a narrow port; this core is pure and framework-free (ADR-0005).
