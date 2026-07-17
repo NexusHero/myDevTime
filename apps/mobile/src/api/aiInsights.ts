@@ -1,5 +1,5 @@
 import { postJson } from './http.js'
-import { record, str } from './parse.js'
+import { z } from 'zod'
 
 /**
  * Grounded AI insights client (REQ-054, design v13 KI1–KI4). The client derives the facts
@@ -8,25 +8,20 @@ import { record, str } from './parse.js'
  * one credit only for a real proposal (ADR-0005/0029). `source` drives the violet
  * provenance signature — deterministic fallbacks never wear it.
  */
-export type InsightKind = 'coach' | 'quote' | 'invoice' | 'meeting'
+export const insightKindSchema = z.enum(['coach', 'quote', 'invoice', 'meeting'])
+export type InsightKind = z.infer<typeof insightKindSchema>
 
-export interface InsightProposal {
-  readonly kind: InsightKind
-  readonly source: 'deterministic' | 'ai-proposal'
-  readonly refused: boolean
-  readonly text: string
-  readonly charged: boolean
-}
+export const insightProposalSchema = z.object({
+  kind: insightKindSchema,
+  source: z.enum(['deterministic', 'ai-proposal']),
+  refused: z.boolean().default(false),
+  text: z.string(),
+  charged: z.boolean().default(false),
+})
+export type InsightProposal = z.infer<typeof insightProposalSchema>
 
 export function parseInsightProposal(value: unknown): InsightProposal {
-  const o = record(value)
-  return {
-    kind: str(o, 'kind') as InsightKind,
-    source: str(o, 'source') as 'deterministic' | 'ai-proposal',
-    refused: o.refused === true,
-    text: str(o, 'text'),
-    charged: o.charged === true,
-  }
+  return insightProposalSchema.parse(value)
 }
 
 /** Ask for a grounded insight (coach / quote / invoice / meeting) over the caller's facts. */

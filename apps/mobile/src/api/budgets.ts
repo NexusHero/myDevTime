@@ -1,5 +1,5 @@
 import { getJson } from './http.js'
-import { num, numberArray, parseArray, record, str } from './parse.js'
+import { z } from 'zod'
 
 /**
  * The budgets read model for the client (REQ-005): parse the `billing` module's
@@ -9,54 +9,38 @@ import { num, numberArray, parseArray, record, str } from './parse.js'
  * server computed them (ADR-0005). Only project-scoped budgets become rings —
  * client roll-up consumption is backlog on the server.
  */
-export interface Budget {
-  readonly id: string
-  readonly scope: string
-  readonly scopeId: string
-  readonly basis: string
-  readonly limitAmount: number
-  readonly period: string
-}
+export const budgetSchema = z.object({
+  id: z.string(),
+  scope: z.string(),
+  scopeId: z.string(),
+  basis: z.string(),
+  limitAmount: z.number(),
+  period: z.string(),
+})
+export type Budget = z.infer<typeof budgetSchema>
+
+export const budgetStatusSchema = z.object({
+  consumed: z.number(),
+  limit: z.number(),
+  ratio: z.number(),
+  remaining: z.number(),
+  reached: z.array(z.number()),
+})
+export type BudgetStatus = z.infer<typeof budgetStatusSchema>
+
+export const budgetStatusResultSchema = z.object({
+  budget: budgetSchema,
+  status: budgetStatusSchema,
+  currencyCode: z.string(),
+})
+export type BudgetStatusResult = z.infer<typeof budgetStatusResultSchema>
 
 export function parseBudget(value: unknown): Budget {
-  const o = record(value)
-  return {
-    id: str(o, 'id'),
-    scope: str(o, 'scope'),
-    scopeId: str(o, 'scopeId'),
-    basis: str(o, 'basis'),
-    limitAmount: num(o, 'limitAmount'),
-    period: str(o, 'period'),
-  }
-}
-
-export interface BudgetStatus {
-  readonly consumed: number
-  readonly limit: number
-  readonly ratio: number
-  readonly remaining: number
-  readonly reached: number[]
-}
-export interface BudgetStatusResult {
-  readonly budget: Budget
-  readonly status: BudgetStatus
-  readonly currencyCode: string
+  return budgetSchema.parse(value)
 }
 
 export function parseBudgetStatus(value: unknown): BudgetStatusResult {
-  const o = record(value)
-  const s = record(o.status)
-  return {
-    budget: parseBudget(o.budget),
-    status: {
-      consumed: num(s, 'consumed'),
-      limit: num(s, 'limit'),
-      ratio: num(s, 'ratio'),
-      remaining: num(s, 'remaining'),
-      reached: numberArray(s.reached),
-    },
-    currencyCode: str(o, 'currencyCode'),
-  }
+  return budgetStatusResultSchema.parse(value)
 }
 
 /** List the workspace's budgets. */
@@ -64,7 +48,8 @@ export async function fetchBudgets(
   baseUrl: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<Budget[]> {
-  return parseArray(await getJson(baseUrl, '/api/billing/budgets', fetchImpl), parseBudget)
+  const res = await getJson(baseUrl, '/api/billing/budgets', fetchImpl)
+  return z.array(budgetSchema).parse(res)
 }
 
 /** Read-only status (consumption + thresholds) for one budget. */
@@ -77,26 +62,28 @@ export async function fetchBudgetStatus(
 }
 
 /** One burn-down sample: an instant (ms epoch) and the cumulative consumption then. */
-export interface BurndownSample {
-  readonly atMs: number
-  readonly consumed: number
-}
-export interface BudgetBurndownData {
-  readonly budget: Budget
-  readonly currencyCode: string
-  readonly points: BurndownSample[]
-}
+export const burndownSampleSchema = z.object({
+  atMs: z.string().transform(s => Date.parse(s)),
+  consumed: z.number(),
+})
+export type BurndownSample = z.infer<typeof burndownSampleSchema>
+
+export const budgetBurndownDataSchema = z.object({
+  budget: budgetSchema,
+  currencyCode: z.string(),
+  points: z
+    .array(
+      z.object({
+        at: z.string(),
+        consumed: z.number(),
+      }),
+    )
+    .transform(pts => pts.map(p => ({ atMs: Date.parse(p.at), consumed: p.consumed }))),
+})
+export type BudgetBurndownData = z.infer<typeof budgetBurndownDataSchema>
 
 export function parseBudgetBurndown(value: unknown): BudgetBurndownData {
-  const o = record(value)
-  return {
-    budget: parseBudget(o.budget),
-    currencyCode: str(o, 'currencyCode'),
-    points: parseArray(o.points, p => {
-      const r = record(p)
-      return { atMs: Date.parse(str(r, 'at')), consumed: num(r, 'consumed') }
-    }),
-  }
+  return budgetBurndownDataSchema.parse(value)
 }
 
 /** The cumulative-consumption trajectory (burn-down) for one budget over the default window. */

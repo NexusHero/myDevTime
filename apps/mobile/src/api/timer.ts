@@ -1,5 +1,5 @@
 import { getJson, patchJson, postJson } from './http.js'
-import { nullableStr, parseArray, record, str } from './parse.js'
+import { z } from 'zod'
 
 /**
  * The timer client (REQ-004): the write/read seam for the live timer against the
@@ -9,30 +9,21 @@ import { nullableStr, parseArray, record, str } from './parse.js'
  * `/running` yields `null` when no timer is active. Timestamps stay ISO strings on
  * the wire — the deterministic core owns any duration math (ADR-0005), never here.
  */
-export interface TimeEntry {
-  readonly id: string
-  readonly projectId: string | null
-  readonly taskId: string | null
-  readonly startedAt: string
-  readonly endedAt: string | null
-  readonly billable: boolean
-  readonly source: string
-  readonly note: string | null
-}
+export const timeEntrySchema = z.object({
+  id: z.string(),
+  projectId: z.string().nullable(),
+  taskId: z.string().nullable(),
+  startedAt: z.string(),
+  endedAt: z.string().nullable(),
+  billable: z.boolean().default(false),
+  source: z.string(),
+  note: z.string().nullable(),
+})
+export type TimeEntry = z.infer<typeof timeEntrySchema>
 
 /** Parse one time-entry DTO, throwing on the wrong shape. */
 export function parseEntry(value: unknown): TimeEntry {
-  const o = record(value)
-  return {
-    id: str(o, 'id'),
-    projectId: nullableStr(o, 'projectId'),
-    taskId: nullableStr(o, 'taskId'),
-    startedAt: str(o, 'startedAt'),
-    endedAt: nullableStr(o, 'endedAt'),
-    billable: o.billable === true,
-    source: str(o, 'source'),
-    note: nullableStr(o, 'note'),
-  }
+  return timeEntrySchema.parse(value)
 }
 
 /** Parse the `/running` response: an entry, or `null` when no timer is active. */
@@ -157,7 +148,7 @@ export async function getRunning(
 
 /** Parse a list of time entries (the `/entries` collection), throwing on the wrong shape. */
 export function parseEntries(value: unknown): TimeEntry[] {
-  return parseArray(value, parseEntry)
+  return z.array(timeEntrySchema).parse(value)
 }
 
 export interface ListEntriesQuery {

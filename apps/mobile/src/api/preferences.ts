@@ -1,5 +1,5 @@
 import { getJson, putJson } from './http.js'
-import { record } from './parse.js'
+import { z } from 'zod'
 
 /**
  * The preferences client (M10): the Settings screen's on/off toggles, persisted
@@ -7,17 +7,17 @@ import { record } from './parse.js'
  * PUT sends only what changed and returns the full merged result. Booleans only —
  * a missing/legacy key falls back to the client default here, mirroring the server.
  */
-export interface Preferences {
-  readonly reminders: boolean
-  readonly idleDetection: boolean
-  readonly weekStartMonday: boolean
-  readonly meetingConsent: boolean
-  readonly breakReminders: boolean
-  readonly calendarSync: boolean
-  readonly autoTracker: boolean
-  /** First-run onboarding completed (REQ-044) — app state, durable + cross-device, not a Settings toggle. */
-  readonly onboarded: boolean
-}
+export const preferencesSchema = z.object({
+  reminders: z.boolean().catch(true).default(true),
+  idleDetection: z.boolean().catch(true).default(true),
+  weekStartMonday: z.boolean().catch(true).default(true),
+  meetingConsent: z.boolean().catch(false).default(false),
+  breakReminders: z.boolean().catch(true).default(true),
+  calendarSync: z.boolean().catch(false).default(false),
+  autoTracker: z.boolean().catch(false).default(false),
+  onboarded: z.boolean().catch(false).default(false),
+})
+export type Preferences = z.infer<typeof preferencesSchema>
 
 export const DEFAULT_PREFERENCES: Preferences = {
   reminders: true,
@@ -34,12 +34,8 @@ export type PreferenceKey = keyof Preferences
 
 /** Parse a preferences DTO, filling any missing/malformed key from the defaults. */
 export function parsePreferences(value: unknown): Preferences {
-  const o = record(value)
-  const out = { ...DEFAULT_PREFERENCES } as Record<PreferenceKey, boolean>
-  for (const key of Object.keys(DEFAULT_PREFERENCES) as PreferenceKey[]) {
-    if (typeof o[key] === 'boolean') out[key] = o[key]
-  }
-  return out
+  const result = preferencesSchema.safeParse(value)
+  return result.success ? result.data : DEFAULT_PREFERENCES
 }
 
 /** Read the caller's stored preferences (merged onto defaults). */

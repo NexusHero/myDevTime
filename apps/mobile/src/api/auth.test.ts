@@ -8,8 +8,6 @@ import {
   signOut,
   signUp,
   startSocialSignIn,
-  validateCredentials,
-  validateSignUp,
 } from './auth.js'
 
 /**
@@ -110,18 +108,6 @@ describe('signOut', () => {
   })
 })
 
-describe('validateCredentials', () => {
-  it('ValidPair_IsNull', () => {
-    expect(validateCredentials({ email: 'a@b.co', password: 'longenough' })).toBeNull()
-  })
-  it('BadEmail_IsRejected', () => {
-    expect(validateCredentials({ email: 'nope', password: 'longenough' })).toMatch(/email/i)
-  })
-  it('ShortPassword_IsRejected', () => {
-    expect(validateCredentials({ email: 'a@b.co', password: 'short' })).toMatch(/8/)
-  })
-})
-
 describe('parseProviders', () => {
   it('KeepsOnlyKnownSocialProviders', () => {
     expect(parseProviders({ emailPassword: true, social: ['google', 'nope', 'github'] })).toEqual({
@@ -185,17 +171,5 @@ describe('startSocialSignIn', () => {
     const url = await startSocialSignIn('http://api', 'google', 'http://app/', fetchImpl)
     expect(url).toContain('accounts.google.com')
     expect(urls[0]).toContain('/api/auth/sign-in/social')
-  })
-})
-
-describe('validateSignUp', () => {
-  it('EmptyName_IsRejected', () => {
-    expect(validateSignUp({ name: '  ', email: 'a@b.co', password: 'longenough' })).toMatch(/name/i)
-  })
-  it('DelegatesToCredentialChecks', () => {
-    expect(validateSignUp({ name: 'Dev', email: 'nope', password: 'longenough' })).toMatch(/email/i)
-  })
-  it('ValidInput_IsNull', () => {
-    expect(validateSignUp({ name: 'Dev', email: 'a@b.co', password: 'longenough' })).toBeNull()
   })
 })
