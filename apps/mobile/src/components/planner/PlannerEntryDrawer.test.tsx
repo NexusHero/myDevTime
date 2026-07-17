@@ -104,6 +104,35 @@ describe('PlannerEntryDrawer', () => {
     expect(texts(r)).not.toContain('Protected')
   })
 
+  it('PlannerEntryDrawer_recurrence_makesTheEntryASeries_F4', () => {
+    const onRecurrence = vi.fn()
+    const entry: DrawerEntry = {
+      kind: 'actual',
+      title: 'Standup',
+      timeLabel: '09:00–09:30',
+      color: '#1fa894',
+    }
+    const r = render(
+      <PlannerEntryDrawer entry={entry} onClose={() => {}} onRecurrence={onRecurrence} />,
+    )
+    expect(texts(r)).toContain('Repeat')
+    // Default is "Once" → nothing to persist; choosing Weekly then "Make recurring" fires the rule.
+    pressByLabel(r, 'Weekly')
+    pressByLabel(r, 'Make recurring')
+    expect(onRecurrence).toHaveBeenCalledWith({ freq: 'weekly', end: { kind: 'never' } })
+  })
+
+  it('PlannerEntryDrawer_noOnRecurrence_hidesTheRepeatSection', () => {
+    const entry: DrawerEntry = {
+      kind: 'break',
+      title: 'Lunch',
+      timeLabel: '12:30–13:00',
+      color: '#7c8698',
+    }
+    const r = render(<PlannerEntryDrawer entry={entry} onClose={() => {}} />)
+    expect(texts(r)).not.toContain('Repeat')
+  })
+
   it('PlannerEntryDrawer_ghost_acceptsTheProposal', () => {
     const onAccept = vi.fn()
     const entry: DrawerEntry = {

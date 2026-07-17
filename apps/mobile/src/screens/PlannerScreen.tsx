@@ -18,12 +18,15 @@ import {
   pickBanner,
   realityDrift,
   type RealityGap,
+  type RecurrenceRule,
   type TimedSpan,
 } from '@mydevtime/domain'
 import { ContextBanner, type ContextBannerProps } from '../components/planner/ContextBanner'
 import { priceWeekFromBlocks } from '../planner/weekPrice'
 import { weekCapacityFromBlocks } from '../planner/capacityTrace'
 import { inLayer, PLANNER_LAYERS, type PlannerLayer } from '../planner/layer'
+import { apiBaseUrl } from '../config'
+import { createSeries } from '../api/recurrence'
 import { Text } from '../components/core/Text'
 import {
   AICallout,
@@ -1273,6 +1276,29 @@ export function PlannerScreen(): React.JSX.Element {
     setBlocks(bs => bs.map((b, i) => (i === openIndex ? { ...b, kind: 'actual' } : b)))
     setOpenIndex(null)
   }
+  // Make the open block a recurring series (design v17 §F4): persist the rule via the recurrence
+  // API from the block's day/time. The occurrence math is the server's deterministic core
+  // (ADR-0005); this only shapes the block into a create request. No-ops without an API.
+  const makeOpenRecurring = (rule: RecurrenceRule): void => {
+    const block = openBlock
+    if (block === undefined || apiBaseUrl === null || rule.freq === 'none') return
+    const day = weekDays[block.day]
+    if (day === undefined) return
+    const kind =
+      block.kind === 'meeting' ? 'meeting' : block.kind === 'life' ? 'life' : ('focus' as const)
+    void createSeries(apiBaseUrl, {
+      kind,
+      title: block.label,
+      anchorDate: localDayKey(day.dateMs),
+      startMin: block.start + START_HOUR * 60,
+      lenMin: block.len,
+      freq: rule.freq,
+      endKind: rule.end.kind,
+      ...(rule.end.kind === 'until' ? { untilDate: rule.end.date } : {}),
+      ...(rule.end.kind === 'count' ? { count: rule.end.count } : {}),
+    })
+    setOpenIndex(null)
+  }
 
   // Task-Inbox (design v6): assigned tickets; "Plan" drops one into the next free
   // slot as a ghost proposal (deterministic `findFreeSlot` — ADR-0005), never onto a
@@ -1886,7 +1912,7 @@ export function PlannerScreen(): React.JSX.Element {
         (drawerEntry.kind === 'meeting' ||
           drawerEntry.kind === 'actual' ||
           drawerEntry.kind === 'life')
-          ? { onProtect: setOpenProtected }
+          ? { onProtect: setOpenProtected, onRecurrence: makeOpenRecurring }
           : {})}
       />
     </View>
