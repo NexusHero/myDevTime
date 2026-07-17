@@ -15,6 +15,7 @@ import {
 } from '@mydevtime/design'
 import { detectUnbookedGap, realityDrift, type RealityGap, type TimedSpan } from '@mydevtime/domain'
 import { priceWeekFromBlocks } from '../planner/weekPrice'
+import { weekCapacityFromBlocks } from '../planner/capacityTrace'
 import { Text } from '../components/core/Text'
 import {
   AICallout,
@@ -62,7 +63,7 @@ const STACK_BREAKPOINT = 860
 const NOW = new Date()
 const NOW_MIN = Math.max(0, Math.min((NOW.getHours() - START_HOUR) * 60 + NOW.getMinutes(), SPAN))
 
-type CanvasKind = 'actual' | 'meeting' | 'ghost' | 'break'
+type CanvasKind = 'actual' | 'meeting' | 'ghost' | 'break' | 'life'
 /** Calendar RSVP for a meeting: accepted (solid), tentative (hatched), fyi (dimmed, not counted). */
 type Rsvp = 'accepted' | 'tentative' | 'fyi'
 
@@ -151,6 +152,9 @@ const CURRENT_WEEK = isoWeek(new Date())
 const DEMO_BLOCKS: readonly CanvasBlock[] = []
 
 function canvasBlockColor(t: Theme, b: CanvasBlock): string {
+  // Life blocks (design v14 §F) wear the sage `--life` token — family is not a project, so it
+  // never borrows a project color. Its time reduces the plannable capacity (the head-trace).
+  if (b.kind === 'life') return t.color.life
   if (b.kind === 'break' || b.project === undefined) return t.color.ink3
   return projectColor(b.project, t.mode)
 }
@@ -1539,6 +1543,58 @@ export function PlannerScreen(): React.JSX.Element {
             {view === 'Year' ? 'Plan year' : view === 'Month' ? 'Plan month' : 'Plan week'}
           </Button>
         </View>
+
+        {/* Capacity head-trace (design v14 §F Stufe 2): the week's TRUE plannable capacity —
+            the contracted target minus your own life/protected commitments ("KW32 nur 24h"),
+            from the deterministic `weekCapacity` core (ADR-0005). Honest by construction: with
+            no life blocks it reads the full target, and the sage segment grows as life does. */}
+        {view === 'Week' &&
+          (() => {
+            const cap = weekCapacityFromBlocks(blocks)
+            if (cap.targetMs <= 0) return null
+            const committedH = cap.committedMs / 3_600_000
+            const plannableH = cap.plannableMs / 3_600_000
+            const targetH = cap.targetMs / 3_600_000
+            const committedPct = Math.round((cap.committedMs / cap.targetMs) * 100)
+            return (
+              <View style={{ gap: 6, maxWidth: 680 }} accessibilityRole="summary">
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: t.spacing.s2 }}>
+                  <Text style={{ fontSize: t.fontSize.xs, fontWeight: '600', color: t.color.ink }}>
+                    Plannable this week
+                  </Text>
+                  <Text
+                    style={{
+                      fontFamily: t.fontFamily.numeric,
+                      fontSize: t.fontSize.xs,
+                      color: committedPct > 0 ? t.color.life : t.color.ink2,
+                    }}
+                    accessibilityLabel={`${plannableH.toFixed(1)} of ${targetH.toFixed(1)} hours plannable, ${committedH.toFixed(1)} hours of life or protected time`}
+                  >
+                    {`${plannableH.toFixed(1)}h of ${targetH.toFixed(1)}h`}
+                    {committedH > 0 ? ` · ${committedH.toFixed(1)}h life/protected` : ''}
+                  </Text>
+                  <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
+                    assuming 8h × 5 days
+                  </Text>
+                </View>
+                {/* Slim two-part bar: sage life/protected, then the plannable remainder. */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    height: 6,
+                    borderRadius: 3,
+                    overflow: 'hidden',
+                    backgroundColor: t.color.sunk,
+                  }}
+                >
+                  <View style={{ flex: Math.max(0, committedH), backgroundColor: t.color.life }} />
+                  <View
+                    style={{ flex: Math.max(0, plannableH), backgroundColor: t.color.accent }}
+                  />
+                </View>
+              </View>
+            )
+          })()}
 
         {view === 'Month' && (
           <Card>
