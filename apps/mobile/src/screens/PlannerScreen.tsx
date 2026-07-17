@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { PanResponder, Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import {
   assignLanes,
@@ -13,7 +13,7 @@ import {
   type LanePlacement,
   type Theme,
 } from '@mydevtime/design'
-import { realityDrift, type TimedSpan } from '@mydevtime/domain'
+import { detectUnbookedGap, realityDrift, type RealityGap, type TimedSpan } from '@mydevtime/domain'
 import { Text } from '../components/core/Text'
 import {
   AICallout,
@@ -554,6 +554,24 @@ function driftLabel(ms: number): string {
   const mins = Math.round(Math.abs(ms) / 60_000)
   const sign = ms >= 0 ? '+' : '−'
   return `${sign}${String(Math.floor(mins / 60))}:${String(mins % 60).padStart(2, '0')}`
+}
+
+// Yesterday-healing "seen" flag (ADR-0064, K3): a tiny local marker so the banner
+// shows at most once per day — adopted or dismissed, it does not nag again. Local-only.
+const HEAL_KEY = 'mydevtime.planner.healed.'
+function healSeen(dayKey: string): boolean {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(HEAL_KEY + dayKey) === '1'
+  } catch {
+    return false
+  }
+}
+function markHealSeen(dayKey: string): void {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(HEAL_KEY + dayKey, '1')
+  } catch {
+    /* best-effort; a private-mode failure just means the banner may show again */
+  }
 }
 
 /** One day column: header (name · date · total) + the canvas body with blocks. */
@@ -1188,6 +1206,14 @@ export function PlannerScreen(): React.JSX.Element {
   const { prefs } = usePreferences()
   const [realityOn, setRealityOn] = useState(false)
   const showReality = realityOn && prefs.autoTracker
+  // Yesterday-healing (ADR-0064, K3): on first open, if the auto-tracker saw a stretch
+  // yesterday that was never booked, offer to book it (once per day, ≥15 min). "Yesterday"
+  // is the weekday column left of today, so Adopt maps onto a visible day. Consent-gated.
+  const [healGap, setHealGap] = useState<{
+    readonly gap: RealityGap
+    readonly dayIndex: number
+    readonly dateMs: number
+  } | null>(null)
   // One day column's on-screen width, measured from the columns row, so a horizontal
   // drag maps to whole-day steps. Falls back to the fixed width on the phone canvas.
   const [colWidth, setColWidth] = useState(COL_WIDTH)
@@ -1312,6 +1338,59 @@ export function PlannerScreen(): React.JSX.Element {
     setFillUndo(null)
     setInboxNote('Fill undone — blocks and inbox restored.')
   }
+
+  // Yesterday-healing detection (ADR-0064, K3): once, on first open with consent, look
+  // for the largest ≥15-min stretch the tracker saw yesterday that was never booked.
+  // "Yesterday" = the weekday column left of today, so Adopt lands on a visible day.
+  useEffect(() => {
+    if (!prefs.autoTracker) return
+    const todayIndex = weekDays.findIndex(d => d.today === true)
+    if (todayIndex < 1) return // Monday (or off-week) → no visible "yesterday"
+    const y = weekDays[todayIndex - 1]
+    if (y === undefined) return
+    const yKey = localDayKey(y.dateMs)
+    if (healSeen(yKey)) return
+    const windowStart = y.dateMs + START_HOUR * 3_600_000
+    const bookedYesterday = blocks
+      .filter(b => b.day === todayIndex - 1 && b.kind === 'actual')
+      .map(b => ({
+        startMs: windowStart + b.start * 60_000,
+        endMs: windowStart + (b.start + b.len) * 60_000,
+      }))
+    const gap = detectUnbookedGap(loadDaySpans(yKey), bookedYesterday, { minGapMs: 15 * 60_000 })
+    if (gap !== null) setHealGap({ gap, dayIndex: todayIndex - 1, dateMs: y.dateMs })
+    // First-open detection only — deliberately not re-run when blocks change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefs.autoTracker])
+
+  const adoptHeal = (): void => {
+    if (healGap === null) return
+    const windowStart = healGap.dateMs + START_HOUR * 3_600_000
+    const startMin = Math.round(Math.max(0, (healGap.gap.startMs - windowStart) / 60_000))
+    const endMin = Math.round(Math.min(SPAN, (healGap.gap.endMs - windowStart) / 60_000))
+    const snapshot = blocks
+    setBlocks(bs => [
+      ...bs,
+      {
+        day: healGap.dayIndex,
+        start: startMin,
+        len: Math.max(endMin - startMin, 15),
+        label: `${healGap.gap.source} · recovered`,
+        kind: 'actual',
+      },
+    ])
+    setFillUndo({ blocks: snapshot, tasks }) // reuse the note's Undo to restore
+    markHealSeen(localDayKey(healGap.dateMs))
+    setInboxNote(
+      `Booked ${clock(startMin)}–${clock(endMin)} from yesterday's tracker (${healGap.gap.source}).`,
+    )
+    setHealGap(null)
+  }
+  const dismissHeal = (): void => {
+    if (healGap !== null) markHealSeen(localDayKey(healGap.dateMs))
+    setHealGap(null)
+  }
+
   const [scope, setScope] = useState<'Time' | 'Budgets'>('Time')
   const [ask, setAsk] = useState('')
   const [answer, setAnswer] = useState<string | null>(null)
@@ -1494,6 +1573,43 @@ export function PlannerScreen(): React.JSX.Element {
               />
               {answer !== null && <AICallout title="✦ Assistant">{answer}</AICallout>}
             </View>
+
+            {/* Yesterday-healing banner (ADR-0064, K3): a proposal to book a stretch the
+                tracker saw yesterday but that was never booked. Adopt/Dismiss, once a day. */}
+            {healGap !== null && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: t.spacing.s3,
+                  padding: t.spacing.s3,
+                  borderRadius: t.radius.block,
+                  borderWidth: 1,
+                  borderColor: t.color.border,
+                  borderLeftWidth: 3,
+                  borderLeftColor: t.color.live,
+                  backgroundColor: t.color.surface,
+                  maxWidth: 680,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: t.fontSize.sm, fontWeight: '600', color: t.color.ink }}>
+                    {`Yesterday: ${String(Math.round((healGap.gap.endMs - healGap.gap.startMs) / 60_000))} min unbooked`}
+                  </Text>
+                  <Text
+                    style={{ fontSize: t.fontSize['2xs'], color: t.color.ink2, lineHeight: 16 }}
+                  >
+                    {`The Auto-Tracker saw ${healGap.gap.source} but nothing was booked. Book it?`}
+                  </Text>
+                </View>
+                <Button size="sm" onPress={adoptHeal}>
+                  Adopt
+                </Button>
+                <Button size="sm" variant="ghost" onPress={dismissHeal}>
+                  Dismiss
+                </Button>
+              </View>
+            )}
 
             {inboxNote !== null && (
               <View
