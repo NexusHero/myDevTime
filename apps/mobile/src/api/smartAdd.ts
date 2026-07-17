@@ -1,6 +1,6 @@
-import type { SmartEntryDraft, SmartEntryKind } from '@mydevtime/domain'
+import type { SmartEntryDraft } from '@mydevtime/domain'
 import { postJson } from './http.js'
-import { num, nullableStr, record, str } from './parse.js'
+import { z } from 'zod'
 
 /**
  * Smart-Add client (REQ-047, design v13 K6). Posts a single phrase; the server's
@@ -9,45 +9,32 @@ import { num, nullableStr, record, str } from './parse.js'
  * never a written entry (ADR-0005). `source` drives the provenance signature: violet only
  * for a real AI proposal.
  */
-export type SmartAddSource = 'deterministic' | 'ai-proposal'
+export const smartAddSourceSchema = z.enum(['deterministic', 'ai-proposal'])
+export type SmartAddSource = z.infer<typeof smartAddSourceSchema>
 
-export interface SmartAddResult {
-  readonly draft: SmartEntryDraft
-  readonly source: SmartAddSource
-  readonly charged: boolean
-}
+export const smartEntryDraftSchema = z.object({
+  kind: z.enum(['task', 'meeting', 'absence', 'travel', 'private']),
+  title: z.string(),
+  projectHint: z.string().nullable(),
+  ticketKey: z.string().nullable(),
+  dayOffset: z.number(),
+  startMin: z.number().nullable(),
+  endMin: z.number().nullable(),
+  durationMs: z.number().nullable(),
+  billable: z.boolean().default(true),
+  confidence: z.number(),
+  needsAi: z.boolean().default(false),
+})
 
-const KINDS: readonly SmartEntryKind[] = ['task', 'meeting', 'absence', 'travel', 'private']
-
-function nullableNum(o: Record<string, unknown>, key: string): number | null {
-  const v = o[key]
-  if (v === null || v === undefined) return null
-  if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error(`expected number|null "${key}"`)
-  return v
-}
+export const smartAddResultSchema = z.object({
+  draft: smartEntryDraftSchema,
+  source: smartAddSourceSchema,
+  charged: z.boolean().default(false),
+})
+export type SmartAddResult = z.infer<typeof smartAddResultSchema>
 
 export function parseSmartAddResult(value: unknown): SmartAddResult {
-  const o = record(value)
-  const d = record(o.draft)
-  const kind = str(d, 'kind') as SmartEntryKind
-  if (!KINDS.includes(kind)) throw new Error(`unexpected smart-add kind "${kind}"`)
-  return {
-    source: str(o, 'source') as SmartAddSource,
-    charged: o.charged === true,
-    draft: {
-      kind,
-      title: str(d, 'title'),
-      projectHint: nullableStr(d, 'projectHint'),
-      ticketKey: nullableStr(d, 'ticketKey'),
-      dayOffset: num(d, 'dayOffset'),
-      startMin: nullableNum(d, 'startMin'),
-      endMin: nullableNum(d, 'endMin'),
-      durationMs: nullableNum(d, 'durationMs'),
-      billable: d.billable !== false,
-      confidence: num(d, 'confidence'),
-      needsAi: d.needsAi === true,
-    },
-  }
+  return smartAddResultSchema.parse(value)
 }
 
 export interface SmartEntryTimes {
