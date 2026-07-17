@@ -137,6 +137,12 @@ export { easterSunday, holidaysForRegion, HOLIDAY_REGIONS } from './absences/hol
 export type { PlanLabel } from './planner/label.js'
 export { deterministicLabels } from './planner/label.js'
 
+// Contextual-banner resolver (REQ-059, design v14 §M2) — the Planner shows at most ONE banner;
+// a fixed priority (Conflict > Price > Healing > Note) picks it and the rest wait. One
+// `ContextBanner` variant model, one deterministic picker (ADR-0005).
+export type { BannerVariant, ContextBanner } from './planner/banner.js'
+export { BANNER_PRIORITY, pickBanner } from './planner/banner.js'
+
 // Absences (REQ-029, ADR-0010) — leave as inclusive calendar-date ranges +
 // vacation-allowance balance; deterministic, LLM-free (ADR-0005).
 export type { AbsenceKind, Absence, AbsencePolicy, VacationBalance } from './absences/absence.js'
@@ -311,3 +317,21 @@ export {
   weeklyFocusTrend,
   dailyHoursDistribution,
 } from './insights/balance.js'
+
+// Health & Balance core (REQ-058, design v14 §H) — the binding baseline principle (health
+// signals calibrate to the person's own >4-week norm, never a fixed threshold) plus the
+// honest Balance row (Work / Protected / Free over waking hours). Pure, never a diagnosis.
+export type {
+  Baseline,
+  BaselineBand,
+  BaselineComparison,
+  BaselineOptions,
+  BalanceInput,
+  BalanceRow,
+} from './insights/health.js'
+export {
+  MIN_BASELINE_PERIODS,
+  personalBaseline,
+  compareToBaseline,
+  balanceRow,
+} from './insights/health.js'
