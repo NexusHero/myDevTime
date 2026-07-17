@@ -213,6 +213,12 @@ export {
   frequentRoutes,
 } from './travel/travel.js'
 
+// Quote-from-history estimator (REQ-053, ADR-0065 · design v13 KI2) — the deterministic
+// half of the AI quote calculator: the honest distribution of how long similar past work
+// took, plus a buffered suggestion. The AI only phrases it (ADR-0005/0029).
+export type { QuoteEstimate, QuoteOptions } from './estimating/quote.js'
+export { estimateFromHistory } from './estimating/quote.js'
+
 // Entitlements — the domain of monetization (REQ-016, ADR-0006/0008). Provider-
 // agnostic plan/state machine; payment providers are adapters layered on later.
 export type {
