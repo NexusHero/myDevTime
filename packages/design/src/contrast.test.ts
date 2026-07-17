@@ -65,4 +65,10 @@ describe.each(combos)('%s a11y contract', (_name, p: Palette) => {
     // now-line and carries no text, so it is exempt from the text contract.
     expect(meetsAA(p.liveStrong, p.surface, AA_LARGE)).toBe(true)
   })
+
+  it('Life_ClearsAaLargeOnSurface', () => {
+    // The sage `life` tone labels life blocks / the capacity trace (design v14 §F),
+    // so it must clear AA-Large as text on a normal surface in every combo.
+    expect(meetsAA(p.life, p.surface, AA_LARGE)).toBe(true)
+  })
 })

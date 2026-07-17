@@ -197,6 +197,18 @@ export {
   weekLoadFromMinutes,
 } from './economics/week-price.js'
 
+// Capacity honesty (REQ-055, design v14 §F Stufe 2) — one person, one timeline: the week
+// you can truly work is the contracted target minus your own life/protected commitments
+// ("KW32 nur 24h"). Fill-week, overbooking and the quote calculator plan against this.
+export type {
+  CommitmentKind,
+  Commitment,
+  CapacityDay,
+  DayCapacity,
+  WeekCapacity,
+} from './capacity/plannable.js'
+export { committedMinutes, dayCapacity, weekCapacity, overbookedMs } from './capacity/plannable.js'
+
 // Travel entry type (REQ-051, ADR-0065 · design v13 G4) — deterministic travel pricing
 // (reduced-fraction time + per-km allowance, train = full worktime) plus the G4b
 // proposal helpers (return-trip nudge, magnetic chaining, commute favourites). Pure,
