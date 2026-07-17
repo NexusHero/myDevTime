@@ -73,7 +73,24 @@ describe('parseOccurrence', () => {
       startMin: 600,
       lenMin: 45,
       projectId: null,
+      priority: null, // defaulted when absent (a hand-created entry may carry it)
+      note: null,
     })
+  })
+
+  it('CarriesPriorityAndNote_whenPresent', () => {
+    const o = parseOccurrence({
+      seriesId: 's1',
+      kind: 'focus',
+      title: 'SEPA export',
+      date: '2026-07-13',
+      startMin: 540,
+      lenMin: 120,
+      projectId: null,
+      priority: 1,
+      note: 'pain.008 schema',
+    })
+    expect(o).toMatchObject({ priority: 1, note: 'pain.008 schema' })
   })
 })
 

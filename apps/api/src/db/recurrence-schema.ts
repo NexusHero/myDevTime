@@ -34,5 +34,11 @@ export const recurringEntries = pgTable('recurring_entries', {
   count: integer('count'),
   // Optional project for the produced occurrences (categorization stays a later step).
   projectId: uuid('project_id'),
+  // Optional planning metadata for a hand-created entry (design v19 New-Entry dialog): the
+  // task priority (1 = high · 2 = med · 3 = low) and a free-text note. Null for entries that
+  // carry neither (e.g. a synced meeting). Occurrences surface these so the Month view can
+  // show a real priority dot instead of a default (ADR-0005 — nothing is invented).
+  priority: integer('priority'),
+  note: text('note'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })

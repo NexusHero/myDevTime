@@ -66,6 +66,8 @@ export class RecurrenceController {
       freq: body.freq,
       end,
       projectId: body.projectId,
+      priority: body.priority,
+      note: body.note,
     })
   }
 

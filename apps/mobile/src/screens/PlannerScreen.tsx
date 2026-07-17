@@ -30,8 +30,18 @@ import { weekCapacityFromBlocks } from '../planner/capacityTrace'
 import { inLayer, PLANNER_LAYERS, type PlannerLayer } from '../planner/layer'
 import { apiBaseUrl } from '../config'
 import { createSeries } from '../api/recurrence'
+import { createProject } from '../api/tracking'
 import { occurrencesToBlocks, type RecurringBlock } from '../planner/recurring'
 import { useWeekOccurrences } from '../hooks/useWeekOccurrences'
+import { useMonthOccurrences } from '../hooks/useMonthOccurrences'
+import { buildMonthDays, buildYearMonths } from '../planner/calendarMonth'
+import { PlannerMonth } from '../components/planner/PlannerMonth'
+import { PlannerYear } from '../components/planner/PlannerYear'
+import {
+  PlannerNewEntryDialog,
+  type NewEntryDraft,
+} from '../components/planner/PlannerNewEntryDialog'
+import { useCatalog } from './useCatalog'
 import { Text } from '../components/core/Text'
 import {
   AICallout,
@@ -1559,12 +1569,139 @@ export function PlannerScreen(): React.JSX.Element {
   // placed on the canvas as read-only ↻ ghosts. Empty without an API — the canvas then shows
   // only real blocks. The layer filter applies to them too (a `life` series hides under Work).
   const weekDates = weekDays.map(d => localDayKey(d.dateMs))
-  const occurrences = useWeekOccurrences(weekDates).data ?? []
+  const weekOccResource = useWeekOccurrences(weekDates)
+  const occurrences = weekOccResource.data ?? []
   const recurringBlocks: readonly RecurringBlock[] = occurrencesToBlocks(
     occurrences,
     weekDates,
     START_HOUR,
   ).filter(rb => inLayer(rb.kind, layer))
+
+  // Month/Year (Kalender) views (design v18 PlannerViews): the shown month/year is the real
+  // current one; occurrences over the whole window are fetched (empty without an API → honest
+  // empty calendar) and shaped by the pure `buildMonthDays`/`buildYearMonths`. The daily target
+  // seeds the day-load bar. Events (holidays/absences) are wired in a later slice — none for now.
+  const calNow = new Date()
+  const calYear = calNow.getFullYear()
+  const calMonth0 = calNow.getMonth()
+  const calToday = calNow.getDate()
+  const pad2 = (n: number): string => String(n).padStart(2, '0')
+  const monthDim = new Date(calYear, calMonth0 + 1, 0).getDate()
+  const calFrom =
+    view === 'Month'
+      ? `${String(calYear)}-${pad2(calMonth0 + 1)}-01`
+      : view === 'Year'
+        ? `${String(calYear)}-01-01`
+        : ''
+  const calTo =
+    view === 'Month'
+      ? `${String(calYear)}-${pad2(calMonth0 + 1)}-${pad2(monthDim)}`
+      : view === 'Year'
+        ? `${String(calYear)}-12-31`
+        : ''
+  const monthOccResource = useMonthOccurrences(calFrom, calTo)
+  const calOccurrences = monthOccResource.data ?? []
+  const shownCalOccurrences = calOccurrences.filter(o => inLayer(o.kind, layer))
+  const DAILY_TARGET_HOURS = 8.33
+
+  // New-Entry dialog (design v19): create a real Task or Life entry by hand. Projects come live
+  // from the workspace catalog; a new entry persists as a recurring series (a single occurrence)
+  // placed at the next free slot, then the week + calendar reload. Nothing is invented (ADR-0005);
+  // without an API the create is a no-op and the dialog says so, rather than faking a row.
+  const catalog = useCatalog()
+  const dialogProjects = (catalog.data ?? [])
+    .flatMap(c => c.projects)
+    .map(p => ({ id: p.id, name: p.name }))
+  const [newEntryOpen, setNewEntryOpen] = useState(false)
+  const [creatingEntry, setCreatingEntry] = useState(false)
+
+  const submitNewEntry = (draft: NewEntryDraft): void => {
+    const lenMin = Math.round(draft.estHours * 60)
+    // Prefer today; otherwise the first day of the shown week with a free slot.
+    const todayIdx = weekDays.findIndex(d => d.today === true)
+    const dayOrder =
+      todayIdx >= 0
+        ? [todayIdx, ...weekDays.map((_, i) => i).filter(i => i !== todayIdx)]
+        : weekDays.map((_, i) => i)
+    let placedDay: number | null = null
+    let placedStart: number | null = null
+    for (const day of dayOrder) {
+      const occupied = blocks
+        .filter(b => b.day === day)
+        .map(b => ({ startMin: b.start, lenMin: b.len }))
+      const notBefore = weekDays[day]?.today === true ? NOW_MIN : 0
+      const start = findFreeSlot(occupied, lenMin, 0, SPAN, notBefore)
+      if (start !== null) {
+        placedDay = day
+        placedStart = start
+        break
+      }
+    }
+    if (placedDay === null || placedStart === null) {
+      setInboxNote(`No free slot in week ${String(week)} — "${draft.title}" was not created.`)
+      setNewEntryOpen(false)
+      return
+    }
+    const dayIdx = placedDay
+    const startMin = placedStart
+    const dayInfo = weekDays[dayIdx]
+    if (dayInfo === undefined) {
+      setNewEntryOpen(false)
+      return
+    }
+    if (apiBaseUrl === null) {
+      // No backend configured: reflect the entry locally so the user still sees it, and say
+      // plainly it is not persisted (honest states — never fake a saved row).
+      setBlocks(bs => [
+        ...bs,
+        {
+          day: dayIdx,
+          start: startMin,
+          len: lenMin,
+          label: draft.title,
+          kind: draft.isLife ? 'life' : 'ghost',
+          ...(draft.isLife || draft.projectId === null ? {} : { project: draft.projectId }),
+        },
+      ])
+      setInboxNote(`"${draft.title}" added to this week (local only — connect a backend to save).`)
+      setNewEntryOpen(false)
+      return
+    }
+    setCreatingEntry(true)
+    void createSeries(apiBaseUrl, {
+      kind: draft.isLife ? 'life' : 'focus',
+      title: draft.title,
+      anchorDate: localDayKey(dayInfo.dateMs),
+      startMin: startMin + START_HOUR * 60,
+      lenMin,
+      freq: 'weekly',
+      endKind: 'count',
+      count: 1,
+      ...(draft.isLife || draft.projectId === null ? {} : { projectId: draft.projectId }),
+      ...(draft.isLife ? {} : { priority: draft.priority }),
+      ...(draft.description === '' ? {} : { note: draft.description }),
+    })
+      .then(() => {
+        weekOccResource.reload()
+        monthOccResource.reload()
+        setInboxNote(`"${draft.title}" created — ${dayInfo.name} ${clock(startMin)}.`)
+      })
+      .catch(() => setInboxNote(`Could not create "${draft.title}" — please try again.`))
+      .finally(() => {
+        setCreatingEntry(false)
+        setNewEntryOpen(false)
+      })
+  }
+
+  const createDialogProject = (name: string): void => {
+    if (apiBaseUrl === null) {
+      setInboxNote('Connect a backend to add projects.')
+      return
+    }
+    void createProject(apiBaseUrl, { name })
+      .then(() => catalog.reload())
+      .catch(() => setInboxNote(`Could not add project "${name}".`))
+  }
 
   return (
     <View style={{ flex: 1 }}>
@@ -1642,6 +1779,10 @@ export function PlannerScreen(): React.JSX.Element {
               </Text>
             </>
           )}
+          {/* New-Entry dialog trigger (design v19) — create a Task or Life entry by hand. */}
+          <Button size="sm" variant="primary" onPress={() => setNewEntryOpen(true)}>
+            + New
+          </Button>
           {view === 'Week' && (
             <Button
               size="sm"
@@ -1948,6 +2089,30 @@ export function PlannerScreen(): React.JSX.Element {
             </Text>
           </>
         )}
+
+        {/* Month view (design v18 PlannerViews): tasks = filled chips (project color + priority
+            dot), events = hollow banners that never count, day-load bar vs the daily target. Real
+            occurrences; an empty month renders an honest empty grid. */}
+        {view === 'Month' && (
+          <PlannerMonth
+            year={calYear}
+            month0={calMonth0}
+            today={calToday}
+            days={buildMonthDays(shownCalOccurrences, [], { year: calYear, month0: calMonth0 })}
+            targetHours={DAILY_TARGET_HOURS}
+          />
+        )}
+
+        {/* Year view (design v18 PlannerViews): twelve month cards with planned hours + a
+            five-week intensity strip; the current month wears a live-orange border. */}
+        {view === 'Year' && (
+          <PlannerYear
+            months={buildYearMonths(shownCalOccurrences, [], {
+              year: calYear,
+              nowMonth0: calMonth0,
+            })}
+          />
+        )}
       </ScrollView>
       <PlannerEntryDrawer
         entry={drawerEntry}
@@ -1961,6 +2126,14 @@ export function PlannerScreen(): React.JSX.Element {
           drawerEntry.kind === 'life')
           ? { onProtect: setOpenProtected, onRecurrence: makeOpenRecurring }
           : {})}
+      />
+      <PlannerNewEntryDialog
+        visible={newEntryOpen}
+        projects={dialogProjects}
+        busy={creatingEntry}
+        onClose={() => setNewEntryOpen(false)}
+        onSubmit={submitNewEntry}
+        onCreateProject={createDialogProject}
       />
     </View>
   )

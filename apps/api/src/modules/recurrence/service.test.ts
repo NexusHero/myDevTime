@@ -21,6 +21,8 @@ function row(over: Partial<SeriesRow>): SeriesRow {
     untilDate: null,
     count: null,
     projectId: null,
+    priority: null,
+    note: null,
     createdAt: new Date(0),
     ...over,
   }
@@ -76,6 +78,15 @@ describe('seriesToOccurrences', () => {
       '2026-07-13#540',
       '2026-07-13#600',
     ])
+  })
+
+  it('CarriesPriorityAndNoteFromTheSeries', () => {
+    const occ = seriesToOccurrences(
+      [row({ priority: 1, note: 'ship the SEPA export' })],
+      '2026-07-06',
+      '2026-07-06',
+    )
+    expect(occ[0]).toMatchObject({ priority: 1, note: 'ship the SEPA export' })
   })
 
   it('EmptyWhenTheWindowPredatesTheSeries', () => {

@@ -50,6 +50,9 @@ export interface Occurrence {
   readonly startMin: number
   readonly lenMin: number
   readonly projectId: string | null
+  /** Planning metadata carried from the series (design v19): task priority + free-text note. */
+  readonly priority: number | null
+  readonly note: string | null
 }
 
 /**
@@ -73,6 +76,8 @@ export function seriesToOccurrences(
         startMin: row.startMin,
         lenMin: row.lenMin,
         projectId: row.projectId,
+        priority: row.priority,
+        note: row.note,
       })
     }
   }
@@ -90,6 +95,8 @@ export interface CreateSeriesInput {
   freq: Exclude<RecurrenceFreq, 'none'>
   end: RecurrenceEnd
   projectId?: string | null | undefined
+  priority?: number | null | undefined
+  note?: string | null | undefined
 }
 
 /** Create a recurring series in the caller's workspace. */
@@ -114,6 +121,8 @@ export async function createSeries(
       untilDate: input.end.kind === 'until' ? input.end.date : null,
       count: input.end.kind === 'count' ? input.end.count : null,
       projectId: input.projectId ?? null,
+      priority: input.priority ?? null,
+      note: input.note ?? null,
     })
     .returning()
   return first(rows)
