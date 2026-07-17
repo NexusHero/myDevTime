@@ -186,6 +186,12 @@ export { monthlyCreditAllowance, TOPUP_PACKS, topUpPackCredits } from './credits
 export type { TimeEntryDraft, ParseOptions } from './nlentry/parse.js'
 export { parseTimeEntry } from './nlentry/parse.js'
 
+// Grounded-assistant retrieval (REQ-020/flagship AI, ADR-0005) — IDF-weighted relevance ranking to
+// ground the LLM on the *most relevant* of the caller's own facts, and `isOffData` for a clean
+// off-data refusal that never even calls the model. Pure; the LLM only phrases the selected facts.
+export type { ScoredFact, GroundingOptions } from './assistant/grounding.js'
+export { tokenize, rankFacts, selectGroundingFacts, isOffData } from './assistant/grounding.js'
+
 // Smart-Add typed-entry parser (REQ-047, ADR-0065) — Stage 1 of the one-plus/one-field
 // quick-add (design v13, K6). Classifies a phrase into a typed draft (task/meeting/
 // absence/travel/private) with times, day, and project/ticket hints; a weak parse asks

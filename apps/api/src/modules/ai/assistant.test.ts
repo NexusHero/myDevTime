@@ -73,10 +73,26 @@ describe('LlmAssistant', () => {
   })
 
   it('RefusalMarker_IsReportedAsRefused', async () => {
-    const out = await new LlmAssistant(fakeLlm('NO_DATA')).answer('Weather?', facts, {
-      allowAi: true,
-    })
+    // An on-data question (so the LLM is called), but the model conservatively returns NO_DATA.
+    const out = await new LlmAssistant(fakeLlm('NO_DATA')).answer(
+      'overtime balance detail?',
+      facts,
+      {
+        allowAi: true,
+      },
+    )
     expect(out.source).toBe('ai-proposal')
+    expect(out.refused).toBe(true)
+  })
+
+  it('OffDataQuestion_RefusesWithoutCallingTheModel', async () => {
+    const spy: LlmPort = {
+      provider: 'openai',
+      available: () => Promise.resolve(true),
+      complete: () => Promise.reject(new Error('model must not be called for off-data')),
+    }
+    const out = await new LlmAssistant(spy).answer('weather in Tokyo?', facts, { allowAi: true })
+    expect(out.source).toBe('deterministic')
     expect(out.refused).toBe(true)
   })
 
