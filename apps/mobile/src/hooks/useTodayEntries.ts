@@ -36,12 +36,13 @@ export function useTodayEntries(): TodayEntriesResource {
     `today-entries:${base ?? 'empty'}:${today}`,
   )
   const entries = resource.data ?? []
-  const booked: readonly BookedSpan[] = entries
+  const closedEntries = entries.filter(e => e.endedAt !== null)
+  const booked: readonly BookedSpan[] = closedEntries
     .map(e => ({
       startMs: Date.parse(e.startedAt),
-      endMs: e.endedAt === null ? now.getTime() : Date.parse(e.endedAt),
+      endMs: Date.parse(e.endedAt as string),
     }))
     .filter(b => Number.isFinite(b.startMs) && b.endMs > b.startMs)
-  const bookedMs = entries.reduce((n, e) => n + entryDurationMs(e, now), 0)
+  const bookedMs = closedEntries.reduce((n, e) => n + entryDurationMs(e, now), 0)
   return { ...resource, live: base !== null, booked, bookedMs }
 }
