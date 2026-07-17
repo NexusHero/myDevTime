@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { PanResponder, Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import {
   assignLanes,
@@ -13,6 +13,7 @@ import {
   type LanePlacement,
   type Theme,
 } from '@mydevtime/design'
+import { detectUnbookedGap, realityDrift, type RealityGap, type TimedSpan } from '@mydevtime/domain'
 import { Text } from '../components/core/Text'
 import {
   AICallout,
@@ -28,6 +29,8 @@ import { TaskInbox } from '../components/planner/TaskInbox'
 import { PlannerEntryDrawer, type DrawerEntry } from '../components/planner/PlannerEntryDrawer'
 import { useTheme } from '../theme/ThemeProvider'
 import { usePlanner } from '../hooks/usePlanner'
+import { usePreferences } from '../hooks/usePreferences'
+import { loadDaySpans, localDayKey } from '../autotracker/dayActivityStore'
 import type { PlanBlock } from '../api/planner'
 import { INBOX_PROJECTS, INBOX_TASKS, type InboxTask } from './plannerInboxData'
 
@@ -85,6 +88,9 @@ interface DemoDay {
   readonly date: string
   readonly total: string
   readonly today?: boolean
+  /** Local midnight (ms) of this day — the anchor for mapping reality spans onto the
+   *  canvas window (ADR-0064, K1). The day's 08:00 window start is `dateMs + START_HOUR·h`. */
+  readonly dateMs: number
 }
 
 const MONTH_SHORT = [
@@ -119,6 +125,7 @@ function buildWeek(): readonly DemoDay[] {
       date: `${MONTH_SHORT[d.getMonth()] ?? ''} ${String(d.getDate())}`,
       total: '—',
       today: d.toDateString() === todayKey,
+      dateMs: d.getTime(),
     }
   })
 }
@@ -509,6 +516,64 @@ function HourGutter(): React.JSX.Element {
   )
 }
 
+/** How the auto-tracker's reality maps onto one day column (ADR-0064, K1). */
+interface DayRealityView {
+  /** Active spans as positioned trace rects (top/height as fractions of the window). */
+  readonly segments: readonly { readonly top: number; readonly height: number }[]
+  /** Signed drift vs the day's booked time (tracked − booked), in ms. */
+  readonly driftMs: number
+}
+
+/**
+ * Build a day's reality overlay from its captured spans + booked (actual) blocks. Pure:
+ * active spans (idle/away excluded) clipped to the 08:00–18:00 window become trace rects,
+ * and the deterministic `realityDrift` gives the day-head chip's signed delta.
+ */
+function dayRealityView(
+  spans: readonly TimedSpan[],
+  dayBlocks: readonly CanvasBlock[],
+  windowStartMs: number,
+): DayRealityView {
+  const segments: { top: number; height: number }[] = []
+  for (const s of spans) {
+    if (s.source === 'Idle' || s.source === 'Away') continue
+    const startMin = Math.max(0, (s.startMs - windowStartMs) / 60_000)
+    const endMin = Math.min(SPAN, (s.endMs - windowStartMs) / 60_000)
+    if (endMin <= startMin) continue
+    const rect = plannerBlockRect(startMin, endMin - startMin, SPAN)
+    segments.push({ top: rect.top, height: rect.height })
+  }
+  const bookedMs = dayBlocks
+    .filter(b => b.kind === 'actual')
+    .reduce((n, b) => n + b.len * 60_000, 0)
+  return { segments, driftMs: realityDrift(spans, bookedMs).deltaMs }
+}
+
+/** A drift as a compact signed `+H:MM` / `−H:MM` label for the day-head chip. */
+function driftLabel(ms: number): string {
+  const mins = Math.round(Math.abs(ms) / 60_000)
+  const sign = ms >= 0 ? '+' : '−'
+  return `${sign}${String(Math.floor(mins / 60))}:${String(mins % 60).padStart(2, '0')}`
+}
+
+// Yesterday-healing "seen" flag (ADR-0064, K3): a tiny local marker so the banner
+// shows at most once per day — adopted or dismissed, it does not nag again. Local-only.
+const HEAL_KEY = 'mydevtime.planner.healed.'
+function healSeen(dayKey: string): boolean {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(HEAL_KEY + dayKey) === '1'
+  } catch {
+    return false
+  }
+}
+function markHealSeen(dayKey: string): void {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(HEAL_KEY + dayKey, '1')
+  } catch {
+    /* best-effort; a private-mode failure just means the banner may show again */
+  }
+}
+
 /** One day column: header (name · date · total) + the canvas body with blocks. */
 function DayColumn({
   day,
@@ -519,6 +584,7 @@ function DayColumn({
   onResizeBlock,
   onMoveBlock,
   onOpenBlock,
+  showReality,
 }: {
   readonly day: DemoDay
   readonly index: number
@@ -532,6 +598,8 @@ function DayColumn({
   readonly onMoveBlock: (globalIndex: number, day: number, startMin: number) => void
   /** Open the typed entry drawer for a block by its index (ADR-0063, H2). */
   readonly onOpenBlock: (globalIndex: number) => void
+  /** Overlay the auto-tracker's reality trace + drift chip (ADR-0064, K1). */
+  readonly showReality: boolean
 }): React.JSX.Element {
   const t = useTheme()
   const hours: number[] = []
@@ -549,6 +617,17 @@ function DayColumn({
       .filter(b => b.kind !== 'break' && b.rsvp !== 'fyi')
       .map(b => ({ startMin: b.start, lenMin: b.len })),
   )
+  // Reality overlay (ADR-0064, K1): the auto-tracker's active spans for this day,
+  // positioned on the window, plus the signed drift vs the day's booked time. Read
+  // from the local per-day history; null (no overlay) when the toggle is off.
+  const reality = showReality
+    ? dayRealityView(
+        loadDaySpans(localDayKey(day.dateMs)),
+        dayBlocks,
+        day.dateMs + START_HOUR * 3_600_000,
+      )
+    : null
+  const hasReality = reality !== null && reality.segments.length > 0
   return (
     <View style={flex ? { flex: 1 } : { width: COL_WIDTH }}>
       <View
@@ -587,6 +666,29 @@ function DayColumn({
           >
             <Text style={{ fontSize: 9, fontWeight: '800', color: t.color.warn }}>
               {conflictPeak}×
+            </Text>
+          </View>
+        )}
+        {hasReality && reality !== null && (
+          <View
+            accessibilityRole="text"
+            accessibilityLabel={`Reality drift ${driftLabel(reality.driftMs)}`}
+            style={{
+              paddingHorizontal: 6,
+              paddingVertical: 1,
+              borderRadius: t.radius.pill,
+              backgroundColor: t.color.liveSoft,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: t.fontFamily.numeric,
+                fontSize: 9,
+                fontWeight: '800',
+                color: t.color.live,
+              }}
+            >
+              {driftLabel(reality.driftMs)}
             </Text>
           </View>
         )}
@@ -637,6 +739,25 @@ function DayColumn({
               borderTopColor: t.color.border,
               borderStyle: 'dotted',
               opacity: 0.25,
+            }}
+          />
+        ))}
+        {/* Reality trace (ADR-0064, K1): the auto-tracker's active spans as a slim
+            neutral strip on the day column's right edge — observed, not booked, so it
+            reads muted (never a project fill). Plan and reality on one surface. */}
+        {reality?.segments.map((seg, i) => (
+          <View
+            key={`reality-${String(i)}`}
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              right: 2,
+              width: 4,
+              borderRadius: 2,
+              top: seg.top * BODY_HEIGHT + 1,
+              height: Math.max(seg.height * BODY_HEIGHT, 2),
+              backgroundColor: t.color.ink3,
+              opacity: 0.7,
             }}
           />
         ))}
@@ -1079,6 +1200,20 @@ export function PlannerScreen(): React.JSX.Element {
   // The week canvas blocks are local, resizable state (design v6 A1) — dragging a
   // block's bottom edge commits a new 15-min-snapped duration. Demo data for now.
   const [blocks, setBlocks] = useState<readonly CanvasBlock[]>(DEMO_BLOCKS)
+  // Reality layer (ADR-0064, K1): the "● Reality" toggle overlays the auto-tracker's
+  // observed activity on the canvas. Gated on the `autoTracker` consent — with it off
+  // there is nothing to show, so the overlay stays dark and the toggle guides to Settings.
+  const { prefs } = usePreferences()
+  const [realityOn, setRealityOn] = useState(false)
+  const showReality = realityOn && prefs.autoTracker
+  // Yesterday-healing (ADR-0064, K3): on first open, if the auto-tracker saw a stretch
+  // yesterday that was never booked, offer to book it (once per day, ≥15 min). "Yesterday"
+  // is the weekday column left of today, so Adopt maps onto a visible day. Consent-gated.
+  const [healGap, setHealGap] = useState<{
+    readonly gap: RealityGap
+    readonly dayIndex: number
+    readonly dateMs: number
+  } | null>(null)
   // One day column's on-screen width, measured from the columns row, so a horizontal
   // drag maps to whole-day steps. Falls back to the fixed width on the phone canvas.
   const [colWidth, setColWidth] = useState(COL_WIDTH)
@@ -1203,6 +1338,59 @@ export function PlannerScreen(): React.JSX.Element {
     setFillUndo(null)
     setInboxNote('Fill undone — blocks and inbox restored.')
   }
+
+  // Yesterday-healing detection (ADR-0064, K3): once, on first open with consent, look
+  // for the largest ≥15-min stretch the tracker saw yesterday that was never booked.
+  // "Yesterday" = the weekday column left of today, so Adopt lands on a visible day.
+  useEffect(() => {
+    if (!prefs.autoTracker) return
+    const todayIndex = weekDays.findIndex(d => d.today === true)
+    if (todayIndex < 1) return // Monday (or off-week) → no visible "yesterday"
+    const y = weekDays[todayIndex - 1]
+    if (y === undefined) return
+    const yKey = localDayKey(y.dateMs)
+    if (healSeen(yKey)) return
+    const windowStart = y.dateMs + START_HOUR * 3_600_000
+    const bookedYesterday = blocks
+      .filter(b => b.day === todayIndex - 1 && b.kind === 'actual')
+      .map(b => ({
+        startMs: windowStart + b.start * 60_000,
+        endMs: windowStart + (b.start + b.len) * 60_000,
+      }))
+    const gap = detectUnbookedGap(loadDaySpans(yKey), bookedYesterday, { minGapMs: 15 * 60_000 })
+    if (gap !== null) setHealGap({ gap, dayIndex: todayIndex - 1, dateMs: y.dateMs })
+    // First-open detection only — deliberately not re-run when blocks change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefs.autoTracker])
+
+  const adoptHeal = (): void => {
+    if (healGap === null) return
+    const windowStart = healGap.dateMs + START_HOUR * 3_600_000
+    const startMin = Math.round(Math.max(0, (healGap.gap.startMs - windowStart) / 60_000))
+    const endMin = Math.round(Math.min(SPAN, (healGap.gap.endMs - windowStart) / 60_000))
+    const snapshot = blocks
+    setBlocks(bs => [
+      ...bs,
+      {
+        day: healGap.dayIndex,
+        start: startMin,
+        len: Math.max(endMin - startMin, 15),
+        label: `${healGap.gap.source} · recovered`,
+        kind: 'actual',
+      },
+    ])
+    setFillUndo({ blocks: snapshot, tasks }) // reuse the note's Undo to restore
+    markHealSeen(localDayKey(healGap.dateMs))
+    setInboxNote(
+      `Booked ${clock(startMin)}–${clock(endMin)} from yesterday's tracker (${healGap.gap.source}).`,
+    )
+    setHealGap(null)
+  }
+  const dismissHeal = (): void => {
+    if (healGap !== null) markHealSeen(localDayKey(healGap.dateMs))
+    setHealGap(null)
+  }
+
   const [scope, setScope] = useState<'Time' | 'Budgets'>('Time')
   const [ask, setAsk] = useState('')
   const [answer, setAnswer] = useState<string | null>(null)
@@ -1331,6 +1519,21 @@ export function PlannerScreen(): React.JSX.Element {
               ✦ Fill week
             </Button>
           )}
+          {view === 'Week' && (
+            <Button
+              size="sm"
+              variant={showReality ? 'primary' : 'ghost'}
+              onPress={() => {
+                if (!prefs.autoTracker) {
+                  setInboxNote('Turn on Auto-Tracker in Settings to overlay your reality.')
+                  return
+                }
+                setRealityOn(o => !o)
+              }}
+            >
+              ● Reality
+            </Button>
+          )}
           <Button size="sm">
             {view === 'Year' ? 'Plan year' : view === 'Month' ? 'Plan month' : 'Plan week'}
           </Button>
@@ -1370,6 +1573,43 @@ export function PlannerScreen(): React.JSX.Element {
               />
               {answer !== null && <AICallout title="✦ Assistant">{answer}</AICallout>}
             </View>
+
+            {/* Yesterday-healing banner (ADR-0064, K3): a proposal to book a stretch the
+                tracker saw yesterday but that was never booked. Adopt/Dismiss, once a day. */}
+            {healGap !== null && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: t.spacing.s3,
+                  padding: t.spacing.s3,
+                  borderRadius: t.radius.block,
+                  borderWidth: 1,
+                  borderColor: t.color.border,
+                  borderLeftWidth: 3,
+                  borderLeftColor: t.color.live,
+                  backgroundColor: t.color.surface,
+                  maxWidth: 680,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: t.fontSize.sm, fontWeight: '600', color: t.color.ink }}>
+                    {`Yesterday: ${String(Math.round((healGap.gap.endMs - healGap.gap.startMs) / 60_000))} min unbooked`}
+                  </Text>
+                  <Text
+                    style={{ fontSize: t.fontSize['2xs'], color: t.color.ink2, lineHeight: 16 }}
+                  >
+                    {`The Auto-Tracker saw ${healGap.gap.source} but nothing was booked. Book it?`}
+                  </Text>
+                </View>
+                <Button size="sm" onPress={adoptHeal}>
+                  Adopt
+                </Button>
+                <Button size="sm" variant="ghost" onPress={dismissHeal}>
+                  Dismiss
+                </Button>
+              </View>
+            )}
 
             {inboxNote !== null && (
               <View
@@ -1432,6 +1672,7 @@ export function PlannerScreen(): React.JSX.Element {
                             onResizeBlock={resizeBlock}
                             onMoveBlock={moveBlock}
                             onOpenBlock={setOpenIndex}
+                            showReality={showReality}
                           />
                         ))}
                       </View>
@@ -1455,6 +1696,7 @@ export function PlannerScreen(): React.JSX.Element {
                           onResizeBlock={resizeBlock}
                           onMoveBlock={moveBlock}
                           onOpenBlock={setOpenIndex}
+                          showReality={showReality}
                         />
                       ))}
                     </View>
