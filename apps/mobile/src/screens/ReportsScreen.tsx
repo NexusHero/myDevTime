@@ -11,13 +11,14 @@ import {
   CheckinCard,
   EmptyState,
   Heatmap,
+  InsightCard,
   LoadMeter,
   ScreenScaffold,
   Sparkline,
   StatTile,
   Tabs,
 } from '../components/index'
-import { effectiveRate } from '@mydevtime/domain'
+import { effectiveRate, priceWeek, weekLoadFromMinutes } from '@mydevtime/domain'
 import { useReports } from '../hooks/useReports'
 import { useRevenueBudget } from '../hooks/useRevenueBudget'
 import { useOvertimeTrend } from '../hooks/useOvertimeTrend'
@@ -502,12 +503,15 @@ export function ReportsScreen(): React.JSX.Element {
                 />
               </View>
               <View style={{ flexGrow: 1, flexBasis: stacked ? '45%' : 0, minWidth: 150 }}>
-                <StatTile label="Utilization" value={`${String(Math.round(eff.utilization * 100))}%`} />
+                <StatTile
+                  label="Utilization"
+                  value={`${String(Math.round(eff.utilization * 100))}%`}
+                />
               </View>
             </View>
             <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>
-              The effective rate divides the same revenue across every tracked hour — billable
-              work, admin and meetings — so it&apos;s the honest number.
+              The effective rate divides the same revenue across every tracked hour — billable work,
+              admin and meetings — so it&apos;s the honest number.
             </Text>
           </View>
         )}
@@ -642,6 +646,72 @@ export function ReportsScreen(): React.JSX.Element {
     </Card>
   )
 
+  // Price of the week (G1): what a week like this costs across intensities — a what-if from
+  // this week's tracked total against a standard 8h/5-day frame (rule-based, ADR-0005).
+  const weekMin = Math.round(trackedMs / 60_000)
+  const weekPrices =
+    weekMin > 0
+      ? priceWeek(
+          weekLoadFromMinutes({
+            totalWorkMin: weekMin,
+            availableDays: 5,
+            targetDailyMin: 480,
+            billableWorkMin: Math.round(Math.min(data?.billableMs ?? 0, trackedMs) / 60_000),
+            ratePerHourMinor: eff.effectivePerHourMinor ?? 0,
+          }),
+        )
+      : []
+  const priceCard = (
+    <Card title="Price of the week" subtitle="What a week like this costs · assuming 8h × 5 days">
+      {weekPrices.length === 0 ? (
+        <Text style={{ color: t.color.ink2 }}>No tracked time this week yet.</Text>
+      ) : (
+        <View style={{ gap: t.spacing.s2 }}>
+          {weekPrices.map(p => (
+            <View
+              key={p.intensity}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}
+            >
+              <Text
+                style={{
+                  fontSize: t.fontSize.sm,
+                  color: t.color.ink,
+                  fontWeight: '600',
+                  width: 96,
+                  textTransform: 'capitalize',
+                }}
+              >
+                {p.intensity}
+              </Text>
+              <Text
+                style={{
+                  fontFamily: t.fontFamily.numeric,
+                  fontSize: t.fontSize.xs,
+                  color: t.color.ink2,
+                  flex: 1,
+                }}
+              >
+                {`${String(p.activeDays)}d · ${formatDuration(p.perDayMs)}/day · ${p.freeDays > 0 ? `${String(p.freeDays)} free` : 'no free day'}`}
+              </Text>
+              <Text
+                style={{
+                  fontFamily: t.fontFamily.numeric,
+                  fontSize: t.fontSize.xs,
+                  color: p.overtimeMs > 0 ? t.color.warn : t.color.ink3,
+                }}
+              >
+                {p.overtimeMs > 0 ? `+${formatDuration(p.overtimeMs)} OT` : 'on target'}
+              </Text>
+            </View>
+          ))}
+          <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
+            Sustainable spreads across more, lighter days; dense buys free days with longer ones.
+          </Text>
+        </View>
+      )}
+    </Card>
+  )
+
   const overviewView = (
     <>
       {summaryTiles}
@@ -655,6 +725,7 @@ export function ReportsScreen(): React.JSX.Element {
         {distributionCard}
         {budgetsCard}
       </View>
+      {priceCard}
       {heatmapCard}
       {burndownCard}
     </>
@@ -767,6 +838,20 @@ export function ReportsScreen(): React.JSX.Element {
           </View>
         )}
       </Card>
+      {/* Drift-Coach (KI1): grounded AI phrasing over the deterministic overtime facts. */}
+      {otrend.data !== null && otrend.data.series.length >= 2 && (
+        <InsightCard
+          kind="coach"
+          title="Drift Coach"
+          subtitle="Grounded in your own overtime trend"
+          cta="Ask the coach"
+          facts={[
+            otrend.data.note,
+            `Current overtime balance: ${overtimeLabel(otrend.data.currentMs)}.`,
+            `Forecast in 4 weeks if the pattern holds: ${overtimeLabel(otrend.data.projectedMs)}.`,
+          ]}
+        />
+      )}
       {/* Self-report half of the honest signal — local-only by contract. */}
       <CheckinCard done={checkin.done} onSubmit={checkin.submit} />
     </>

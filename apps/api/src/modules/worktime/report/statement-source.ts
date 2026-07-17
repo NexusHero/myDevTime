@@ -39,7 +39,10 @@ export async function loadMonthlyStatement(
   const { year, month, tz } = opts
 
   // Load the whole calendar year up to (and including) the requested month, once.
-  const yearStart = zonedTimeToInstant({ year, month: 1, day: 1, hour: 0, minute: 0, second: 0 }, tz)
+  const yearStart = zonedTimeToInstant(
+    { year, month: 1, day: 1, hour: 0, minute: 0, second: 0 },
+    tz,
+  )
   const next = month === 12 ? { y: year + 1, m: 1 } : { y: year, m: month + 1 }
   const monthEnd = zonedTimeToInstant(
     { year: next.y, month: next.m, day: 1, hour: 0, minute: 0, second: 0 },

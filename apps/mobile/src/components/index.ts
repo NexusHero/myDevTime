@@ -47,6 +47,7 @@ export { BudgetRing } from './data/BudgetRing'
 export { Gauge } from './data/Gauge'
 export { Sparkline } from './data/Sparkline'
 export { StatTile } from './data/StatTile'
+export { InsightCard } from './data/InsightCard'
 export { WeekSparkline } from './data/WeekSparkline'
 
 // Instruments

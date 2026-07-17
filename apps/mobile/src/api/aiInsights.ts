@@ -36,5 +36,7 @@ export async function fetchInsight(
   facts: readonly string[],
   fetchImpl: typeof fetch = fetch,
 ): Promise<InsightProposal> {
-  return parseInsightProposal(await postJson(baseUrl, '/api/ai/insight', { kind, facts }, fetchImpl))
+  return parseInsightProposal(
+    await postJson(baseUrl, '/api/ai/insight', { kind, facts }, fetchImpl),
+  )
 }

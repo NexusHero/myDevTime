@@ -124,7 +124,11 @@ export { buildWorktimeReport } from './attendance/report.js'
 // Monthly work-time statement (REQ-052, ADR-0065 · design v13 X) — the "real punch
 // clock": begin/pause/end per day, ± against target, a cumulative balance from carryover
 // to closing, absence rows, and an audit note. Renders the signable monthly PDF.
-export type { StatementDay, MonthlyStatement, MonthlyStatementInput } from './attendance/statement.js'
+export type {
+  StatementDay,
+  MonthlyStatement,
+  MonthlyStatementInput,
+} from './attendance/statement.js'
 export { buildMonthlyStatement } from './attendance/statement.js'
 export type { BookedInterval, CoverageReport } from './attendance/coverage.js'
 export { reconcileCoverage } from './attendance/coverage.js'

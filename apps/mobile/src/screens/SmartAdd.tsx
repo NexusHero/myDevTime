@@ -46,7 +46,8 @@ function dayLabel(dayOffset: number): string {
 function timeLabel(draft: SmartEntryDraft): string {
   const hm = (min: number): string =>
     `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
-  if (draft.startMin !== null && draft.endMin !== null) return `${hm(draft.startMin)}–${hm(draft.endMin)}`
+  if (draft.startMin !== null && draft.endMin !== null)
+    return `${hm(draft.startMin)}–${hm(draft.endMin)}`
   if (draft.startMin !== null) return `from ${hm(draft.startMin)}`
   if (draft.durationMs !== null) return `${formatDuration(draft.durationMs)} h`
   return '1h'
@@ -138,9 +139,20 @@ export function SmartAdd(): React.JSX.Element {
             gap: t.spacing.s2,
           }}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2, flexWrap: 'wrap' }}>
-            <Badge tone={draft.kind === 'absence' ? 'warn' : 'neutral'}>{KIND_LABEL[draft.kind]}</Badge>
-            <Text style={{ fontSize: t.fontSize.sm, fontWeight: '700', color: t.color.ink, flex: 1 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: t.spacing.s2,
+              flexWrap: 'wrap',
+            }}
+          >
+            <Badge tone={draft.kind === 'absence' ? 'warn' : 'neutral'}>
+              {KIND_LABEL[draft.kind]}
+            </Badge>
+            <Text
+              style={{ fontSize: t.fontSize.sm, fontWeight: '700', color: t.color.ink, flex: 1 }}
+            >
               {draft.title || '—'}
             </Text>
             {isAi && (
@@ -149,14 +161,29 @@ export function SmartAdd(): React.JSX.Element {
               </Text>
             )}
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2, flexWrap: 'wrap' }}>
-            <Text style={{ fontFamily: t.fontFamily.numeric, fontSize: t.fontSize.sm, color: t.color.ink2 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: t.spacing.s2,
+              flexWrap: 'wrap',
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: t.fontFamily.numeric,
+                fontSize: t.fontSize.sm,
+                color: t.color.ink2,
+              }}
+            >
               {timeLabel(draft)} · {dayLabel(draft.dayOffset)}
             </Text>
             <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>
               {projectName ?? draft.projectHint ?? 'No project'}
             </Text>
-            {!draft.billable && draft.kind !== 'absence' && <Badge tone="neutral">Non-billable</Badge>}
+            {!draft.billable && draft.kind !== 'absence' && (
+              <Badge tone="neutral">Non-billable</Badge>
+            )}
           </View>
           {draft.kind === 'absence' && (
             <Text style={{ fontSize: t.fontSize.xs, color: t.color.warn }}>

@@ -71,7 +71,7 @@ function formatHm(ms: number): string {
   const abs = Math.abs(ms)
   const h = Math.floor(abs / HOUR_MS)
   const m = Math.round((abs % HOUR_MS) / 60_000)
-  return `${sign}${h}h ${String(m).padStart(2, '0')}m`
+  return `${sign}${String(h)}h ${String(m).padStart(2, '0')}m`
 }
 
 /**
@@ -106,9 +106,9 @@ export function overtimeForecast(
   } else if (trend === 'stable') {
     note = `Your overtime balance is holding steady around ${formatHm(currentMs)}.`
   } else if (trend === 'accumulating') {
-    note = `Overtime is compounding by about ${formatHm(slope)} a week — on track for ${formatHm(projectedMs)} in ${horizon} weeks.`
+    note = `Overtime is compounding by about ${formatHm(slope)} a week — on track for ${formatHm(projectedMs)} in ${String(horizon)} weeks.`
   } else {
-    note = `You're paying overtime down by about ${formatHm(Math.abs(slope))} a week — heading toward ${formatHm(projectedMs)} in ${horizon} weeks.`
+    note = `You're paying overtime down by about ${formatHm(Math.abs(slope))} a week — heading toward ${formatHm(projectedMs)} in ${String(horizon)} weeks.`
   }
 
   return { series, currentMs, slopePerWeekMs: slope, projectedMs, trend, note }

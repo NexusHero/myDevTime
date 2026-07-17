@@ -27,13 +27,19 @@ describe('parseSmartAddResult', () => {
   })
 
   it('CarriesTheAiProposalSourceAndCharge', () => {
-    const r = parseSmartAddResult({ draft: { ...draft, kind: 'task' }, source: 'ai-proposal', charged: true })
+    const r = parseSmartAddResult({
+      draft: { ...draft, kind: 'task' },
+      source: 'ai-proposal',
+      charged: true,
+    })
     expect(r.source).toBe('ai-proposal')
     expect(r.charged).toBe(true)
   })
 
   it('RejectsAnUnknownKind', () => {
-    expect(() => parseSmartAddResult({ draft: { ...draft, kind: 'nonsense' }, source: 'deterministic' })).toThrow()
+    expect(() =>
+      parseSmartAddResult({ draft: { ...draft, kind: 'nonsense' }, source: 'deterministic' }),
+    ).toThrow()
   })
 })
 

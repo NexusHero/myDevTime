@@ -128,8 +128,7 @@ export function statementUrl(
   baseUrl: string,
   opts: { year: number; month: number; tz?: string; locale?: 'en' | 'de' },
 ): string {
-  const tz =
-    opts.tz ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC'
+  const tz = opts.tz ?? Intl.DateTimeFormat().resolvedOptions().timeZone
   const qs = new URLSearchParams({
     year: String(opts.year),
     month: String(opts.month),

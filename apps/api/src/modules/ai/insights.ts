@@ -34,7 +34,7 @@ interface InsightSpec {
 
 /** KI1 fallback: surface the single sharpest drift fact with a gentle, generic nudge. */
 export function coachFallback(facts: readonly string[]): { refused: boolean; text: string } {
-  if (facts.length === 0) return { refused: true, text: "No plan-vs-actual data to coach on yet." }
+  if (facts.length === 0) return { refused: true, text: 'No plan-vs-actual data to coach on yet.' }
   return {
     refused: false,
     text: `${facts[0] ?? ''} — consider adjusting tomorrow's plan to match how the day really goes.`,
@@ -51,7 +51,12 @@ export function quoteFallback(facts: readonly string[]): { refused: boolean; tex
 /** KI3 fallback: a faithful cleanup — strip a leading ticket key, tidy spacing, capitalise. */
 export function invoiceFallback(items: readonly string[]): { refused: boolean; text: string } {
   const cleaned = items
-    .map(raw => raw.replace(/\b[A-Z][A-Z0-9]+-\d+\b/g, '').replace(/\s+/g, ' ').trim())
+    .map(raw =>
+      raw
+        .replace(/\b[A-Z][A-Z0-9]+-\d+\b/g, '')
+        .replace(/\s+/g, ' ')
+        .trim(),
+    )
     .filter(line => line.length > 0)
     .map(line => line.charAt(0).toUpperCase() + line.slice(1))
   if (cleaned.length === 0) return { refused: true, text: 'No entries to translate.' }
@@ -106,7 +111,11 @@ function buildPrompt(system: string, facts: readonly string[]): string {
 }
 
 export interface AiInsightsPort {
-  propose(kind: InsightKind, facts: readonly string[], opts: { allowAi: boolean }): Promise<InsightProposal>
+  propose(
+    kind: InsightKind,
+    facts: readonly string[],
+    opts: { allowAi: boolean },
+  ): Promise<InsightProposal>
 }
 
 export const AI_INSIGHTS = Symbol('AI_INSIGHTS')
