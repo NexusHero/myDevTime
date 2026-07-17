@@ -90,6 +90,8 @@ interface CanvasBlock {
   readonly ext?: string
   /** Recurring meeting → the ↻ glyph. */
   readonly rec?: boolean
+  /** The 🛡 protection flag (design v14 D14): mutes own nudges; also consumes capacity. */
+  readonly protectedFlag?: boolean
 }
 
 interface DemoDay {
@@ -1250,9 +1252,14 @@ export function PlannerScreen(): React.JSX.Element {
           ...(openBlock.rsvp !== undefined ? { rsvp: openBlock.rsvp } : {}),
           ...(openBlock.ext !== undefined ? { ext: openBlock.ext } : {}),
           ...(openBlock.rec !== undefined ? { rec: openBlock.rec } : {}),
+          protected: openBlock.protectedFlag === true,
         }
   const setOpenRsvp = (rsvp: Rsvp): void =>
     setBlocks(bs => bs.map((b, i) => (i === openIndex ? { ...b, rsvp } : b)))
+  // Toggle the 🛡 protection flag (design v14 D14) on the open block — communication only;
+  // it also counts against the plannable capacity (the head-trace reads `protectedFlag`).
+  const setOpenProtected = (next: boolean): void =>
+    setBlocks(bs => bs.map((b, i) => (i === openIndex ? { ...b, protectedFlag: next } : b)))
   const removeOpen = (): void => {
     setBlocks(bs => bs.filter((_, i) => i !== openIndex))
     setOpenIndex(null)
@@ -1828,6 +1835,12 @@ export function PlannerScreen(): React.JSX.Element {
         {...(drawerEntry?.kind === 'meeting' ? { onRsvp: setOpenRsvp } : {})}
         {...(drawerEntry?.kind === 'actual' ? { onDelete: removeOpen } : {})}
         {...(drawerEntry?.kind === 'ghost' ? { onAccept: acceptOpen, onDismiss: removeOpen } : {})}
+        {...(drawerEntry !== null &&
+        (drawerEntry.kind === 'meeting' ||
+          drawerEntry.kind === 'actual' ||
+          drawerEntry.kind === 'life')
+          ? { onProtect: setOpenProtected }
+          : {})}
       />
     </View>
   )
