@@ -51,20 +51,22 @@ function fill(r: TestRenderer.ReactTestRenderer): void {
 }
 
 describe('RegisterScreen', () => {
-  it('EmptySubmit_ShowsValidationError_AndDoesNotSignUp', () => {
+  it('EmptySubmit_ShowsValidationError_AndDoesNotSignUp', async () => {
     const { renderer, calls } = setup(true)
-    act(() => {
+    await act(async () => {
       createButton(renderer).props.onPress()
+      await new Promise(resolve => setTimeout(resolve, 0))
     })
     expect(calls).toHaveLength(0)
     expect(JSON.stringify(renderer.toJSON())).toMatch(/name/i)
   })
 
-  it('ValidInput_CallsSignUp', () => {
+  it('ValidInput_CallsSignUp', async () => {
     const { renderer, calls } = setup(true)
     fill(renderer)
-    act(() => {
+    await act(async () => {
       createButton(renderer).props.onPress()
+      await new Promise(resolve => setTimeout(resolve, 0))
     })
     expect(calls).toEqual([{ name: 'Dev', email: 'dev@nexushero.io', password: 'longenough' }])
   })

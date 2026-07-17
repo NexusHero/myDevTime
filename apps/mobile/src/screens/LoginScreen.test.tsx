@@ -43,24 +43,26 @@ function signInButton(renderer: TestRenderer.ReactTestRenderer): TestRenderer.Re
 }
 
 describe('LoginScreen', () => {
-  it('EmptySubmit_ShowsValidationErrorAndDoesNotSignIn', () => {
+  it('EmptySubmit_ShowsValidationErrorAndDoesNotSignIn', async () => {
     const { renderer, calls } = setup()
-    act(() => {
+    await act(async () => {
       signInButton(renderer).props.onPress()
+      await new Promise(resolve => setTimeout(resolve, 0))
     })
     expect(calls).toHaveLength(0)
     expect(JSON.stringify(renderer.toJSON())).toMatch(/valid email/i)
   })
 
-  it('ValidCredentials_CallSignIn', () => {
+  it('ValidCredentials_CallSignIn', async () => {
     const { renderer, calls } = setup()
     const inputs = renderer.root.findAllByType(Input)
     act(() => {
       inputs[0]!.props.onChangeText('dev@nexushero.io')
       inputs[1]!.props.onChangeText('longenough')
     })
-    act(() => {
+    await act(async () => {
       signInButton(renderer).props.onPress()
+      await new Promise(resolve => setTimeout(resolve, 0))
     })
     expect(calls).toEqual([{ email: 'dev@nexushero.io', password: 'longenough' }])
   })

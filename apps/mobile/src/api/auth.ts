@@ -73,7 +73,16 @@ export type SocialProvider = z.infer<typeof socialProviderSchema>
 
 export const authProvidersSchema = z.object({
   emailPassword: z.boolean().default(false),
-  social: z.array(socialProviderSchema).catch([]).default([]),
+  social: z
+    .array(z.unknown())
+    .transform(arr =>
+      arr.flatMap(v => {
+        const r = socialProviderSchema.safeParse(v)
+        return r.success ? [r.data] : []
+      }),
+    )
+    .catch([])
+    .default([]),
 })
 
 export type AuthProviders = z.infer<typeof authProvidersSchema>

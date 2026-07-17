@@ -1,5 +1,5 @@
 import { getJson, postJson, deleteJson } from './http.js'
-import { num, nullableStr, parseArray, record, str } from './parse.js'
+import { z } from 'zod'
 
 /**
  * The hourly-rate read/write model for the client (REQ-005). Rates are
@@ -8,31 +8,20 @@ import { num, nullableStr, parseArray, record, str } from './parse.js'
  * API and the deterministic pricing (ADR-0005). The client only parses, formats,
  * and posts what the user typed; it never prices anything itself.
  */
-export type RateLevel = 'workspace' | 'client' | 'project' | 'task'
+export const rateLevelSchema = z.enum(['workspace', 'client', 'project', 'task'])
+export type RateLevel = z.infer<typeof rateLevelSchema>
 
-export interface Rate {
-  readonly id: string
-  readonly level: RateLevel
-  /** The client/project/task id this rate applies to; null for the workspace default. */
-  readonly scopeId: string | null
-  readonly amountMinorPerHour: number
-  readonly effectiveFrom: string
-}
-
-const LEVELS: readonly RateLevel[] = ['workspace', 'client', 'project', 'task']
-function asLevel(value: string): RateLevel {
-  return (LEVELS as readonly string[]).includes(value) ? (value as RateLevel) : 'workspace'
-}
+export const rateSchema = z.object({
+  id: z.string(),
+  level: rateLevelSchema.catch('workspace'),
+  scopeId: z.string().nullable(),
+  amountMinorPerHour: z.number(),
+  effectiveFrom: z.string(),
+})
+export type Rate = z.infer<typeof rateSchema>
 
 export function parseRate(value: unknown): Rate {
-  const o = record(value)
-  return {
-    id: str(o, 'id'),
-    level: asLevel(str(o, 'level')),
-    scopeId: nullableStr(o, 'scopeId'),
-    amountMinorPerHour: num(o, 'amountMinorPerHour'),
-    effectiveFrom: str(o, 'effectiveFrom'),
-  }
+  return rateSchema.parse(value)
 }
 
 /** Every rate rule in the workspace (all levels), for the Rates screen. */
@@ -40,7 +29,8 @@ export async function fetchRates(
   baseUrl: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<Rate[]> {
-  return parseArray(await getJson(baseUrl, '/api/billing/rates', fetchImpl), parseRate)
+  const res = await getJson(baseUrl, '/api/billing/rates', fetchImpl)
+  return z.array(rateSchema).parse(res)
 }
 
 export interface NewRate {

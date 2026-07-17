@@ -12,7 +12,7 @@ import type { ReportsData } from '../hooks/useReports.js'
  * answer.
  */
 export const assistantResultSchema = z.object({
-  source: z.enum(['deterministic', 'ai-proposal']),
+  source: z.enum(['deterministic', 'ai-proposal']).catch('deterministic').default('deterministic'),
   refused: z.boolean().default(false),
   charged: z.boolean().default(false),
   text: z.string(),

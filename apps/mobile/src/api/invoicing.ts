@@ -1,5 +1,5 @@
 import { deleteJson, getJson, postJson } from './http.js'
-import { nullableStr, num, parseArray, record, str } from './parse.js'
+import { z } from 'zod'
 
 /**
  * Client for the invoicing / "Abrechnung" endpoints (design v6, REQ-005/009).
@@ -7,97 +7,77 @@ import { nullableStr, num, parseArray, record, str } from './parse.js'
  * deterministic core computed it (ADR-0005) — the client never re-derives money.
  */
 
-export interface ClientOpen {
-  readonly clientId: string
-  readonly openMs: number
-  readonly openMinor: number
-}
-export interface ClientsOpen {
-  readonly clients: readonly ClientOpen[]
-  readonly currencyCode: string
-}
+export const clientOpenSchema = z.object({
+  clientId: z.string(),
+  openMs: z.number(),
+  openMinor: z.number(),
+})
+export type ClientOpen = z.infer<typeof clientOpenSchema>
 
-export type AgingKey = 'recent' | 'mid' | 'old'
-export interface AgingBucketDTO {
-  readonly key: AgingKey
-  readonly minor: number
-  readonly ms: number
-}
-export interface OpenAging {
-  readonly buckets: readonly AgingBucketDTO[]
-  readonly totalMinor: number
-  readonly totalMs: number
-  readonly currencyCode: string
-}
+export const clientsOpenSchema = z.object({
+  clients: z.array(clientOpenSchema),
+  currencyCode: z.string(),
+})
+export type ClientsOpen = z.infer<typeof clientsOpenSchema>
 
-export interface InvoiceLineDTO {
-  readonly entryId: string
-  readonly projectId: string
-  readonly taskId: string | null
-  readonly start: number
-  readonly durationMs: number
-  readonly amountMinor: number
-  readonly priced: boolean
-  readonly note: string | null
-}
-export interface InvoicePreviewDTO {
-  readonly lines: readonly InvoiceLineDTO[]
-  readonly currencyCode: string
-}
+export const agingKeySchema = z.enum(['recent', 'mid', 'old'])
+export type AgingKey = z.infer<typeof agingKeySchema>
 
-export interface IssuedInvoiceDTO {
-  readonly id: string
-  readonly clientId: string | null
-  readonly periodStart: string
-  readonly periodEnd: string
-  readonly totalMs: number
-  readonly totalMinor: number
-  readonly currencyCode: string
-  readonly issuedAt: string
-}
+export const agingBucketDtoSchema = z.object({
+  key: agingKeySchema,
+  minor: z.number(),
+  ms: z.number(),
+})
+export type AgingBucketDTO = z.infer<typeof agingBucketDtoSchema>
+
+export const openAgingSchema = z.object({
+  buckets: z.array(agingBucketDtoSchema),
+  totalMinor: z.number(),
+  totalMs: z.number(),
+  currencyCode: z.string(),
+})
+export type OpenAging = z.infer<typeof openAgingSchema>
+
+export const invoiceLineDtoSchema = z.object({
+  entryId: z.string(),
+  projectId: z.string(),
+  taskId: z.string().nullable(),
+  start: z.number(),
+  durationMs: z.number(),
+  amountMinor: z.number(),
+  priced: z.boolean().catch(false),
+  note: z.string().nullable(),
+})
+export type InvoiceLineDTO = z.infer<typeof invoiceLineDtoSchema>
+
+export const invoicePreviewDtoSchema = z.object({
+  lines: z.array(invoiceLineDtoSchema),
+  currencyCode: z.string(),
+})
+export type InvoicePreviewDTO = z.infer<typeof invoicePreviewDtoSchema>
+
+export const issuedInvoiceDtoSchema = z.object({
+  id: z.string(),
+  clientId: z.string().nullable(),
+  periodStart: z.string(),
+  periodEnd: z.string(),
+  totalMs: z.number(),
+  totalMinor: z.number(),
+  currencyCode: z.string(),
+  issuedAt: z.string(),
+})
+export type IssuedInvoiceDTO = z.infer<typeof issuedInvoiceDtoSchema>
 
 export function parseClientsOpen(value: unknown): ClientsOpen {
-  const o = record(value)
-  return {
-    currencyCode: str(o, 'currencyCode'),
-    clients: parseArray(o.clients, c => ({
-      clientId: str(c, 'clientId'),
-      openMs: num(c, 'openMs'),
-      openMinor: num(c, 'openMinor'),
-    })),
-  }
-}
-
-function parseLine(o: Record<string, unknown>): InvoiceLineDTO {
-  return {
-    entryId: str(o, 'entryId'),
-    projectId: str(o, 'projectId'),
-    taskId: nullableStr(o, 'taskId'),
-    start: num(o, 'start'),
-    durationMs: num(o, 'durationMs'),
-    amountMinor: num(o, 'amountMinor'),
-    priced: o.priced === true,
-    note: nullableStr(o, 'note'),
-  }
+  return clientsOpenSchema.parse(value)
 }
 
 export function parsePreview(value: unknown): InvoicePreviewDTO {
-  const o = record(value)
-  return { currencyCode: str(o, 'currencyCode'), lines: parseArray(o.lines, parseLine) }
+  return invoicePreviewDtoSchema.parse(value)
 }
 
 export function parseIssuedInvoice(value: unknown): IssuedInvoiceDTO {
-  const o = record(value)
-  return {
-    id: str(o, 'id'),
-    clientId: nullableStr(o, 'clientId'),
-    periodStart: str(o, 'periodStart'),
-    periodEnd: str(o, 'periodEnd'),
-    totalMs: num(o, 'totalMs'),
-    totalMinor: num(o, 'totalMinor'),
-    currencyCode: str(o, 'currencyCode'),
-    issuedAt: str(o, 'issuedAt'),
-  }
+  return issuedInvoiceDtoSchema.parse(value)
 }
 
 /** Open (un-invoiced) billable hours + money per client — the Projects header. */
@@ -108,20 +88,8 @@ export async function fetchClientsOpen(
   return parseClientsOpen(await getJson(baseUrl, '/api/billing/clients/open', fetchImpl))
 }
 
-const AGING_KEYS: readonly AgingKey[] = ['recent', 'mid', 'old']
-
 export function parseOpenAging(value: unknown): OpenAging {
-  const o = record(value)
-  return {
-    currencyCode: str(o, 'currencyCode'),
-    totalMinor: num(o, 'totalMinor'),
-    totalMs: num(o, 'totalMs'),
-    buckets: parseArray(o.buckets, b => {
-      const key = str(b, 'key')
-      if (!AGING_KEYS.includes(key as AgingKey)) throw new Error(`bad aging key: ${key}`)
-      return { key: key as AgingKey, minor: num(b, 'minor'), ms: num(b, 'ms') }
-    }),
-  }
+  return openAgingSchema.parse(value)
 }
 
 /** Open (un-invoiced) billable amounts bucketed by age — Reports "Revenue & Budget". */

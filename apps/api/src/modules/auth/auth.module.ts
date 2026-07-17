@@ -59,6 +59,12 @@ export class AuthModule implements OnApplicationBootstrap {
         // required in production (config superRefine); dev falls back to Host.
         const origin = this.config.AUTH_BASE_URL ?? `http://${request.headers.host ?? 'localhost'}`
         const url = new URL(request.url, origin)
+        console.log(
+          '[AuthModule] Incoming request url:',
+          request.url,
+          'Parsed url:',
+          url.toString(),
+        )
         const response = await auth.handler(
           new Request(url.toString(), {
             method: request.method,
