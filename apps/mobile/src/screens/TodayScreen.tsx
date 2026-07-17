@@ -315,51 +315,50 @@ export function TodayScreen(): React.JSX.Element {
           />
         )}
       </View>
-      {active && (
-        <Pressable
-          onPress={() => (paused ? timer.resume() : timer.pause())}
-          disabled={timer.busy}
-          accessibilityRole="button"
-          accessibilityLabel={paused ? 'Resume' : 'Pause'}
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: 24,
-            borderWidth: 1.5,
-            borderColor: paused ? t.color.warn : t.color.borderStrong,
-            backgroundColor: paused ? t.color.warnSoft : t.color.surface,
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexDirection: 'row',
-            gap: 4,
-          }}
-        >
-          {paused ? (
+      <Pressable
+        onPress={() => (paused ? timer.resume() : timer.pause())}
+        disabled={!active || timer.busy}
+        accessibilityRole="button"
+        accessibilityLabel={paused ? 'Resume' : 'Pause'}
+        style={{
+          width: 48,
+          height: 48,
+          borderRadius: 24,
+          borderWidth: 1.5,
+          borderColor: !active ? t.color.border : paused ? t.color.warn : t.color.borderStrong,
+          backgroundColor: !active ? 'transparent' : paused ? t.color.warnSoft : t.color.surface,
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'row',
+          gap: 4,
+          opacity: !active ? 0.3 : 1,
+        }}
+      >
+        {paused ? (
+          <View
+            style={{
+              marginLeft: 3,
+              width: 0,
+              height: 0,
+              borderTopWidth: 8,
+              borderBottomWidth: 8,
+              borderLeftWidth: 13,
+              borderTopColor: 'transparent',
+              borderBottomColor: 'transparent',
+              borderLeftColor: t.color.warn,
+            }}
+          />
+        ) : (
+          <>
             <View
-              style={{
-                marginLeft: 3,
-                width: 0,
-                height: 0,
-                borderTopWidth: 8,
-                borderBottomWidth: 8,
-                borderLeftWidth: 13,
-                borderTopColor: 'transparent',
-                borderBottomColor: 'transparent',
-                borderLeftColor: t.color.warn,
-              }}
+              style={{ width: 5, height: 16, borderRadius: 2, backgroundColor: t.color.ink2 }}
             />
-          ) : (
-            <>
-              <View
-                style={{ width: 5, height: 16, borderRadius: 2, backgroundColor: t.color.ink2 }}
-              />
-              <View
-                style={{ width: 5, height: 16, borderRadius: 2, backgroundColor: t.color.ink2 }}
-              />
-            </>
-          )}
-        </Pressable>
-      )}
+            <View
+              style={{ width: 5, height: 16, borderRadius: 2, backgroundColor: t.color.ink2 }}
+            />
+          </>
+        )}
+      </Pressable>
       {/* The primary punch button breathes + emits pulse waves while active
           (design v4 motion pass); LiveButton is a no-op when idle or reduced-motion. */}
       <LiveButton active={active} color={active ? t.color.live : t.color.accent} size={64}>
