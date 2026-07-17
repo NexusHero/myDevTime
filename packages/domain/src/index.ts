@@ -265,6 +265,13 @@ export {
   describeRecurrence,
 } from './recurrence/recur.js'
 
+// Photo/mail schedule import (REQ-064, design v17 §F6 KI5) — the deterministic half of "photograph
+// a school timetable → ghost series to confirm". A vision model proposes lessons via a narrow port;
+// `toSeriesProposals` validates them and shapes them into weekly `RecurrenceRule` series proposals
+// with `ai-proposal` provenance. It never books — the AI extracts, the human confirms (ADR-0005).
+export type { ExtractedLesson, SeriesProposal } from './photoimport/schedule.js'
+export { toSeriesProposals } from './photoimport/schedule.js'
+
 // Entitlements — the domain of monetization (REQ-016, ADR-0006/0008). Provider-
 // agnostic plan/state machine; payment providers are adapters layered on later.
 export type {
