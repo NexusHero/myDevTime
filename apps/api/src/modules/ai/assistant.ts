@@ -1,4 +1,5 @@
 import type { Provider } from '@nestjs/common'
+import { isOffData, selectGroundingFacts } from '@mydevtime/domain'
 import { LLM } from './llm/llm.provider.js'
 import { LlmUnavailableError, type LlmPort } from './llm/port.js'
 
@@ -18,18 +19,11 @@ export interface AssistantAnswer {
   readonly text: string
 }
 
-/** Lowercased word tokens ≥ 3 chars (German/English), for keyword overlap scoring. */
-function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter(w => w.length >= 3)
-}
-
 /**
- * The always-available fallback: pick the fact with the most word-overlap with the
- * question. Pure and reproducible — no model. Refuses when nothing overlaps, so the
- * assistant never answers from thin air (ADR-0005).
+ * The always-available fallback: pick the most **relevant** fact via the deterministic grounding
+ * core (IDF-weighted overlap, stopwords dropped — `packages/domain/assistant`). Pure and
+ * reproducible — no model. Refuses when nothing is relevant, so the assistant never answers from
+ * thin air (ADR-0005).
  */
 export function deterministicAnswer(
   question: string,
@@ -37,21 +31,15 @@ export function deterministicAnswer(
 ): { refused: boolean; text: string } {
   if (facts.length === 0)
     return { refused: true, text: "I don't have any data for that right now." }
-  const qWords = new Set(tokenize(question))
-  let best = facts[0] ?? ''
-  let bestScore = -1
-  for (const fact of facts) {
-    const score = tokenize(fact).filter(w => qWords.has(w)).length
-    if (score > bestScore) {
-      bestScore = score
-      best = fact
-    }
-  }
-  if (bestScore <= 0) {
+  const [best] = selectGroundingFacts(question, facts, { maxFacts: 1 })
+  if (best === undefined) {
     return { refused: true, text: "That isn't in your current data — ask more specifically." }
   }
   return { refused: false, text: best }
 }
+
+/** How many facts to ground the LLM on — the most relevant, not the whole dump. */
+const MAX_GROUNDING_FACTS = 8
 
 const REFUSAL_MARKER = 'NO_DATA'
 
@@ -93,11 +81,16 @@ export class LlmAssistant implements Assistant {
     opts: { allowAi: boolean },
   ): Promise<AssistantAnswer> {
     if (!opts.allowAi || facts.length === 0) return this.fallback(question, facts)
+    // Off-data refusal *before* spending a model call: if nothing is relevant, the deterministic
+    // path already refuses cleanly — the cheapest, cleanest way to say "not in your data".
+    if (isOffData(question, facts)) return this.fallback(question, facts)
     const available = await this.llm.available().catch(() => false)
     if (!available) return this.fallback(question, facts)
+    // Ground the model on the most relevant facts, not the whole dump (better answers, fewer tokens).
+    const grounding = selectGroundingFacts(question, facts, { maxFacts: MAX_GROUNDING_FACTS })
     try {
       const result = await this.llm.complete({
-        messages: [{ role: 'user', content: buildPrompt(question, facts) }],
+        messages: [{ role: 'user', content: buildPrompt(question, grounding) }],
         maxOutputTokens: 300,
         temperature: 0.2,
       })
