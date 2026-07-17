@@ -98,6 +98,7 @@ export interface ProjectInput {
   clientId?: string | null | undefined
   color?: string | null | undefined
   billableDefault?: boolean | undefined
+  fixedFeeMinor?: number | null | undefined
 }
 
 export async function createProject(
@@ -119,6 +120,7 @@ export async function createProject(
       clientId: input.clientId ?? null,
       color: input.color ?? null,
       billableDefault: input.billableDefault ?? true,
+      fixedFeeMinor: input.fixedFeeMinor ?? null,
     })
     .returning()
   return one(rows, 'project')
@@ -153,6 +155,7 @@ export async function updateProject(
     clientId?: string | null | undefined
     color?: string | null | undefined
     billableDefault?: boolean | undefined
+    fixedFeeMinor?: number | null | undefined
     archived?: boolean | undefined
   },
 ): Promise<Project> {
@@ -164,6 +167,7 @@ export async function updateProject(
   }
   if (patch.color !== undefined) values.color = patch.color
   if (patch.billableDefault !== undefined) values.billableDefault = patch.billableDefault
+  if (patch.fixedFeeMinor !== undefined) values.fixedFeeMinor = patch.fixedFeeMinor
   if (patch.archived !== undefined) values.archived = patch.archived
   const rows = await db
     .update(projects)

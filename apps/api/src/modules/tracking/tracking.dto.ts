@@ -25,6 +25,8 @@ const projectBody = {
   clientId: z.uuid().nullish(),
   color: z.string().nullish(),
   billableDefault: z.boolean().optional(),
+  // Fixed-fee / expected revenue in minor units (design v17 §K4); null clears it.
+  fixedFeeMinor: z.number().int().nonnegative().nullish(),
 }
 export class CreateProjectDto extends createZodDto(z.object({ name, ...projectBody })) {}
 export class UpdateProjectDto extends createZodDto(
