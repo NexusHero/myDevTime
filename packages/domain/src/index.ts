@@ -254,6 +254,16 @@ export { estimateFromHistory } from './estimating/quote.js'
 export type { MeetingNotesOptions } from './meetings/notes.js'
 export { meetingNotesFacts, looksLikeAction } from './meetings/notes.js'
 
+// Meeting-transcript core (REQ-025/026, ADR-0005/0009) — flattens consent-first ASR segments to
+// text, extracts grounded facts (via the notes core), and proposes **action items as confirmed-only
+// proposals** (`ai-proposal`, never a booked task). The ASR itself is a `TranscriptionPort` adapter.
+export type {
+  TranscriptSegment,
+  ActionItemProposal,
+  ActionItemOptions,
+} from './meetings/transcript.js'
+export { transcriptText, transcriptFacts, actionItemProposals } from './meetings/transcript.js'
+
 // Recurring entries (REQ-060, design v17 §F4) — a core feature for every entry type. A rule
 // (none/daily-weekdays/weekly/monthly + end never/until/count) expands to occurrence dates over
 // a window; editing "this vs the series from here" splits it the Outlook way. Pure (ADR-0005).
