@@ -12,6 +12,7 @@ import {
   type IssuedInvoiceDTO,
 } from '../../api/invoicing'
 import { InvoiceDraftView } from './InvoiceDraftView'
+import { InsightCard } from '../data/InsightCard'
 
 /** A client with open (un-invoiced) billable work — the drawer's first step. */
 export interface DrawerClient {
@@ -194,15 +195,35 @@ export function InvoiceDrawer({
                 Loading positions…
               </Text>
             ) : (
-              <InvoiceDraftView
-                lines={lines}
-                currencyCode={currencyCode}
-                nameByProject={nameByProject}
-                selected={selected}
-                onToggle={toggle}
-                onIssue={issue}
-                busy={busy}
-              />
+              <>
+                <InvoiceDraftView
+                  lines={lines}
+                  currencyCode={currencyCode}
+                  nameByProject={nameByProject}
+                  selected={selected}
+                  onToggle={toggle}
+                  onIssue={issue}
+                  busy={busy}
+                />
+                {/* KI3 — translate the selected lines' dev-jargon notes into client prose. */}
+                {(() => {
+                  const notes = lines
+                    .filter(l => selected.has(l.entryId) && l.note !== null && l.note.trim() !== '')
+                    .map(l => l.note as string)
+                  if (notes.length === 0) return null
+                  return (
+                    <View style={{ marginTop: t.spacing.s3 }}>
+                      <InsightCard
+                        kind="invoice"
+                        title="Translate for the client"
+                        subtitle="Turn the selected notes into clear invoice line items"
+                        cta="Rewrite notes"
+                        facts={notes}
+                      />
+                    </View>
+                  )
+                })()}
+              </>
             )}
           </ScrollView>
 
