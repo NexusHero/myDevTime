@@ -47,6 +47,16 @@ export class ReportQueryDto extends createZodDto(
   }),
 ) {}
 
+/** Monthly work-time statement export (REQ-052, design v13 X). PDF only, one month/page. */
+export class StatementQueryDto extends createZodDto(
+  z.object({
+    year: z.coerce.number().int().min(1970).max(9999),
+    month: z.coerce.number().int().min(1).max(12),
+    tz: z.string().min(1).default('UTC'),
+    locale: z.enum(['en', 'de']).default('en'),
+  }),
+) {}
+
 export class SetScheduleDto extends createZodDto(
   z.object({
     effectiveFrom: wireDate,

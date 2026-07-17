@@ -5,7 +5,9 @@ import { AuthGuard, CurrentUser, type AuthenticatedUser } from '../auth/contract
 import * as svc from './service.js'
 import { WorktimeContext } from './worktime.context.js'
 import { loadWorktimeReport } from './report/source.js'
+import { loadMonthlyStatement } from './report/statement-source.js'
 import { worktimeReportToPdf } from './report/pdf.js'
+import { monthlyStatementToPdf } from './report/statement-pdf.js'
 import { worktimeReportToXlsx } from './report/xlsx.js'
 import {
   ClockInDto,
@@ -15,6 +17,7 @@ import {
   ReportQueryDto,
   SetScheduleDto,
   ShiftsQueryDto,
+  StatementQueryDto,
   WorktimeSummaryQueryDto,
 } from './worktime.dto.js'
 
@@ -65,6 +68,27 @@ export class WorktimeController {
       return
     }
     const buffer = await worktimeReportToPdf(report, meta, query.locale)
+    await reply
+      .header('content-disposition', `attachment; filename="${base}.pdf"`)
+      .type('application/pdf')
+      .send(buffer)
+  }
+
+  // ── Monthly work-time statement — "real punch clock" (PDF, one month/page) ──
+  @Get('statement')
+  async statement(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: StatementQueryDto,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    const { statement, meta } = await loadMonthlyStatement(db, workspaceId, {
+      year: query.year,
+      month: query.month,
+      tz: query.tz,
+    })
+    const base = `statement-${meta.monthLabel}`.replace(/[^\w.-]+/g, '_')
+    const buffer = await monthlyStatementToPdf(statement, meta, query.locale)
     await reply
       .header('content-disposition', `attachment; filename="${base}.pdf"`)
       .type('application/pdf')
