@@ -58,3 +58,6 @@ export * from './preferences-schema.js'
 
 // Connector secrets (sealed OAuth tokens) + per-capability consent (M3).
 export * from './connectors-schema.js'
+
+// Recurring-entry series (REQ-060, design v17 §F4): one rule projecting occurrences.
+export * from './recurrence-schema.js'

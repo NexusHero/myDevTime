@@ -127,6 +127,13 @@
       "when": 1784004110512,
       "tag": "0017_curved_skin",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1784300999840,
+      "tag": "0018_complex_sue_storm",
+      "breakpoints": true
     }
   ]
 }
