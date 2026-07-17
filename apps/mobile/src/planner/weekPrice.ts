@@ -12,9 +12,12 @@ export interface PlannedBlock {
   readonly len: number
 }
 
-/** Total planned work minutes in the week: every block except breaks, clamped ≥ 0. */
+/** Total planned work minutes in the week: every block except breaks and `life` (family/
+ *  personal time is not work, design v14 §F), clamped ≥ 0. */
 export function plannedWorkMinutes(blocks: readonly PlannedBlock[]): number {
-  return blocks.filter(b => b.kind !== 'break').reduce((sum, b) => sum + Math.max(0, b.len), 0)
+  return blocks
+    .filter(b => b.kind !== 'break' && b.kind !== 'life')
+    .reduce((sum, b) => sum + Math.max(0, b.len), 0)
 }
 
 /** Price the planned week across sustainable/balanced/dense, or `[]` when nothing is

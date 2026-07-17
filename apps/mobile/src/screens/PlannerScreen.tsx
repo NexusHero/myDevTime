@@ -13,8 +13,16 @@ import {
   type LanePlacement,
   type Theme,
 } from '@mydevtime/design'
-import { detectUnbookedGap, realityDrift, type RealityGap, type TimedSpan } from '@mydevtime/domain'
+import {
+  detectUnbookedGap,
+  pickBanner,
+  realityDrift,
+  type RealityGap,
+  type TimedSpan,
+} from '@mydevtime/domain'
+import { ContextBanner, type ContextBannerProps } from '../components/planner/ContextBanner'
 import { priceWeekFromBlocks } from '../planner/weekPrice'
+import { weekCapacityFromBlocks } from '../planner/capacityTrace'
 import { Text } from '../components/core/Text'
 import {
   AICallout,
@@ -62,7 +70,7 @@ const STACK_BREAKPOINT = 860
 const NOW = new Date()
 const NOW_MIN = Math.max(0, Math.min((NOW.getHours() - START_HOUR) * 60 + NOW.getMinutes(), SPAN))
 
-type CanvasKind = 'actual' | 'meeting' | 'ghost' | 'break'
+type CanvasKind = 'actual' | 'meeting' | 'ghost' | 'break' | 'life'
 /** Calendar RSVP for a meeting: accepted (solid), tentative (hatched), fyi (dimmed, not counted). */
 type Rsvp = 'accepted' | 'tentative' | 'fyi'
 
@@ -151,6 +159,9 @@ const CURRENT_WEEK = isoWeek(new Date())
 const DEMO_BLOCKS: readonly CanvasBlock[] = []
 
 function canvasBlockColor(t: Theme, b: CanvasBlock): string {
+  // Life blocks (design v14 §F) wear the sage `--life` token — family is not a project, so it
+  // never borrows a project color. Its time reduces the plannable capacity (the head-trace).
+  if (b.kind === 'life') return t.color.life
   if (b.kind === 'break' || b.project === undefined) return t.color.ink3
   return projectColor(b.project, t.mode)
 }
@@ -1540,6 +1551,58 @@ export function PlannerScreen(): React.JSX.Element {
           </Button>
         </View>
 
+        {/* Capacity head-trace (design v14 §F Stufe 2): the week's TRUE plannable capacity —
+            the contracted target minus your own life/protected commitments ("KW32 nur 24h"),
+            from the deterministic `weekCapacity` core (ADR-0005). Honest by construction: with
+            no life blocks it reads the full target, and the sage segment grows as life does. */}
+        {view === 'Week' &&
+          (() => {
+            const cap = weekCapacityFromBlocks(blocks)
+            if (cap.targetMs <= 0) return null
+            const committedH = cap.committedMs / 3_600_000
+            const plannableH = cap.plannableMs / 3_600_000
+            const targetH = cap.targetMs / 3_600_000
+            const committedPct = Math.round((cap.committedMs / cap.targetMs) * 100)
+            return (
+              <View style={{ gap: 6, maxWidth: 680 }} accessibilityRole="summary">
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: t.spacing.s2 }}>
+                  <Text style={{ fontSize: t.fontSize.xs, fontWeight: '600', color: t.color.ink }}>
+                    Plannable this week
+                  </Text>
+                  <Text
+                    style={{
+                      fontFamily: t.fontFamily.numeric,
+                      fontSize: t.fontSize.xs,
+                      color: committedPct > 0 ? t.color.life : t.color.ink2,
+                    }}
+                    accessibilityLabel={`${plannableH.toFixed(1)} of ${targetH.toFixed(1)} hours plannable, ${committedH.toFixed(1)} hours of life or protected time`}
+                  >
+                    {`${plannableH.toFixed(1)}h of ${targetH.toFixed(1)}h`}
+                    {committedH > 0 ? ` · ${committedH.toFixed(1)}h life/protected` : ''}
+                  </Text>
+                  <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
+                    assuming 8h × 5 days
+                  </Text>
+                </View>
+                {/* Slim two-part bar: sage life/protected, then the plannable remainder. */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    height: 6,
+                    borderRadius: 3,
+                    overflow: 'hidden',
+                    backgroundColor: t.color.sunk,
+                  }}
+                >
+                  <View style={{ flex: Math.max(0, committedH), backgroundColor: t.color.life }} />
+                  <View
+                    style={{ flex: Math.max(0, plannableH), backgroundColor: t.color.accent }}
+                  />
+                </View>
+              </View>
+            )
+          })()}
+
         {view === 'Month' && (
           <Card>
             <EmptyState
@@ -1577,75 +1640,46 @@ export function PlannerScreen(): React.JSX.Element {
 
             {/* Yesterday-healing banner (ADR-0064, K3): a proposal to book a stretch the
                 tracker saw yesterday but that was never booked. Adopt/Dismiss, once a day. */}
-            {healGap !== null && (
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: t.spacing.s3,
-                  padding: t.spacing.s3,
-                  borderRadius: t.radius.block,
-                  borderWidth: 1,
-                  borderColor: t.color.border,
-                  borderLeftWidth: 3,
-                  borderLeftColor: t.color.live,
-                  backgroundColor: t.color.surface,
-                  maxWidth: 680,
-                }}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: t.fontSize.sm, fontWeight: '600', color: t.color.ink }}>
-                    {`Yesterday: ${String(Math.round((healGap.gap.endMs - healGap.gap.startMs) / 60_000))} min unbooked`}
-                  </Text>
-                  <Text
-                    style={{ fontSize: t.fontSize['2xs'], color: t.color.ink2, lineHeight: 16 }}
-                  >
-                    {`The Auto-Tracker saw ${healGap.gap.source} but nothing was booked. Book it?`}
-                  </Text>
-                </View>
-                <Button size="sm" onPress={adoptHeal}>
-                  Adopt
-                </Button>
-                <Button size="sm" variant="ghost" onPress={dismissHeal}>
-                  Dismiss
-                </Button>
-              </View>
-            )}
-
-            {inboxNote !== null && (
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: t.spacing.s2,
-                  paddingVertical: t.spacing.s2,
-                  paddingHorizontal: t.spacing.s3,
-                  borderRadius: t.radius.block,
-                  borderWidth: 1,
-                  borderColor: t.color.border,
-                  backgroundColor: t.color.surface,
-                }}
-              >
-                <Text style={{ flex: 1, fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>
-                  ✦ {inboxNote}
-                </Text>
-                {fillUndo !== null && (
-                  <Button size="sm" variant="ghost" onPress={undoFill}>
-                    Undo
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onPress={() => {
-                    setInboxNote(null)
-                    setFillUndo(null)
-                  }}
-                >
-                  OK
-                </Button>
-              </View>
-            )}
+            {/* Context banner (design v14 §M2): at most ONE banner shows, chosen by the
+                deterministic `pickBanner` in the fixed priority Conflict > Price > Healing >
+                Note. Each candidate is the same `ContextBanner`, only the variant differs; the
+                Price-of-week detail panel below is a separate follow-panel, not a banner. */}
+            {(() => {
+              const candidates: ContextBannerProps[] = []
+              if (healGap !== null) {
+                candidates.push({
+                  variant: 'healing',
+                  title: `Yesterday: ${String(Math.round((healGap.gap.endMs - healGap.gap.startMs) / 60_000))} min unbooked`,
+                  body: `The Auto-Tracker saw ${healGap.gap.source} but nothing was booked. Book it?`,
+                  actions: [
+                    { label: 'Adopt', onPress: adoptHeal },
+                    { label: 'Dismiss', onPress: dismissHeal, variant: 'ghost' },
+                  ],
+                })
+              }
+              if (inboxNote !== null) {
+                candidates.push({
+                  variant: 'note',
+                  title: inboxNote,
+                  leadGlyph: '✦',
+                  actions: [
+                    ...(fillUndo !== null
+                      ? [{ label: 'Undo', onPress: undoFill, variant: 'ghost' as const }]
+                      : []),
+                    {
+                      label: 'OK',
+                      onPress: () => {
+                        setInboxNote(null)
+                        setFillUndo(null)
+                      },
+                      variant: 'ghost' as const,
+                    },
+                  ],
+                })
+              }
+              const active = pickBanner(candidates)
+              return active === null ? null : <ContextBanner {...active} />
+            })()}
 
             {/* Price of the week (G1): after Fill-week, what this planned week costs across
               intensities — deterministic `priceWeek` over the planned blocks (ADR-0005). */}

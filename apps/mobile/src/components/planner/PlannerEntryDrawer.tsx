@@ -15,7 +15,7 @@ import { useTheme } from '../../theme/ThemeProvider'
  * The block model today carries four kinds (meeting · actual/booked · ghost · break);
  * Absence and Event join as first-class kinds when the canvas gains them.
  */
-export type EntryKind = 'meeting' | 'actual' | 'ghost' | 'break'
+export type EntryKind = 'meeting' | 'actual' | 'ghost' | 'break' | 'life'
 export type EntryRsvp = 'accepted' | 'tentative' | 'fyi'
 
 /** A resolved view-model of the tapped block — the Planner builds this from its own
@@ -38,6 +38,9 @@ const KIND_LABEL: Record<EntryKind, string> = {
   actual: 'Booked time',
   ghost: 'Proposed',
   break: 'Break',
+  // Life/personal (design v14 §F) — family is not a project; it only reduces plannable
+  // capacity. Editing/creating a life block lands with the deferred `life` persistence.
+  life: 'Life',
 }
 
 const RSVP_SEGMENTS: readonly { readonly value: EntryRsvp; readonly label: string }[] = [

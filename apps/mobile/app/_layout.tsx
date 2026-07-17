@@ -10,6 +10,7 @@ import { AuthGate } from '../src/shell/AuthGate'
 import { OnboardingGate } from '../src/onboarding/OnboardingGate'
 import { TimerProvider } from '../src/timer/TimerContext'
 import { PomodoroProvider } from '../src/focus/PomodoroContext'
+import { RoleProvider } from '../src/roles/RoleContext'
 import { makeQueryClient } from '../src/query/queryClient'
 import { registerPwa } from '../src/web/registerPwa'
 
@@ -69,11 +70,13 @@ export default function RootLayout(): React.JSX.Element | null {
           <StatusBar style="auto" />
           <AuthGate>
             <OnboardingGate>
-              <TimerProvider>
-                <PomodoroProvider>
-                  <ShellChrome />
-                </PomodoroProvider>
-              </TimerProvider>
+              <RoleProvider>
+                <TimerProvider>
+                  <PomodoroProvider>
+                    <ShellChrome />
+                  </PomodoroProvider>
+                </TimerProvider>
+              </RoleProvider>
             </OnboardingGate>
           </AuthGate>
           {!splashDone && <BrandSplash onDone={() => setSplashDone(true)} />}
