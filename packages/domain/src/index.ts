@@ -304,6 +304,13 @@ export {
   transitionPromptDue,
 } from './protection/protection.js'
 
+// Partner-light Free/Busy sharing (REQ-064, design v17 §F6) — one link, free to view,
+// calendar + requests only. A viewer only ever receives `FreeBusySlot`, a type with no field
+// that could carry a title/project/note, so private detail is unrepresentable, not merely
+// filtered. `redactBlock` is the single choke point; a 🛡 protected block reads as plain busy.
+export type { OwnerBlock, FreeBusySlot, Window } from './sharing/freebusy.js'
+export { toFreeBusy, freeGaps } from './sharing/freebusy.js'
+
 // Auto-Tracker (REQ-042, ADR-0057) — deterministic aggregation of "app usage while
 // tracking" spans into a percentage-correct breakdown. OS/browser capture is a
 // client adapter behind a narrow port; this core is pure and framework-free (ADR-0005).
