@@ -61,3 +61,6 @@ export * from './connectors-schema.js'
 
 // Recurring-entry series (REQ-060, design v17 §F4): one rule projecting occurrences.
 export * from './recurrence-schema.js'
+
+// Partner-light share links (REQ-062, design v17 §F6): one-link Free/Busy-only grants.
+export * from './sharing-schema.js'

@@ -141,6 +141,13 @@
       "when": 1784303865391,
       "tag": "0019_exotic_surge",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1784306337624,
+      "tag": "0020_mighty_nova",
+      "breakpoints": true
     }
   ]
 }
