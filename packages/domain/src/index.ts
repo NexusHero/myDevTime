@@ -265,6 +265,13 @@ export {
   describeRecurrence,
 } from './recurrence/recur.js'
 
+// Photo/mail schedule import (REQ-064, design v17 §F6 KI5) — the deterministic half of "photograph
+// a school timetable → ghost series to confirm". A vision model proposes lessons via a narrow port;
+// `toSeriesProposals` validates them and shapes them into weekly `RecurrenceRule` series proposals
+// with `ai-proposal` provenance. It never books — the AI extracts, the human confirms (ADR-0005).
+export type { ExtractedLesson, SeriesProposal } from './photoimport/schedule.js'
+export { toSeriesProposals } from './photoimport/schedule.js'
+
 // Entitlements — the domain of monetization (REQ-016, ADR-0006/0008). Provider-
 // agnostic plan/state machine; payment providers are adapters layered on later.
 export type {
@@ -303,6 +310,25 @@ export {
   buildDigest,
   transitionPromptDue,
 } from './protection/protection.js'
+
+// Partner-light Free/Busy sharing (REQ-064, design v17 §F6) — one link, free to view,
+// calendar + requests only. A viewer only ever receives `FreeBusySlot`, a type with no field
+// that could carry a title/project/note, so private detail is unrepresentable, not merely
+// filtered. `redactBlock` is the single choke point; a 🛡 protected block reads as plain busy.
+export type { OwnerBlock, FreeBusySlot, Window } from './sharing/freebusy.js'
+export { toFreeBusy, freeGaps } from './sharing/freebusy.js'
+
+// Calendar-sync merge (REQ-064, design v17 §F6) — the deterministic diff behind the calendar
+// port: external events (Google/Apple, via an adapter) vs already-imported blocks → new / changed
+// / orphaned **proposals**, keyed on the event uid. It never writes: calendar events become ghost
+// blocks to confirm, never auto-booked (ADR-0005). Vendor SDKs stay confined to the port adapter.
+export type {
+  ExternalEvent,
+  ImportedBlock,
+  MergeChange,
+  MergeProposal,
+} from './calendarsync/merge.js'
+export { mergeCalendar } from './calendarsync/merge.js'
 
 // Auto-Tracker (REQ-042, ADR-0057) — deterministic aggregation of "app usage while
 // tracking" spans into a percentage-correct breakdown. OS/browser capture is a

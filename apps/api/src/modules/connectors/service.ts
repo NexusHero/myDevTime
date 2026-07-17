@@ -43,6 +43,7 @@ const AUTHORIZE_ENDPOINT: Record<ConnectorId, string> = {
   linear: 'https://linear.app/oauth/authorize',
   slack: 'https://slack.com/oauth/v2/authorize',
   'google-calendar': 'https://accounts.google.com/o/oauth2/v2/auth',
+  'apple-calendar': 'https://appleid.apple.com/auth/authorize',
 }
 
 /** The env var holding a provider's OAuth client id (secret stays server-only). */
