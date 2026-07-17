@@ -1,5 +1,5 @@
 import { ApiError, getJson, postJson, withTimeout } from './http.js'
-import { record, str } from './parse.js'
+import { z } from 'zod'
 
 /** Default budget for the session probe before it falls through to the login gate. */
 const SESSION_TIMEOUT_MS = 8000
@@ -12,27 +12,29 @@ const SESSION_TIMEOUT_MS = 8000
  * it). Sign-in refetches `/me` so the identity we surface is always the
  * vendor-free `AuthUser`, never a Better-Auth session object.
  */
-export interface AuthUser {
-  readonly id: string
-  readonly email: string
-  readonly emailVerified: boolean
-  readonly name: string
-}
+export const authUserSchema = z.object({
+  id: z.string(),
+  email: z.string(),
+  emailVerified: z.boolean().default(false),
+  name: z.string().default(''),
+})
+
+export type AuthUser = z.infer<typeof authUserSchema>
 
 export interface Credentials {
   readonly email: string
   readonly password: string
 }
 
+export interface SignUpInput {
+  readonly name: string
+  readonly email: string
+  readonly password: string
+}
+
 /** Parse the vendor-free identity from `/api/auth/me`, throwing on the wrong shape. */
 export function parseUser(value: unknown): AuthUser {
-  const o = record(value)
-  return {
-    id: str(o, 'id'),
-    email: str(o, 'email'),
-    emailVerified: o.emailVerified === true,
-    name: typeof o.name === 'string' ? o.name : '',
-  }
+  return authUserSchema.parse(value)
 }
 
 /** The current session's user, or `null` when signed out (a 401 on `/me`). */
@@ -66,37 +68,29 @@ export async function signOut(baseUrl: string, fetchImpl: typeof fetch = fetch):
   await postJson(baseUrl, '/api/auth/sign-out', {}, fetchImpl)
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+export const socialProviderSchema = z.enum(['google', 'apple', 'github'])
+export type SocialProvider = z.infer<typeof socialProviderSchema>
 
-/** Pre-flight credential check. Returns a user-facing message, or `null` when valid. */
-export function validateCredentials(creds: Credentials): string | null {
-  if (!EMAIL_RE.test(creds.email)) return 'Enter a valid email address.'
-  if (creds.password.length < 8) return 'Password must be at least 8 characters.'
-  return null
-}
+export const authProvidersSchema = z.object({
+  emailPassword: z.boolean().default(false),
+  social: z
+    .array(z.unknown())
+    .transform(arr =>
+      arr.flatMap(v => {
+        const r = socialProviderSchema.safeParse(v)
+        return r.success ? [r.data] : []
+      }),
+    )
+    .catch([])
+    .default([]),
+})
 
-export type SocialProvider = 'google' | 'apple' | 'github'
-
-/** Which sign-in methods this deployment offers (from `GET /api/auth/providers`). */
-export interface AuthProviders {
-  readonly emailPassword: boolean
-  readonly social: readonly SocialProvider[]
-}
-
-export interface SignUpInput {
-  readonly name: string
-  readonly email: string
-  readonly password: string
-}
-
-const SOCIAL: readonly SocialProvider[] = ['google', 'apple', 'github']
-const isSocial = (v: unknown): v is SocialProvider => SOCIAL.includes(v as SocialProvider)
+export type AuthProviders = z.infer<typeof authProvidersSchema>
 
 /** Parse the configured auth methods, defaulting conservatively on a bad shape. */
 export function parseProviders(value: unknown): AuthProviders {
-  const o = record(value)
-  const social = Array.isArray(o.social) ? o.social.filter(isSocial) : []
-  return { emailPassword: o.emailPassword === true, social }
+  const result = authProvidersSchema.safeParse(value)
+  return result.success ? result.data : { emailPassword: false, social: [] }
 }
 
 /** Which sign-in methods are configured — the gate reads this to enable buttons. */
@@ -134,16 +128,11 @@ export async function startSocialSignIn(
   callbackURL: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<string> {
-  const body = record(
+  const urlSchema = z.object({ url: z.string() })
+  const body = urlSchema.parse(
     await postJson(baseUrl, '/api/auth/sign-in/social', { provider, callbackURL }, fetchImpl),
   )
-  return str(body, 'url')
-}
-
-/** Pre-flight sign-up check. Returns a user-facing message, or `null` when valid. */
-export function validateSignUp(input: SignUpInput): string | null {
-  if (input.name.trim().length === 0) return 'Enter your name.'
-  return validateCredentials({ email: input.email, password: input.password })
+  return body.url
 }
 
 /**

@@ -1,5 +1,5 @@
 import { getJson, postJson } from './http.js'
-import { num, parseArray, record, str } from './parse.js'
+import { z } from 'zod'
 
 /**
  * The Co-Planner read/write seam (REQ-031, ADR-0011): a proposed day plan is a set
@@ -8,67 +8,49 @@ import { num, parseArray, record, str } from './parse.js'
  * + backlog to (re)generate it; it never places time — that is the server core's
  * job (ADR-0005). Minutes are measured from the top of the day.
  */
-export type PlanBlockKind = 'meeting' | 'focus' | 'break'
+export const planBlockKindSchema = z.enum(['meeting', 'focus', 'break'])
+export type PlanBlockKind = z.infer<typeof planBlockKindSchema>
 
-export interface PlanBlock {
-  readonly startMin: number
-  readonly lenMin: number
-  readonly kind: PlanBlockKind
-  readonly label: string
-  readonly taskId: string | null
-}
-
-export interface PlanAnchorRef {
-  readonly startMin: number
-  readonly lenMin: number
-  readonly label: string
-}
-
-export interface DayPlan {
-  readonly id: string
-  readonly date: string
-  readonly version: number
-  readonly status: string
-  readonly blocks: PlanBlock[]
-  readonly plannedFocusMin: number
-  readonly unplacedMin: number
-  /** Meetings the planner could not place (overlap / out of window) — surfaced as a warning. */
-  readonly droppedAnchors: PlanAnchorRef[]
-}
-
-const KINDS: readonly PlanBlockKind[] = ['meeting', 'focus', 'break']
+export const planBlockSchema = z.object({
+  startMin: z.number(),
+  lenMin: z.number(),
+  kind: planBlockKindSchema.catch('focus'),
+  label: z.string(),
+  taskId: z.string().nullable().catch(null).default(null),
+})
+export type PlanBlock = z.infer<typeof planBlockSchema>
 
 export function parseBlock(value: unknown): PlanBlock {
-  const o = record(value)
-  const kind = str(o, 'kind')
-  return {
-    startMin: num(o, 'startMin'),
-    lenMin: num(o, 'lenMin'),
-    kind: (KINDS as readonly string[]).includes(kind) ? (kind as PlanBlockKind) : 'focus',
-    label: str(o, 'label'),
-    taskId: typeof o.taskId === 'string' ? o.taskId : null,
-  }
+  return planBlockSchema.parse(value)
 }
 
-export function parseAnchorRef(value: unknown): PlanAnchorRef {
-  const o = record(value)
-  return { startMin: num(o, 'startMin'), lenMin: num(o, 'lenMin'), label: str(o, 'label') }
-}
+export const planAnchorRefSchema = z.object({
+  startMin: z.number(),
+  lenMin: z.number(),
+  label: z.string(),
+})
+export type PlanAnchorRef = z.infer<typeof planAnchorRefSchema>
+
+export const dayPlanSchema = z.object({
+  id: z.string(),
+  date: z.string(),
+  version: z.number(),
+  status: z.string(),
+  blocks: z.array(planBlockSchema),
+  plannedFocusMin: z.number(),
+  unplacedMin: z.number(),
+  droppedAnchors: z.array(planAnchorRefSchema).catch([]).default([]),
+})
+export type DayPlan = z.infer<typeof dayPlanSchema>
 
 /** Parse a plan row (must be present). */
 export function parsePlanRow(value: unknown): DayPlan {
-  const o = record(value)
-  return {
-    id: str(o, 'id'),
-    date: str(o, 'planDate'),
-    version: num(o, 'version'),
-    status: str(o, 'status'),
-    blocks: parseArray(o.blocks, parseBlock),
-    plannedFocusMin: num(o, 'plannedFocusMin'),
-    unplacedMin: num(o, 'unplacedMin'),
-    droppedAnchors:
-      o.droppedAnchors === undefined ? [] : parseArray(o.droppedAnchors, parseAnchorRef),
-  }
+  // Map "planDate" from wire to "date"
+  const parsed = dayPlanSchema
+    .omit({ date: true })
+    .and(z.object({ planDate: z.string() }))
+    .parse(value)
+  return { ...parsed, date: parsed.planDate }
 }
 
 /** Parse a plan row, or `null` when no plan exists for the day. */
@@ -128,21 +110,15 @@ export async function setPlanStatus(
   )
 }
 
-/** The evening review for a plan: planned vs tracked focus, and the drift between. */
-export interface PlanReview {
-  readonly plannedFocusMin: number
-  readonly trackedFocusMin: number
-  /** `tracked − planned`; negative means under the plan. */
-  readonly driftMin: number
-}
+export const planReviewSchema = z.object({
+  plannedFocusMin: z.number(),
+  trackedFocusMin: z.number(),
+  driftMin: z.number(),
+})
+export type PlanReview = z.infer<typeof planReviewSchema>
 
 export function parsePlanReview(value: unknown): PlanReview {
-  const o = record(value)
-  return {
-    plannedFocusMin: num(o, 'plannedFocusMin'),
-    trackedFocusMin: num(o, 'trackedFocusMin'),
-    driftMin: num(o, 'driftMin'),
-  }
+  return planReviewSchema.parse(value)
 }
 
 /** The plan-vs-actual evening review for a stored plan (deterministic core). */
@@ -154,21 +130,15 @@ export async function getPlanReview(
   return parsePlanReview(await getJson(baseUrl, `/api/planner/plans/${planId}/review`, fetchImpl))
 }
 
-/** The AI day-briefing for a plan: a short coaching text, or a deterministic summary. */
-export interface PlanBriefing {
-  readonly source: 'deterministic' | 'ai-proposal'
-  readonly charged: boolean
-  readonly text: string
-}
+export const planBriefingSchema = z.object({
+  source: z.enum(['deterministic', 'ai-proposal']).catch('deterministic'),
+  charged: z.boolean().default(false),
+  text: z.string(),
+})
+export type PlanBriefing = z.infer<typeof planBriefingSchema>
 
 export function parsePlanBriefing(value: unknown): PlanBriefing {
-  const o = record(value)
-  const source = str(o, 'source')
-  return {
-    source: source === 'ai-proposal' ? 'ai-proposal' : 'deterministic',
-    charged: o.charged === true,
-    text: str(o, 'text'),
-  }
+  return planBriefingSchema.parse(value)
 }
 
 /** Request the AI day-briefing (costs one credit only when the AI actually writes it). */

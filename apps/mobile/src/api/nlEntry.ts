@@ -1,5 +1,5 @@
 import { postJson } from './http.js'
-import { num, nullableStr, record, str } from './parse.js'
+import { z } from 'zod'
 import { parseEntry, type TimeEntry } from './timer.js'
 import type { Client } from '../screens/projectsData'
 
@@ -10,38 +10,27 @@ import type { Client } from '../screens/projectsData'
  * text, previews the draft, resolves the project hint against the catalog, and —
  * only on confirm — creates a real entry through the tracking route.
  */
-export type DraftSource = 'deterministic' | 'ai-proposal' | 'none'
+export const draftSourceSchema = z.enum(['deterministic', 'ai-proposal', 'none'])
+export type DraftSource = z.infer<typeof draftSourceSchema>
 
-export interface NlDraft {
-  readonly durationMs: number
-  readonly dayOffset: number
-  readonly projectHint: string | null
-  readonly note: string | null
-  readonly billable: boolean
-  readonly confidence: number
-}
+export const nlDraftSchema = z.object({
+  durationMs: z.number(),
+  dayOffset: z.number(),
+  projectHint: z.string().nullable(),
+  note: z.string().nullable(),
+  billable: z.boolean().default(true),
+  confidence: z.number(),
+})
+export type NlDraft = z.infer<typeof nlDraftSchema>
 
-export interface NlDraftResult {
-  readonly draft: NlDraft | null
-  readonly source: DraftSource
-}
+export const nlDraftResultSchema = z.object({
+  draft: nlDraftSchema.nullable().catch(null).default(null),
+  source: draftSourceSchema,
+})
+export type NlDraftResult = z.infer<typeof nlDraftResultSchema>
 
 export function parseDraftResult(value: unknown): NlDraftResult {
-  const o = record(value)
-  const source = str(o, 'source') as DraftSource
-  if (o.draft === null || o.draft === undefined) return { draft: null, source }
-  const d = record(o.draft)
-  return {
-    source,
-    draft: {
-      durationMs: num(d, 'durationMs'),
-      dayOffset: num(d, 'dayOffset'),
-      projectHint: nullableStr(d, 'projectHint'),
-      note: nullableStr(d, 'note'),
-      billable: d.billable !== false,
-      confidence: num(d, 'confidence'),
-    },
-  }
+  return nlDraftResultSchema.parse(value)
 }
 
 /** The project/ticket vocabulary the server matches a bare name/key against (REQ-013, M6). */

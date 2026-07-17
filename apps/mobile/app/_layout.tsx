@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { StatusBar } from 'expo-status-bar'
 import { useFonts } from 'expo-font'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -64,24 +65,26 @@ export default function RootLayout(): React.JSX.Element | null {
   if (!fontsLoaded) return null
 
   return (
-    <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <StatusBar style="auto" />
-          <AuthGate>
-            <OnboardingGate>
-              <RoleProvider>
-                <TimerProvider>
-                  <PomodoroProvider>
-                    <ShellChrome />
-                  </PomodoroProvider>
-                </TimerProvider>
-              </RoleProvider>
-            </OnboardingGate>
-          </AuthGate>
-          {!splashDone && <BrandSplash onDone={() => setSplashDone(true)} />}
-        </ThemeProvider>
-      </QueryClientProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider>
+            <StatusBar style="auto" />
+            <AuthGate>
+              <OnboardingGate>
+                <RoleProvider>
+                  <TimerProvider>
+                    <PomodoroProvider>
+                      <ShellChrome />
+                    </PomodoroProvider>
+                  </TimerProvider>
+                </RoleProvider>
+              </OnboardingGate>
+            </AuthGate>
+            {!splashDone && <BrandSplash onDone={() => setSplashDone(true)} />}
+          </ThemeProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   )
 }

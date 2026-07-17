@@ -69,6 +69,8 @@ export interface TimerResource {
    * running entry on failure.
    */
   readonly setBillable: (next: boolean) => void
+  /** Increments whenever a network request completes successfully, useful for triggering sibling refreshes. */
+  readonly lastSync: number
 }
 
 export function useTimer(): TimerResource {
@@ -90,6 +92,7 @@ export function useTimer(): TimerResource {
   // Whether the session state has been restored from persistence yet — the persist
   // effect stays quiet until then, so hydration never overwrites the stored session.
   const [hydrated, setHydrated] = useState(false)
+  const [lastSync, setLastSync] = useState(0)
 
   // Restore the timer once, so a running OR paused session survives an app restart
   // (REQ-004). The server is authoritative for a running segment; the locally-stored
@@ -148,6 +151,7 @@ export function useTimer(): TimerResource {
         startTimer(base, withBillable)
           .then(entry => {
             setRunning(entry)
+            setLastSync(k => k + 1)
           })
           .catch((cause: unknown) => {
             setRunning(null) // roll back
@@ -214,6 +218,7 @@ export function useTimer(): TimerResource {
         stopTimer(base)
           .then(() => {
             setError(null)
+            setLastSync(k => k + 1)
           })
           .catch(rollback)
           .finally(() => {
@@ -243,6 +248,7 @@ export function useTimer(): TimerResource {
           stopTimer(base, endedAt)
             .then(() => {
               setError(null)
+              setLastSync(k => k + 1)
             })
             .catch((cause: unknown) => {
               setRunning(previous) // roll back
@@ -278,5 +284,6 @@ export function useTimer(): TimerResource {
     pause,
     resume,
     setBillable,
+    lastSync,
   }
 }

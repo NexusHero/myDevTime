@@ -1,16 +1,14 @@
 import { useState } from 'react'
 import { Pressable, View } from 'react-native'
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { Text } from '../components/core/Text'
 import { Button, Input } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
 import { AuthScaffold } from './auth/AuthScaffold'
 import { OrDivider, SocialButtons } from './auth/SocialButtons'
-import {
-  validateCredentials,
-  type AuthProviders,
-  type Credentials,
-  type SocialProvider,
-} from '../api/auth'
+import { type AuthProviders, type Credentials, type SocialProvider } from '../api/auth'
 
 /**
  * Login (REQ-002, ux-vision §4, design v8) — the gate the `AuthGate` shows with no
@@ -37,33 +35,46 @@ export function LoginScreen({
   error?: Error | null
 }): React.JSX.Element {
   const t = useTheme()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [localError, setLocalError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
-  const submit = (): void => {
+  const loginSchema = z.object({
+    email: z.string().email('Enter a valid email address.'),
+    password: z.string().min(8, 'Password must be at least 8 characters.'),
+  })
+
+  const {
+    control,
+    handleSubmit,
+    getValues,
+    trigger,
+    formState: { errors },
+  } = useForm<z.infer<typeof loginSchema>>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: '', password: '' },
+  })
+
+  const submit = handleSubmit(data => {
     setNotice(null)
-    const problem = validateCredentials({ email, password })
-    setLocalError(problem)
-    if (problem !== null) return
-    void onSignIn({ email, password }).catch(() => {
+    void onSignIn(data).catch(() => {
       /* the session hook surfaces the failure through the `error` prop */
     })
-  }
+  })
 
-  const forgot = (): void => {
-    setLocalError(null)
+  const forgot = async (): Promise<void> => {
     setNotice(null)
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setLocalError('Enter your email first, then I’ll send you a reset link.')
+    // Only trigger validation on the email field before sending the reset link
+    const isEmailValid = await trigger('email')
+    if (!isEmailValid) {
       return
     }
+    const email = getValues('email')
     const done = (): void => setNotice('If the email exists, a reset link is on its way.')
     void onForgot(email).then(done).catch(done)
   }
 
-  const message = localError ?? error?.message ?? null
+  // Combine remote error with local validation errors (showing only the first error if multiple)
+  const firstError = errors.email?.message ?? errors.password?.message
+  const message = firstError ?? error?.message ?? null
   const link = { color: t.color.accentText, fontSize: t.fontSize.sm, fontWeight: '600' as const }
 
   return (
@@ -88,19 +99,31 @@ export function LoginScreen({
         <Text style={{ color: t.color.good, fontSize: t.fontSize.sm }}>{notice}</Text>
       )}
 
-      <Input
-        label="Email"
-        placeholder="you@company.com"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
+      <Controller
+        control={control}
+        name="email"
+        render={({ field: { onChange, value } }) => (
+          <Input
+            label="Email"
+            placeholder="you@company.com"
+            value={value}
+            onChangeText={onChange}
+            keyboardType="email-address"
+          />
+        )}
       />
-      <Input
-        label="Password"
-        placeholder="••••••••"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
+      <Controller
+        control={control}
+        name="password"
+        render={({ field: { onChange, value } }) => (
+          <Input
+            label="Password"
+            placeholder="••••••••"
+            value={value}
+            onChangeText={onChange}
+            secureTextEntry
+          />
+        )}
       />
       <Pressable onPress={forgot} accessibilityRole="button">
         <Text style={{ ...link, alignSelf: 'flex-end' }}>Forgot password?</Text>

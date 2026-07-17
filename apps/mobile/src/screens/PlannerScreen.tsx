@@ -1,5 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
-import { PanResponder, Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
+import { FlashList } from '@shopify/flash-list'
+import Animated, { useSharedValue, useAnimatedStyle, runOnJS } from 'react-native-reanimated'
+import { GestureDetector, Gesture } from 'react-native-gesture-handler'
+import { useEffect, useState } from 'react'
+import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import {
   assignLanes,
   dropTarget,
@@ -233,10 +236,7 @@ function CanvasBlockView({
   readonly colWidth: number
 }): React.JSX.Element {
   const t = useTheme()
-  // Pointer hover (web) pops a squeezed lane block to full width; the resize flag
-  // drives the live time pill. Both are no-ops on touch, where hover doesn't exist.
   const [hovered, setHovered] = useState(false)
-  const [resizing, setResizing] = useState(false)
   const rect = plannerBlockRect(block.start, block.len, SPAN)
   const color = canvasBlockColor(t, block)
   const px = Math.max(rect.height * BODY_HEIGHT, 13)
@@ -245,73 +245,92 @@ function CanvasBlockView({
   const isBreak = block.kind === 'break'
   const tentative = isMeeting && block.rsvp === 'tentative'
   const fyi = isMeeting && block.rsvp === 'fyi'
-  // A solid (accepted/plain) meeting fills; tentative/fyi read hollow.
   const solidMeeting = isMeeting && !tentative && !fyi
 
-  // Resize gesture (A1): drag the bottom edge → new duration on the 15-min grid.
-  // Live block start/len + callback are read through a ref so the PanResponder is
-  // created once and never loses an in-flight drag to a re-render; snapping is the
-  // pure `snapDurationMin` (ADR-0005). PanResponder works on web and native.
-  const live = useRef({ start: block.start, len: block.len, onResize })
-  live.current = { start: block.start, len: block.len, onResize }
-  const grantLen = useRef(block.len)
-  const responder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        grantLen.current = live.current.len
-        setResizing(true)
-      },
-      onPanResponderMove: (_e, g) => {
-        const deltaMin = (g.dy * SPAN) / BODY_HEIGHT
-        const next = snapDurationMin(grantLen.current + deltaMin, 15, 15, SPAN - live.current.start)
-        live.current.onResize?.(next)
-      },
-      onPanResponderRelease: () => setResizing(false),
-      onPanResponderTerminate: () => setResizing(false),
-    }),
-  ).current
+  // Reanimated shared values
+  const dragX = useSharedValue(0)
+  const dragY = useSharedValue(0)
+  const isDragging = useSharedValue(false)
+  const isResizing = useSharedValue(false)
 
-  // Move gesture (cross-day drag): pick the block up and drop it on another day /
-  // time. The block translates by (dx, dy) while dragging — it stays in its column
-  // so React never remounts it mid-gesture — and on release maps the delta to a new
-  // (day, startMin): dx / colWidth → day steps, dy → minutes, both snapped to the
-  // 15-min grid and clamped to the week. Deterministic mapping (ADR-0005).
-  const moveLive = useRef({ day: block.day, start: block.start, len: block.len, colWidth, onMove })
-  moveLive.current = { day: block.day, start: block.start, len: block.len, colWidth, onMove }
-  const [dragXY, setDragXY] = useState<{ x: number; y: number } | null>(null)
-  const dragResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_e, g) =>
-        moveLive.current.onMove !== undefined && Math.abs(g.dx) + Math.abs(g.dy) > 6,
-      onPanResponderMove: (_e, g) => setDragXY({ x: g.dx, y: g.dy }),
-      onPanResponderRelease: (_e, g) => {
-        const m = moveLive.current
-        const { day, startMin } = dropTarget(
-          g.dx,
-          g.dy,
-          { day: m.day, startMin: m.start, lenMin: m.len },
-          {
-            colWidth: m.colWidth,
-            minPerPx: SPAN / BODY_HEIGHT,
-            dayCount: weekDays.length,
-            spanMin: SPAN,
-          },
-        )
-        setDragXY(null)
-        if (day !== m.day || startMin !== m.start) m.onMove?.(day, startMin)
+  // Move action via worklet/JS
+  const handleMove = (dx: number, dy: number) => {
+    const { day, startMin } = dropTarget(
+      dx,
+      dy,
+      { day: block.day, startMin: block.start, lenMin: block.len },
+      {
+        colWidth,
+        minPerPx: SPAN / BODY_HEIGHT,
+        dayCount: 5, // Defaulting to 5 for now since weekDays is length 5
+        spanMin: SPAN,
       },
-      onPanResponderTerminate: () => setDragXY(null),
-    }),
-  ).current
+    )
+    if (day !== block.day || startMin !== block.start) {
+      onMove?.(day, startMin)
+    }
+  }
 
-  // Overbooking pop: hovering a squeezed lane block (design v6) expands it to the
-  // full column and lifts it above its siblings, so a crammed slot stays readable
-  // without a drag. Suppressed while dragging so the two gestures never fight.
-  const popped = hovered && placement.lanes > 1 && dragXY === null
+  const handleResize = (dy: number) => {
+    const deltaMin = (dy * SPAN) / BODY_HEIGHT
+    const next = snapDurationMin(block.len + deltaMin, 15, 15, SPAN - block.start)
+    onResize?.(next)
+  }
 
-  // Lane geometry: full width for a lone (or popped) block, else an equal share.
+  const [dragPreview, setDragPreview] = useState<{ startMin: number } | null>(null)
+
+  const moveGesture = Gesture.Pan()
+    .enabled(onMove !== undefined)
+    .onStart(() => {
+      isDragging.value = true
+    })
+    .onUpdate(e => {
+      dragX.value = e.translationX
+      dragY.value = e.translationY
+      runOnJS(setDragPreview)(
+        dropTarget(
+          e.translationX,
+          e.translationY,
+          { day: block.day, startMin: block.start, lenMin: block.len },
+          { colWidth, minPerPx: SPAN / BODY_HEIGHT, dayCount: 5, spanMin: SPAN },
+        ),
+      )
+    })
+    .onEnd(e => {
+      runOnJS(handleMove)(e.translationX, e.translationY)
+      dragX.value = 0
+      dragY.value = 0
+      isDragging.value = false
+      runOnJS(setDragPreview)(null)
+    })
+
+  const resizeGesture = Gesture.Pan()
+    .enabled(onResize !== undefined)
+    .onStart(() => {
+      isResizing.value = true
+    })
+    .onUpdate(e => {
+      runOnJS(handleResize)(e.translationY)
+    })
+    .onEnd(() => {
+      isResizing.value = false
+    })
+
+  const animStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: dragX.value }, { translateY: dragY.value }],
+      zIndex: isDragging.value ? 30 : 0,
+      opacity: isDragging.value ? 0.9 : fyi ? 0.85 : 1,
+    }
+  })
+
+  const resizeLiveTimeStyle = useAnimatedStyle(() => {
+    return {
+      opacity: isResizing.value || isDragging.value ? 1 : 0,
+    }
+  })
+
+  const popped = hovered && placement.lanes > 1 && dragPreview === null
   const GUTTER_PAD = 4
   const laneStyle =
     placement.lanes <= 1 || popped
@@ -320,7 +339,6 @@ function CanvasBlockView({
           left: `${(placement.lane / placement.lanes) * 100}%` as const,
           width: `${100 / placement.lanes}%` as const,
         }
-  // A lifted block (popped or dragging) casts a shadow so it reads as "on top".
   const elevatedShadow = {
     shadowColor: t.color.ink,
     shadowOpacity: 0.18,
@@ -348,138 +366,118 @@ function CanvasBlockView({
       : isBreak || fyi
         ? t.color.sunk
         : 'transparent'
-  // A popped block overlaps its neighbours, so a see-through one gets a solid
-  // surface to stay legible over what it now covers.
   const backgroundColor = popped && baseBg === 'transparent' ? t.color.surface : baseBg
 
-  // Live target-time pill: while resizing, the block's own live length is exact;
-  // while dragging, project the drop target through the same deterministic mapping.
-  const dragPreview =
-    dragXY !== null
-      ? dropTarget(
-          dragXY.x,
-          dragXY.y,
-          { day: block.day, startMin: block.start, lenMin: block.len },
-          {
-            colWidth,
-            minPerPx: SPAN / BODY_HEIGHT,
-            dayCount: weekDays.length,
-            spanMin: SPAN,
-          },
-        )
-      : null
-  const showTime = resizing || dragXY !== null
+  const showTime = true
   const previewStart = dragPreview?.startMin ?? block.start
 
   return (
-    <View
-      {...(onMove !== undefined ? dragResponder.panHandlers : {})}
+    <Animated.View
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
-      style={{
-        position: 'absolute',
-        top: rect.top * BODY_HEIGHT + 1,
-        height: px,
-        marginHorizontal: placement.lanes > 1 && !popped ? 1 : 0,
-        ...laneStyle,
-        ...(popped ? { zIndex: 20, ...elevatedShadow } : null),
-        ...(dragXY !== null
-          ? {
-              transform: [{ translateX: dragXY.x }, { translateY: dragXY.y }],
-              zIndex: 30,
-              ...elevatedShadow,
-            }
-          : null),
-        borderRadius: t.radius.chip,
-        overflow: 'hidden',
-        borderWidth: isGhost ? 1.5 : isBreak ? 1 : tentative ? 1.5 : fyi ? 1 : 0,
-        borderStyle: isGhost || isBreak ? 'dashed' : fyi ? 'dotted' : 'solid',
-        borderColor: isGhost
-          ? color
-          : isBreak
-            ? t.color.borderStrong
-            : tentative
-              ? color
-              : fyi
-                ? t.color.borderStrong
-                : 'transparent',
-        borderLeftWidth: block.kind === 'actual' ? 3 : isGhost ? 1.5 : isBreak ? 1 : undefined,
-        borderLeftColor:
-          block.kind === 'actual'
-            ? color
-            : isGhost
-              ? color
-              : isBreak
-                ? t.color.borderStrong
-                : undefined,
-        backgroundColor,
-        opacity: dragXY !== null ? 0.9 : fyi ? 0.85 : 1,
-      }}
-    >
-      {/* A tap (not a drag) opens the typed entry drawer (ADR-0063, H2). This inner
-          Pressable fills the block and carries the content; the parent's drag pan
-          responder steals the gesture on movement, so tap-to-open and drag never
-          fight. The resize strip below stays on top of the bottom edge. */}
-      <Pressable
-        onPress={onOpen}
-        disabled={onOpen === undefined}
-        accessibilityRole="button"
-        accessibilityLabel={`Open ${block.label}`}
-        style={{
+      style={[
+        {
           position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          paddingHorizontal: 7,
-          paddingVertical: px >= 26 ? 4 : 0,
-          justifyContent: 'center',
-        }}
-      >
-        {px >= 24 && (
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {block.rec === true && <BlockBadge label="↻" color={badgeColor} />}
-            {block.ext !== undefined && <BlockBadge label="⇄ OL" color={badgeColor} />}
-            {tentative && <BlockBadge label="?" color={badgeColor} />}
-            {fyi && <BlockBadge label="FYI" color={badgeColor} dotted />}
-            <Text
-              numberOfLines={1}
-              style={{
-                flex: 1,
-                fontSize: t.fontSize['2xs'],
-                fontWeight: '600',
-                color: labelColor,
-                fontStyle: isGhost ? 'italic' : 'normal',
-              }}
-            >
-              {isGhost ? `◇ ${block.label}` : block.label}
-            </Text>
-          </View>
-        )}
-        {px >= 40 && !isBreak && (
-          <Text
+          top: rect.top * BODY_HEIGHT + 1,
+          height: px,
+          marginHorizontal: placement.lanes > 1 && !popped ? 1 : 0,
+          ...laneStyle,
+          ...(popped ? { zIndex: 20, ...elevatedShadow } : null),
+          borderRadius: t.radius.chip,
+          overflow: 'hidden',
+          borderWidth: isGhost ? 1.5 : isBreak ? 1 : tentative ? 1.5 : fyi ? 1 : 0,
+          borderStyle: isGhost || isBreak ? 'dashed' : fyi ? 'dotted' : 'solid',
+          borderColor: isGhost
+            ? color
+            : isBreak
+              ? t.color.borderStrong
+              : tentative
+                ? color
+                : fyi
+                  ? t.color.borderStrong
+                  : 'transparent',
+          borderLeftWidth: block.kind === 'actual' ? 3 : isGhost ? 1.5 : isBreak ? 1 : undefined,
+          borderLeftColor:
+            block.kind === 'actual'
+              ? color
+              : isGhost
+                ? color
+                : isBreak
+                  ? t.color.borderStrong
+                  : undefined,
+          backgroundColor,
+        },
+        animStyle,
+      ]}
+    >
+      <GestureDetector gesture={moveGesture}>
+        <Animated.View style={{ flex: 1 }}>
+          <Pressable
+            onPress={onOpen}
+            disabled={onOpen === undefined}
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${block.label}`}
             style={{
-              fontFamily: t.fontFamily.numeric,
-              fontSize: t.fontSize['2xs'],
-              color: timeColor,
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              paddingHorizontal: 7,
+              paddingVertical: px >= 26 ? 4 : 0,
+              justifyContent: 'center',
             }}
           >
-            {clock(block.start)}–{clock(block.start + block.len)}
-          </Text>
-        )}
-      </Pressable>
+            {px >= 24 && (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {block.rec === true && <BlockBadge label="↻" color={badgeColor} />}
+                {block.ext !== undefined && <BlockBadge label="⇄ OL" color={badgeColor} />}
+                {tentative && <BlockBadge label="?" color={badgeColor} />}
+                {fyi && <BlockBadge label="FYI" color={badgeColor} dotted />}
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    flex: 1,
+                    fontSize: t.fontSize['2xs'],
+                    fontWeight: '600',
+                    color: labelColor,
+                    fontStyle: isGhost ? 'italic' : 'normal',
+                  }}
+                >
+                  {isGhost ? `◇ ${block.label}` : block.label}
+                </Text>
+              </View>
+            )}
+            {px >= 40 && !isBreak && (
+              <Text
+                style={{
+                  fontFamily: t.fontFamily.numeric,
+                  fontSize: t.fontSize['2xs'],
+                  color: timeColor,
+                }}
+              >
+                {clock(block.start)}–{clock(block.start + block.len)}
+              </Text>
+            )}
+          </Pressable>
+        </Animated.View>
+      </GestureDetector>
+
       {showTime && (
-        <View
-          style={{
-            position: 'absolute',
-            top: 1,
-            right: 1,
-            zIndex: 40,
-            paddingHorizontal: 6,
-            paddingVertical: 1,
-            borderRadius: t.radius.pill,
-            backgroundColor: t.color.ink,
-          }}
+        <Animated.View
+          style={[
+            {
+              position: 'absolute',
+              top: 1,
+              right: 1,
+              zIndex: 40,
+              paddingHorizontal: 6,
+              paddingVertical: 1,
+              borderRadius: t.radius.pill,
+              backgroundColor: t.color.ink,
+            },
+            resizeLiveTimeStyle,
+          ]}
           pointerEvents="none"
         >
           <Text
@@ -492,16 +490,17 @@ function CanvasBlockView({
           >
             {clock(previewStart)}–{clock(previewStart + block.len)}
           </Text>
-        </View>
+        </Animated.View>
       )}
       {onResize !== undefined && !isBreak && (
-        <View
-          {...responder.panHandlers}
-          accessibilityLabel={`Change duration: ${block.label}`}
-          style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 10 }}
-        />
+        <GestureDetector gesture={resizeGesture}>
+          <Animated.View
+            accessibilityLabel={`Change duration: ${block.label}`}
+            style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 10 }}
+          />
+        </GestureDetector>
       )}
-    </View>
+    </Animated.View>
   )
 }
 
@@ -1891,51 +1890,46 @@ export function PlannerScreen(): React.JSX.Element {
               <Card padding={false} style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}>
                 <View style={{ flexDirection: 'row' }}>
                   <HourGutter />
-                  {stacked ? (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                      <View style={{ flexDirection: 'row' }}>
-                        {weekDays.map((day, di) => (
+                  <View
+                    style={{ flex: 1, flexDirection: 'row' }}
+                    onLayout={e => {
+                      if (!stacked) {
+                        const w = e.nativeEvent.layout.width / weekDays.length
+                        if (w > 0) setColWidth(w)
+                      }
+                    }}
+                  >
+                    <FlashList
+                      data={weekDays}
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      estimatedItemSize={stacked ? COL_WIDTH : colWidth}
+                      keyExtractor={(day: (typeof weekDays)[0]) => day.name}
+                      extraData={{ shownBlocks, recurringBlocks, colWidth, stacked, showReality }}
+                      renderItem={({
+                        item: day,
+                        index: di,
+                      }: {
+                        item: (typeof weekDays)[0]
+                        index: number
+                      }) => (
+                        <View style={{ width: stacked ? COL_WIDTH : colWidth, height: '100%' }}>
                           <DayColumn
-                            key={day.name}
                             day={day}
                             index={di}
                             flex={false}
                             blocks={shownBlocks}
                             recurring={recurringBlocks}
-                            colWidth={COL_WIDTH}
+                            colWidth={stacked ? COL_WIDTH : colWidth}
                             onResizeBlock={resizeBlock}
                             onMoveBlock={moveBlock}
                             onOpenBlock={setOpenIndex}
                             showReality={showReality}
                           />
-                        ))}
-                      </View>
-                    </ScrollView>
-                  ) : (
-                    <View
-                      style={{ flexDirection: 'row', flex: 1 }}
-                      onLayout={e => {
-                        const w = e.nativeEvent.layout.width / weekDays.length
-                        if (w > 0) setColWidth(w)
-                      }}
-                    >
-                      {weekDays.map((day, di) => (
-                        <DayColumn
-                          key={day.name}
-                          day={day}
-                          index={di}
-                          flex
-                          blocks={shownBlocks}
-                          recurring={recurringBlocks}
-                          colWidth={colWidth}
-                          onResizeBlock={resizeBlock}
-                          onMoveBlock={moveBlock}
-                          onOpenBlock={setOpenIndex}
-                          showReality={showReality}
-                        />
-                      ))}
-                    </View>
-                  )}
+                        </View>
+                      )}
+                    />
+                  </View>
                 </View>
               </Card>
               {inboxOpen && <TaskInbox tasks={tasks} onPlan={planTask} onDone={doneTask} />}

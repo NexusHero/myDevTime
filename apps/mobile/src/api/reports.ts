@@ -1,5 +1,5 @@
 import { getJson } from './http.js'
-import { num, numberArray, parseArray, record, str, stringArray } from './parse.js'
+import { z } from 'zod'
 
 /**
  * The reports read model for the client (REQ-005): parse the workspace summary the
@@ -8,32 +8,24 @@ import { num, numberArray, parseArray, record, str, stringArray } from './parse.
  * project names from the catalog. Parsing and the join are pure and tested; the
  * numbers stay exactly as the server computed them (ADR-0005).
  */
-export interface ProjectSummaryDTO {
-  readonly projectId: string
-  readonly spentMs: number
-  readonly billableMs: number
-  readonly daily: number[]
-}
-export interface Summary {
-  readonly totalMs: number
-  readonly billableMs: number
-  readonly days: string[]
-  readonly byProject: ProjectSummaryDTO[]
-}
+export const projectSummaryDtoSchema = z.object({
+  projectId: z.string(),
+  spentMs: z.number(),
+  billableMs: z.number(),
+  daily: z.array(z.number()),
+})
+export type ProjectSummaryDTO = z.infer<typeof projectSummaryDtoSchema>
+
+export const summarySchema = z.object({
+  totalMs: z.number(),
+  billableMs: z.number(),
+  days: z.array(z.string()),
+  byProject: z.array(projectSummaryDtoSchema),
+})
+export type Summary = z.infer<typeof summarySchema>
 
 export function parseSummary(value: unknown): Summary {
-  const o = record(value)
-  return {
-    totalMs: num(o, 'totalMs'),
-    billableMs: num(o, 'billableMs'),
-    days: stringArray(o.days),
-    byProject: parseArray(o.byProject, p => ({
-      projectId: str(p, 'projectId'),
-      spentMs: num(p, 'spentMs'),
-      billableMs: num(p, 'billableMs'),
-      daily: numberArray(p.daily),
-    })),
-  }
+  return summarySchema.parse(value)
 }
 
 export interface SummaryRange {
@@ -58,26 +50,21 @@ export async function fetchSummary(
  * start) and returns the total and a per-project breakdown in minor units. The
  * numbers are the deterministic core's (ADR-0005); the client only parses them.
  */
-export interface ProjectCostDTO {
-  readonly projectId: string
-  readonly costMinor: number
-}
-export interface BillingSummary {
-  readonly billableMinor: number
-  readonly currencyCode: string
-  readonly byProject: ProjectCostDTO[]
-}
+export const projectCostDtoSchema = z.object({
+  projectId: z.string(),
+  costMinor: z.number(),
+})
+export type ProjectCostDTO = z.infer<typeof projectCostDtoSchema>
+
+export const billingSummarySchema = z.object({
+  billableMinor: z.number(),
+  currencyCode: z.string(),
+  byProject: z.array(projectCostDtoSchema),
+})
+export type BillingSummary = z.infer<typeof billingSummarySchema>
 
 export function parseBillingSummary(value: unknown): BillingSummary {
-  const o = record(value)
-  return {
-    billableMinor: num(o, 'billableMinor'),
-    currencyCode: str(o, 'currencyCode'),
-    byProject: parseArray(o.byProject, p => ({
-      projectId: str(p, 'projectId'),
-      costMinor: num(p, 'costMinor'),
-    })),
-  }
+  return billingSummarySchema.parse(value)
 }
 
 export interface MoneyRange {

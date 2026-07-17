@@ -1,6 +1,6 @@
 import { formatDuration, formatMoneyMinor, formatPercent } from '@mydevtime/design'
 import { postJson } from './http.js'
-import { record, str } from './parse.js'
+import { z } from 'zod'
 import type { ReportsData } from '../hooks/useReports.js'
 
 /**
@@ -11,12 +11,13 @@ import type { ReportsData } from '../hooks/useReports.js'
  * workspace-safe (the client only ever sends its own figures). One credit per AI
  * answer.
  */
-export interface AssistantResult {
-  readonly source: 'deterministic' | 'ai-proposal'
-  readonly refused: boolean
-  readonly charged: boolean
-  readonly text: string
-}
+export const assistantResultSchema = z.object({
+  source: z.enum(['deterministic', 'ai-proposal']).catch('deterministic').default('deterministic'),
+  refused: z.boolean().default(false),
+  charged: z.boolean().default(false),
+  text: z.string(),
+})
+export type AssistantResult = z.infer<typeof assistantResultSchema>
 
 /**
  * Turn the loaded weekly Reports into short factual sentences the assistant can be
@@ -44,14 +45,7 @@ export function factsFromReports(data: ReportsData): string[] {
 }
 
 export function parseAssistantResult(value: unknown): AssistantResult {
-  const o = record(value)
-  const source = str(o, 'source')
-  return {
-    source: source === 'ai-proposal' ? 'ai-proposal' : 'deterministic',
-    refused: o.refused === true,
-    charged: o.charged === true,
-    text: str(o, 'text'),
-  }
+  return assistantResultSchema.parse(value)
 }
 
 /** Ask the grounded assistant a question over the supplied facts. */
