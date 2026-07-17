@@ -25,3 +25,22 @@ export class AssistantDto extends createZodDto(
     facts: z.array(z.string().min(1).max(400)).max(100),
   }),
 ) {}
+
+/** Smart-Add (K6): a single free-text phrase plus the client's project vocabulary. */
+export class SmartAddDto extends createZodDto(
+  z.object({
+    text: z.string().min(1).max(500),
+    knownProjects: z.array(z.string().min(1).max(120)).max(500).optional(),
+  }),
+) {}
+
+/**
+ * A grounded insight request (KI1–KI4): which feature, plus the caller's own facts (the
+ * numbers/notes the client derived deterministically). The LLM only phrases these.
+ */
+export class InsightDto extends createZodDto(
+  z.object({
+    kind: z.enum(['coach', 'quote', 'invoice', 'meeting']),
+    facts: z.array(z.string().min(1).max(600)).max(100),
+  }),
+) {}
