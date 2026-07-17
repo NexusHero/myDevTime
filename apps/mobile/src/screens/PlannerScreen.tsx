@@ -14,6 +14,7 @@ import {
   type Theme,
 } from '@mydevtime/design'
 import { detectUnbookedGap, realityDrift, type RealityGap, type TimedSpan } from '@mydevtime/domain'
+import { priceWeekFromBlocks } from '../planner/weekPrice'
 import { Text } from '../components/core/Text'
 import {
   AICallout,
@@ -1645,6 +1646,73 @@ export function PlannerScreen(): React.JSX.Element {
                 </Button>
               </View>
             )}
+
+            {/* Price of the week (G1): after Fill-week, what this planned week costs across
+              intensities — deterministic `priceWeek` over the planned blocks (ADR-0005). */}
+            {fillUndo !== null &&
+              (() => {
+                const prices = priceWeekFromBlocks(blocks)
+                if (prices.length === 0) return null
+                return (
+                  <View
+                    style={{
+                      gap: t.spacing.s2,
+                      paddingVertical: t.spacing.s3,
+                      paddingHorizontal: t.spacing.s3,
+                      borderRadius: t.radius.block,
+                      borderWidth: 1,
+                      borderColor: t.color.border,
+                      backgroundColor: t.color.surface,
+                    }}
+                  >
+                    <Text
+                      style={{ fontSize: t.fontSize.sm, fontWeight: '700', color: t.color.ink }}
+                    >
+                      Price of the week
+                    </Text>
+                    <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
+                      What this plan costs across intensities · assuming 8h × 5 days
+                    </Text>
+                    {prices.map(p => (
+                      <View
+                        key={p.intensity}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: t.fontSize.xs,
+                            color: t.color.ink,
+                            fontWeight: '600',
+                            width: 92,
+                            textTransform: 'capitalize',
+                          }}
+                        >
+                          {p.intensity}
+                        </Text>
+                        <Text
+                          style={{
+                            fontFamily: t.fontFamily.numeric,
+                            fontSize: t.fontSize['2xs'],
+                            color: t.color.ink2,
+                            flex: 1,
+                          }}
+                        >
+                          {`${String(p.activeDays)}d · ${formatDuration(p.perDayMs)}/day · ${p.freeDays > 0 ? `${String(p.freeDays)} free` : 'no free day'}`}
+                        </Text>
+                        <Text
+                          style={{
+                            fontFamily: t.fontFamily.numeric,
+                            fontSize: t.fontSize['2xs'],
+                            color: p.overtimeMs > 0 ? t.color.warn : t.color.ink3,
+                          }}
+                        >
+                          {p.overtimeMs > 0 ? `+${formatDuration(p.overtimeMs)} OT` : 'on target'}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )
+              })()}
 
             {/* Week canvas + Task-Inbox rail — plan (dashed) and actuals share one
               surface per day; the inbox sits beside it on wide screens. */}
