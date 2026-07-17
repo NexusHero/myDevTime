@@ -31,6 +31,9 @@ const ICON_PATHS: Record<string, string> = {
   chevronRight: 'M10 6l6 6-6 6',
   alert: 'M12 4l9 16H3zM12 10v4M12 17.5v.5',
   inbox: 'M3 13l3-8h12l3 8M3 13v5a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-5M3 13h5l1 2h6l1-2h5',
+  // Protection flag (design v17): the stroke-shield mandated by the icon rule — never the
+  // 🛡 emoji, which renders in colour and breaks the monochrome icon language.
+  shield: 'M12 3l7 3v5c0 4.6-2.9 8.1-7 10-4.1-1.9-7-5.4-7-10V6z',
 }
 
 export interface IconProps {

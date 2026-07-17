@@ -240,11 +240,17 @@ export function PlannerEntryDrawer({
                 paddingTop: t.spacing.s3,
               }}
             >
-              <Switch
-                label="🛡 Protected"
-                checked={entry.protected === true}
-                onChange={next => onProtect(next)}
-              />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
+                <Icon name="shield" size={16} color={t.color.ink2} />
+                <View style={{ flex: 1 }}>
+                  <Switch
+                    label="Protected"
+                    accessibilityLabel="Protected"
+                    checked={entry.protected === true}
+                    onChange={next => onProtect(next)}
+                  />
+                </View>
+              </View>
               <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3, lineHeight: 16 }}>
                 Mutes your own nudges and shows you as Busy — communication only, never your time
                 tracking. You are asked once, never punched out automatically.
