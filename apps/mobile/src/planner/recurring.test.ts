@@ -18,6 +18,8 @@ function occ(over: Partial<Occurrence>): Occurrence {
     startMin: 540, // 09:00
     lenMin: 30,
     projectId: null,
+    priority: null,
+    note: null,
     ...over,
   }
 }

@@ -28,6 +28,8 @@ export const seriesSchema = z.object({
   untilDate: z.string().nullable(),
   count: z.number().nullable(),
   projectId: z.string().nullable(),
+  priority: z.number().nullable().catch(null).default(null),
+  note: z.string().nullable().catch(null).default(null),
 })
 export type Series = z.infer<typeof seriesSchema>
 
@@ -39,6 +41,8 @@ export const occurrenceSchema = z.object({
   startMin: z.number(),
   lenMin: z.number(),
   projectId: z.string().nullable(),
+  priority: z.number().nullable().catch(null).default(null),
+  note: z.string().nullable().catch(null).default(null),
 })
 export type Occurrence = z.infer<typeof occurrenceSchema>
 
@@ -61,6 +65,10 @@ export interface CreateSeriesInput {
   readonly untilDate?: string | null
   readonly count?: number | null
   readonly projectId?: string | null
+  /** Task priority (1 = high · 2 = med · 3 = low) — a hand-created entry (design v19). */
+  readonly priority?: number | null
+  /** Free-text note for a hand-created entry (design v19). */
+  readonly note?: string | null
 }
 
 /** List the workspace's series. */

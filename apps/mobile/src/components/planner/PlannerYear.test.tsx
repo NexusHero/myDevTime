@@ -50,6 +50,8 @@ describe('PlannerYear', () => {
           startMin: 540,
           lenMin: 300,
           projectId: null,
+          priority: null,
+          note: null,
         },
       ],
       [],

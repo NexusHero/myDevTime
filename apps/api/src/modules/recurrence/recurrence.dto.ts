@@ -28,6 +28,9 @@ export class CreateSeriesDto extends createZodDto(
       untilDate: calendarDate.nullish(),
       count: z.number().int().min(1).max(1000).nullish(),
       projectId: z.uuid().nullish(),
+      // Optional planning metadata for a hand-created entry (design v19 New-Entry dialog).
+      priority: z.number().int().min(1).max(3).nullish(),
+      note: z.string().trim().max(500).nullish(),
     })
     .refine(v => v.endKind !== 'until' || typeof v.untilDate === 'string', {
       message: 'untilDate is required when endKind is "until"',

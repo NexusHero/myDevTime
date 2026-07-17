@@ -31,16 +31,24 @@ const days = new Map<number, MonthDay>([
     13,
     {
       tasks: [
-        { prio: 1, estHours: 2, label: 'Sync engine', projectId: 'p1' },
-        { prio: 2, estHours: 1, label: 'Finanzo review', projectId: 'p2' },
-        { prio: 3, estHours: 0.5, label: 'PR sweep', projectId: 'p3' },
-        { prio: 2, estHours: 1, label: 'Overflow task', projectId: 'p4' },
+        { prio: 1, estHours: 2, label: 'Sync engine', projectId: 'p1', isLife: false },
+        { prio: 2, estHours: 1, label: 'Finanzo review', projectId: 'p2', isLife: false },
+        { prio: 3, estHours: 0.5, label: 'PR sweep', projectId: 'p3', isLife: false },
+        { prio: 2, estHours: 1, label: 'Overflow task', projectId: 'p4', isLife: false },
       ],
       events: [],
       load: 4.5,
     },
   ],
   [17, { tasks: [], events: [{ label: 'Vacation' }], load: 0 }],
+  [
+    21,
+    {
+      tasks: [{ prio: 2, estHours: 1, label: 'Kita pickup', projectId: null, isLife: true }],
+      events: [],
+      load: 0,
+    },
+  ],
 ])
 
 describe('PlannerMonth', () => {
@@ -50,6 +58,7 @@ describe('PlannerMonth', () => {
     )
     expect(out).toContain('Sync engine')
     expect(out).toContain('Vacation')
+    expect(out).toContain('Kita pickup') // a life occurrence surfaces in its cell
   })
 
   it('CollapsesOverflowTasks_toPlusNMore', () => {

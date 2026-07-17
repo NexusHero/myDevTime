@@ -17,6 +17,8 @@ export interface DayTask {
   readonly estHours: number
   readonly label: string
   readonly projectId: string | null
+  /** A `life` occurrence (design v19 §F): personal, shown but never counted as work. */
+  readonly isLife: boolean
 }
 
 /** A non-counting event in a calendar cell (holiday / company event / absence). */
@@ -38,8 +40,13 @@ export interface CalendarEvent {
   readonly label: string
 }
 
-/** Occurrences carry no priority; a projected series is medium priority by default (never invented). */
+/** A projected series without its own priority is medium by default (never invented). */
 const DEFAULT_PRIO: Priority = 2
+
+/** Coerce a stored priority (1–3, or null) to a `Priority`, defaulting to medium. */
+function toPriority(p: number | null): Priority {
+  return p === 1 || p === 2 || p === 3 ? p : DEFAULT_PRIO
+}
 
 /** Day-of-month (1–31) from a `YYYY-MM-DD` string, or null if it is not in `year`/`month0`. */
 function dayInMonth(date: string, year: number, month0: number): number | null {
@@ -64,10 +71,11 @@ export function buildMonthDays(
     if (day === null) continue
     const list = tasksByDay.get(day) ?? []
     list.push({
-      prio: DEFAULT_PRIO,
+      prio: toPriority(occ.priority),
       estHours: occ.lenMin / 60,
       label: occ.title,
       projectId: occ.projectId ?? null,
+      isLife: occ.kind === 'life',
     })
     tasksByDay.set(day, list)
   }
@@ -88,7 +96,10 @@ export function buildMonthDays(
     out.set(day, {
       tasks,
       events: eventsByDay.get(day) ?? [],
-      load: dayLoad(tasks.map(t => ({ prio: t.prio, estHours: t.estHours }))),
+      // Life is personal, never work: only non-life tasks feed the load bar (design v19 §F).
+      load: dayLoad(
+        tasks.filter(t => !t.isLife).map(t => ({ prio: t.prio, estHours: t.estHours })),
+      ),
     })
   }
   return out
@@ -146,6 +157,8 @@ export function buildYearMonths(
   const eventsByMonth = new Array<number>(12).fill(0)
 
   for (const occ of occurrences) {
+    // Life is personal, never planned work — it must not inflate a month's work hours (design v19 §F).
+    if (occ.kind === 'life') continue
     const [y, m, d] = occ.date.split('-').map(s => Number.parseInt(s, 10))
     if (y !== opts.year || !m || !d) continue
     const month0 = m - 1

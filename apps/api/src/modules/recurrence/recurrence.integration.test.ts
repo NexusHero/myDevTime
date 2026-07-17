@@ -63,6 +63,27 @@ describe.skipIf(!databaseUrl)('recurrence (integration)', () => {
     expect(occ[0]).toMatchObject({ title: 'Standup', startMin: 540, lenMin: 30 })
   })
 
+  it('PersistsPriorityAndNote_forAHandCreatedEntry', async () => {
+    await svc.createSeries(db, wsA, idA, {
+      kind: 'focus',
+      title: 'SEPA export',
+      anchorDate: '2026-07-06',
+      startMin: 540,
+      lenMin: 120,
+      freq: 'weekly',
+      end: { kind: 'count', count: 1 },
+      priority: 1,
+      note: 'validate against pain.008 schema',
+    })
+    const occ = await svc.listOccurrences(db, wsA, '2026-07-06', '2026-07-27')
+    expect(occ).toHaveLength(1) // count:1 → a single occurrence
+    expect(occ[0]).toMatchObject({
+      title: 'SEPA export',
+      priority: 1,
+      note: 'validate against pain.008 schema',
+    })
+  })
+
   it('TruncateEndsTheSeriesBeforeTheSplitDate', async () => {
     const series = await svc.createSeries(db, wsA, idA, {
       kind: 'focus',

@@ -148,6 +148,13 @@
       "when": 1784306337624,
       "tag": "0020_mighty_nova",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1784324561902,
+      "tag": "0021_lean_khan",
+      "breakpoints": true
     }
   ]
 }
