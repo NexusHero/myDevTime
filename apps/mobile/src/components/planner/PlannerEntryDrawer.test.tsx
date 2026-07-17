@@ -86,8 +86,10 @@ describe('PlannerEntryDrawer', () => {
       protected: false,
     }
     const r = render(<PlannerEntryDrawer entry={entry} onClose={() => {}} onProtect={onProtect} />)
-    expect(texts(r)).toContain('🛡 Protected')
-    pressByLabel(r, '🛡 Protected, off')
+    // No 🛡 emoji in the UI (design v17 icon rule) — a stroke-shield Icon + plain "Protected".
+    expect(texts(r)).toContain('Protected')
+    expect(texts(r)).not.toContain('🛡')
+    pressByLabel(r, 'Protected, off')
     expect(onProtect).toHaveBeenCalledWith(true)
   })
 
@@ -99,7 +101,7 @@ describe('PlannerEntryDrawer', () => {
       color: '#7c8698',
     }
     const r = render(<PlannerEntryDrawer entry={entry} onClose={() => {}} />)
-    expect(texts(r)).not.toContain('🛡 Protected')
+    expect(texts(r)).not.toContain('Protected')
   })
 
   it('PlannerEntryDrawer_ghost_acceptsTheProposal', () => {
