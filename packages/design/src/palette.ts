@@ -86,6 +86,15 @@ export interface Palette {
    * Part of the "this came from AI, you decide" visual contract (ADR-0005/0034).
    */
   readonly aiInk: string
+  /**
+   * The "life" tone — muted **sage** for the `life` entry type (design v14 §F). Family
+   * and personal blocks share the one timeline but are not projects, so they never wear
+   * a project color; sage keeps them calm and clearly non-work. Theme-independent like
+   * `live`/`ai`. Distinct from `good` (bright status green) on purpose.
+   */
+  readonly life: string
+  /** Soft `life` wash for block fills / the capacity head-trace. */
+  readonly lifeSoft: string
 }
 
 /** The mode-dependent, accent-independent half of a palette. */
@@ -116,6 +125,8 @@ const neutralDark: Neutrals = {
   liveStrong: '#ff5320',
   aiSoft: '#1f1a35',
   aiInk: '#a9a2ff',
+  life: '#8faa8b',
+  lifeSoft: '#1c2620',
 }
 
 const neutralLight: Neutrals = {
@@ -142,6 +153,8 @@ const neutralLight: Neutrals = {
   liveStrong: '#e33e0f',
   aiSoft: '#f3f2fd',
   aiInk: '#4a3fd6',
+  life: '#4f7a52',
+  lifeSoft: '#e9f0e8',
 }
 
 /**

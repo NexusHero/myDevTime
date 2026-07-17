@@ -28,6 +28,11 @@ const NEUTRAL_KEYS: readonly (keyof Palette)[] = [
   'warnSoft',
   'aiSoft',
   'aiInk',
+  'live',
+  'liveSoft',
+  'liveStrong',
+  'life',
+  'lifeSoft',
 ]
 
 const ACCENT_KEYS: readonly (keyof Palette)[] = ['accent', 'accentInk', 'accentText', 'accentSoft']
