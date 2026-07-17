@@ -4,6 +4,7 @@ import {
   dayLoad,
   dropTarget,
   findFreeSlot,
+  cascadeFreeSlots,
   loadTone,
   maxConcurrency,
   plannerBlockRect,
@@ -276,6 +277,55 @@ describe('findFreeSlot', () => {
   it('ReturnsNull_WhenTheDayCannotHoldIt', () => {
     // One block fills all but the last 30 min; a 60-min task can't fit.
     expect(findFreeSlot([{ startMin: 0, lenMin: 570 }], 60, DAY_START, DAY_END)).toBeNull()
+  })
+})
+
+describe('cascadeFreeSlots', () => {
+  const S = 0
+  const E = 600 // 08:00–18:00
+
+  it('PacksTasksIntoTheEarliestDayLeftToRight', () => {
+    // Two empty days, two 60-min tasks: both land on day 0 (earliest wins), stacked.
+    const out = cascadeFreeSlots([60, 60], [[], []], S, E)
+    expect(out).toEqual([
+      { index: 0, day: 0, startMin: 0 },
+      { index: 1, day: 0, startMin: 60 },
+    ])
+  })
+
+  it('OverflowsToTheNextDayWhenTheFirstIsFull', () => {
+    // Day 0 has only 30 free min at the end; a 60-min task spills to day 1.
+    const out = cascadeFreeSlots([60], [[{ startMin: 0, lenMin: 570 }], []], S, E)
+    expect(out).toEqual([{ index: 0, day: 1, startMin: 0 }])
+  })
+
+  it('OmitsTasksThatFitNowhere', () => {
+    // Both days full; the task is dropped (caller keeps it in the inbox).
+    const full = [{ startMin: 0, lenMin: 600 }]
+    expect(cascadeFreeSlots([60], [full, full], S, E)).toEqual([])
+  })
+
+  it('NeverTouchesThePast_ViaNotBeforeByDay', () => {
+    // On day 0, "now" is 300; a 60-min task cannot start before it.
+    const out = cascadeFreeSlots([60], [[], []], S, E, [300, 0])
+    expect(out).toEqual([{ index: 0, day: 0, startMin: 300 }])
+  })
+
+  it('LaterTasksNeverCollideWithEarlierPlacements', () => {
+    const out = cascadeFreeSlots([120, 120, 120, 120, 120, 120], [[], []], S, E)
+    // 5 fit on day 0 (600/120), the 6th spills to day 1 at 0 — none overlap.
+    expect(out).toEqual([
+      { index: 0, day: 0, startMin: 0 },
+      { index: 1, day: 0, startMin: 120 },
+      { index: 2, day: 0, startMin: 240 },
+      { index: 3, day: 0, startMin: 360 },
+      { index: 4, day: 0, startMin: 480 },
+      { index: 5, day: 1, startMin: 0 },
+    ])
+  })
+
+  it('EmptyTaskList_ReturnsNoPlacements', () => {
+    expect(cascadeFreeSlots([], [[], []], S, E)).toEqual([])
   })
 })
 
