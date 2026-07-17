@@ -6,6 +6,7 @@ import {
   type BookedSpan,
   type ShutdownSummary,
   type TimedSpan,
+  type TimesheetDraft,
 } from '@mydevtime/domain'
 
 /**
@@ -35,6 +36,8 @@ export interface TodayShutdownInput {
 
 export interface TodayShutdown {
   readonly summary: ShutdownSummary
+  /** The unbooked stretches as bookable drafts — the KI6 review queue (accept-to-book). */
+  readonly drafts: readonly TimesheetDraft[]
   /** Total time the open drafts would recover if booked. */
   readonly recoveredMs: number
   readonly state: ShutdownState
@@ -57,5 +60,5 @@ export function todayShutdown(input: TodayShutdownInput): TodayShutdown {
   })
   const state: ShutdownState =
     summary.trackedMs === 0 && summary.bookedMs === 0 ? 'idle' : summary.clean ? 'clean' : 'review'
-  return { summary, recoveredMs: drafts.recoveredMs, state }
+  return { summary, drafts: drafts.drafts, recoveredMs: drafts.recoveredMs, state }
 }

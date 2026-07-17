@@ -41,6 +41,20 @@ describe('todayShutdown', () => {
     expect(r.summary.tomorrowFirst).toBe('DEV-42 · Refactor')
   })
 
+  it('ExposesTheDraftListForTheReviewQueue', () => {
+    // Two separate unbooked stretches → two bookable drafts, each carrying its window + source
+    // for the KI6 review-queue (accept-to-book). Booked time between them is subtracted.
+    const spans = [
+      { source: 'figma', startMs: 0, endMs: 1 * HOUR },
+      { source: 'code', startMs: 2 * HOUR, endMs: 4 * HOUR },
+    ]
+    const booked = [{ startMs: 1 * HOUR, endMs: 2 * HOUR }]
+    const r = todayShutdown({ spans, booked, bookedMs: 1 * HOUR, tomorrowFirst: null })
+    expect(r.drafts).toHaveLength(2)
+    expect(r.drafts[0]).toMatchObject({ startMs: 0, endMs: 1 * HOUR, source: 'figma' })
+    expect(r.drafts[1]).toMatchObject({ startMs: 2 * HOUR, endMs: 4 * HOUR, source: 'code' })
+  })
+
   it('ShortUnbookedStretchBelowFloor_doesNotBecomeADraft', () => {
     // Ten minutes of unbooked reality is below the 15-min draft floor — no draft, but the
     // reality is still honestly counted as unbooked.
