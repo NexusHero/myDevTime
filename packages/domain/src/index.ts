@@ -272,6 +272,37 @@ export {
 export type { ExtractedLesson, SeriesProposal } from './photoimport/schedule.js'
 export { toSeriesProposals } from './photoimport/schedule.js'
 
+// Deterministic categorization rules engine (REQ-011, ADR-0005) — ordered, versioned matcher →
+// action; the first matching rule wins, a dry-run previews without applying, and every application
+// records `rule:<id>@<version>` provenance. Pure code, never an LLM — proposals only.
+export type {
+  RuleSubject,
+  RuleMatcher,
+  RuleAction,
+  Rule,
+  RuleMatch,
+  DryRunRow,
+} from './rules/engine.js'
+export { matches, orderedRules, evaluate, dryRun, ruleProvenance } from './rules/engine.js'
+
+// Task effort estimation (REQ-041, ADR-0005) — category + complexity → an hours **range** (no
+// false precision); the user's own number wins with `user` provenance; `estimateVsActual` compares
+// the chosen estimate to tracked reality. Pure; any AI review is assist-only, never mutating.
+export type {
+  TaskComplexity,
+  TaskCategory,
+  EstimateRange,
+  EstimateProvenance,
+  ResolvedEstimate,
+  EstimateVsActual,
+} from './estimating/effort.js'
+export {
+  baselineRange,
+  rangeMidpoint,
+  resolveEstimate,
+  estimateVsActual,
+} from './estimating/effort.js'
+
 // Entitlements — the domain of monetization (REQ-016, ADR-0006/0008). Provider-
 // agnostic plan/state machine; payment providers are adapters layered on later.
 export type {
