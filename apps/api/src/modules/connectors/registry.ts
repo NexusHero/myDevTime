@@ -6,7 +6,8 @@
  * secrets, no network. The concrete client-id/secret and whether a provider is
  * actually configured live in the environment, never here.
  */
-export type ConnectorId = 'github' | 'gitlab' | 'jira' | 'linear' | 'slack' | 'google-calendar'
+export type ConnectorId =
+  'github' | 'gitlab' | 'jira' | 'linear' | 'slack' | 'google-calendar' | 'apple-calendar'
 
 /** What a connector can do; consent is stored per capability (ADR-0033). */
 export type Capability = 'inbound' | 'outbound' | 'capture'
@@ -94,6 +95,19 @@ export const CONNECTORS: readonly ConnectorSpec[] = [
         label: 'Read events',
         scopes: ['https://www.googleapis.com/auth/calendar.readonly'],
       },
+      { capability: CAPTURE, label: 'Events as capture candidates', scopes: [] },
+    ],
+  },
+  {
+    // Apple Calendar (design v17 §F6) — same calendar port, different adapter. Reached over
+    // CalDAV/Sign-in-with-Apple; the live adapter is spike-gated. Read-only by default, and
+    // capture stays consent-first (REQ-025) like every other calendar source.
+    id: 'apple-calendar',
+    label: 'Apple Calendar',
+    category: 'calendar',
+    auth: 'oauth2',
+    capabilities: [
+      { capability: READ, label: 'Read events', scopes: ['calendars.read'] },
       { capability: CAPTURE, label: 'Events as capture candidates', scopes: [] },
     ],
   },
