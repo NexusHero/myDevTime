@@ -311,3 +311,21 @@ export {
   weeklyFocusTrend,
   dailyHoursDistribution,
 } from './insights/balance.js'
+
+// Health & Balance core (REQ-058, design v14 §H) — the binding baseline principle (health
+// signals calibrate to the person's own >4-week norm, never a fixed threshold) plus the
+// honest Balance row (Work / Protected / Free over waking hours). Pure, never a diagnosis.
+export type {
+  Baseline,
+  BaselineBand,
+  BaselineComparison,
+  BaselineOptions,
+  BalanceInput,
+  BalanceRow,
+} from './insights/health.js'
+export {
+  MIN_BASELINE_PERIODS,
+  personalBaseline,
+  compareToBaseline,
+  balanceRow,
+} from './insights/health.js'
