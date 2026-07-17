@@ -20,6 +20,7 @@ import {
 } from '../components/index'
 import { effectiveRate, priceWeek, weekLoadFromMinutes } from '@mydevtime/domain'
 import { useVisibility } from '../roles/RoleContext'
+import { weeklyBalance } from '../reports/balanceRow'
 import { useReports } from '../hooks/useReports'
 import { useRevenueBudget } from '../hooks/useRevenueBudget'
 import { useOvertimeTrend } from '../hooks/useOvertimeTrend'
@@ -758,6 +759,66 @@ export function ReportsScreen(): React.JSX.Element {
           />
         ) : (
           <View style={{ gap: t.spacing.s5 }}>
+            {/* Balance row (design v14 §H): Work / Protected / Free over waking time (H1) + this
+                week vs YOUR OWN normal (H3, never a fixed threshold). Protected is 0 until the
+                life/🛡 persistence lands; the segment grows once that data flows. */}
+            {(() => {
+              const wb = weeklyBalance(trend)
+              if (wb === null) return null
+              const { row, band } = wb
+              const seg = (frac: number, color: string): React.JSX.Element => (
+                <View style={{ flex: Math.max(0, frac), backgroundColor: color }} />
+              )
+              const bandLabel =
+                band === null
+                  ? null
+                  : band.band === 'above'
+                    ? 'above your usual'
+                    : band.band === 'below'
+                      ? 'below your usual'
+                      : 'in your usual range'
+              const bandColor =
+                band?.band === 'above'
+                  ? t.color.warn
+                  : band?.band === 'below'
+                    ? t.color.ink3
+                    : t.color.good
+              return (
+                <View style={{ gap: t.spacing.s2 }} accessibilityRole="summary">
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text
+                      style={{ fontSize: t.fontSize.xs, color: t.color.ink2, fontWeight: '500' }}
+                    >
+                      Balance · work · protected · free
+                    </Text>
+                    {bandLabel !== null && (
+                      <Text style={{ fontSize: t.fontSize['2xs'], color: bandColor }}>
+                        {bandLabel}
+                      </Text>
+                    )}
+                  </View>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      height: 10,
+                      borderRadius: 5,
+                      overflow: 'hidden',
+                      backgroundColor: t.color.sunk,
+                    }}
+                    accessibilityLabel={`Work ${formatDuration(row.workMin * 60_000)}, protected ${formatDuration(row.protectedMin * 60_000)}, free ${formatDuration(row.freeMin * 60_000)} of waking time${bandLabel !== null ? `; this week is ${bandLabel}` : ''}`}
+                  >
+                    {seg(row.workShare, t.color.accent)}
+                    {seg(row.protectedShare, t.color.life)}
+                    {seg(row.freeShare, t.color.ink3)}
+                  </View>
+                  <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
+                    {row.protectedMin === 0
+                      ? 'Protected time appears once you flag life or 🛡 blocks. Assumes 16 waking hours a day.'
+                      : 'Assumes 16 waking hours a day.'}
+                  </Text>
+                </View>
+              )
+            })()}
             {/* Passive signal 1: workload vs the week's target (neutral calm/steady/elevated). */}
             {loadPct !== null ? (
               <LoadMeter label="This week vs your target" value={loadPct} />

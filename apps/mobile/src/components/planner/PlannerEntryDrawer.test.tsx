@@ -76,6 +76,32 @@ describe('PlannerEntryDrawer', () => {
     expect(onDelete).toHaveBeenCalledTimes(1)
   })
 
+  it('PlannerEntryDrawer_protectToggle_firesOnProtect_D14', () => {
+    const onProtect = vi.fn()
+    const entry: DrawerEntry = {
+      kind: 'actual',
+      title: 'Finanzo · API',
+      timeLabel: '11:00–12:30',
+      color: '#1fa894',
+      protected: false,
+    }
+    const r = render(<PlannerEntryDrawer entry={entry} onClose={() => {}} onProtect={onProtect} />)
+    expect(texts(r)).toContain('🛡 Protected')
+    pressByLabel(r, '🛡 Protected, off')
+    expect(onProtect).toHaveBeenCalledWith(true)
+  })
+
+  it('PlannerEntryDrawer_noOnProtect_hidesTheProtectionRow', () => {
+    const entry: DrawerEntry = {
+      kind: 'break',
+      title: 'Lunch',
+      timeLabel: '12:30–13:00',
+      color: '#7c8698',
+    }
+    const r = render(<PlannerEntryDrawer entry={entry} onClose={() => {}} />)
+    expect(texts(r)).not.toContain('🛡 Protected')
+  })
+
   it('PlannerEntryDrawer_ghost_acceptsTheProposal', () => {
     const onAccept = vi.fn()
     const entry: DrawerEntry = {
