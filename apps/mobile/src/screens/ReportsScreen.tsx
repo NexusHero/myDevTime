@@ -17,8 +17,10 @@ import {
   StatTile,
   Tabs,
 } from '../components/index'
+import { effectiveRate } from '@mydevtime/domain'
 import { useReports } from '../hooks/useReports'
 import { useRevenueBudget } from '../hooks/useRevenueBudget'
+import { useOvertimeTrend } from '../hooks/useOvertimeTrend'
 import { useBalance } from '../hooks/useBalance'
 import { useCheckin } from '../hooks/useCheckin'
 import { useTrackingHeatmap } from '../hooks/useTrackingHeatmap'
@@ -347,11 +349,14 @@ export function ReportsScreen(): React.JSX.Element {
       .sort((a, b) => b.ratio - a.ratio)[0] ?? null
   const burndown = useBudgetBurndown(topBudget?.id ?? null)
 
+  const otrend = useOvertimeTrend()
   const data = reports.data
   const trackedMs = data?.totalMs ?? 0
   const revenueMinor = data?.billableMinor ?? 0
   const currencyCode = data?.currencyCode ?? 'EUR'
   const overtimeMs = data?.overtimeMs ?? 0
+  // Effective-rate truth (G2): revenue ÷ ALL tracked hours vs the nominal ÷ billable hours.
+  const eff = effectiveRate(revenueMinor, Math.min(data?.billableMs ?? 0, trackedMs), trackedMs)
   const budgets = data?.budgets ?? []
   const distItems: readonly DistItem[] = (data?.byProject ?? []).map(p => ({
     id: p.id,
@@ -469,6 +474,44 @@ export function ReportsScreen(): React.JSX.Element {
           </View>
         ))}
       </View>
+      {/* Effective-rate truth (G2): what an hour is really worth once unbilled time counts. */}
+      <Card title="What an hour is really worth" subtitle={`${label} · nominal vs effective`}>
+        {trackedMs === 0 ? (
+          <Text style={{ color: t.color.ink2 }}>No tracked time in this period.</Text>
+        ) : (
+          <View style={{ gap: t.spacing.s3 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s3 }}>
+              <View style={{ flexGrow: 1, flexBasis: stacked ? '45%' : 0, minWidth: 150 }}>
+                <StatTile
+                  label="Nominal (billed hours)"
+                  value={
+                    eff.nominalPerHourMinor === null
+                      ? '—'
+                      : `${formatMoneyMinor(eff.nominalPerHourMinor, currencyCode)}/h`
+                  }
+                />
+              </View>
+              <View style={{ flexGrow: 1, flexBasis: stacked ? '45%' : 0, minWidth: 150 }}>
+                <StatTile
+                  label="Effective (all hours)"
+                  value={
+                    eff.effectivePerHourMinor === null
+                      ? '—'
+                      : `${formatMoneyMinor(eff.effectivePerHourMinor, currencyCode)}/h`
+                  }
+                />
+              </View>
+              <View style={{ flexGrow: 1, flexBasis: stacked ? '45%' : 0, minWidth: 150 }}>
+                <StatTile label="Utilization" value={`${String(Math.round(eff.utilization * 100))}%`} />
+              </View>
+            </View>
+            <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>
+              The effective rate divides the same revenue across every tracked hour — billable
+              work, admin and meetings — so it&apos;s the honest number.
+            </Text>
+          </View>
+        )}
+      </Card>
       <Card title="Revenue by client" subtitle={`${label} · hours, billable share, revenue`}>
         {rbLoading ? (
           <Text style={{ color: t.color.ink2 }}>Loading…</Text>
@@ -696,6 +739,31 @@ export function ReportsScreen(): React.JSX.Element {
                 A few more tracked days and the day-length spread appears here.
               </Text>
             )}
+          </View>
+        )}
+      </Card>
+      {/* Overtime compound (G3): the running balance over 8 weeks + a straight-line forecast. */}
+      <Card title="Overtime compound" subtitle="Last 8 weeks · balance & forecast">
+        {otrend.loading && otrend.data === null ? (
+          <Text style={{ color: t.color.ink2 }}>Loading…</Text>
+        ) : otrend.data === null || otrend.data.series.length < 2 ? (
+          <EmptyState
+            title="Not enough weeks yet"
+            hint="A few weeks of tracked work time and your overtime trend, forecast and pattern note appear here."
+            compact
+          />
+        ) : (
+          <View style={{ gap: t.spacing.s3 }}>
+            <Sparkline values={otrend.data.series.map(p => p.balanceMs)} width={300} height={44} />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s3 }}>
+              <View style={{ flexGrow: 1, flexBasis: stacked ? '45%' : 0, minWidth: 150 }}>
+                <StatTile label="Now" value={overtimeLabel(otrend.data.currentMs)} />
+              </View>
+              <View style={{ flexGrow: 1, flexBasis: stacked ? '45%' : 0, minWidth: 150 }}>
+                <StatTile label="Forecast (+4 wk)" value={overtimeLabel(otrend.data.projectedMs)} />
+              </View>
+            </View>
+            <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>{otrend.data.note}</Text>
           </View>
         )}
       </Card>

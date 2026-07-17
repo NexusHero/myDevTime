@@ -28,6 +28,8 @@ import { useAsync, type AsyncResource } from './useAsync.js'
  */
 export interface ReportsData {
   readonly totalMs: number
+  /** Billable tracked time in the window — the denominator of the *nominal* rate. */
+  readonly billableMs: number
   readonly billableMinor: number
   readonly currencyCode: string
   readonly byProject: readonly ReportProject[]
@@ -42,6 +44,7 @@ export interface ReportsResource extends AsyncResource<ReportsData> {
 
 const EMPTY_REPORTS: ReportsData = {
   totalMs: 0,
+  billableMs: 0,
   billableMinor: 0,
   currencyCode: 'EUR',
   byProject: [],
@@ -70,6 +73,7 @@ export function useReports(range: ReportRange = 'week'): ReportsResource {
         for (const project of client.projects) nameById.set(project.id, project.name)
       return {
         totalMs: summary.totalMs,
+        billableMs: summary.billableMs,
         billableMinor: billing.billableMinor,
         currencyCode: billing.currencyCode,
         byProject: toReportProjects(summary, nameById),

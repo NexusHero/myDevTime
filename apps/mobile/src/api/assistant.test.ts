@@ -9,6 +9,7 @@ import type { ReportsData } from '../hooks/useReports.js'
  */
 const DATA: ReportsData = {
   totalMs: 41 * 3_600_000 + 15 * 60_000,
+  billableMs: 32 * 3_600_000,
   billableMinor: 254_000,
   currencyCode: 'EUR',
   overtimeMs: 90 * 60_000,
