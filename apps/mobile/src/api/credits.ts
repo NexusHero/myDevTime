@@ -1,5 +1,5 @@
 import { getJson } from './http.js'
-import { num, nullableStr, parseArray, record, str } from './parse.js'
+import { z } from 'zod'
 
 /**
  * The AI-credit ledger read model for the client (REQ-027): the balance, the
@@ -7,34 +7,33 @@ import { num, nullableStr, parseArray, record, str } from './parse.js'
  * from the deterministic core (ADR-0005). Feature gates read the balance here,
  * never a payment SDK. The client only parses and formats.
  */
-export interface CreditEntry {
-  readonly id: string
-  readonly kind: string
-  readonly amount: number
-  readonly category: string
-  readonly reason: string | null
-  readonly at: string
-}
+export const creditEntrySchema = z.object({
+  id: z.string(),
+  kind: z.string(),
+  amount: z.number(),
+  category: z.string(),
+  reason: z.string().nullable(),
+  at: z.string(),
+})
+export type CreditEntry = z.infer<typeof creditEntrySchema>
 
 export function parseEntry(value: unknown): CreditEntry {
-  const o = record(value)
-  return {
-    id: str(o, 'id'),
-    kind: str(o, 'kind'),
-    amount: num(o, 'amount'),
-    category: str(o, 'category'),
-    reason: nullableStr(o, 'reason'),
-    at: str(o, 'createdAt'),
-  }
+  // mapped from 'createdAt' to 'at'
+  const parsed = creditEntrySchema
+    .omit({ at: true })
+    .and(z.object({ createdAt: z.string() }))
+    .parse(value)
+  return { ...parsed, at: parsed.createdAt }
 }
 
-export interface UsageBucket {
-  readonly category: string
-  readonly credits: number
-}
+export const usageBucketSchema = z.object({
+  category: z.string(),
+  credits: z.number(),
+})
+export type UsageBucket = z.infer<typeof usageBucketSchema>
 
 export function parseUsage(value: unknown): UsageBucket[] {
-  return parseArray(value, o => ({ category: str(o, 'category'), credits: num(o, 'credits') }))
+  return z.array(usageBucketSchema).parse(value)
 }
 
 /** The current credit balance. */
@@ -42,8 +41,8 @@ export async function fetchBalance(
   baseUrl: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<number> {
-  const o = record(await getJson(baseUrl, '/api/billing/credits', fetchImpl))
-  return num(o, 'balance')
+  const res = await getJson(baseUrl, '/api/billing/credits', fetchImpl)
+  return z.object({ balance: z.number() }).parse(res).balance
 }
 
 /** The most recent ledger entries, newest first. */
@@ -52,10 +51,15 @@ export async function fetchLedger(
   limit = 50,
   fetchImpl: typeof fetch = fetch,
 ): Promise<CreditEntry[]> {
-  return parseArray(
-    await getJson(baseUrl, `/api/billing/credits/ledger?limit=${String(limit)}`, fetchImpl),
-    parseEntry,
+  const res = await getJson(
+    baseUrl,
+    `/api/billing/credits/ledger?limit=${String(limit)}`,
+    fetchImpl,
   )
+  return z
+    .array(creditEntrySchema.omit({ at: true }).and(z.object({ createdAt: z.string() })))
+    .parse(res)
+    .map(x => ({ ...x, at: x.createdAt }))
 }
 
 /** Credits spent per category over a window. */

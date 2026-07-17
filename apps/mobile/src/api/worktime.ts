@@ -1,5 +1,5 @@
 import { getJson, postJson } from './http.js'
-import { num, nullableStr, parseArray, record, str } from './parse.js'
+import { z } from 'zod'
 
 /**
  * The worktime read model for the client (REQ-028): parse the overtime balance the
@@ -8,19 +8,15 @@ import { num, nullableStr, parseArray, record, str } from './parse.js'
  * core's (ADR-0005); the client only parses them. `balanceMs` is signed (negative
  * = under target).
  */
-export interface Overtime {
-  readonly workedMs: number
-  readonly targetMs: number
-  readonly balanceMs: number
-}
+export const overtimeSchema = z.object({
+  workedMs: z.number(),
+  targetMs: z.number(),
+  balanceMs: z.number(),
+})
+export type Overtime = z.infer<typeof overtimeSchema>
 
 export function parseOvertime(value: unknown): Overtime {
-  const o = record(value)
-  return {
-    workedMs: num(o, 'workedMs'),
-    targetMs: num(o, 'targetMs'),
-    balanceMs: num(o, 'balanceMs'),
-  }
+  return overtimeSchema.parse(value)
 }
 
 export interface OvertimeRange {
@@ -45,39 +41,24 @@ export async function fetchWorktimeSummary(
  * ArbZG §4 warning (0 while open or compliant). Timestamps stay ISO strings on the
  * wire — the deterministic core owns all duration math (ADR-0005).
  */
-export interface Shift {
-  readonly id: string
-  readonly startedAt: string
-  readonly endedAt: string | null
-  readonly breakMs: number
-  readonly source: string
-  readonly breakShortfallMs: number
-}
+export const shiftSchema = z.object({
+  id: z.string(),
+  startedAt: z.string(),
+  endedAt: z.string().nullable(),
+  breakMs: z.number(),
+  source: z.string(),
+  breakShortfallMs: z.number().default(0),
+})
+export type Shift = z.infer<typeof shiftSchema>
 
 export function parseShift(value: unknown): Shift {
-  const o = record(value)
-  return {
-    id: str(o, 'id'),
-    startedAt: str(o, 'startedAt'),
-    endedAt: nullableStr(o, 'endedAt'),
-    breakMs: num(o, 'breakMs'),
-    source: str(o, 'source'),
-    breakShortfallMs: typeof o.breakShortfallMs === 'number' ? o.breakShortfallMs : 0,
-  }
+  return shiftSchema.parse(value)
 }
 
 /** Parse the running-shift response: a shift, or `null` when clocked out. */
 export function parseRunning(value: unknown): Shift | null {
   if (value === null || value === undefined) return null
-  const o = record(value)
-  return {
-    id: str(o, 'id'),
-    startedAt: str(o, 'startedAt'),
-    endedAt: nullableStr(o, 'endedAt'),
-    breakMs: num(o, 'breakMs'),
-    source: str(o, 'source'),
-    breakShortfallMs: 0,
-  }
+  return shiftSchema.parse(value)
 }
 
 export interface ShiftWindow {
@@ -100,7 +81,8 @@ export async function listShifts(
   fetchImpl: typeof fetch = fetch,
 ): Promise<Shift[]> {
   const qs = new URLSearchParams({ from: window.from, to: window.to }).toString()
-  return parseArray(await getJson(baseUrl, `/api/worktime/shifts?${qs}`, fetchImpl), parseShift)
+  const res = await getJson(baseUrl, `/api/worktime/shifts?${qs}`, fetchImpl)
+  return z.array(shiftSchema).parse(res)
 }
 
 /** Clock in (open a shift). */

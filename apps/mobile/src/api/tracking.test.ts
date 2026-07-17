@@ -91,8 +91,8 @@ describe('DTO parsers', () => {
   })
 
   it('MalformedPayload_Throws', () => {
-    expect(() => parseClients([{ id: 5, name: 'A' }])).toThrow('expected string field "id"')
-    expect(() => parseProjects('nope')).toThrow('expected an array')
+    expect(() => parseClients([{ id: 5, name: 'A' }])).toThrow(/invalid/i)
+    expect(() => parseProjects('nope')).toThrow(/invalid/i)
   })
 
   it('parseProject_SingleRow_ReturnsDto', () => {

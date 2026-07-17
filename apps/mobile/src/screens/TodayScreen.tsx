@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Platform, Pressable, ScrollView, TextInput, View, useWindowDimensions } from 'react-native'
 import { formatDuration, projectColor } from '@mydevtime/design'
 import type { LoadLevel, TimesheetDraft } from '@mydevtime/domain'
@@ -599,6 +599,14 @@ export function TodayScreen(): React.JSX.Element {
   // gesture; closing it is local to this session (no fabricated state).
   const [dayClosed, setDayClosed] = useState(false)
   const todayEntries = useTodayEntries()
+  const reload = todayEntries.reload
+
+  useEffect(() => {
+    if (timer.lastSync > 0) {
+      reload()
+    }
+  }, [timer.lastSync, reload])
+
   const todaySpans = loadDaySpans(localDayKey(Date.now()))
   const shutdown = todayShutdown({
     spans: todaySpans,

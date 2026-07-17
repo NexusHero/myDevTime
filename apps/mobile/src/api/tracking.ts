@@ -1,5 +1,5 @@
 import { getJson, postJson } from './http.js'
-import { nullableStr, parseArray, str } from './parse.js'
+import { z } from 'zod'
 import type { Client, Project, Task } from '../screens/projectsData'
 
 /**
@@ -10,43 +10,37 @@ import type { Client, Project, Task } from '../screens/projectsData'
  * structure + rates, while budget/spent figures come from the billing/aggregation
  * endpoints in a later slice (so those read `0` here and the screen degrades).
  */
-export interface ClientDTO {
-  readonly id: string
-  readonly name: string
-}
-export interface ProjectDTO {
-  readonly id: string
-  readonly name: string
-  readonly clientId: string | null
-  readonly hourlyRateOverride: string | null
-  readonly fixedFeeMinor: number | null
-}
-export interface TaskDTO {
-  readonly id: string
-  readonly name: string
-  readonly projectId: string
-  readonly archived: boolean
-}
+export const clientDtoSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+})
+export type ClientDTO = z.infer<typeof clientDtoSchema>
+
+export const projectDtoSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  clientId: z.string().nullable().catch(null).default(null),
+  hourlyRateOverride: z.string().nullable().catch(null).default(null),
+  fixedFeeMinor: z.number().nullable().catch(null).default(null),
+})
+export type ProjectDTO = z.infer<typeof projectDtoSchema>
+
+export const taskDtoSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  projectId: z.string(),
+  archived: z.boolean().default(false),
+})
+export type TaskDTO = z.infer<typeof taskDtoSchema>
 
 export function parseClients(value: unknown): ClientDTO[] {
-  return parseArray(value, o => ({ id: str(o, 'id'), name: str(o, 'name') }))
+  return z.array(clientDtoSchema).parse(value)
 }
 export function parseProjects(value: unknown): ProjectDTO[] {
-  return parseArray(value, o => ({
-    id: str(o, 'id'),
-    name: str(o, 'name'),
-    clientId: nullableStr(o, 'clientId'),
-    hourlyRateOverride: nullableStr(o, 'hourlyRateOverride'),
-    fixedFeeMinor: typeof o.fixedFeeMinor === 'number' ? o.fixedFeeMinor : null,
-  }))
+  return z.array(projectDtoSchema).parse(value)
 }
 export function parseTasks(value: unknown): TaskDTO[] {
-  return parseArray(value, o => ({
-    id: str(o, 'id'),
-    name: str(o, 'name'),
-    projectId: str(o, 'projectId'),
-    archived: o.archived === true,
-  }))
+  return z.array(taskDtoSchema).parse(value)
 }
 
 /** Parse a single project row (the create-project response). */

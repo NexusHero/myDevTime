@@ -1,5 +1,5 @@
 import { getJson, postJson } from './http.js'
-import { num, nullableStr, parseArray, record, str } from './parse.js'
+import { z } from 'zod'
 
 /**
  * The absences read model for the client (REQ-029): parse leave ranges and the
@@ -8,47 +8,33 @@ import { num, nullableStr, parseArray, record, str } from './parse.js'
  * so range checks are exact lexicographic string comparisons. The balance numbers
  * are the deterministic core's (ADR-0005); the client only parses and formats.
  */
-export type AbsenceKind = 'vacation' | 'sick' | 'holiday' | 'other'
+export const absenceKindSchema = z.enum(['vacation', 'sick', 'holiday', 'other'])
+export type AbsenceKind = z.infer<typeof absenceKindSchema>
 
-export interface Absence {
-  readonly id: string
-  readonly kind: AbsenceKind
-  readonly startDate: string
-  readonly endDate: string
-  readonly halfDay: boolean
-  readonly note: string | null
-}
-
-const KINDS: readonly AbsenceKind[] = ['vacation', 'sick', 'holiday', 'other']
+export const absenceSchema = z.object({
+  id: z.string(),
+  kind: absenceKindSchema.catch('other'),
+  startDate: z.string(),
+  endDate: z.string(),
+  halfDay: z.boolean().default(false),
+  note: z.string().nullable(),
+})
+export type Absence = z.infer<typeof absenceSchema>
 
 export function parseAbsence(value: unknown): Absence {
-  const o = record(value)
-  const kind = str(o, 'kind')
-  return {
-    id: str(o, 'id'),
-    kind: (KINDS as readonly string[]).includes(kind) ? (kind as AbsenceKind) : 'other',
-    startDate: str(o, 'startDate'),
-    endDate: str(o, 'endDate'),
-    halfDay: o.halfDay === true,
-    note: nullableStr(o, 'note'),
-  }
+  return absenceSchema.parse(value)
 }
 
-export interface VacationBalance {
-  readonly allowanceDays: number
-  readonly carryOverDays: number
-  readonly usedDays: number
-  readonly remainingDays: number
-}
+export const vacationBalanceSchema = z.object({
+  allowanceDays: z.number(),
+  carryOverDays: z.number(),
+  usedDays: z.number(),
+  remainingDays: z.number(),
+})
+export type VacationBalance = z.infer<typeof vacationBalanceSchema>
 
 export function parseBalance(value: unknown): VacationBalance {
-  const o = record(value)
-  return {
-    allowanceDays: num(o, 'allowanceDays'),
-    carryOverDays: num(o, 'carryOverDays'),
-    usedDays: num(o, 'usedDays'),
-    remainingDays: num(o, 'remainingDays'),
-  }
+  return vacationBalanceSchema.parse(value)
 }
 
 /** List absences overlapping `[from, to]` (inclusive `YYYY-MM-DD` dates). */
@@ -58,7 +44,8 @@ export async function listAbsences(
   fetchImpl: typeof fetch = fetch,
 ): Promise<Absence[]> {
   const qs = new URLSearchParams({ from: range.from, to: range.to }).toString()
-  return parseArray(await getJson(baseUrl, `/api/absences?${qs}`, fetchImpl), parseAbsence)
+  const res = await getJson(baseUrl, `/api/absences?${qs}`, fetchImpl)
+  return z.array(absenceSchema).parse(res)
 }
 
 /** The vacation-allowance balance for a calendar year. */
