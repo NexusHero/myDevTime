@@ -27,7 +27,7 @@ import { useTrackReminder } from '../hooks/useTrackReminder'
 import { useForgottenTimer } from '../hooks/useForgottenTimer'
 import { usePomodoro } from '../focus/PomodoroContext'
 import { useAutoTracker } from '../autotracker/useAutoTracker'
-import { NlQuickAdd } from './NlQuickAdd'
+import { SmartAdd } from './SmartAdd'
 import { useCatalog } from './useCatalog'
 import { findProject } from './projectsData'
 
@@ -814,7 +814,7 @@ export function TodayScreen(): React.JSX.Element {
 
         {askMood && <MoodCheck onDone={() => setAskMood(false)} />}
 
-        <NlQuickAdd />
+        <SmartAdd />
 
         <View
           style={{
