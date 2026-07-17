@@ -32,6 +32,10 @@ import { apiBaseUrl } from '../config'
 import { createSeries } from '../api/recurrence'
 import { occurrencesToBlocks, type RecurringBlock } from '../planner/recurring'
 import { useWeekOccurrences } from '../hooks/useWeekOccurrences'
+import { useMonthOccurrences } from '../hooks/useMonthOccurrences'
+import { buildMonthDays, buildYearMonths } from '../planner/calendarMonth'
+import { PlannerMonth } from '../components/planner/PlannerMonth'
+import { PlannerYear } from '../components/planner/PlannerYear'
 import { Text } from '../components/core/Text'
 import {
   AICallout,
@@ -1566,6 +1570,32 @@ export function PlannerScreen(): React.JSX.Element {
     START_HOUR,
   ).filter(rb => inLayer(rb.kind, layer))
 
+  // Month/Year (Kalender) views (design v18 PlannerViews): the shown month/year is the real
+  // current one; occurrences over the whole window are fetched (empty without an API → honest
+  // empty calendar) and shaped by the pure `buildMonthDays`/`buildYearMonths`. The daily target
+  // seeds the day-load bar. Events (holidays/absences) are wired in a later slice — none for now.
+  const calNow = new Date()
+  const calYear = calNow.getFullYear()
+  const calMonth0 = calNow.getMonth()
+  const calToday = calNow.getDate()
+  const pad2 = (n: number): string => String(n).padStart(2, '0')
+  const monthDim = new Date(calYear, calMonth0 + 1, 0).getDate()
+  const calFrom =
+    view === 'Month'
+      ? `${String(calYear)}-${pad2(calMonth0 + 1)}-01`
+      : view === 'Year'
+        ? `${String(calYear)}-01-01`
+        : ''
+  const calTo =
+    view === 'Month'
+      ? `${String(calYear)}-${pad2(calMonth0 + 1)}-${pad2(monthDim)}`
+      : view === 'Year'
+        ? `${String(calYear)}-12-31`
+        : ''
+  const calOccurrences = useMonthOccurrences(calFrom, calTo).data ?? []
+  const shownCalOccurrences = calOccurrences.filter(o => inLayer(o.kind, layer))
+  const DAILY_TARGET_HOURS = 8.33
+
   return (
     <View style={{ flex: 1 }}>
       <ScrollView
@@ -1947,6 +1977,30 @@ export function PlannerScreen(): React.JSX.Element {
               Co-Planner proposals.
             </Text>
           </>
+        )}
+
+        {/* Month view (design v18 PlannerViews): tasks = filled chips (project color + priority
+            dot), events = hollow banners that never count, day-load bar vs the daily target. Real
+            occurrences; an empty month renders an honest empty grid. */}
+        {view === 'Month' && (
+          <PlannerMonth
+            year={calYear}
+            month0={calMonth0}
+            today={calToday}
+            days={buildMonthDays(shownCalOccurrences, [], { year: calYear, month0: calMonth0 })}
+            targetHours={DAILY_TARGET_HOURS}
+          />
+        )}
+
+        {/* Year view (design v18 PlannerViews): twelve month cards with planned hours + a
+            five-week intensity strip; the current month wears a live-orange border. */}
+        {view === 'Year' && (
+          <PlannerYear
+            months={buildYearMonths(shownCalOccurrences, [], {
+              year: calYear,
+              nowMonth0: calMonth0,
+            })}
+          />
         )}
       </ScrollView>
       <PlannerEntryDrawer
