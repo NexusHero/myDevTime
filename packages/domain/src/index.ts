@@ -84,6 +84,18 @@ export type {
 export { buildTimesheet } from './reporting/timesheet.js'
 export type { ProjectSummary, WorkspaceSummary, SummaryOptions } from './reporting/summary.js'
 export { summarizeEntries } from './reporting/summary.js'
+// AI standup / summary (REQ-014, ADR-0005) — the deterministic report with **protected numeric
+// slots** the LLM narrates around but may never change; `renderStandupPlain` is the AI-free
+// degradation, `slotsPreserved` verifies a draft kept every number (slot integrity).
+export type { StandupLine, StandupInput, StandupReport } from './reporting/standup.js'
+export {
+  buildStandup,
+  formatHm,
+  standupSlots,
+  slotsPreserved,
+  renderStandupPlain,
+  msToHours,
+} from './reporting/standup.js'
 export type {
   ProjectCost,
   BillingBreakdown,
