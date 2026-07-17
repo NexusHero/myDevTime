@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useCallback } from 'react'
 
 /**
  * The async-resource hook — now a thin adapter over **TanStack Query** (ADR-0047).
@@ -30,8 +31,8 @@ export function useAsync<T>(fn: () => Promise<T>, key: string): AsyncResource<T>
     loading: query.isPending,
     error,
     data: query.data ?? null,
-    reload: () => {
+    reload: useCallback(() => {
       void query.refetch()
-    },
+    }, [query.refetch]),
   }
 }

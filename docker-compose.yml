@@ -53,7 +53,7 @@ services:
       NODE_ENV: production
       AUTH_SECRET: dev-insecure-secret-not-for-production-use-only-32chars
       AUTH_BASE_URL: http://localhost:8080
-      TRUSTED_ORIGINS: http://localhost:8080
+      TRUSTED_ORIGINS: http://localhost:8080,http://localhost:8081,http://192.168.1.121:8081
     depends_on:
       postgres:
         condition: service_healthy
@@ -68,7 +68,7 @@ services:
       PORT: 3000
       NODE_ENV: production
       AUTH_SECRET: dev-insecure-secret-not-for-production-use-only-32chars
-      TRUSTED_ORIGINS: http://localhost:8080
+      TRUSTED_ORIGINS: http://localhost:8080,http://localhost:8081,http://192.168.1.121:8081
       AUTH_BASE_URL: http://localhost:8080
       # The API sits behind the web container's nginx, so trust its X-Forwarded-* for the
       # rate limiter's client IP (ADR-0050). Never enable when the API is directly reachable.
