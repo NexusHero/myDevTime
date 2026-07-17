@@ -45,8 +45,11 @@ export interface SmartParseOptions {
 
 const CLOCK_RANGE_RE = /\b(\d{1,2}):(\d{2})\s*(?:[-–—]|bis|to|till|until)\s*(\d{1,2}):(\d{2})\b/i
 const TIME_OF_DAY_RE = /(?:\b(?:at|um|ab|von|gegen)\s+|@\s*)(\d{1,2}):(\d{2})\b/i
-const HOURS_RE = /(\d+(?:[.,]\d+)?)\s*(?:stunden|stunde|hours|hour|hrs|hr|std|h)\b/gi
-const MINUTES_RE = /(\d+)\s*(?:minuten|minute|minutes|mins|min|m)\b/gi
+// Digit runs are bounded (no real duration needs 5+ digits) so the optional-decimal
+// group can't backtrack polynomially on a long run of digits with no trailing unit
+// (CodeQL ReDoS-hardening; a duration is small by construction).
+const HOURS_RE = /(\d{1,4}(?:[.,]\d{1,2})?)\s*(?:stunden|stunde|hours|hour|hrs|hr|std|h)\b/gi
+const MINUTES_RE = /(\d{1,4})\s*(?:minuten|minute|minutes|mins|min|m)\b/gi
 const TICKET_RE = /\b([A-Z][A-Z0-9]+-\d+)\b/
 
 /** Weekday names → their index (Mon=0). Used to resolve "on Friday". */
