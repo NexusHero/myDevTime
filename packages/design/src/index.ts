@@ -77,6 +77,8 @@ export {
   maxConcurrency,
   snapDurationMin,
   findFreeSlot,
+  cascadeFreeSlots,
+  type FillPlacement,
   dropTarget,
   type BlockRect,
   type DropTarget,
