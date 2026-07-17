@@ -248,6 +248,17 @@ export { estimateFromHistory } from './estimating/quote.js'
 export type { MeetingNotesOptions } from './meetings/notes.js'
 export { meetingNotesFacts, looksLikeAction } from './meetings/notes.js'
 
+// Recurring entries (REQ-060, design v17 §F4) — a core feature for every entry type. A rule
+// (none/daily-weekdays/weekly/monthly + end never/until/count) expands to occurrence dates over
+// a window; editing "this vs the series from here" splits it the Outlook way. Pure (ADR-0005).
+export type { RecurrenceFreq, RecurrenceEnd, RecurrenceRule } from './recurrence/recur.js'
+export {
+  expandRecurrence,
+  isOccurrence,
+  truncateBefore,
+  describeRecurrence,
+} from './recurrence/recur.js'
+
 // Entitlements — the domain of monetization (REQ-016, ADR-0006/0008). Provider-
 // agnostic plan/state machine; payment providers are adapters layered on later.
 export type {
