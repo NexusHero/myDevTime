@@ -183,6 +183,8 @@ export type {
   SummarizeOptions,
 } from './autotracker/activity.js'
 export { summarizeActivity } from './autotracker/activity.js'
+export type { TimedSpan, BookedSpan, RealityGap, RealityOptions } from './autotracker/reality.js'
+export { trackedMs, realityDrift, detectUnbookedGap } from './autotracker/reality.js'
 
 // Focus streak + workload balance (REQ-032, ADR-0012) — deterministic wellbeing
 // signals over real tracked time (ADR-0005). The balance level is a neutral
