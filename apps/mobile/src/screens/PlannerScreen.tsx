@@ -23,6 +23,7 @@ import {
 import { ContextBanner, type ContextBannerProps } from '../components/planner/ContextBanner'
 import { priceWeekFromBlocks } from '../planner/weekPrice'
 import { weekCapacityFromBlocks } from '../planner/capacityTrace'
+import { inLayer, PLANNER_LAYERS, type PlannerLayer } from '../planner/layer'
 import { Text } from '../components/core/Text'
 import {
   AICallout,
@@ -1211,6 +1212,10 @@ export function PlannerScreen(): React.JSX.Element {
   // number (KW) — no prev/next affordance that changes a counter but not the data.
   const week = CURRENT_WEEK
   const [view, setView] = useState<'Week' | 'Month' | 'Year'>('Week')
+  // Work / Life / Both layer filter (design v17 §F6.5). One person, one timeline:
+  // work and life share the calendar, and this filter only changes what is *shown*,
+  // never what exists — capacity and price still read the full block set below.
+  const [layer, setLayer] = useState<PlannerLayer>('both')
   // The week canvas blocks are local, resizable state (design v6 A1) — dragging a
   // block's bottom edge commits a new 15-min-snapped duration. Demo data for now.
   const [blocks, setBlocks] = useState<readonly CanvasBlock[]>(DEMO_BLOCKS)
@@ -1448,6 +1453,43 @@ export function PlannerScreen(): React.JSX.Element {
     )
   }
 
+  // Work / Life / Both filter pills (design v17 §F6.5). Default "Both"; a solo user who
+  // never adds a life entry sees the same canvas either way.
+  const LAYER_LABEL: Record<PlannerLayer, string> = { both: 'Both', work: 'Work', life: 'Life' }
+  const layerChip = (value: PlannerLayer): React.JSX.Element => {
+    const active = layer === value
+    return (
+      <Pressable
+        key={value}
+        onPress={() => setLayer(value)}
+        accessibilityRole="button"
+        accessibilityLabel={`Layer: ${LAYER_LABEL[value]}`}
+        style={{
+          paddingVertical: 4,
+          paddingHorizontal: 12,
+          borderRadius: t.radius.pill,
+          borderWidth: 1,
+          borderColor: active ? t.color.accent : t.color.border,
+          backgroundColor: active ? t.color.accentSoft : t.color.surface,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: t.fontSize['2xs'],
+            fontWeight: '600',
+            color: active ? t.color.accentText : t.color.ink2,
+          }}
+        >
+          {LAYER_LABEL[value]}
+        </Text>
+      </Pressable>
+    )
+  }
+
+  // Only the *shown* blocks are filtered by the layer; the full `blocks` set still
+  // feeds capacity and price so the numbers never lie about what exists.
+  const shownBlocks = blocks.filter(b => inLayer(b.kind, layer))
+
   return (
     <View style={{ flex: 1 }}>
       <ScrollView
@@ -1552,6 +1594,11 @@ export function PlannerScreen(): React.JSX.Element {
             >
               ● Reality
             </Button>
+          )}
+          {view === 'Week' && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s1 }}>
+              {PLANNER_LAYERS.map(layerChip)}
+            </View>
           )}
           <Button size="sm">
             {view === 'Year' ? 'Plan year' : view === 'Month' ? 'Plan month' : 'Plan week'}
@@ -1776,7 +1823,7 @@ export function PlannerScreen(): React.JSX.Element {
                             day={day}
                             index={di}
                             flex={false}
-                            blocks={blocks}
+                            blocks={shownBlocks}
                             colWidth={COL_WIDTH}
                             onResizeBlock={resizeBlock}
                             onMoveBlock={moveBlock}
@@ -1800,7 +1847,7 @@ export function PlannerScreen(): React.JSX.Element {
                           day={day}
                           index={di}
                           flex
-                          blocks={blocks}
+                          blocks={shownBlocks}
                           colWidth={colWidth}
                           onResizeBlock={resizeBlock}
                           onMoveBlock={moveBlock}

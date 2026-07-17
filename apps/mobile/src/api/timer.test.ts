@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  createEntry,
   entryDurationMs,
   formatStopwatch,
   getRunning,
@@ -94,6 +95,35 @@ describe('stopTimer', () => {
     const entry = await stopTimer('http://api', undefined, fetchImpl)
     expect(entry.endedAt).toBe('2026-07-10T10:00:00.000Z')
     expect(calls[0]?.method).toBe('POST')
+  })
+})
+
+describe('createEntry', () => {
+  it('PostsAManualEntryOverAnExplicitWindowAndReturnsIt', async () => {
+    const booked = {
+      ...RUNNING,
+      id: 'e2',
+      startedAt: '2026-07-10T13:00:00.000Z',
+      endedAt: '2026-07-10T14:00:00.000Z',
+      source: 'manual',
+      note: 'figma',
+    }
+    const { fetchImpl, calls } = jsonFetch(201, booked)
+    const entry = await createEntry(
+      'http://api',
+      { startedAt: booked.startedAt, endedAt: booked.endedAt, note: 'figma' },
+      fetchImpl,
+    )
+    expect(entry.id).toBe('e2')
+    expect(entry.endedAt).toBe('2026-07-10T14:00:00.000Z')
+    expect(calls[0]?.method).toBe('POST')
+    expect(calls[0]?.body).toBe(
+      JSON.stringify({
+        startedAt: booked.startedAt,
+        endedAt: booked.endedAt,
+        note: 'figma',
+      }),
+    )
   })
 })
 

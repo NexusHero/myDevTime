@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Platform, Pressable, ScrollView, TextInput, View, useWindowDimensions } from 'react-native'
 import { formatDuration, projectColor } from '@mydevtime/design'
-import type { LoadLevel } from '@mydevtime/domain'
+import type { LoadLevel, TimesheetDraft } from '@mydevtime/domain'
+import { apiBaseUrl } from '../config'
+import { createEntry } from '../api/timer'
 import { Text } from '../components/core/Text'
 import { useTheme } from '../theme/ThemeProvider'
 import {
@@ -27,6 +29,9 @@ import { useTrackReminder } from '../hooks/useTrackReminder'
 import { useForgottenTimer } from '../hooks/useForgottenTimer'
 import { usePomodoro } from '../focus/PomodoroContext'
 import { useAutoTracker } from '../autotracker/useAutoTracker'
+import { loadDaySpans, localDayKey } from '../autotracker/dayActivityStore'
+import { useTodayEntries } from '../hooks/useTodayEntries'
+import { todayShutdown } from '../today/shutdown'
 import { SmartAdd } from './SmartAdd'
 import { TravelEntry } from './TravelEntry'
 import { useCatalog } from './useCatalog'
@@ -43,6 +48,13 @@ function hhmm(min: number): string {
 /** An ISO instant as local `HH:MM` (for the forgotten-timer "since …" label). */
 function clockTime(iso: string): string {
   const d = new Date(iso)
+  const p = (n: number): string => String(n).padStart(2, '0')
+  return `${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+/** A millisecond instant as local `HH:MM` (the KI6 draft window labels). */
+function clockFromMs(ms: number): string {
+  const d = new Date(ms)
   const p = (n: number): string => String(n).padStart(2, '0')
   return `${p(d.getHours())}:${p(d.getMinutes())}`
 }
@@ -579,6 +591,195 @@ export function TodayScreen(): React.JSX.Element {
     </Card>
   )
 
+  // Feierabend / shutdown ritual (REQ-063, design v17 §K5): the honest day-close. It reads only
+  // real state — today's booked entries (`useTodayEntries`, empty without an API) and the local
+  // Auto-Tracker reality history — and the deterministic `shutdownSummary` core owns every figure
+  // (ADR-0005). On a day with nothing tracked or booked there is nothing to close (`idle`), so the
+  // card stays hidden; it appears only once real work exists. The `git commit` line is the ritual
+  // gesture; closing it is local to this session (no fabricated state).
+  const [dayClosed, setDayClosed] = useState(false)
+  const todayEntries = useTodayEntries()
+  const todaySpans = loadDaySpans(localDayKey(Date.now()))
+  const shutdown = todayShutdown({
+    spans: todaySpans,
+    booked: todayEntries.booked,
+    bookedMs: todayEntries.bookedMs,
+    tomorrowFirst: null,
+  })
+
+  // KI6 "your day, already written" (REQ-062, design v17 §K/KI6): the Auto-Tracker's unbooked
+  // reality stretches become a review queue of **bookable drafts**. Accepting one books the
+  // tracked time as a real manual entry over its window (deterministic — ADR-0005); the project
+  // and an AI-phrased title are a later step, never auto-applied. The queue only shows when a
+  // real API is configured (booking must actually persist) and the tracker has captured drafts.
+  const [booking, setBooking] = useState(false)
+  const bookDraft = async (d: TimesheetDraft): Promise<void> => {
+    if (apiBaseUrl === null) return
+    setBooking(true)
+    try {
+      await createEntry(apiBaseUrl, {
+        startedAt: new Date(d.startMs).toISOString(),
+        endedAt: new Date(d.endMs).toISOString(),
+        note: d.source,
+      })
+      todayEntries.reload()
+    } finally {
+      setBooking(false)
+    }
+  }
+  const bookAllDrafts = async (): Promise<void> => {
+    if (apiBaseUrl === null) return
+    setBooking(true)
+    try {
+      for (const d of shutdown.drafts) {
+        await createEntry(apiBaseUrl, {
+          startedAt: new Date(d.startMs).toISOString(),
+          endedAt: new Date(d.endMs).toISOString(),
+          note: d.source,
+        })
+      }
+      todayEntries.reload()
+    } finally {
+      setBooking(false)
+    }
+  }
+  const reviewCard =
+    !todayEntries.live || shutdown.drafts.length === 0 ? null : (
+      <Card title="Review your tracked day" subtitle="Drafts from the Auto-Tracker — you book them">
+        <View style={{ gap: t.spacing.s3 }}>
+          {shutdown.drafts.map(d => (
+            <View
+              key={`${String(d.startMs)}-${String(d.endMs)}`}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: t.spacing.s3,
+              }}
+            >
+              <View style={{ flex: 1, minWidth: 160 }}>
+                <Text style={{ fontSize: t.fontSize.sm, fontWeight: '600', color: t.color.ink }}>
+                  {d.source}
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: t.fontFamily.numeric,
+                    fontSize: t.fontSize.xs,
+                    color: t.color.ink2,
+                    marginTop: 2,
+                  }}
+                >
+                  {`${clockFromMs(d.startMs)}–${clockFromMs(d.endMs)} · ${formatDuration(d.durationMs)} h`}
+                </Text>
+              </View>
+              <Button size="sm" disabled={booking} onPress={() => void bookDraft(d)}>
+                Book
+              </Button>
+            </View>
+          ))}
+        </View>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: t.spacing.s3,
+            marginTop: t.spacing.s4,
+          }}
+        >
+          <Text
+            style={{ flex: 1, fontSize: t.fontSize['2xs'], color: t.color.ink3, minWidth: 160 }}
+          >
+            {`${formatDuration(shutdown.recoveredMs)} h of tracked time to recover. Booked as-is — assign a project (and let AI title them) after.`}
+          </Text>
+          {shutdown.drafts.length > 1 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={booking}
+              onPress={() => void bookAllDrafts()}
+            >
+              {`Book all · ${String(shutdown.drafts.length)}`}
+            </Button>
+          )}
+        </View>
+      </Card>
+    )
+  const shutdownCard =
+    dayClosed || shutdown.state === 'idle' ? null : (
+      <Card title="Close the day" subtitle="Feierabend">
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s5 }}>
+          <View>
+            <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>Booked</Text>
+            <Text
+              style={{
+                fontFamily: t.fontFamily.numeric,
+                fontSize: t.fontSize.lg,
+                fontWeight: '600',
+                color: t.color.ink,
+              }}
+            >
+              {`${formatDuration(shutdown.summary.bookedMs)} h`}
+            </Text>
+          </View>
+          <View>
+            <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
+              Tracked reality
+            </Text>
+            <Text
+              style={{
+                fontFamily: t.fontFamily.numeric,
+                fontSize: t.fontSize.lg,
+                fontWeight: '600',
+                color: t.color.ink,
+              }}
+            >
+              {`${formatDuration(shutdown.summary.trackedMs)} h`}
+            </Text>
+          </View>
+          {shutdown.summary.unbookedMs > 0 && (
+            <View>
+              <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>Still open</Text>
+              <Text
+                style={{
+                  fontFamily: t.fontFamily.numeric,
+                  fontSize: t.fontSize.lg,
+                  fontWeight: '600',
+                  color: t.color.live,
+                }}
+              >
+                {`${formatDuration(shutdown.summary.unbookedMs)} h`}
+              </Text>
+            </View>
+          )}
+        </View>
+        <Text
+          style={{
+            fontSize: t.fontSize.xs,
+            color: t.color.ink2,
+            lineHeight: 18,
+            marginTop: t.spacing.s3,
+          }}
+        >
+          {shutdown.state === 'clean'
+            ? 'Everything you tracked is booked — the day is fully accounted for. Feierabend.'
+            : shutdown.summary.openDraftCount > 0
+              ? `${String(shutdown.summary.openDraftCount)} draft${shutdown.summary.openDraftCount === 1 ? '' : 's'} to book (${formatDuration(shutdown.recoveredMs)} h of tracked reality). Open the Planner to review and book them — nothing is booked for you.`
+              : 'Some tracked reality is still unbooked. Open the Planner to book it before you close the day.'}
+        </Text>
+        {shutdown.summary.tomorrowFirst !== null && (
+          <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, marginTop: t.spacing.s2 }}>
+            {`Tomorrow starts with ${shutdown.summary.tomorrowFirst}.`}
+          </Text>
+        )}
+        <View style={{ flexDirection: 'row', marginTop: t.spacing.s4 }}>
+          <Button size="sm" onPress={() => setDayClosed(true)}>
+            {'git commit -m "Feierabend"'}
+          </Button>
+        </View>
+      </Card>
+    )
+
   // Forgotten-tracking proposal card (REQ-033): evidence is the running timer's own
   // runtime; the user confirms Stop / Trim / Keep — nothing auto-corrects. Bound to
   // locals so the trim handler narrows the (non-null) proposal + run cleanly.
@@ -834,6 +1035,9 @@ export function TodayScreen(): React.JSX.Element {
             {autoTracker}
           </View>
         </View>
+
+        {reviewCard}
+        {shutdownCard}
       </ScrollView>
     </View>
   )
