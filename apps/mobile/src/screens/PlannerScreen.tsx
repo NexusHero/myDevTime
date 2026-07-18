@@ -54,6 +54,7 @@ import { TaskInbox } from '../components/planner/TaskInbox'
 import { PlannerEntryDrawer, type DrawerEntry } from '../components/planner/PlannerEntryDrawer'
 import { PlannerViewMenu } from '../components/planner/PlannerViewMenu'
 import { PlannerStartPicker } from '../components/planner/PlannerStartPicker'
+import { PlannerDayTracker } from '../components/planner/PlannerDayTracker'
 import { useTheme } from '../theme/ThemeProvider'
 import { usePlanner } from '../hooks/usePlanner'
 import { usePreferences } from '../hooks/usePreferences'
@@ -1262,7 +1263,9 @@ export function PlannerScreen(): React.JSX.Element {
   // The canvas always shows the real current week; the header labels its ISO week
   // number (KW) — no prev/next affordance that changes a counter but not the data.
   const week = CURRENT_WEEK
-  const [view, setView] = useState<'Week' | 'Month' | 'Year'>('Week')
+  // The Planner opens on the **Day** stage (design v20: "Today" is the day view of the calendar);
+  // Week/Month/Year zoom out from it. Today stays its own route too — this only adds the Day zoom.
+  const [view, setView] = useState<'Day' | 'Week' | 'Month' | 'Year'>('Day')
   // Work / Life / Both layer filter (design v17 §F6.5). One person, one timeline:
   // work and life share the calendar, and this filter only changes what is *shown*,
   // never what exists — capacity and price still read the full block set below.
@@ -1287,6 +1290,9 @@ export function PlannerScreen(): React.JSX.Element {
   // One day column's on-screen width, measured from the columns row, so a horizontal
   // drag maps to whole-day steps. Falls back to the fixed width on the phone canvas.
   const [colWidth, setColWidth] = useState(COL_WIDTH)
+  // The Day view renders a single full-width column; its measured width drives the same
+  // drag mapping the week uses (design v20 Day stage).
+  const [dayColW, setDayColW] = useState(COL_WIDTH)
   const resizeBlock = (globalIndex: number, lenMin: number): void =>
     setBlocks(bs => bs.map((b, i) => (i === globalIndex ? { ...b, len: lenMin } : b)))
   const moveBlock = (globalIndex: number, day: number, startMin: number): void =>
@@ -1705,6 +1711,7 @@ export function PlannerScreen(): React.JSX.Element {
           <View style={{ maxWidth: 260, minWidth: 200, flexGrow: 1 }}>
             <SegmentedControl
               segments={[
+                { value: 'Day', label: 'Day' },
                 { value: 'Week', label: 'Week' },
                 { value: 'Month', label: 'Month' },
                 { value: 'Year', label: 'Year' },
@@ -1782,7 +1789,13 @@ export function PlannerScreen(): React.JSX.Element {
             />
           )}
           <Button size="sm">
-            {view === 'Year' ? 'Plan year' : view === 'Month' ? 'Plan month' : 'Plan week'}
+            {view === 'Year'
+              ? 'Plan year'
+              : view === 'Month'
+                ? 'Plan month'
+                : view === 'Day'
+                  ? 'Plan day'
+                  : 'Plan week'}
           </Button>
         </View>
 
@@ -1840,6 +1853,49 @@ export function PlannerScreen(): React.JSX.Element {
                   />
                 </View>
               </View>
+            )
+          })()}
+
+        {view === 'Day' &&
+          (() => {
+            // "Today" is the day stage of the Planner (design v20): the tracker row starts the
+            // shared timer, and one full-width DayColumn shows the day's plan + reality on the same
+            // 08–18 canvas the week uses — same blocks, same deterministic geometry (ADR-0005), so
+            // nothing is duplicated or mocked. Today (in another visible day) falls back to column 0.
+            const dayIdx = weekDays.findIndex(d => d.today === true)
+            const dayI = dayIdx >= 0 ? dayIdx : 0
+            const day = weekDays[dayI]
+            if (day === undefined) return null
+            return (
+              <>
+                <PlannerDayTracker clients={catalog.data ?? []} />
+                <Card padding={false} style={{ alignSelf: 'stretch' }}>
+                  <View style={{ flexDirection: 'row' }}>
+                    <HourGutter />
+                    <View
+                      style={{ flex: 1 }}
+                      onLayout={e => {
+                        const w = e.nativeEvent.layout.width
+                        if (w > 0) setDayColW(w)
+                      }}
+                    >
+                      <DayColumn
+                        day={day}
+                        index={dayI}
+                        flex
+                        blocks={shownBlocks}
+                        recurring={recurringBlocks}
+                        colWidth={dayColW}
+                        onResizeBlock={resizeBlock}
+                        onMoveBlock={moveBlock}
+                        onOpenBlock={setOpenIndex}
+                        showReality={showReality}
+                      />
+                    </View>
+                  </View>
+                </Card>
+                <Legend />
+              </>
             )
           })()}
 
