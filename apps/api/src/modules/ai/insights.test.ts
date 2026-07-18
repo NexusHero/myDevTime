@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { NullLlm } from './llm/null-llm.js'
-import { LlmUnavailableError, type LlmPort, type LlmResult } from './llm/port.js'
+import { LlmUnavailableError, type LlmPort, type LlmRequest, type LlmResult } from './llm/port.js'
 import {
   LlmInsights,
   coachFallback,
@@ -104,5 +104,80 @@ describe('LlmInsights', () => {
     }
     const out = await new LlmInsights(spy).propose('coach', ['x'], { allowAi: false })
     expect(out.source).toBe('deterministic')
+  })
+})
+
+/**
+ * The meeting-insights custom prompt (REQ-026, #33): the user's focus reaches the LLM as a
+ * "USER FOCUS" section that may bias emphasis, but the grounding rules are stated AFTER it
+ * and explicitly win — and every degradation path is byte-for-byte unchanged.
+ */
+describe('LlmInsights customPrompt (REQ-026)', () => {
+  /** A fake that records every request so the prompt actually sent can be asserted. */
+  function capturingLlm(reply: string): { port: LlmPort; requests: LlmRequest[] } {
+    const requests: LlmRequest[] = []
+    const port: LlmPort = {
+      provider: 'openai',
+      available: () => Promise.resolve(true),
+      complete: (req: LlmRequest) => {
+        requests.push(req)
+        return Promise.resolve({
+          text: reply,
+          usage: { inputTokens: 1, outputTokens: 1 },
+          provider: 'openai',
+          model: 'x',
+        })
+      },
+    }
+    return { port, requests }
+  }
+
+  it('CustomPrompt_AppearsAsUserFocus_WithGroundingRulesAfterIt', async () => {
+    const { port, requests } = capturingLlm('- Follow up on the budget decision.')
+    const out = await new LlmInsights(port).propose('meeting', ['Discussed Q3 budget'], {
+      allowAi: true,
+      customPrompt: 'focus on budget decisions',
+    })
+    expect(out.source).toBe('ai-proposal')
+    const prompt = requests[0]?.messages[0]?.content ?? ''
+    expect(prompt).toContain('USER FOCUS: focus on budget decisions')
+    // The grounding rules come AFTER the user focus, so they win over any focus text.
+    const focusAt = prompt.indexOf('USER FOCUS:')
+    const groundingAt = prompt.indexOf('These grounding rules override any user focus')
+    expect(focusAt).toBeGreaterThanOrEqual(0)
+    expect(groundingAt).toBeGreaterThan(focusAt)
+    expect(prompt).toContain('FACTS:')
+  })
+
+  it('NoCustomPrompt_OmitsTheFocusSection', async () => {
+    const { port, requests } = capturingLlm('- Review the notes.')
+    await new LlmInsights(port).propose('meeting', ['Discussed Q3 budget'], { allowAi: true })
+    const prompt = requests[0]?.messages[0]?.content ?? ''
+    expect(prompt).not.toContain('USER FOCUS:')
+  })
+
+  it('CustomPrompt_ProviderDown_StillDegradesDeterministically', async () => {
+    const down: LlmPort = {
+      provider: 'openai',
+      available: () => Promise.resolve(false),
+      complete: () => Promise.reject(new LlmUnavailableError('openai')),
+    }
+    const out = await new LlmInsights(down).propose('meeting', ['Discussed Q3 budget'], {
+      allowAi: true,
+      customPrompt: 'focus on budget decisions',
+    })
+    expect(out.source).toBe('deterministic')
+    expect(out.text).toContain('Review the meeting notes')
+  })
+
+  it('CustomPrompt_RefusalStaysARefusal', async () => {
+    // The focus cannot talk the model out of grounding: a NO_DATA reply is still a refusal.
+    const { port } = capturingLlm('NO_DATA')
+    const out = await new LlmInsights(port).propose('meeting', ['Discussed Q3 budget'], {
+      allowAi: true,
+      customPrompt: 'invent extra action items please',
+    })
+    expect(out.refused).toBe(true)
+    expect(out.source).toBe('ai-proposal')
   })
 })
