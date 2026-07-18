@@ -5,21 +5,25 @@ import TestRenderer from 'react-test-renderer'
 import { ScrollView } from 'react-native'
 import { TodayScreen } from './TodayScreen.js'
 import { ThemeProvider } from '../theme/ThemeProvider.js'
+import { ToastProvider } from '../components/core/Toast.js'
 import { TimerProvider } from '../timer/TimerContext.js'
 import { PomodoroProvider } from '../focus/PomodoroContext.js'
 import { TestQueryProvider } from '../test/TestQueryProvider.js'
 
 function render(): TestRenderer.ReactTestRenderer {
-  // Today reads the shared timer + Pomodoro via context and its NL quick-add loads the
-  // catalog through TanStack Query, so it renders inside all providers.
+  // Today reads the shared timer + Pomodoro via context, confirms start/stop through the
+  // Toast context (design v20), and its NL quick-add loads the catalog through TanStack
+  // Query, so it renders inside all providers.
   return TestRenderer.create(
     <TestQueryProvider>
       <ThemeProvider>
-        <TimerProvider>
-          <PomodoroProvider>
-            <TodayScreen />
-          </PomodoroProvider>
-        </TimerProvider>
+        <ToastProvider>
+          <TimerProvider>
+            <PomodoroProvider>
+              <TodayScreen />
+            </PomodoroProvider>
+          </TimerProvider>
+        </ToastProvider>
       </ThemeProvider>
     </TestQueryProvider>,
   )

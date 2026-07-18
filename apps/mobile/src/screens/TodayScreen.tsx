@@ -5,6 +5,7 @@ import type { LoadLevel, TimesheetDraft } from '@mydevtime/domain'
 import { apiBaseUrl } from '../config'
 import { createEntry } from '../api/timer'
 import { Text } from '../components/core/Text'
+import { useToast } from '../components/core/Toast'
 import { useTheme } from '../theme/ThemeProvider'
 import {
   AICallout,
@@ -108,6 +109,19 @@ export function TodayScreen(): React.JSX.Element {
   // widget (design v4 / OLBI rationale). Set on punch-out, cleared by the row itself.
   const [askMood, setAskMood] = useState(false)
   const timer = useTimerContext()
+  const toast = useToast()
+  // Design v20 confirmations: starting and stopping the hero tracker lands a
+  // transient toast. The wrappers only add feedback — the punch behaviour (and the
+  // mood prompt on stop) is unchanged. English copy (UI is English-only).
+  const startTracking = (input?: Parameters<typeof timer.punchIn>[0]): void => {
+    timer.punchIn(input)
+    toast.show('Timer running.')
+  }
+  const stopTracking = (): void => {
+    const tracked = timer.elapsed // snapshot before the optimistic clear
+    timer.punchOut()
+    toast.show(`Timer stopped — ${tracked} tracked.`)
+  }
   // The running entry's real project (resolved from the live catalog by its id) —
   // the hero chip binds to it and renders nothing when there is no running project.
   const catalog = useCatalog()
@@ -365,11 +379,11 @@ export function TodayScreen(): React.JSX.Element {
         <Pressable
           onPress={() => {
             if (active) {
-              timer.punchOut()
+              stopTracking()
               setAskMood(true)
             } else {
               const note = task.trim()
-              timer.punchIn(note ? { note } : undefined)
+              startTracking(note ? { note } : undefined)
               setTask('')
               setAskMood(false)
             }
@@ -1009,7 +1023,7 @@ export function TodayScreen(): React.JSX.Element {
               </Text>
             </View>
             <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
-              <Button size="sm" onPress={() => timer.punchIn()}>
+              <Button size="sm" onPress={() => startTracking()}>
                 Start timer
               </Button>
               <Button size="sm" variant="ghost" onPress={reminder.dismiss}>
