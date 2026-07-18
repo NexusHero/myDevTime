@@ -3,6 +3,7 @@ import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import type { Priority } from '@mydevtime/design'
 import { Text } from '../core/Text'
 import { Button, Input, SegmentedControl } from '../index'
+import { useModalFocus } from '../core/useModalFocus'
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
@@ -85,6 +86,8 @@ export function PlannerNewEntryDialog({
   const [estHours, setEstHours] = useState(1)
   const [addingProject, setAddingProject] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
+  // Focus management (REQ-043): on open, keyboard focus moves into the dialog (web).
+  const panelRef = useModalFocus(visible)
 
   if (!visible) return null
 
@@ -154,7 +157,9 @@ export function PlannerNewEntryDialog({
         }}
       />
       <View
+        ref={panelRef}
         accessibilityViewIsModal
+        tabIndex={-1}
         style={{
           position: 'absolute',
           top: 12,

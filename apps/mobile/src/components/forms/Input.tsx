@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { TextInput, View } from 'react-native'
 import { Text } from '../core/Text'
+import { focusRingStyle } from '../core/focusRing'
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
@@ -61,6 +62,9 @@ export function Input({
           color: t.color.ink,
           fontFamily: mono ? t.fontFamily.numeric : t.fontFamily.ui,
           fontSize: t.fontSize.sm,
+          // Visible keyboard focus (REQ-043): the web-only accent ring rides the
+          // same focus state that already drives the accent border.
+          ...focusRingStyle(t, focused),
         }}
       />
       {error !== undefined && (

@@ -2,6 +2,7 @@ import { Platform, Pressable, View, useWindowDimensions } from 'react-native'
 import { Text } from '../core/Text'
 import { Badge, Icon, IconButton } from '../index'
 import { AssistantConversation } from './AssistantConversation'
+import { useModalFocus } from '../core/useModalFocus'
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
@@ -20,6 +21,8 @@ export function AssistantOverlay({
 }): React.JSX.Element | null {
   const t = useTheme()
   const { width } = useWindowDimensions()
+  // Focus management (REQ-043): on open, keyboard focus moves into the sheet (web).
+  const panelRef = useModalFocus(open)
   if (!open) return null
 
   const panelWidth = Math.min(560, width - 24)
@@ -42,7 +45,9 @@ export function AssistantOverlay({
         }}
       />
       <View
+        ref={panelRef}
         accessibilityViewIsModal
+        tabIndex={-1}
         style={{
           position: 'absolute',
           top: 12,

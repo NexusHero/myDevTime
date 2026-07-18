@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { Text } from '../core/Text'
+import { focusRingStyle } from '../core/focusRing'
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
@@ -23,16 +25,25 @@ export function Switch({
   accessibilityLabel,
 }: SwitchProps): React.JSX.Element {
   const t = useTheme()
+  const [focused, setFocused] = useState(false)
   return (
     <Pressable
       onPress={() => onChange?.(!checked)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       // A `switch` role requires `aria-checked`, which react-native-web does not
       // emit from `accessibilityState` — so axe fails it (REQ-043). Present it as a
       // button and fold the on/off state into the accessible name instead.
       accessibilityRole="button"
       accessibilityState={{ checked }}
       accessibilityLabel={`${accessibilityLabel ?? label ?? 'toggle'}, ${checked ? 'on' : 'off'}`}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s3 }}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: t.spacing.s3,
+        // Visible keyboard focus (REQ-043): web-only accent ring, no unfocused change.
+        ...focusRingStyle(t, focused),
+      }}
     >
       <View
         style={{

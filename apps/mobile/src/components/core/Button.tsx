@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Pressable, type ViewStyle } from 'react-native'
 import { Text } from './Text'
 import type { Theme } from '@mydevtime/design'
+import { focusRingStyle } from './focusRing'
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
@@ -39,6 +41,7 @@ export function Button({
   onPress,
 }: ButtonProps): React.JSX.Element {
   const t = useTheme()
+  const [focused, setFocused] = useState(false)
   const c = variantColors(t)[variant]
   const padV = size === 'sm' ? 6 : size === 'lg' ? 12 : 9
   const padH = size === 'sm' ? 14 : size === 'lg' ? 22 : 18
@@ -57,11 +60,15 @@ export function Button({
     borderColor: c.border,
     backgroundColor: c.bg,
     opacity: disabled ? 0.5 : pressed ? 0.85 : 1,
+    // Visible keyboard focus (REQ-043): a web-only accent ring, no unfocused change.
+    ...focusRingStyle(t, focused),
   })
 
   return (
     <Pressable
       onPress={() => onPress?.()}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={children}

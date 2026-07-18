@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { Pressable, View, type ViewStyle } from 'react-native'
 import { Text } from '../core/Text'
+import { focusRingStyle } from '../core/focusRing'
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
@@ -19,6 +21,7 @@ interface RowProps {
 
 export function Row({ title, subtitle, leading, trailing, onPress }: RowProps): React.JSX.Element {
   const t = useTheme()
+  const [focused, setFocused] = useState(false)
 
   const body = (
     <>
@@ -50,9 +53,16 @@ export function Row({ title, subtitle, leading, trailing, onPress }: RowProps): 
   return (
     <Pressable
       onPress={onPress}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       accessibilityRole="button"
       accessibilityLabel={title}
-      style={({ pressed }) => ({ ...layout, opacity: pressed ? 0.6 : 1 })}
+      style={({ pressed }) => ({
+        ...layout,
+        opacity: pressed ? 0.6 : 1,
+        // Visible keyboard focus (REQ-043): web-only accent ring, no unfocused change.
+        ...focusRingStyle(t, focused),
+      })}
     >
       {body}
     </Pressable>
