@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar'
 import { useFonts } from 'expo-font'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from '../src/theme/ThemeProvider'
+import { ToastProvider } from '../src/components/core/Toast'
 import { ShellChrome } from '../src/shell/ShellChrome'
 import { BrandSplash, hasPlayedSplash } from '../src/components/canvas/BrandSplash'
 import { AuthGate } from '../src/shell/AuthGate'
@@ -70,17 +71,19 @@ export default function RootLayout(): React.JSX.Element | null {
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
             <StatusBar style="auto" />
-            <AuthGate>
-              <OnboardingGate>
-                <RoleProvider>
-                  <TimerProvider>
-                    <PomodoroProvider>
-                      <ShellChrome />
-                    </PomodoroProvider>
-                  </TimerProvider>
-                </RoleProvider>
-              </OnboardingGate>
-            </AuthGate>
+            <ToastProvider>
+              <AuthGate>
+                <OnboardingGate>
+                  <RoleProvider>
+                    <TimerProvider>
+                      <PomodoroProvider>
+                        <ShellChrome />
+                      </PomodoroProvider>
+                    </TimerProvider>
+                  </RoleProvider>
+                </OnboardingGate>
+              </AuthGate>
+            </ToastProvider>
             {!splashDone && <BrandSplash onDone={() => setSplashDone(true)} />}
           </ThemeProvider>
         </QueryClientProvider>

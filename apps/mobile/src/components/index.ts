@@ -7,6 +7,7 @@
  */
 // Core
 export { Text } from './core/Text'
+export { ToastProvider, useToast } from './core/Toast'
 export { Button } from './core/Button'
 export { IconButton } from './core/IconButton'
 export { Badge } from './core/Badge'
