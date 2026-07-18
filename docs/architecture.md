@@ -44,6 +44,11 @@ explain, and assist — with recorded provenance — but never act as the bookke
 personal workspace, native macOS/watchOS apps, screen-time/app-usage surveillance tracking,
 integration marketplace, multi-currency workspaces, 2FA/passkeys.
 
+The user-facing goals behind these requirements — actors, use cases, and a use-case overview
+diagram mapped back to the `REQ-NNN` register — are collected in
+[use-cases.md](use-cases.md). This document is the architecture view; that one is the use-case view
+over the same Requirements Register.
+
 **Essential functional requirements:**
 
 | # | Requirement |
@@ -243,10 +248,63 @@ External actors and systems at 1.0:
 | Apple App Store / Google Play | App distribution + IAP subscriptions + server notifications (REQ-018, REQ-023) |
 | Google / Apple / GitHub identity | OAuth sign-in (REQ-002) |
 
+### System context (C4 level 1)
+
+The whole system and its external actors at a glance. The clients and the API are one product
+boundary; everything a dashed edge crosses is a volatile third party reached through a single
+narrow adapter (ports & adapters, process skill §2.2), so a vendor can be swapped or degrade to a
+Null adapter without touching the core.
+
+```mermaid
+flowchart TB
+    user["User<br/>(phone · tablet · browser)"]
+    subgraph sys["myDevTime"]
+        clients["Clients<br/>React Native + Expo<br/>(iOS · Android · Web)"]
+        api["API<br/>NestJS module-per-domain<br/>on Fastify + PostgreSQL"]
+        clients -->|"HTTPS · JSON (RFC 7807)<br/>Better-Auth cookie session"| api
+    end
+    idp["Identity providers<br/>Google · Apple · GitHub"]
+    cal["Calendars<br/>Google · Microsoft 365"]
+    llm["LLM provider(s)"]
+    asr["ASR / meeting capture<br/>(Meet · Teams · Zoom)"]
+    stripe["Stripe"]
+    stores["App Store · Google Play"]
+
+    user --> clients
+    api -.->|"OAuth sign-in (REQ-002)"| idp
+    api -.->|"read-only events → candidates (REQ-010)"| cal
+    api -.->|"proposals · NL · summaries · insights (REQ-012/025)"| llm
+    api -.->|"audio/captions → transcript (REQ-025)"| asr
+    api -.->|"checkout · portal · webhooks (REQ-017)"| stripe
+    clients -.->|"IAP subscriptions (REQ-018/023)"| stores
+```
+
 ## Technical Context {#_technical_context}
 
-_Fill in (deployment topology, protocols, webhook endpoints) once the backend skeleton
-([#3](https://github.com/NexusHero/myDevTime/issues/3)) lands._
+**Deployment topology.** Two containers plus a database: the **web client** (`apps/mobile`
+built for `react-native-web`, served as a static PWA) and the **API** (`apps/api`, NestJS on the
+Fastify adapter) in front of **PostgreSQL** (managed instance; Drizzle migrations, ADR-0015). The
+native iOS/Android apps are the same codebase shipped through EAS to the stores and talk to the
+same API. A reverse proxy terminates TLS; `trustProxy` is configured so rate-limiting and the
+request-id hook see the real client (ADR-0016 / REQ-019/021).
+
+**Protocols.** All app↔API traffic is HTTPS JSON. Success bodies are plain JSON; errors are
+RFC 7807 `problem+json` from the global `ProblemDetailsFilter`. Requests are validated by a global
+`nestjs-zod` `ZodValidationPipe`, and the same Zod schemas generate the **OpenAPI** spec at
+`/docs`. Sessions are Better-Auth cookies (`credentials: 'include'`); every non-public route runs
+behind the shared `AuthGuard`. Every response carries an `x-request-id` for tracing (REQ-021).
+
+**Endpoints & egress.**
+- **Inbound webhook:** `POST /api/billing/webhook` — Stripe events; verified against the raw
+  request bytes (the app is created with `rawBody: true`), never the parsed body (REQ-017).
+- **OAuth callbacks:** `GET /api/connectors/:id/callback` — the calendar connect flow (REQ-010);
+  Better-Auth owns the sign-in callbacks under `/api/auth/*` (REQ-002).
+- **Operational:** `GET /health` (liveness) and `GET /health/ready` (readiness — real DB ping,
+  503 when degraded, REQ-021).
+- **Outbound (all env-gated, each behind one adapter, degrade gracefully):** LLM provider
+  (`LlmPort`), ASR (`TranscriptionPort`), Google Calendar (OAuth + events), Stripe API, and the
+  dev-tool export targets (`ExportTargetPort` → Jira/Linear/Slack). Unconfigured providers resolve
+  to their Null adapter, so the system runs — honestly degraded — with no third party wired.
 
 ---
 
@@ -273,6 +331,40 @@ A boundary test forbids cross-module internal imports: a module may reference on
 public surface — its `contract.ts` (types + the re-exported `AuthGuard`/`CurrentUser`) and its
 `<name>.module.ts` (the DI entry point it lists in `imports:` to consume exported providers).
 
+### Container view (C4 level 2)
+
+The runnable pieces and the dependencies between them. The clients and API are separate deployables;
+`packages/domain` is the pure, framework-free core every server module delegates its arithmetic to
+(ADR-0005); vendor SDKs live only behind the ports on the right. The per-module component (C4 L3)
+breakdown lives in [architecture-subsystems.md](architecture-subsystems.md).
+
+```mermaid
+flowchart LR
+    subgraph clients["Clients — apps/mobile (Expo, RN + RN-Web)"]
+        ui["Screens · hooks · api-clients"]
+    end
+    subgraph api["API — apps/api (NestJS on Fastify)"]
+        edge["Edge: AuthGuard · ZodValidationPipe · ProblemDetailsFilter · rate-limit"]
+        mods["Domain modules<br/>auth · tracking · worktime · absences<br/>planner · automation · ai · billing · connectors"]
+        edge --> mods
+    end
+    subgraph pkgs["Shared packages"]
+        domain["packages/domain<br/>pure core · ≥90% cov · no I/O"]
+        shared["packages/shared<br/>branded ids · schemas"]
+        design["packages/design<br/>tokens · theme · nav"]
+    end
+    db[("PostgreSQL<br/>Drizzle · db module only")]
+    ports["Ports → adapters<br/>LlmPort · TranscriptionPort<br/>ExportTargetPort · Calendar · Stripe"]
+
+    ui -->|"HTTPS JSON · cookie"| edge
+    ui -.-> shared
+    ui -.-> design
+    mods --> domain
+    mods --> shared
+    mods -->|"drizzle (db module)"| db
+    mods -.->|"vendor-confined"| ports
+```
+
 ```
 apps/api  (NestJS on the Fastify adapter — module-per-domain, ADR-0025)
   ├─ main.ts → app.ts (buildApp)        compose config → db → Nest app → listen
@@ -283,8 +375,9 @@ apps/api  (NestJS on the Fastify adapter — module-per-domain, ADR-0025)
   ├─ /api/absences    absences         leave ranges · vacation policy & balance · holiday calendars (REQ-029)
   ├─ /api/planner     planner          versioned day plans · Co-Planner proposals (REQ-031)
   ├─ (sync module removed — online-only, ADR-0049; deterministic conflict engine kept dormant in packages/domain)
-  ├─ /api/automation  automation       calendar ingestion + deterministic rules (REQ-010/011)
-  ├─ /api/ai          ai               LLM/ASR assist — proposals only (ADR-0005)
+  ├─ /api/automation  automation       deterministic categorization rules — dry-run + apply (REQ-011)
+  ├─ /api/connectors  connectors       OAuth token vault + consent · Google Calendar ingestion via calendarsync (REQ-010/034)
+  ├─ /api/ai          ai               LLM/ASR assist + dev-tool export — proposals only (ADR-0005)
   └─ /api/billing     billing          rates · budgets · invoicing/Abrechnung (ADR-0051) · entitlements + credit ledger + Stripe rail (ADR-0006/0008)
 packages/domain   pure deterministic core (time math, budgets, rules) — no I/O, ≥90% coverage
 packages/shared   branded id types & schemas shared with the clients
@@ -334,6 +427,155 @@ sequenceDiagram
     S->>DB: COMMIT
     S-->>API: new running entry
     API-->>C: 201 entry
+```
+
+## Restore a running or paused timer across restart (REQ-004/007)
+
+The server is authoritative for the running segment; the client-only session (banked total + paused
+context) is persisted locally through the `KvStorage` seam (localStorage on web, AsyncStorage on
+native). On start the hook **waits for local hydration** before reconciling, or the async native
+read could race and erase a paused session.
+
+```mermaid
+sequenceDiagram
+    participant U as useTimer (client)
+    participant KV as KvStorage (local)
+    participant API as tracking module
+    U->>API: GET /entries/timer/running
+    U->>KV: timerSessionReady() (await hydration)
+    KV-->>U: banked total + paused context
+    API-->>U: running entry (or none)
+    U->>U: reconcileTimer(server, local) → restored session
+```
+
+## AI categorization proposal → user confirms (REQ-012, ADR-0005/0008)
+
+The LLM only **proposes** a project (strictly out of the caller's known projects — never invented);
+a credit is debited once and only when the AI actually produced a proposal. Nothing is booked until
+the user taps Apply, which goes through the ordinary tracking route and stamps `ai-proposal`
+provenance.
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant AI as ai module
+    participant BILL as billing (credit ledger)
+    participant LLM as LlmPort
+    participant TR as tracking module
+    C->>AI: POST /api/ai/categorize {items, knownProjects}
+    AI->>BILL: balanceFor(ws) — affordable?
+    AI->>LLM: complete(prompt)  [only if affordable]
+    LLM-->>AI: raw JSON → parsed, project canonicalised vs knownProjects
+    AI->>BILL: debit 1 credit  [only if a real proposal]
+    AI-->>C: proposals (source: ai-proposal | none)
+    C->>TR: PATCH /entries/:id {projectId}  [on user Apply]
+    TR-->>C: entry (provenance = ai-proposal)
+```
+
+## Deterministic rules — dry-run then apply (REQ-011, ADR-0005)
+
+Dry-run previews what the pure engine would propose over a batch of entries and **writes nothing**;
+the engine, not the service, decides every match. The user applies proposals through the same
+tracking route, which records `rule:<id>@<version>` provenance.
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant AU as automation module
+    participant ENG as domain rules engine (pure)
+    participant DB as Postgres
+    C->>AU: POST /api/automation/rules/dry-run {subjects}
+    AU->>DB: SELECT rules WHERE workspace = ws
+    AU->>ENG: dryRun(subjects, rules)
+    ENG-->>AU: proposed match per subject (no writes)
+    AU-->>C: preview rows
+    C->>C: user reviews, applies chosen proposals (via tracking PATCH)
+```
+
+## Connect Google Calendar via OAuth (REQ-010)
+
+Authorize builds the provider URL with a signed state that binds the callback to the caller; the
+callback verifies the state, exchanges the code, and seals the tokens into the AEAD vault —
+preserving the stored refresh token when Google omits one on a reconnect.
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant CON as connectors module
+    participant G as Google OAuth
+    participant V as token vault (DB, sealed)
+    C->>CON: GET /connectors/google-calendar/authorize
+    CON-->>C: { url } with signed state
+    C->>G: user consents
+    G-->>C: redirect ?code&state
+    C->>CON: GET /connectors/:id/callback?code&state
+    CON->>CON: verify state (else 400)
+    CON->>G: exchange code for tokens
+    CON->>V: seal tokens (keep stored refresh if omitted)
+    CON-->>C: connected
+```
+
+## Meeting: consent → transcribe → confirmed action items (REQ-025/026, ADR-0005)
+
+No capture path exists without stored, explicit consent. The transcript comes through the
+`TranscriptionPort` (Null adapter when no ASR is configured); insights and action items are
+**proposals**, and a task is created only on the user's confirmation through the ordinary tracking
+route.
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant AI as ai module
+    participant ASR as TranscriptionPort
+    participant DOM as domain (meetings core)
+    participant TR as tracking module
+    C->>AI: request insights (meeting)
+    AI->>AI: consent stored? (else stop — nothing captured)
+    AI->>ASR: transcribe(audio)  [consented only]
+    ASR-->>AI: transcript segments (or Null → unavailable)
+    AI->>DOM: planMeetingInsights(transcript)
+    DOM-->>AI: facts + action-item proposals
+    AI-->>C: insights (proposals)
+    C->>TR: POST /tracking/tasks  [on user confirm]
+```
+
+## Invoice from a timesheet (REQ-005/009, ADR-0051)
+
+Every figure on the invoice is computed by the pure pricing/timesheet core from the recorded
+entries; the invoice persists the **frozen** numbers, and the PDF renders those — the AI is nowhere
+near a billable number.
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant B as billing module
+    participant DOM as domain (timesheet + pricing)
+    participant DB as Postgres
+    C->>B: POST /api/billing/invoices {clientId, period}
+    B->>DB: read entries + effective rates
+    B->>DOM: buildTimesheet → priceInvoice (integer money)
+    DOM-->>B: line items + totals (deterministic)
+    B->>DB: INSERT invoice (frozen figures)
+    B-->>C: invoice; GET .../pdf renders the frozen numbers
+```
+
+## Dev-tool export is idempotent (REQ-035)
+
+Posting an item is its confirmation; the recorded ledger feeds the seen-set so a re-run never
+double-posts, and an unconfigured target records an honest `unavailable` rather than failing.
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant EX as ai/export controller
+    participant L as export_records (ledger, DB)
+    participant T as ExportTargetPort (Jira/Linear/Slack | Null)
+    C->>EX: POST /api/ai/export/run {target, items}
+    EX->>L: sentKeys(target, ws) — already exported?
+    EX->>T: send(item)  [only fresh, confirmed items]
+    T-->>EX: external id/url | unavailable | failed
+    EX->>L: record outcome per dedupeKey (sent rows immutable)
+    EX-->>C: outcomes (re-run is a no-op for sent keys)
 ```
 
 ---
