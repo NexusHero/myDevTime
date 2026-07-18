@@ -99,6 +99,17 @@ export interface OAuthTokenSet {
   readonly scopes: readonly string[]
 }
 
+/**
+ * The refresh token to seal when re-authorizing: the freshly-issued one, or — when the provider
+ * omits it (Google does not re-issue a refresh token on a repeat authorization-code exchange) —
+ * the one already stored. Without this a reconnect/consent-change would overwrite a still-valid
+ * refresh token with `null`, and once the access token expired the connection would silently
+ * degrade to unavailable. `freshAccessToken` applies the same rule on its refresh path.
+ */
+export function preserveRefreshToken(fresh: string | null, stored: string | null): string | null {
+  return fresh ?? stored
+}
+
 // The provider's wire shape (RFC 6749 §5.1) — confined to this file.
 const tokenResponseSchema = z.object({
   access_token: z.string().min(1),

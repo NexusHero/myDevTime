@@ -13,7 +13,7 @@ import {
 } from './connectors.dto.js'
 import { isConnectorId, type ConnectorId } from './registry.js'
 import { grantedCapabilities, revokeAllGrants, setGrant } from './consent.js'
-import { deleteToken, hasToken, putToken } from './vault.js'
+import { deleteToken, getToken, hasToken, putToken } from './vault.js'
 import { signState, verifyState } from './crypto.js'
 import { buildAuthorizeUrl, connectorStatuses, isConfigured } from './service.js'
 import {
@@ -22,6 +22,7 @@ import {
   freshAccessToken,
   masterKeyFromEnv,
   oauthClient,
+  preserveRefreshToken,
   redirectUriFor,
   tokenEndpoint,
   vaultTokenStore,
@@ -186,17 +187,16 @@ export class ConnectorsController {
       code: query.code,
       redirectUri: flow.redirectUri,
     })
-    await putToken(
-      db,
-      flow.masterKey,
-      { workspaceId, userId, connector: params.id },
-      {
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        expiresAt: tokens.expiresAt,
-        scopes: tokens.scopes,
-      },
-    )
+    const key = { workspaceId, userId, connector: params.id }
+    // Google omits refresh_token on a repeat authorization-code exchange (reconnect / consent
+    // change). Keep the stored one so a still-valid refresh token is never overwritten with null.
+    const existing = await getToken(db, flow.masterKey, key)
+    await putToken(db, flow.masterKey, key, {
+      accessToken: tokens.accessToken,
+      refreshToken: preserveRefreshToken(tokens.refreshToken, existing?.refreshToken ?? null),
+      expiresAt: tokens.expiresAt,
+      scopes: tokens.scopes,
+    })
     return connectorStatuses(db, { workspaceId, userId }, process.env)
   }
 
