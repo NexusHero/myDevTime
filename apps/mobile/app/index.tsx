@@ -1,6 +1,9 @@
 import { Redirect } from 'expo-router'
 
-/** The app opens on Today (ux-vision §3). `/` redirects to the canonical `/today`. */
+/**
+ * The app opens on the **Planner** — the calendar is the stage (design v20, `main.jsx` default
+ * screen = planner). `/` redirects to the canonical `/planner`.
+ */
 export default function Index(): React.JSX.Element {
-  return <Redirect href="/today" />
+  return <Redirect href="/planner" />
 }

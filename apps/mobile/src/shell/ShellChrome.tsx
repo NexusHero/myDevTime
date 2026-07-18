@@ -65,7 +65,9 @@ export function ShellChrome(): React.JSX.Element {
   const pathname = usePathname()
   const chrome = chromeForWidth(width)
   const items: readonly Screen[] = chrome.navMode === 'tabs' ? PHONE_TABS : SIDEBAR_ITEMS
-  const active: Screen = parsePath(pathname)?.screen ?? 'today'
+  // The calendar is the stage (design v20): an unresolvable path falls back to the
+  // Planner, matching `main.jsx`'s `effScreen` default — never a blank chrome.
+  const active: Screen = parsePath(pathname)?.screen ?? 'planner'
   const go = (screen: Screen): void => {
     router.push(buildPath(screen))
   }
