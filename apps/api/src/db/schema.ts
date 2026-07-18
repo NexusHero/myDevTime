@@ -65,3 +65,6 @@ export * from './recurrence-schema.js'
 // Partner-light share links (REQ-062, design v17 §F6): one-link Free/Busy-only grants.
 export * from './sharing-schema.js'
 export * from './automation-schema.js'
+
+// Dev-tool export ledger: recorded outcomes per confirmed item (REQ-035).
+export * from './ai-export-schema.js'
