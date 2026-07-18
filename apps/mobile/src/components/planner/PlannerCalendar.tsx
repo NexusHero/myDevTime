@@ -13,10 +13,12 @@ import { PlannerYear } from './PlannerYear'
  * (ADR-0005) — the calendar library only lays out and renders; it computes no number.
  */
 export interface PlannerCalendarProps {
-  readonly view: 'month' | 'year'
+  readonly view: 'month' | 'year' | 'week' | 'day'
   readonly year: number
   /** 0-based month for the month view. */
   readonly month0: number
+  /** `YYYY-MM-DD` anchor for the week/day timegrid (design v20 §Cal); month/year ignore it. */
+  readonly anchorDate?: string
   /** Day-of-month to flag as today (0 when today is in another month). */
   readonly today: number
   /** Layer-filtered occurrences to lay out. */
@@ -45,6 +47,10 @@ export function PlannerCalendar({
       />
     )
   }
+  // Week/Day are the FullCalendar timegrid zooms on web (`.web.tsx`, design v20 §Cal). On native
+  // the day-level canvas lives in `PlannerScreen`'s hand-built RN grid, so here `week`/`day` fall
+  // through to the same month grid — an interim surface, never a broken one; the `anchorDate` prop
+  // is only consumed by the web timegrid.
   return (
     <PlannerMonth
       year={year}

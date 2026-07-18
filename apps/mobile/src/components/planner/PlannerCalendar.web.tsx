@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { View } from 'react-native'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
+import timeGridPlugin from '@fullcalendar/timegrid'
 import multiMonthPlugin from '@fullcalendar/multimonth'
 import interactionPlugin from '@fullcalendar/interaction'
 import type { EventContentArg, EventInput } from '@fullcalendar/core'
@@ -32,11 +33,27 @@ export function PlannerCalendar({
   view,
   year,
   month0,
+  anchorDate,
   occurrences,
   onDrillDay,
   onDrillMonth,
 }: PlannerCalendarProps): React.JSX.Element {
   const t = useTheme()
+
+  // FullCalendar view + start date per zoom (design v20 §Cal, ADR-0068): the timegrid week/day
+  // carry the same MIT plugins and custom event renderer, so the look stays ours, not the library's.
+  const fcView =
+    view === 'year'
+      ? 'multiMonthYear'
+      : view === 'week'
+        ? 'timeGridWeek'
+        : view === 'day'
+          ? 'timeGridDay'
+          : 'dayGridMonth'
+  const fcDate =
+    (view === 'week' || view === 'day') && anchorDate != null
+      ? anchorDate
+      : `${String(year)}-${pad2(month0 + 1)}-01`
 
   const events = useMemo<EventInput[]>(
     () =>
@@ -96,13 +113,16 @@ export function PlannerCalendar({
   return (
     <View style={{ flex: 1, minHeight: 480 }}>
       <FullCalendar
-        key={`${view}-${String(year)}-${String(month0)}`}
-        plugins={[dayGridPlugin, multiMonthPlugin, interactionPlugin]}
-        initialView={view === 'year' ? 'multiMonthYear' : 'dayGridMonth'}
-        initialDate={`${String(year)}-${pad2(month0 + 1)}-01`}
+        key={`${view}-${String(year)}-${String(month0)}-${anchorDate ?? ''}`}
+        plugins={[dayGridPlugin, timeGridPlugin, multiMonthPlugin, interactionPlugin]}
+        initialView={fcView}
+        initialDate={fcDate}
         firstDay={1}
         headerToolbar={false}
         height="auto"
+        nowIndicator
+        slotMinTime="08:00:00"
+        slotMaxTime="22:00:00"
         events={events}
         eventContent={renderEvent}
         dayMaxEvents={3}
