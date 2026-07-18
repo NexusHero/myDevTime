@@ -1,4 +1,10 @@
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from 'node:crypto'
 
 /**
  * The connector token crypto backend (M3, ADR-0032) — the ONLY place node `crypto`
@@ -64,6 +70,73 @@ export function sealToken(masterKey: Buffer, token: string): SealedToken {
     keyNonce: wrap.nonce.toString('base64'),
     keyAuthTag: wrap.tag.toString('base64'),
   }
+}
+
+/**
+ * OAuth `state` signing (REQ-010, #15): the authorize redirect carries a signed
+ * nonce that binds the provider callback to the caller who started the flow —
+ * CSRF protection without server-side session state. HMAC-SHA256 under the same
+ * connector master key the vault seals under; a tampered or foreign state fails
+ * verification. Claims are minimal: user, connector, issue time (freshness).
+ */
+export interface OAuthStateClaims {
+  readonly userId: string
+  readonly connector: string
+  readonly issuedAtMs: number
+}
+
+/** Default freshness window for an OAuth state: 10 minutes. */
+export const STATE_MAX_AGE_MS = 10 * 60 * 1000
+
+function stateSignature(key: Buffer, payload: string): Buffer {
+  return createHmac('sha256', key).update(payload, 'utf8').digest()
+}
+
+/** Sign an OAuth state: `base64url(claims JSON).base64url(HMAC-SHA256)`. */
+export function signState(
+  key: Buffer,
+  claims: { userId: string; connector: string },
+  nowMs: number = Date.now(),
+): string {
+  const body = {
+    n: randomBytes(16).toString('base64url'),
+    u: claims.userId,
+    c: claims.connector,
+    iat: nowMs,
+  }
+  const payload = Buffer.from(JSON.stringify(body), 'utf8').toString('base64url')
+  return `${payload}.${stateSignature(key, payload).toString('base64url')}`
+}
+
+/**
+ * Verify an OAuth state: signature (constant-time), shape, and freshness. Returns
+ * the claims, or `null` for anything tampered, foreign, malformed, or stale —
+ * the callback must reject a `null` before touching the code exchange.
+ */
+export function verifyState(
+  key: Buffer,
+  state: string,
+  opts: { maxAgeMs?: number; nowMs?: number } = {},
+): OAuthStateClaims | null {
+  const dot = state.indexOf('.')
+  if (dot <= 0 || dot === state.length - 1) return null
+  const payload = state.slice(0, dot)
+  const given = Buffer.from(state.slice(dot + 1), 'base64url')
+  const expected = stateSignature(key, payload)
+  if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null
+  let body: unknown
+  try {
+    body = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
+  } catch {
+    return null
+  }
+  if (typeof body !== 'object' || body === null) return null
+  const { u, c, iat } = body as { u?: unknown; c?: unknown; iat?: unknown }
+  if (typeof u !== 'string' || typeof c !== 'string' || typeof iat !== 'number') return null
+  const now = opts.nowMs ?? Date.now()
+  const age = now - iat
+  if (age < 0 || age > (opts.maxAgeMs ?? STATE_MAX_AGE_MS)) return null
+  return { userId: u, connector: c, issuedAtMs: iat }
 }
 
 /** Open a sealed token: unwrap the data key, then decrypt. Throws on tamper/wrong key. */

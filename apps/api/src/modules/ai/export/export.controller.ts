@@ -3,18 +3,19 @@ import { ApiTags } from '@nestjs/swagger'
 import { AuthGuard, CurrentUser, type AuthenticatedUser } from '../../auth/contract.js'
 import { AiContext } from '../ai.context.js'
 import { ExportRunDto } from '../ai.dto.js'
-import type { ExportItem, ExportTargetPort } from './port.js'
+import type { ExportItem } from './port.js'
 import { listExportRecords, runRecordedExport, type ExportRecordRow } from './ledger.js'
-import { EXPORT_TARGET } from './target.provider.js'
+import { EXPORT_TARGET, type ExportTargetResolver } from './target.provider.js'
 
 /**
  * The dev-tool export API (REQ-035, #44 · ADR-0035): push confirmed insight/action items
- * toward Jira/Linear/Slack through the narrow `ExportTargetPort`, idempotently, with every
+ * to Jira/Linear/Slack through the narrow `ExportTargetPort`, idempotently, with every
  * outcome recorded in the workspace's export ledger. Posting an item IS its confirmation
- * (the client submits only what the user confirmed in the preview). Until a live adapter
- * passes its spike the bound `NullExportTarget` yields honest `unavailable` outcomes —
- * recorded, never half-posted (ADR-0005). Every route resolves the workspace from the
- * authenticated caller, never from the client (ADR-0015).
+ * (the client submits only what the user confirmed in the preview). The request's
+ * `target` name resolves through the injected registry to that tool's live adapter when
+ * its environment is configured; otherwise the `NullExportTarget` yields honest
+ * `unavailable` outcomes — recorded, never half-posted (ADR-0005). Every route resolves
+ * the workspace from the authenticated caller, never from the client (ADR-0015).
  */
 @ApiTags('ai')
 @Controller('api/ai/export')
@@ -22,7 +23,7 @@ import { EXPORT_TARGET } from './target.provider.js'
 export class ExportController {
   constructor(
     private readonly ctx: AiContext,
-    @Inject(EXPORT_TARGET) private readonly target: ExportTargetPort,
+    @Inject(EXPORT_TARGET) private readonly resolveTarget: ExportTargetResolver,
   ) {}
 
   /** The caller's own export ledger, newest first. */
@@ -44,7 +45,13 @@ export class ExportController {
       ...(i.payload !== undefined ? { body: i.payload } : {}),
       confirmed: true,
     }))
-    const run = await runRecordedExport(db, workspaceId, this.target, body.target, items)
+    const run = await runRecordedExport(
+      db,
+      workspaceId,
+      this.resolveTarget(body.target),
+      body.target,
+      items,
+    )
     return { target: body.target, sentCount: run.sentCount, records: run.records }
   }
 }
