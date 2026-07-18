@@ -624,6 +624,7 @@ function DayColumn({
   showReality,
   onCreateAt,
   eveningZone,
+  nonWorking,
 }: {
   readonly day: DemoDay
   readonly index: number
@@ -647,6 +648,8 @@ function DayColumn({
   readonly onCreateAt?: (startMin: number) => void
   /** Shade the evening zone (18–22) and draw the soll-end line at 18:00 (design v20 Day stage). */
   readonly eveningZone?: boolean
+  /** Mark the column as a non-working day (hatch + pill, no tap-to-create) — design v20. */
+  readonly nonWorking?: boolean
 }): React.JSX.Element {
   const t = useTheme()
   const hours: number[] = []
@@ -764,7 +767,7 @@ function DayColumn({
         {/* Empty-slot tap-to-create (design v20): a tap on open canvas creates a 1 h block at the
             snapped time. Rendered first so the blocks below catch their own taps; only present when
             a caller wires `onCreateAt`. */}
-        {onCreateAt && (
+        {onCreateAt && !nonWorking && (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Add an entry at the tapped time"
@@ -837,6 +840,36 @@ function DayColumn({
               }}
             />
           </>
+        )}
+        {/* Non-working day (design v20): a muted overlay + centered pill; no plan surface, no
+            tap-to-create. Deterministic from the weekday (Sat/Sun by default), never fabricated. */}
+        {nonWorking && (
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: t.color.ink,
+              opacity: 0.06,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: t.fontSize['2xs'],
+                fontWeight: '700',
+                letterSpacing: 1,
+                textTransform: 'uppercase',
+                color: t.color.ink2,
+              }}
+            >
+              Non-working day
+            </Text>
+          </View>
         )}
         {/* Reality trace (ADR-0064, K1): the auto-tracker's active spans as a slim
             neutral strip on the day column's right edge — observed, not booked, so it
@@ -1396,6 +1429,26 @@ export function PlannerScreen(): React.JSX.Element {
   const removeOpen = (): void => {
     setBlocks(bs => bs.filter((_, i) => i !== openIndex))
     setOpenIndex(null)
+  }
+  // ±15-min nudge (design v20 drawer): shift the open block's start, clamped inside the window.
+  const nudgeOpen = (deltaMin: number): void => {
+    setBlocks(bs =>
+      bs.map((b, i) =>
+        i === openIndex
+          ? { ...b, start: Math.max(0, Math.min(b.start + deltaMin, SPAN - b.len)) }
+          : b,
+      ),
+    )
+  }
+  // Duplicate (design v20 drawer): append a copy right after the open block, clamped; the lane
+  // model shows both. A toast confirms.
+  const duplicateOpen = (): void => {
+    const b = openBlock
+    if (b === undefined) return
+    const start = Math.min(b.start + b.len, SPAN - b.len)
+    setBlocks(bs => [...bs, { ...b, start }])
+    setOpenIndex(null)
+    toast.show('Entry duplicated.')
   }
   const acceptOpen = (): void => {
     setBlocks(bs => bs.map((b, i) => (i === openIndex ? { ...b, kind: 'actual' } : b)))
@@ -2014,6 +2067,7 @@ export function PlannerScreen(): React.JSX.Element {
                           showReality={showReality}
                           onCreateAt={min => createBlockAt(dayI, min)}
                           eveningZone
+                          nonWorking={[0, 6].includes(new Date(day.dateMs).getDay())}
                         />
                       </View>
                     </View>
@@ -2242,7 +2296,9 @@ export function PlannerScreen(): React.JSX.Element {
         entry={drawerEntry}
         onClose={() => setOpenIndex(null)}
         {...(drawerEntry?.kind === 'meeting' ? { onRsvp: setOpenRsvp } : {})}
-        {...(drawerEntry?.kind === 'actual' ? { onDelete: removeOpen } : {})}
+        {...(drawerEntry?.kind === 'actual'
+          ? { onDelete: removeOpen, onNudge: nudgeOpen, onDuplicate: duplicateOpen }
+          : {})}
         {...(drawerEntry?.kind === 'ghost' ? { onAccept: acceptOpen, onDismiss: removeOpen } : {})}
         {...(drawerEntry !== null &&
         (drawerEntry.kind === 'meeting' ||

@@ -51,6 +51,24 @@ describe('PlannerCalendar (native)', () => {
     expect(out).toContain('Sync engine')
   })
 
+  it('Week_FallsThroughToTheInterimMonthGridOnNative', () => {
+    // On native the timegrid week/day is the web-only FullCalendar zoom (design v20 §Cal); the
+    // native seam renders the same tested month grid so the surface is never broken.
+    const out = texts(
+      <PlannerCalendar
+        view="week"
+        year={2026}
+        month0={6}
+        anchorDate="2026-07-13"
+        today={13}
+        occurrences={[occ('2026-07-13', 'Sync engine')]}
+        targetHours={8.33}
+      />,
+    )
+    expect(out).toContain('MO')
+    expect(out).toContain('Sync engine')
+  })
+
   it('Year_RendersTwelveMonthCards', () => {
     const out = texts(
       <PlannerCalendar
