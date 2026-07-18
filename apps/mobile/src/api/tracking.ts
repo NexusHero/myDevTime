@@ -1,4 +1,4 @@
-import { getJson, postJson } from './http.js'
+import { getJson, patchJson, postJson } from './http.js'
 import { z } from 'zod'
 import type { Client, Project, Task } from '../screens/projectsData'
 
@@ -30,6 +30,10 @@ export const taskDtoSchema = z.object({
   name: z.string(),
   projectId: z.string(),
   archived: z.boolean().default(false),
+  // Effort estimation (REQ-041) — tolerant nullable, like the project rate fields.
+  category: z.string().nullable().catch(null).default(null),
+  complexity: z.string().nullable().catch(null).default(null),
+  estimateMinutes: z.number().nullable().catch(null).default(null),
 })
 export type TaskDTO = z.infer<typeof taskDtoSchema>
 
@@ -48,6 +52,13 @@ export function parseProject(value: unknown): ProjectDTO {
   const [project] = parseProjects([value])
   if (!project) throw new Error('parseProject: malformed project response')
   return project
+}
+
+/** Parse a single task row (the set-estimate response, REQ-041). */
+export function parseTask(value: unknown): TaskDTO {
+  const [task] = parseTasks([value])
+  if (!task) throw new Error('parseTask: malformed task response')
+  return task
 }
 
 /** A project to create; `name` is required, `color` optional (REQ-001). */
@@ -69,6 +80,27 @@ export async function createProject(
   return parseProject(await postJson(baseUrl, '/api/tracking/projects', input, fetchImpl))
 }
 
+/** The effort-estimation patch for a task (REQ-041); `null` clears a field. */
+export interface TaskEstimatePatch {
+  readonly category?: string | null
+  readonly complexity?: string | null
+  readonly estimateMinutes?: number | null
+}
+
+/**
+ * Persist a task's effort estimate (REQ-041) via `PATCH /api/tracking/tasks/:id` and return the
+ * updated row. The client sends only the user's inputs; the deterministic baseline + estimate-vs-
+ * actual are computed by the pure core (ADR-0005), never fabricated here.
+ */
+export async function setTaskEstimate(
+  baseUrl: string,
+  id: string,
+  patch: TaskEstimatePatch,
+  fetchImpl: typeof fetch = fetch,
+): Promise<TaskDTO> {
+  return parseTask(await patchJson(baseUrl, `/api/tracking/tasks/${id}`, patch, fetchImpl))
+}
+
 const UNASSIGNED_ID = '__unassigned__'
 
 /**
@@ -85,7 +117,15 @@ export function assembleCatalog(
   const tasksByProject = new Map<string, Task[]>()
   for (const task of tasks) {
     const list = tasksByProject.get(task.projectId) ?? []
-    list.push({ id: task.id, name: task.name, spentMs: 0, done: task.archived })
+    list.push({
+      id: task.id,
+      name: task.name,
+      spentMs: 0,
+      done: task.archived,
+      category: task.category,
+      complexity: task.complexity,
+      estimateMinutes: task.estimateMinutes,
+    })
     tasksByProject.set(task.projectId, list)
   }
 

@@ -11,6 +11,11 @@ export interface Task {
   readonly name: string
   readonly spentMs: number
   readonly done?: boolean
+  /** Effort estimation (REQ-041): the deterministic baseline reads category + complexity; the
+   *  user's own estimate is `estimateMinutes`. All optional — a task without an estimate is fine. */
+  readonly category?: string | null
+  readonly complexity?: string | null
+  readonly estimateMinutes?: number | null
 }
 
 export interface Project {

@@ -10,6 +10,10 @@ import { findTask } from './projectsData'
 import { useCatalog } from './useCatalog'
 import { useTaskEntries } from '../hooks/useTaskEntries'
 import { entryDurationMs } from '../api/timer'
+import { TaskEstimateCard } from '../components/task/TaskEstimateCard'
+import { setTaskEstimate } from '../api/tracking'
+import { useToast } from '../components/core/Toast'
+import { apiBaseUrl } from '../config'
 
 /**
  * Task detail (REQ-004, ux-vision §3) — the drill-down from a project's task
@@ -48,6 +52,8 @@ export function TaskScreen({
   const entries = useTaskEntries(taskId)
   const now = new Date()
   const [query, setQuery] = useState('')
+  const toast = useToast()
+  const [savingEstimate, setSavingEstimate] = useState(false)
 
   if (!found) {
     const message =
@@ -71,6 +77,29 @@ export function TaskScreen({
 
   const { task, project, client } = found
   const color = projectColor(project.id, t.mode)
+
+  // Effort estimate (REQ-041): persist the user's category/complexity/estimate via the real task
+  // API, then reload the catalog so the card reflects the stored values. No API → honest message.
+  const saveEstimate = (patch: {
+    category: string | null
+    complexity: string | null
+    estimateMinutes: number | null
+  }): void => {
+    if (apiBaseUrl === null) {
+      toast.show('Connect an account to save estimates.')
+      return
+    }
+    setSavingEstimate(true)
+    setTaskEstimate(apiBaseUrl, task.id, patch)
+      .then(() => {
+        toast.show('Estimate saved.')
+        catalog.reload()
+      })
+      .catch((e: unknown) =>
+        toast.show(e instanceof Error ? e.message : 'Could not save estimate.'),
+      )
+      .finally(() => setSavingEstimate(false))
+  }
 
   // The task summary is the fixed list header; the entry history is the virtualized
   // body — it is the one unbounded list here, so only its visible rows mount
@@ -139,6 +168,16 @@ export function TaskScreen({
           </Text>
         </View>
       </Card>
+
+      {/* Effort estimate (REQ-041): deterministic baseline + estimate-vs-actual, persisted real. */}
+      <TaskEstimateCard
+        category={task.category ?? null}
+        complexity={task.complexity ?? null}
+        estimateMinutes={task.estimateMinutes ?? null}
+        spentMs={task.spentMs}
+        busy={savingEstimate}
+        onSave={saveEstimate}
+      />
 
       <View
         style={{

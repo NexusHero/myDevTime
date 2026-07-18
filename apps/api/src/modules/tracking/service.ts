@@ -234,12 +234,19 @@ export async function updateTask(
     name?: string | undefined
     billableDefault?: boolean | undefined
     archived?: boolean | undefined
+    category?: string | null | undefined
+    complexity?: string | null | undefined
+    estimateMinutes?: number | null | undefined
   },
 ): Promise<Task> {
   const values: Partial<typeof tasks.$inferInsert> = { updatedAt: new Date() }
   if (patch.name !== undefined) values.name = requireName(patch.name)
   if (patch.billableDefault !== undefined) values.billableDefault = patch.billableDefault
   if (patch.archived !== undefined) values.archived = patch.archived
+  // Effort estimation (REQ-041): each field is set only when present; `null` clears it.
+  if (patch.category !== undefined) values.category = patch.category
+  if (patch.complexity !== undefined) values.complexity = patch.complexity
+  if (patch.estimateMinutes !== undefined) values.estimateMinutes = patch.estimateMinutes
   const rows = await db
     .update(tasks)
     .set(values)
