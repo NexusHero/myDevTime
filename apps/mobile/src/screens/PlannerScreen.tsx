@@ -1703,7 +1703,7 @@ export function PlannerScreen(): React.JSX.Element {
           start: startMin,
           len: lenMin,
           label: draft.title,
-          kind: draft.isLife ? 'life' : 'ghost',
+          kind: draft.isLife ? 'life' : draft.seriesKind === 'meeting' ? 'meeting' : 'ghost',
           ...(draft.isLife || draft.projectId === null ? {} : { project: draft.projectId }),
         },
       ])
@@ -1713,7 +1713,7 @@ export function PlannerScreen(): React.JSX.Element {
     }
     setCreatingEntry(true)
     void createSeries(apiBaseUrl, {
-      kind: draft.isLife ? 'life' : 'focus',
+      kind: draft.seriesKind,
       title: draft.title,
       anchorDate: localDayKey(dayInfo.dateMs),
       startMin: startMin + START_HOUR * 60,
