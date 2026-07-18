@@ -1,7 +1,7 @@
 import { FlashList } from '@shopify/flash-list'
 import Animated, { useSharedValue, useAnimatedStyle, runOnJS } from 'react-native-reanimated'
 import { GestureDetector, Gesture } from 'react-native-gesture-handler'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import {
   assignLanes,
@@ -57,6 +57,7 @@ import { PlannerStartPicker } from '../components/planner/PlannerStartPicker'
 import { PlannerDayTracker } from '../components/planner/PlannerDayTracker'
 import { PlannerDayInstruments } from '../components/planner/PlannerDayInstruments'
 import { useToast } from '../components/core/Toast'
+import { useAbsences } from '../hooks/useAbsences'
 import { useTheme } from '../theme/ThemeProvider'
 import { usePlanner } from '../hooks/usePlanner'
 import { usePreferences } from '../hooks/usePreferences'
@@ -95,7 +96,7 @@ const STACK_BREAKPOINT = 860
 const NOW = new Date()
 const NOW_MIN = Math.max(0, Math.min((NOW.getHours() - START_HOUR) * 60 + NOW.getMinutes(), SPAN))
 
-type CanvasKind = 'actual' | 'meeting' | 'ghost' | 'break' | 'life'
+type CanvasKind = 'actual' | 'meeting' | 'ghost' | 'break' | 'life' | 'travel'
 /** Calendar RSVP for a meeting: accepted (solid), tentative (hatched), fyi (dimmed, not counted). */
 type Rsvp = 'accepted' | 'tentative' | 'fyi'
 
@@ -146,11 +147,13 @@ const MONTH_SHORT = [
 const WEEK_DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] as const
 
 /** The real current Mon–Fri work week, with `today` flagged on the matching date. */
-function buildWeek(): readonly DemoDay[] {
+/** The visible Mon–Sun week, shifted by `offsetWeeks` (0 = this week; ± for KW navigation). Only
+ *  the real current day is flagged `today`, so an off-current week shows no "now" line. */
+function buildWeek(offsetWeeks = 0): readonly DemoDay[] {
   const now = new Date()
   const monday = new Date(now)
   const daysSinceMonday = (now.getDay() + 6) % 7
-  monday.setDate(now.getDate() - daysSinceMonday)
+  monday.setDate(now.getDate() - daysSinceMonday + offsetWeeks * 7)
   monday.setHours(0, 0, 0, 0)
   const todayKey = now.toDateString()
   return WEEK_DAY_NAMES.map((name, i) => {
@@ -166,8 +169,6 @@ function buildWeek(): readonly DemoDay[] {
   })
 }
 
-const weekDays = buildWeek()
-
 /** The real ISO-8601 calendar week number for a date (KW), so the header never
  *  shows an arbitrary counter — the canvas always renders the current week. */
 function isoWeek(d: Date): number {
@@ -180,8 +181,6 @@ function isoWeek(d: Date): number {
   return 1 + Math.round((date.getTime() - firstThursday.getTime()) / (7 * 24 * 3_600_000))
 }
 
-const CURRENT_WEEK = isoWeek(new Date())
-
 /** day 0–4 · start/len in minutes from 08:00 · kind + project id for the color. */
 const DEMO_BLOCKS: readonly CanvasBlock[] = []
 
@@ -189,6 +188,8 @@ function canvasBlockColor(t: Theme, b: CanvasBlock): string {
   // Life blocks (design v14 §F) wear the sage `--life` token — family is not a project, so it
   // never borrows a project color. Its time reduces the plannable capacity (the head-trace).
   if (b.kind === 'life') return t.color.life
+  // Travel (design v20 §G4): a distinct in-transit tone, never a project fill.
+  if (b.kind === 'travel') return t.color.warn
   if (b.kind === 'break' || b.project === undefined) return t.color.ink3
   return projectColor(b.project, t.mode)
 }
@@ -1320,9 +1321,11 @@ export function PlannerScreen(): React.JSX.Element {
   const t = useTheme()
   const { width } = useWindowDimensions()
   const stacked = width < STACK_BREAKPOINT
-  // The canvas always shows the real current week; the header labels its ISO week
-  // number (KW) — no prev/next affordance that changes a counter but not the data.
-  const week = CURRENT_WEEK
+  // KW navigation (design v20): the header's ‹ › shift the visible week; 0 = this week. The whole
+  // canvas + the occurrence queries re-key off `weekDays`, so nothing else needs to know the offset.
+  const [weekOffset, setWeekOffset] = useState(0)
+  const weekDays = useMemo(() => buildWeek(weekOffset), [weekOffset])
+  const week = isoWeek(new Date(weekDays[0]?.dateMs ?? Date.now()))
   // The Planner opens on the **Day** stage (design v20: "Today" is the day view of the calendar);
   // Week/Month/Year zoom out from it. Today stays its own route too — this only adds the Day zoom.
   const [view, setView] = useState<'Day' | 'Week' | 'Month' | 'Year'>('Day')
@@ -1653,6 +1656,7 @@ export function PlannerScreen(): React.JSX.Element {
   // placed at the next free slot, then the week + calendar reload. Nothing is invented (ADR-0005);
   // without an API the create is a no-op and the dialog says so, rather than faking a row.
   const catalog = useCatalog()
+  const absences = useAbsences()
   const dialogProjects = (catalog.data ?? [])
     .flatMap(c => c.projects)
     .map(p => ({ id: p.id, name: p.name }))
@@ -1703,7 +1707,13 @@ export function PlannerScreen(): React.JSX.Element {
           start: startMin,
           len: lenMin,
           label: draft.title,
-          kind: draft.isLife ? 'life' : 'ghost',
+          kind: draft.isLife
+            ? 'life'
+            : draft.seriesKind === 'meeting'
+              ? 'meeting'
+              : draft.seriesKind === 'travel'
+                ? 'travel'
+                : 'ghost',
           ...(draft.isLife || draft.projectId === null ? {} : { project: draft.projectId }),
         },
       ])
@@ -1713,7 +1723,7 @@ export function PlannerScreen(): React.JSX.Element {
     }
     setCreatingEntry(true)
     void createSeries(apiBaseUrl, {
-      kind: draft.isLife ? 'life' : 'focus',
+      kind: draft.seriesKind,
       title: draft.title,
       anchorDate: localDayKey(dayInfo.dateMs),
       startMin: startMin + START_HOUR * 60,
@@ -1788,41 +1798,45 @@ export function PlannerScreen(): React.JSX.Element {
               onChange={setView}
             />
           </View>
-          {view === 'Week' && (
-            <>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  borderWidth: 1,
-                  borderColor: t.color.border,
-                  borderRadius: t.radius.pill,
-                  paddingVertical: 6,
-                  paddingHorizontal: 14,
-                  backgroundColor: t.color.surface,
-                }}
+          {(view === 'Week' || view === 'Day') && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                borderWidth: 1,
+                borderColor: t.color.border,
+                borderRadius: t.radius.pill,
+                backgroundColor: t.color.surface,
+              }}
+            >
+              {/* KW ‹ › navigation (design v20): step the visible week; a middle tap returns to now. */}
+              <Pressable
+                onPress={() => setWeekOffset(o => o - 1)}
+                accessibilityRole="button"
+                accessibilityLabel="Previous week"
+                style={{ paddingVertical: 6, paddingHorizontal: 12 }}
               >
-                <Text
-                  style={{
-                    fontSize: t.fontSize.xs,
-                    fontWeight: '600',
-                    color: t.color.ink,
-                    textAlign: 'center',
-                  }}
-                >
-                  This week · KW {week}
+                <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>‹</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setWeekOffset(0)}
+                accessibilityRole="button"
+                accessibilityLabel="This week"
+                disabled={weekOffset === 0}
+              >
+                <Text style={{ fontSize: t.fontSize.xs, fontWeight: '600', color: t.color.ink }}>
+                  {weekOffset === 0 ? `This week · KW ${String(week)}` : `KW ${String(week)}`}
                 </Text>
-              </View>
-              <Text
-                style={{
-                  fontFamily: t.fontFamily.numeric,
-                  fontSize: t.fontSize.xs,
-                  color: t.color.ink2,
-                }}
+              </Pressable>
+              <Pressable
+                onPress={() => setWeekOffset(o => o + 1)}
+                accessibilityRole="button"
+                accessibilityLabel="Next week"
+                style={{ paddingVertical: 6, paddingHorizontal: 12 }}
               >
-                <Text style={{ color: t.color.ink, fontWeight: '600' }}>—</Text>
-              </Text>
-            </>
+                <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>›</Text>
+              </Pressable>
+            </View>
           )}
           {/* New-Entry dialog trigger (design v19) — create a Task or Life entry by hand. */}
           <Button size="sm" variant="primary" onPress={() => setNewEntryOpen(true)}>
@@ -1934,8 +1948,38 @@ export function PlannerScreen(): React.JSX.Element {
             const dayI = dayIdx >= 0 ? dayIdx : 0
             const day = weekDays[dayI]
             if (day === undefined) return null
+            // All-day banner (design v20): if a real absence covers the shown day, surface it above
+            // the grid — vacation/sick/holiday is not a plannable slot. From live absences, no mock.
+            const dayKey = localDayKey(day.dateMs)
+            const dayAbsence = (absences.data?.upcoming ?? []).find(
+              a => dayKey >= a.startDate && dayKey <= a.endDate,
+            )
             return (
               <>
+                {dayAbsence && (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: t.spacing.s2,
+                      paddingHorizontal: t.spacing.s3,
+                      paddingVertical: t.spacing.s2,
+                      borderRadius: t.radius.block,
+                      borderLeftWidth: 3,
+                      borderLeftColor: t.color.warn,
+                      backgroundColor: t.color.warnSoft,
+                    }}
+                  >
+                    <Text
+                      style={{ fontSize: t.fontSize.xs, fontWeight: '700', color: t.color.ink }}
+                    >
+                      {`◦ ${dayAbsence.kind.charAt(0).toUpperCase()}${dayAbsence.kind.slice(1)}`}
+                    </Text>
+                    <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>
+                      all day — not a plannable slot
+                    </Text>
+                  </View>
+                )}
                 <PlannerDayTracker clients={catalog.data ?? []} />
                 <View
                   style={{

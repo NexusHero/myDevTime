@@ -126,8 +126,51 @@ describe('PlannerNewEntryDialog', () => {
     const draft = onSubmit.mock.calls[0]?.[0]
     expect(draft?.title).toBe('SEPA export') // trimmed
     expect(draft?.isLife).toBe(false)
+    expect(draft?.seriesKind).toBe('focus') // Task → focus series
     expect(draft?.estHours).toBe(1) // default effort
     expect(draft?.priority).toBe(2) // default Med
+  })
+
+  it('Meeting_EmitsAMeetingSeriesKind', () => {
+    const onSubmit = vi.fn<(d: NewEntryDraft) => void>()
+    let r!: TestRenderer.ReactTestRenderer
+    act(() => {
+      r = TestRenderer.create(
+        <ThemeProvider>
+          <PlannerNewEntryDialog
+            visible
+            projects={PROJECTS}
+            onClose={() => {}}
+            onSubmit={onSubmit}
+          />
+        </ThemeProvider>,
+      )
+    })
+    // Flip the type segmented control to "Meeting".
+    const meetingSeg = r.root.find(
+      n => n.props.accessibilityLabel === 'Meeting' && typeof n.props.onPress === 'function',
+    )
+    act(() => {
+      meetingSeg.props.onPress()
+    })
+    const inputs = r.root.findAll(n => typeof n.props.onChangeText === 'function')
+    act(() => {
+      inputs[0]?.props.onChangeText('Sprint planning')
+    })
+    const submitBtn = r.root
+      .findAll(n => typeof n.props.onPress === 'function')
+      .find(n =>
+        n
+          .findAll(c => typeof c.type === 'string')
+          .flatMap(c => c.children)
+          .includes('Create meeting'),
+      )
+    act(() => {
+      submitBtn?.props.onPress()
+    })
+    const draft = onSubmit.mock.calls[0]?.[0]
+    expect(draft?.seriesKind).toBe('meeting')
+    expect(draft?.isLife).toBe(false) // a meeting is still work time
   })
 
   it('Submit_BlockedWhenTitleEmpty', () => {
