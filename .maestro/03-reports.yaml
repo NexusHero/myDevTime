@@ -1,0 +1,24 @@
+# 03-reports — navigate to Reports and confirm the summary view (#27, REQ-022).
+# Labels used (all verified in apps/mobile/src):
+#   - 'Reports'  -> bottom-tab / sidebar nav item, shell/ShellChrome.tsx
+#                   (accessibilityLabel={SCREEN_TITLES[screen]}); PHONE_TABS includes 'reports'
+#   - 'Overview' -> the always-present Reports view segment, screens/ReportsScreen.tsx (~line 1057)
+# The login block runs only when the sign-in form is present.
+appId: com.nexushero.mydevtime
+---
+- launchApp:
+    clearState: true
+- runFlow:
+    when:
+      visible: 'Email'
+    commands:
+      - tapOn: 'Email'
+      - inputText: 'demo@mydevtime.app'
+      - tapOn: 'Password'
+      - inputText: 'devpassword'
+      - tapOn: 'Sign in'
+- assertVisible: 'Today'
+# Navigate to Reports via the bottom-tab / sidebar nav item.
+- tapOn: 'Reports'
+# The Reports summary is shown — the 'Overview' view segment is always rendered.
+- assertVisible: 'Overview'

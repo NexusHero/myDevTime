@@ -1,0 +1,19 @@
+# 01-auth — sign in and land on the Today screen (#27, REQ-022).
+# Labels used (all verified in apps/mobile/src):
+#   - "Email"    -> Input label, screens/LoginScreen.tsx (Input.tsx accessibilityLabel={label})
+#   - "Password" -> Input label, screens/LoginScreen.tsx
+#   - "Sign in"  -> Button text/label, screens/LoginScreen.tsx (Button.tsx accessibilityLabel={children})
+#   - "Today"    -> screen title / bottom-tab label, shell/titles.ts SCREEN_TITLES.today
+# clearState guarantees a logged-out start (a persisted Better-Auth session would
+# otherwise skip the login form and land straight on Today).
+appId: com.nexushero.mydevtime
+---
+- launchApp:
+    clearState: true
+- assertVisible: 'Sign in'
+- tapOn: 'Email'
+- inputText: 'demo@mydevtime.app'
+- tapOn: 'Password'
+- inputText: 'devpassword'
+- tapOn: 'Sign in'
+- assertVisible: 'Today'

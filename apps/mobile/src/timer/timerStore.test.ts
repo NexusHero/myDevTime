@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { loadTimerSession, saveTimerSession } from './timerStore.js'
+import { memoryKvStorage } from './kvStorage.js'
+import {
+  initTimerStore,
+  loadTimerSession,
+  saveTimerSession,
+  timerSessionReady,
+} from './timerStore.js'
 
 beforeAll(() => {
   if (typeof globalThis.localStorage === 'undefined') {
@@ -23,7 +29,8 @@ beforeAll(() => {
   }
 })
 
-afterEach(() => {
+afterEach(async () => {
+  await initTimerStore() // restore the default (localStorage-backed) store
   saveTimerSession(null)
 })
 
@@ -51,13 +58,41 @@ describe('timerStore', () => {
     expect(loadTimerSession()).toBeNull()
   })
 
-  it('LoadCorruptJson_ReturnsNullInsteadOfThrowing', () => {
+  it('LoadCorruptJson_ReturnsNullInsteadOfThrowing', async () => {
     localStorage.setItem('mydevtime.timer.session', '{not json')
+    await initTimerStore() // re-hydrate the cache from the tampered backing store
     expect(loadTimerSession()).toBeNull()
   })
 
-  it('LoadMalformedShape_FallsBackToSafeDefaults', () => {
+  it('LoadMalformedShape_FallsBackToSafeDefaults', async () => {
     localStorage.setItem('mydevtime.timer.session', JSON.stringify({ accumulatedMs: 'nope' }))
+    await initTimerStore()
     expect(loadTimerSession()).toEqual({ accumulatedMs: 0, pausedInput: null, pausedSinceMs: null })
+  })
+
+  it('SaveWritesThroughToTheBackingStore_NotJustTheCache', async () => {
+    saveTimerSession({ accumulatedMs: 60_000, pausedInput: null, pausedSinceMs: null })
+    await timerSessionReady()
+    expect(localStorage.getItem('mydevtime.timer.session')).toBe(
+      JSON.stringify({ accumulatedMs: 60_000, pausedInput: null, pausedSinceMs: null }),
+    )
+  })
+
+  it('RoundTripThroughInjectedSeam_SurvivesRehydration', async () => {
+    // Simulate the native path: an async KvStorage that outlives the "app process"
+    // (the cache). Re-initialising from the same store is the restart.
+    const durable = memoryKvStorage()
+    await initTimerStore(durable)
+    saveTimerSession({
+      accumulatedMs: 42_000,
+      pausedInput: { note: 'seam' },
+      pausedSinceMs: 1_700_000_000_000,
+    })
+    await initTimerStore(durable) // "restart": wipe the cache, hydrate from the store
+    expect(loadTimerSession()).toEqual({
+      accumulatedMs: 42_000,
+      pausedInput: { note: 'seam' },
+      pausedSinceMs: 1_700_000_000_000,
+    })
   })
 })
