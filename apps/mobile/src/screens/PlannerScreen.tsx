@@ -34,9 +34,7 @@ import { createProject } from '../api/tracking'
 import { occurrencesToBlocks, type RecurringBlock } from '../planner/recurring'
 import { useWeekOccurrences } from '../hooks/useWeekOccurrences'
 import { useMonthOccurrences } from '../hooks/useMonthOccurrences'
-import { buildMonthDays, buildYearMonths } from '../planner/calendarMonth'
-import { PlannerMonth } from '../components/planner/PlannerMonth'
-import { PlannerYear } from '../components/planner/PlannerYear'
+import { PlannerCalendar } from '../components/planner/PlannerCalendar'
 import {
   PlannerNewEntryDialog,
   type NewEntryDraft,
@@ -49,7 +47,6 @@ import {
   Badge,
   Button,
   Card,
-  EmptyState,
   Icon,
   SegmentedControl,
 } from '../components/index'
@@ -1840,24 +1837,6 @@ export function PlannerScreen(): React.JSX.Element {
             )
           })()}
 
-        {view === 'Month' && (
-          <Card>
-            <EmptyState
-              title="Month view — coming soon"
-              hint="The planned load per day across the month appears here once utilization aggregation is live."
-            />
-          </Card>
-        )}
-
-        {view === 'Year' && (
-          <Card>
-            <EmptyState
-              title="Year view — coming soon"
-              hint="The weekly intensity across the year appears here once utilization aggregation is live."
-            />
-          </Card>
-        )}
-
         {view === 'Week' && (
           <>
             {/* AI in context — reachable here, not only in the Assistant tab */}
@@ -2059,24 +2038,14 @@ export function PlannerScreen(): React.JSX.Element {
         {/* Month view (design v18 PlannerViews): tasks = filled chips (project color + priority
             dot), events = hollow banners that never count, day-load bar vs the daily target. Real
             occurrences; an empty month renders an honest empty grid. */}
-        {view === 'Month' && (
-          <PlannerMonth
+        {(view === 'Month' || view === 'Year') && (
+          <PlannerCalendar
+            view={view === 'Month' ? 'month' : 'year'}
             year={calYear}
             month0={calMonth0}
             today={calToday}
-            days={buildMonthDays(shownCalOccurrences, [], { year: calYear, month0: calMonth0 })}
+            occurrences={shownCalOccurrences}
             targetHours={DAILY_TARGET_HOURS}
-          />
-        )}
-
-        {/* Year view (design v18 PlannerViews): twelve month cards with planned hours + a
-            five-week intensity strip; the current month wears a live-orange border. */}
-        {view === 'Year' && (
-          <PlannerYear
-            months={buildYearMonths(shownCalOccurrences, [], {
-              year: calYear,
-              nowMonth0: calMonth0,
-            })}
           />
         )}
       </ScrollView>
