@@ -56,6 +56,7 @@ import { PlannerViewMenu } from '../components/planner/PlannerViewMenu'
 import { PlannerStartPicker } from '../components/planner/PlannerStartPicker'
 import { PlannerDayTracker } from '../components/planner/PlannerDayTracker'
 import { PlannerDayInstruments } from '../components/planner/PlannerDayInstruments'
+import { useToast } from '../components/core/Toast'
 import { useTheme } from '../theme/ThemeProvider'
 import { usePlanner } from '../hooks/usePlanner'
 import { usePreferences } from '../hooks/usePreferences'
@@ -616,6 +617,7 @@ function DayColumn({
   onMoveBlock,
   onOpenBlock,
   showReality,
+  onCreateAt,
 }: {
   readonly day: DemoDay
   readonly index: number
@@ -634,6 +636,9 @@ function DayColumn({
   readonly onOpenBlock: (globalIndex: number) => void
   /** Overlay the auto-tracker's reality trace + drift chip (ADR-0064, K1). */
   readonly showReality: boolean
+  /** Tap an empty slot to create a 1 h block at the snapped start (design v20). Optional so the
+   *  week canvas is unchanged unless a caller opts in. */
+  readonly onCreateAt?: (startMin: number) => void
 }): React.JSX.Element {
   const t = useTheme()
   const hours: number[] = []
@@ -748,6 +753,21 @@ function DayColumn({
           backgroundColor: day.today ? `${t.color.accentSoft}66` : 'transparent',
         }}
       >
+        {/* Empty-slot tap-to-create (design v20): a tap on open canvas creates a 1 h block at the
+            snapped time. Rendered first so the blocks below catch their own taps; only present when
+            a caller wires `onCreateAt`. */}
+        {onCreateAt && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add an entry at the tapped time"
+            onPress={e => {
+              const raw = (e.nativeEvent.locationY / BODY_HEIGHT) * SPAN
+              const snapped = Math.max(0, Math.min(Math.round(raw / 30) * 30, SPAN - 30))
+              onCreateAt(snapped)
+            }}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+        )}
         {hours.map(h => (
           <View
             key={h}
@@ -1294,6 +1314,14 @@ export function PlannerScreen(): React.JSX.Element {
   // The Day view renders a single full-width column; its measured width drives the same
   // drag mapping the week uses (design v20 Day stage).
   const [dayColW, setDayColW] = useState(COL_WIDTH)
+  const toast = useToast()
+  // Empty-slot tap-to-create (design v20): drop a 1 h actual block at the tapped, snapped time on
+  // the given day; a transient toast confirms it. Clamped inside the 08–18 window.
+  const createBlockAt = (day: number, startMin: number): void => {
+    const start = Math.max(0, Math.min(startMin, SPAN - 60))
+    setBlocks(bs => [...bs, { day, start, len: 60, label: 'New entry', kind: 'actual' }])
+    toast.show(`Entry created — ${clock(start)}–${clock(start + 60)}.`)
+  }
   const resizeBlock = (globalIndex: number, lenMin: number): void =>
     setBlocks(bs => bs.map((b, i) => (i === globalIndex ? { ...b, len: lenMin } : b)))
   const moveBlock = (globalIndex: number, day: number, startMin: number): void =>
@@ -1901,6 +1929,7 @@ export function PlannerScreen(): React.JSX.Element {
                           onMoveBlock={moveBlock}
                           onOpenBlock={setOpenIndex}
                           showReality={showReality}
+                          onCreateAt={min => createBlockAt(dayI, min)}
                         />
                       </View>
                     </View>
