@@ -78,11 +78,15 @@ import { INBOX_PROJECTS, INBOX_TASKS, type InboxTask } from './plannerInboxData'
  * both snap to the 15-min grid and lanes/overbooking recompute live (design v6).
  */
 
-// ---- Week-canvas geometry: 08:00–18:00, minutes from the top of the window ----
+// ---- Canvas geometry: 08:00–22:00, minutes from the top of the window ----
+// The window runs to 22:00 (design v20) so the evening zone (18–22) is visible; blocks store
+// absolute minutes-from-08:00, so widening the window only rescales pixels, never the data.
 const START_HOUR = 8
-const END_HOUR = 18
+const END_HOUR = 22
 const SPAN = (END_HOUR - START_HOUR) * 60
-const BODY_HEIGHT = 440
+const BODY_HEIGHT = 616 // ~44 px per hour × 14 h
+/** Minutes-from-08:00 of the contracted day end (18:00) — the evening-zone / soll-end line. */
+const SOLL_END_MIN = (18 - START_HOUR) * 60
 const HEADER_HEIGHT = 46
 const GUTTER = 52
 const COL_WIDTH = 150
@@ -618,6 +622,7 @@ function DayColumn({
   onOpenBlock,
   showReality,
   onCreateAt,
+  eveningZone,
 }: {
   readonly day: DemoDay
   readonly index: number
@@ -639,6 +644,8 @@ function DayColumn({
   /** Tap an empty slot to create a 1 h block at the snapped start (design v20). Optional so the
    *  week canvas is unchanged unless a caller opts in. */
   readonly onCreateAt?: (startMin: number) => void
+  /** Shade the evening zone (18–22) and draw the soll-end line at 18:00 (design v20 Day stage). */
+  readonly eveningZone?: boolean
 }): React.JSX.Element {
   const t = useTheme()
   const hours: number[] = []
@@ -798,6 +805,38 @@ function DayColumn({
             }}
           />
         ))}
+        {/* Evening zone (design v20): the hours past the contracted day end (18:00) read muted,
+            with a dashed soll-end line at 18:00 — a glanceable "after hours" cue. Client-side,
+            pointer-transparent so it never blocks taps or drags. */}
+        {eveningZone && (
+          <>
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: (SOLL_END_MIN / SPAN) * BODY_HEIGHT,
+                bottom: 0,
+                backgroundColor: t.color.ink,
+                opacity: 0.05,
+              }}
+            />
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: (SOLL_END_MIN / SPAN) * BODY_HEIGHT,
+                borderTopWidth: 1.5,
+                borderTopColor: t.color.ink3,
+                borderStyle: 'dashed',
+                opacity: 0.6,
+              }}
+            />
+          </>
+        )}
         {/* Reality trace (ADR-0064, K1): the auto-tracker's active spans as a slim
             neutral strip on the day column's right edge — observed, not booked, so it
             reads muted (never a project fill). Plan and reality on one surface. */}
@@ -1930,6 +1969,7 @@ export function PlannerScreen(): React.JSX.Element {
                           onOpenBlock={setOpenIndex}
                           showReality={showReality}
                           onCreateAt={min => createBlockAt(dayI, min)}
+                          eveningZone
                         />
                       </View>
                     </View>
