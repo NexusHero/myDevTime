@@ -20,5 +20,6 @@ export const SCREEN_TITLES: Record<Screen, string> = {
   settings: 'Settings',
   credits: 'Credits',
   rates: 'Hourly rates',
+  rules: 'Categorization rules',
   assistant: 'Assistant',
 }
