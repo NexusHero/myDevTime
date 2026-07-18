@@ -1,0 +1,29 @@
+# 02-timer — start the live timer, confirm the running state, pause, then stop (#27, REQ-022).
+# Labels used (all verified in apps/mobile/src/screens/TodayScreen.tsx):
+#   - primary punch button accessibilityLabel = active ? 'Stop' : 'Start'  (line ~435)
+#   - pause/resume button   accessibilityLabel = paused ? 'Resume' : 'Pause' (line ~378)
+# `active` = isRunning || paused, so the primary button stays 'Stop' while paused.
+# The login block runs only when the sign-in form is present, so this flow is
+# self-contained yet also works when a session is already persisted.
+appId: com.nexushero.mydevtime
+---
+- launchApp:
+    clearState: true
+- runFlow:
+    when:
+      visible: 'Email'
+    commands:
+      - tapOn: 'Email'
+      - inputText: 'demo@mydevtime.app'
+      - tapOn: 'Password'
+      - inputText: 'devpassword'
+      - tapOn: 'Sign in'
+- assertVisible: 'Today'
+# Start tracking — the primary button flips from 'Start' to 'Stop' (running state).
+- tapOn: 'Start'
+- assertVisible: 'Stop'
+# Pause the running segment — the pause button flips to 'Resume'.
+- tapOn: 'Pause'
+- assertVisible: 'Resume'
+# Stop the session (the primary button stays 'Stop' while paused).
+- tapOn: 'Stop'

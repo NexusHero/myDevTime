@@ -192,3 +192,22 @@ surfaces, with a deep link as the visible fallback (`/today` after a started tim
 CI *does* hold everything else: the pure logic these behaviours rest on (elapsed derivation,
 reconcile, route build/parse in `nav.ts`) is unit-tested under the coverage bar, which is
 exactly the split spike #1 engineered.
+
+## Update (2026-07 · #12 residual) — native persistence seam now wired
+
+The C1/C2 status note above (native session persistence "not wired yet") is now
+**superseded by code**. A cross-platform key-value seam
+[`apps/mobile/src/timer/kvStorage.ts`](../../apps/mobile/src/timer/kvStorage.ts) exposes a
+narrow `KvStorage` (`get`/`set`/`remove`) whose resolver prefers `localStorage` on web, then a
+guarded `require` of **`@react-native-async-storage/async-storage`** (now a dependency in
+`apps/mobile/package.json`, installed) on native, and only falls back to an explicit in-memory
+`Map` when neither is available.
+[`timerStore.ts`](../../apps/mobile/src/timer/timerStore.ts) persists the banked/paused session
+slice through this seam (hydrate-once on start into a sync cache; sync writes fire-and-forget),
+with no change to its public API. So on native the banked total + paused context are now written
+to AsyncStorage and rehydrated on cold start — the AsyncStorage-dependent half of C1 (paused
+state + banked total surviving force-quit) and C2 (surviving reboot) are no longer failing "by
+construction". What remains is **device-verify-only**: confirming AsyncStorage actually persists
+and returns the slice across a real force-quit and a real power-off/power-on on physical iOS and
+Android hardware (jsdom/emulator storage semantics are not representative of post-power-loss
+behaviour), per the C1/C2 pass criteria above.
