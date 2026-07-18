@@ -55,6 +55,7 @@ import { PlannerEntryDrawer, type DrawerEntry } from '../components/planner/Plan
 import { PlannerViewMenu } from '../components/planner/PlannerViewMenu'
 import { PlannerStartPicker } from '../components/planner/PlannerStartPicker'
 import { PlannerDayTracker } from '../components/planner/PlannerDayTracker'
+import { PlannerDayInstruments } from '../components/planner/PlannerDayInstruments'
 import { useTheme } from '../theme/ThemeProvider'
 import { usePlanner } from '../hooks/usePlanner'
 import { usePreferences } from '../hooks/usePreferences'
@@ -1869,31 +1870,44 @@ export function PlannerScreen(): React.JSX.Element {
             return (
               <>
                 <PlannerDayTracker clients={catalog.data ?? []} />
-                <Card padding={false} style={{ alignSelf: 'stretch' }}>
-                  <View style={{ flexDirection: 'row' }}>
-                    <HourGutter />
-                    <View
-                      style={{ flex: 1 }}
-                      onLayout={e => {
-                        const w = e.nativeEvent.layout.width
-                        if (w > 0) setDayColW(w)
-                      }}
-                    >
-                      <DayColumn
-                        day={day}
-                        index={dayI}
-                        flex
-                        blocks={shownBlocks}
-                        recurring={recurringBlocks}
-                        colWidth={dayColW}
-                        onResizeBlock={resizeBlock}
-                        onMoveBlock={moveBlock}
-                        onOpenBlock={setOpenIndex}
-                        showReality={showReality}
-                      />
+                <View
+                  style={{
+                    flexDirection: stacked ? 'column' : 'row',
+                    gap: t.spacing.s4,
+                    alignItems: 'flex-start',
+                  }}
+                >
+                  <Card
+                    padding={false}
+                    style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}
+                  >
+                    <View style={{ flexDirection: 'row' }}>
+                      <HourGutter />
+                      <View
+                        style={{ flex: 1 }}
+                        onLayout={e => {
+                          const w = e.nativeEvent.layout.width
+                          if (w > 0) setDayColW(w)
+                        }}
+                      >
+                        <DayColumn
+                          day={day}
+                          index={dayI}
+                          flex
+                          blocks={shownBlocks}
+                          recurring={recurringBlocks}
+                          colWidth={dayColW}
+                          onResizeBlock={resizeBlock}
+                          onMoveBlock={moveBlock}
+                          onOpenBlock={setOpenIndex}
+                          showReality={showReality}
+                        />
+                      </View>
                     </View>
-                  </View>
-                </Card>
+                  </Card>
+                  {/* Instruments rail — glanceable day signals from real data (design v20). */}
+                  <PlannerDayInstruments />
+                </View>
                 <Legend />
               </>
             )
