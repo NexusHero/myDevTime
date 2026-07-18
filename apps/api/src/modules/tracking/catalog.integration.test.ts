@@ -113,6 +113,32 @@ describe.skipIf(!databaseUrl)('tracking catalog (integration)', () => {
     expect(cleared.fixedFeeMinor).toBeNull()
   })
 
+  it('Task_Estimate_RoundTripsAndClears', async () => {
+    // Effort estimation (REQ-041): category/complexity/estimate persist on the task, and a later
+    // null clears them — the deterministic baseline reads category+complexity, the estimate is the
+    // user's own number.
+    const p = await svc.createProject(db, wsA, { name: 'EstProject' })
+    const task = await svc.createTask(db, wsA, { name: 'Estimated task', projectId: p.id })
+    expect(task.estimateMinutes).toBeNull()
+    const set = await svc.updateTask(db, wsA, task.id, {
+      category: 'feature',
+      complexity: 'medium',
+      estimateMinutes: 90,
+    })
+    expect(set.category).toBe('feature')
+    expect(set.complexity).toBe('medium')
+    expect(set.estimateMinutes).toBe(90)
+    const cleared = await svc.updateTask(db, wsA, task.id, { estimateMinutes: null })
+    expect(cleared.estimateMinutes).toBeNull()
+  })
+
+  it('Task_Estimate_IsWorkspaceIsolated', async () => {
+    // Negative isolation (ADR — workspace isolation): workspace B cannot patch A's task.
+    const p = await svc.createProject(db, wsA, { name: 'IsoProject' })
+    const task = await svc.createTask(db, wsA, { name: 'A task', projectId: p.id })
+    await expect(svc.updateTask(db, wsB, task.id, { estimateMinutes: 30 })).rejects.toThrow()
+  })
+
   it('GetClients_Unauthenticated_Returns401', async () => {
     const app = await buildApp({
       config: loadConfig({ LOG_LEVEL: 'silent', AUTH_SECRET: 'x'.repeat(32) }),

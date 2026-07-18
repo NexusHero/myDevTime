@@ -5,6 +5,7 @@ import {
   boolean,
   numeric,
   bigint,
+  integer,
   timestamp,
   primaryKey,
   uniqueIndex,
@@ -101,6 +102,12 @@ export const tasks = pgTable('tasks', {
     .references(() => projects.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   billableDefault: boolean('billable_default').notNull().default(true),
+  // Effort estimation (REQ-041, ADR-0021/0005): the deterministic baseline reads `category` +
+  // `complexity`; `estimate_minutes` is the user's own estimate (null = none). All nullable — a
+  // task without an estimate is the honest default, and the pure core degrades to the baseline.
+  category: text('category'),
+  complexity: text('complexity'),
+  estimateMinutes: integer('estimate_minutes'),
   archived: boolean('archived').notNull().default(false),
   ...timestamps,
   ...syncColumns,
