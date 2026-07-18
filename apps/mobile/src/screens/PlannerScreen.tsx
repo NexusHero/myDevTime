@@ -55,6 +55,7 @@ import { PlannerEntryDrawer, type DrawerEntry } from '../components/planner/Plan
 import { PlannerViewMenu } from '../components/planner/PlannerViewMenu'
 import { PlannerStartPicker } from '../components/planner/PlannerStartPicker'
 import { PlannerDayTracker } from '../components/planner/PlannerDayTracker'
+import { PlannerDayList, type DayListItem } from '../components/planner/PlannerDayList'
 import { PlannerDayInstruments } from '../components/planner/PlannerDayInstruments'
 import { useToast } from '../components/core/Toast'
 import { useAbsences } from '../hooks/useAbsences'
@@ -188,7 +189,20 @@ function isoWeek(d: Date): number {
 /** day 0–4 · start/len in minutes from 08:00 · kind + project id for the color. */
 const DEMO_BLOCKS: readonly CanvasBlock[] = []
 
-function canvasBlockColor(t: Theme, b: CanvasBlock): string {
+/** A human label for an entry kind — the day list's type caption (design v13 §K, REQ-040). */
+function canvasKindLabel(kind: string): string {
+  if (kind === 'meeting') return 'Meeting'
+  if (kind === 'ghost') return 'Proposed'
+  if (kind === 'break') return 'Break'
+  if (kind === 'life') return 'Life'
+  if (kind === 'travel') return 'Travel'
+  return 'Booked time'
+}
+
+function canvasBlockColor(
+  t: Theme,
+  b: { readonly kind: string; readonly project?: string },
+): string {
   // Life blocks (design v14 §F) wear the sage `--life` token — family is not a project, so it
   // never borrows a project color. Its time reduces the plannable capacity (the head-trace).
   if (b.kind === 'life') return t.color.life
@@ -1366,6 +1380,9 @@ export function PlannerScreen(): React.JSX.Element {
   // The Planner opens on the **Day** stage (design v20: "Today" is the day view of the calendar);
   // Week/Month/Year zoom out from it. Today stays its own route too — this only adds the Day zoom.
   const [view, setView] = useState<'Day' | 'Week' | 'Month' | 'Year'>('Day')
+  // Canvas ⇄ List (design v13 §K, REQ-040): the Day view can drop the geometry for a flat,
+  // screen-reader-friendly list of the same entries. Canvas stays the default.
+  const [dayMode, setDayMode] = useState<'canvas' | 'list'>('canvas')
   // Work / Life / Both layer filter (design v17 §F6.5). One person, one timeline:
   // work and life share the calendar, and this filter only changes what is *shown*,
   // never what exists — capacity and price still read the full block set below.
@@ -2079,6 +2096,17 @@ export function PlannerScreen(): React.JSX.Element {
                   </View>
                 )}
                 <PlannerDayTracker clients={catalog.data ?? []} />
+                {/* Canvas ⇄ List toggle (REQ-040): the same day, geometry or flat list. */}
+                <View style={{ maxWidth: 220 }}>
+                  <SegmentedControl<'canvas' | 'list'>
+                    segments={[
+                      { value: 'canvas', label: 'Canvas' },
+                      { value: 'list', label: 'List' },
+                    ]}
+                    active={dayMode}
+                    onChange={setDayMode}
+                  />
+                </View>
                 <View
                   style={{
                     flexDirection: stacked ? 'column' : 'row',
@@ -2086,57 +2114,90 @@ export function PlannerScreen(): React.JSX.Element {
                     alignItems: 'flex-start',
                   }}
                 >
-                  <Card
-                    padding={false}
-                    style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}
-                  >
-                    {webTimegrid && weekStartMs !== undefined ? (
-                      // Web (design v20 §Cal): FullCalendar's editable timegrid for the single day —
-                      // drag/resize/create/open all route to the same handlers the RN canvas uses.
-                      <PlannerCalendar
-                        view="day"
-                        year={calYear}
-                        month0={calMonth0}
-                        today={calToday}
-                        anchorDate={localDayKey(day.dateMs)}
-                        occurrences={occurrences.filter(o => inLayer(o.kind, layer))}
-                        targetHours={DAILY_TARGET_HOURS}
-                        editableBlocks={timegridBlocks}
-                        weekStartMs={weekStartMs}
-                        onBlockMove={moveBlock}
-                        onBlockResize={resizeBlock}
-                        onBlockOpen={setOpenIndex}
-                        onSlotCreate={(d, min) => createBlockAt(d, min)}
+                  {dayMode === 'list' ? (
+                    // Classic day list (REQ-040): the day's editable blocks + read-only recurring
+                    // occurrences, sorted by start; a tap opens the same drawer as the canvas.
+                    <View style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}>
+                      <PlannerDayList
+                        items={[
+                          ...shownBlocks
+                            .map((b, index) => ({ b, index }))
+                            .filter(x => x.b.day === dayI)
+                            .map(({ b, index }): DayListItem => ({
+                              key: `b-${String(index)}`,
+                              label: b.label,
+                              timeLabel: `${clock(b.start)}–${clock(b.start + b.len)}`,
+                              lenMin: b.len,
+                              color: canvasBlockColor(t, b),
+                              typeLabel: canvasKindLabel(b.kind),
+                              onOpen: () => setOpenIndex(index),
+                            })),
+                          ...recurringBlocks
+                            .filter(rb => rb.day === dayI)
+                            .map((rb, ri): DayListItem => ({
+                              key: `r-${String(ri)}`,
+                              label: rb.label,
+                              timeLabel: `${clock(rb.start)}–${clock(rb.start + rb.len)}`,
+                              lenMin: rb.len,
+                              color: canvasBlockColor(t, rb),
+                              typeLabel: `↻ ${canvasKindLabel(rb.kind)}`,
+                            })),
+                        ].sort((a, b) => a.timeLabel.localeCompare(b.timeLabel))}
                       />
-                    ) : (
-                      <View style={{ flexDirection: 'row' }}>
-                        <HourGutter />
-                        <View
-                          style={{ flex: 1 }}
-                          onLayout={e => {
-                            const w = e.nativeEvent.layout.width
-                            if (w > 0) setDayColW(w)
-                          }}
-                        >
-                          <DayColumn
-                            day={day}
-                            index={dayI}
-                            flex
-                            blocks={shownBlocks}
-                            recurring={recurringBlocks}
-                            colWidth={dayColW}
-                            onResizeBlock={resizeBlock}
-                            onMoveBlock={moveBlock}
-                            onOpenBlock={setOpenIndex}
-                            showReality={showReality}
-                            onCreateAt={min => createBlockAt(dayI, min)}
-                            eveningZone
-                            nonWorking={[0, 6].includes(new Date(day.dateMs).getDay())}
-                          />
+                    </View>
+                  ) : (
+                    <Card
+                      padding={false}
+                      style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}
+                    >
+                      {webTimegrid && weekStartMs !== undefined ? (
+                        // Web (design v20 §Cal): FullCalendar's editable timegrid for the single day —
+                        // drag/resize/create/open all route to the same handlers the RN canvas uses.
+                        <PlannerCalendar
+                          view="day"
+                          year={calYear}
+                          month0={calMonth0}
+                          today={calToday}
+                          anchorDate={localDayKey(day.dateMs)}
+                          occurrences={occurrences.filter(o => inLayer(o.kind, layer))}
+                          targetHours={DAILY_TARGET_HOURS}
+                          editableBlocks={timegridBlocks}
+                          weekStartMs={weekStartMs}
+                          onBlockMove={moveBlock}
+                          onBlockResize={resizeBlock}
+                          onBlockOpen={setOpenIndex}
+                          onSlotCreate={(d, min) => createBlockAt(d, min)}
+                        />
+                      ) : (
+                        <View style={{ flexDirection: 'row' }}>
+                          <HourGutter />
+                          <View
+                            style={{ flex: 1 }}
+                            onLayout={e => {
+                              const w = e.nativeEvent.layout.width
+                              if (w > 0) setDayColW(w)
+                            }}
+                          >
+                            <DayColumn
+                              day={day}
+                              index={dayI}
+                              flex
+                              blocks={shownBlocks}
+                              recurring={recurringBlocks}
+                              colWidth={dayColW}
+                              onResizeBlock={resizeBlock}
+                              onMoveBlock={moveBlock}
+                              onOpenBlock={setOpenIndex}
+                              showReality={showReality}
+                              onCreateAt={min => createBlockAt(dayI, min)}
+                              eveningZone
+                              nonWorking={[0, 6].includes(new Date(day.dateMs).getDay())}
+                            />
+                          </View>
                         </View>
-                      </View>
-                    )}
-                  </Card>
+                      )}
+                    </Card>
+                  )}
                   {/* Instruments rail — glanceable day signals from real data (design v20). */}
                   <PlannerDayInstruments />
                 </View>
