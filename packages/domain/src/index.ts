@@ -84,6 +84,14 @@ export type {
 export { buildTimesheet } from './reporting/timesheet.js'
 export type { ProjectSummary, WorkspaceSummary, SummaryOptions } from './reporting/summary.js'
 export { summarizeEntries } from './reporting/summary.js'
+// Reports/analytics CSV export (REQ-045, ADR-0005) — deterministic CSV of the dashboard view-model,
+// distinct from the timesheet/invoice export (REQ-009).
+export type {
+  ReportExportInput,
+  ReportExportProject,
+  ReportExportBudget,
+} from './reporting/export.js'
+export { reportToCsv } from './reporting/export.js'
 // AI standup / summary (REQ-014, ADR-0005) — the deterministic report with **protected numeric
 // slots** the LLM narrates around but may never change; `renderStandupPlain` is the AI-free
 // degradation, `slotsPreserved` verifies a draft kept every number (slot integrity).

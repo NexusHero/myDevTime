@@ -76,6 +76,8 @@ export {
   priorityWeight,
   dayLoad,
   loadTone,
+  weekIntensity,
+  type WeekIntensity,
   assignLanes,
   maxConcurrency,
   snapDurationMin,

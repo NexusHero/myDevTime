@@ -1,4 +1,4 @@
-import { dayLoad, type Priority } from '@mydevtime/design'
+import { dayLoad, weekIntensity, type Priority } from '@mydevtime/design'
 import type { Occurrence } from '../api/recurrence'
 
 /**
@@ -6,9 +6,10 @@ import type { Occurrence } from '../api/recurrence'
  * ground law of both views: **tasks** (planned work) count toward the day's load and carry a
  * project color + priority; **events** (holiday, company event, info) never count and never block
  * — they surface as a hollow flag banner. This module shapes the real occurrence + event data
- * into per-day and per-month buckets the `PlannerMonth`/`PlannerYear` components render; the load
- * math is the deterministic `dayLoad` from `@mydevtime/design` (ADR-0005). No mock data: an empty
- * input yields empty buckets, and the screen shows an honest empty calendar.
+ * into per-day and per-month buckets the `PlannerMonth`/`PlannerYear` components render; the whole
+ * utilization aggregation is the deterministic core in `@mydevtime/design` — `dayLoad` (Month, load
+ * per day) and `weekIntensity` (Year, weekly heat), both exhaustively tested (REQ-046, ADR-0005).
+ * No mock data: an empty input yields empty buckets, and the screen shows an honest empty calendar.
  */
 
 /** A planned task in a calendar cell — its priority, estimate, label and project (for the color). */
@@ -131,15 +132,6 @@ const MONTH_NAMES = [
   'Nov',
   'Dec',
 ]
-
-/** Map a priority-weighted week load to a 0–3 intensity level vs. the weekly target. */
-function weekIntensity(load: number, weeklyTarget: number): number {
-  if (!(load > 0)) return 0
-  const r = load / weeklyTarget
-  if (r <= 0.4) return 1
-  if (r <= 0.8) return 2
-  return 3
-}
 
 /**
  * Aggregate a year's occurrences + events into 12 month cells: planned hours, a 5-row week-intensity

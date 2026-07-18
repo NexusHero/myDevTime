@@ -11,6 +11,7 @@ import {
   plannerTotalHours,
   priorityWeight,
   snapDurationMin,
+  weekIntensity,
 } from './planner.js'
 
 /**
@@ -120,6 +121,30 @@ describe('loadTone', () => {
   })
   it('NonPositiveSoll_WithLoad_IsCrit', () => {
     expect(loadTone(3, 0)).toBe('crit')
+  })
+})
+
+describe('weekIntensity', () => {
+  const TARGET = 40
+  it('NoLoad_IsIdle', () => {
+    expect(weekIntensity(0, TARGET)).toBe(0)
+    expect(weekIntensity(-5, TARGET)).toBe(0)
+  })
+  it('UpTo40Percent_IsLight', () => {
+    expect(weekIntensity(TARGET * 0.4, TARGET)).toBe(1)
+    expect(weekIntensity(0.01, TARGET)).toBe(1)
+  })
+  it('Between40And80Percent_IsSteady', () => {
+    expect(weekIntensity(TARGET * 0.41, TARGET)).toBe(2)
+    expect(weekIntensity(TARGET * 0.8, TARGET)).toBe(2)
+  })
+  it('Over80Percent_IsHeavy', () => {
+    expect(weekIntensity(TARGET * 0.81, TARGET)).toBe(3)
+    expect(weekIntensity(TARGET * 2, TARGET)).toBe(3)
+  })
+  it('NonPositiveTarget_WithLoad_IsHeavy', () => {
+    expect(weekIntensity(5, 0)).toBe(3)
+    expect(weekIntensity(5, -10)).toBe(3)
   })
 })
 
