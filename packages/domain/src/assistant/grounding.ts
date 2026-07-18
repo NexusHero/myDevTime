@@ -65,12 +65,28 @@ const STOPWORDS = new Set([
   'viel',
 ])
 
-/** Lowercased content word tokens ≥ 3 chars (German/English), stopwords dropped, for keyword overlap. */
+/**
+ * Strip a few common English inflection suffixes so morphological variants share a token —
+ * `track`/`tracked`/`tracking`/`tracks` all reduce to `track`, so "How much did I **track**?"
+ * matches a "You **tracked** …" fact. Deterministic and deliberately conservative: a suffix is
+ * only removed when the remaining stem stays ≥ 3 chars, so short words are never mangled.
+ */
+function stem(token: string): string {
+  for (const suffix of ['ing', 'ed', 's']) {
+    if (token.endsWith(suffix) && token.length - suffix.length >= 3) {
+      return token.slice(0, -suffix.length)
+    }
+  }
+  return token
+}
+
+/** Lowercased content word tokens ≥ 3 chars (German/English), stopwords dropped, stemmed for overlap. */
 export function tokenize(text: string): string[] {
   return text
     .toLowerCase()
     .split(/[^\p{L}\p{N}]+/u)
     .filter(w => w.length >= 3 && !STOPWORDS.has(w))
+    .map(stem)
 }
 
 /** Inverse document frequency per token across the fact set: log(1 + N / df). */

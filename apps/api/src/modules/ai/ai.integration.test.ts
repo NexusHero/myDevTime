@@ -116,12 +116,13 @@ describe.skipIf(!databaseUrl)('ai module (integration)', () => {
 
   it('Assistant_AiRefusal_DoesNotCharge', async () => {
     await grant(db, wsA, { amount: 5, category: 'monthly-grant' })
-    // The model replies with the NO_DATA marker → a refusal, which must not be billed.
+    // "inbox" is nowhere in the facts → the grounded core recognises it as off-data and refuses
+    // deterministically *without* spending a model call (ADR-0005). A refusal is never billed.
     const controller = controllerWith(new FakeLlm(true, 'NO_DATA'))
 
     const res = await controller.ask(userA, { question: 'What is my inbox count?', facts })
 
-    expect(res.source).toBe('ai-proposal')
+    expect(res.source).toBe('deterministic')
     expect(res.refused).toBe(true)
     expect(res.charged).toBe(false)
     expect(await balanceFor(db, wsA)).toBe(5)

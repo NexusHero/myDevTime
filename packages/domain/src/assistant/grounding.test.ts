@@ -12,6 +12,25 @@ describe('tokenize', () => {
   it('LowercasesAndDropsShortTokensAndStopwords', () => {
     expect(tokenize('The Finanzo Invoice, 2h!')).toEqual(['finanzo', 'invoice'])
   })
+
+  it('StemsInflectionsSoVariantsShareAToken', () => {
+    // track / tracked / tracking / tracks all reduce to the same stem.
+    expect(tokenize('track tracked tracking tracks')).toEqual(['track', 'track', 'track', 'track'])
+  })
+
+  it('DoesNotMangleShortWordsBelowTheStemFloor', () => {
+    // Stripping would leave a < 3-char stem, so the word is left whole.
+    expect(tokenize('bus gas')).toEqual(['bus', 'gas'])
+  })
+})
+
+describe('rankFacts — morphology', () => {
+  it('MatchesAQuestionVerbToItsInflectedFactForm', () => {
+    // "track" (question) must reach "tracked" (fact) — the bug that wrongly refused on-data asks.
+    const ranked = rankFacts('how much did I track', ['You tracked 2h on Finanzo yesterday'])
+    expect(ranked[0]?.score).toBeGreaterThan(0)
+    expect(isOffData('how much did I track', ['You tracked 2h on Finanzo yesterday'])).toBe(false)
+  })
 })
 
 describe('rankFacts', () => {
