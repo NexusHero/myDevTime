@@ -176,6 +176,22 @@ export function TodayScreen(): React.JSX.Element {
     return { bg: t.color.overlay, fg: t.color.ink2 }
   }
 
+  // Plan-adherence chip (design v20 §Today): today's tracked focus as a share of the planned
+  // focus, taken verbatim from the deterministic `PlanReview` (ADR-0005) — no LLM, no estimate.
+  // Null (chip hidden) until there is a plan with planned focus minutes to measure against.
+  const planAdherence = ((): { label: string; bg: string; fg: string } | null => {
+    const review = planner.review
+    if (review === null || review.plannedFocusMin <= 0) return null
+    const pct = Math.round((review.trackedFocusMin / review.plannedFocusMin) * 100)
+    const tone =
+      pct >= 90
+        ? { bg: t.color.goodSoft, fg: t.color.good }
+        : pct < 60
+          ? { bg: t.color.warnSoft, fg: t.color.warn }
+          : { bg: t.color.overlay, fg: t.color.ink2 }
+    return { label: `Plan ${String(pct)}%`, ...tone }
+  })()
+
   const planBlocks = (plan?.blocks ?? []).map((b, i) => ({ ...b, index: i }))
   const visibleBlocks = planBlocks.filter(b => !dismissed.includes(b.index))
   const accepted = plan?.status === 'accepted'
@@ -991,6 +1007,24 @@ export function TodayScreen(): React.JSX.Element {
                 }}
               >
                 {`Balance: ${insights.load.level}`}
+              </Text>
+            </View>
+          )}
+
+          {/* Plan-adherence chip (design v20 §Today): tracked vs planned focus for today, straight
+              from the deterministic evening review (`PlanReview`) — never an AI guess, never
+              fabricated. Shown only once there is a plan with planned focus to compare against. */}
+          {planAdherence !== null && (
+            <View
+              style={{
+                paddingHorizontal: t.spacing.s2,
+                paddingVertical: 2,
+                borderRadius: t.radius.chip,
+                backgroundColor: planAdherence.bg,
+              }}
+            >
+              <Text style={{ fontSize: t.fontSize.xs, fontWeight: '600', color: planAdherence.fg }}>
+                {planAdherence.label}
               </Text>
             </View>
           )}
