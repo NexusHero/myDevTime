@@ -162,6 +162,13 @@
       "when": 1784393405683,
       "tag": "0022_thick_retro_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1784395078742,
+      "tag": "0023_stiff_romulus",
+      "breakpoints": true
     }
   ]
 }
