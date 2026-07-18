@@ -4,6 +4,7 @@ import type { RecurrenceRule } from '@mydevtime/domain'
 import { Text } from '../core/Text'
 import { Badge, Button, Icon, IconButton, Input, SegmentedControl, Switch } from '../index'
 import { RecurrenceEditor } from './RecurrenceEditor'
+import { useModalFocus } from '../core/useModalFocus'
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
@@ -113,6 +114,8 @@ export function PlannerEntryDrawer({
   const [distance, setDistance] = useState(
     entry?.distanceKm != null ? String(entry.distanceKm) : '',
   )
+  // Focus management (REQ-043): on open, keyboard focus moves into the drawer (web).
+  const panelRef = useModalFocus(entry !== null)
   if (entry === null) return null
 
   const panelWidth = Math.min(380, width - 24)
@@ -133,7 +136,9 @@ export function PlannerEntryDrawer({
         }}
       />
       <View
+        ref={panelRef}
         accessibilityViewIsModal
+        tabIndex={-1}
         style={{
           position: 'absolute',
           top: 12,
