@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import TestRenderer, { act } from 'react-test-renderer'
 import type { ReactTestInstance } from 'react-test-renderer'
 import { ThemeProvider } from '../theme/ThemeProvider.js'
+import { ToastProvider } from '../components/core/Toast.js'
 import { TestQueryProvider } from '../test/TestQueryProvider.js'
 
 /**
@@ -62,7 +63,9 @@ async function render(): Promise<TestRenderer.ReactTestRenderer> {
     renderer = TestRenderer.create(
       <TestQueryProvider>
         <ThemeProvider>
-          <TaskScreen taskId="t1" onNavigate={() => undefined} />
+          <ToastProvider>
+            <TaskScreen taskId="t1" onNavigate={() => undefined} />
+          </ToastProvider>
         </ThemeProvider>
       </TestQueryProvider>,
     )

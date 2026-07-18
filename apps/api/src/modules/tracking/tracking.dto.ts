@@ -37,11 +37,18 @@ export class UpdateProjectDto extends createZodDto(
 export class CreateTaskDto extends createZodDto(
   z.object({ name, projectId: z.uuid(), billableDefault: z.boolean().optional() }),
 ) {}
+// Effort-estimation vocab (REQ-041) — validated against the deterministic core's enums so a bad
+// value can never reach the baseline math; `null` clears the field.
+const taskCategory = z.enum(['feature', 'bug', 'chore', 'research', 'meeting'])
+const taskComplexity = z.enum(['trivial', 'small', 'medium', 'large', 'xlarge'])
 export class UpdateTaskDto extends createZodDto(
   z.object({
     name: name.optional(),
     billableDefault: z.boolean().optional(),
     archived: z.boolean().optional(),
+    category: taskCategory.nullish(),
+    complexity: taskComplexity.nullish(),
+    estimateMinutes: z.number().int().nonnegative().nullish(),
   }),
 ) {}
 

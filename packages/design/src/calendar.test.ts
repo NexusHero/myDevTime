@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { daysInMonth, monthGrid, weekdayHeaders } from './calendar.js'
+import {
+  bookingGapDays,
+  daysInMonth,
+  isWeekdayDate,
+  monthGrid,
+  weekdayHeaders,
+} from './calendar.js'
 
 /**
  * The month grid is deterministic geometry (ADR-0005), pinned against known
@@ -71,5 +77,36 @@ describe('weekdayHeaders', () => {
   })
   it('SundayFirst_StartsSunday', () => {
     expect(weekdayHeaders(false)).toEqual(['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'])
+  })
+})
+
+describe('isWeekdayDate', () => {
+  // July 2026: 1 Wed · 2 Thu · 3 Fri · 4 Sat · 5 Sun · 6 Mon.
+  it('Weekday_IsTrue', () => {
+    expect(isWeekdayDate(2026, 6, 1)).toBe(true)
+    expect(isWeekdayDate(2026, 6, 6)).toBe(true)
+  })
+  it('Weekend_IsFalse', () => {
+    expect(isWeekdayDate(2026, 6, 4)).toBe(false)
+    expect(isWeekdayDate(2026, 6, 5)).toBe(false)
+  })
+})
+
+describe('bookingGapDays', () => {
+  it('PastWeekdaysWithoutABooking_AreGaps', () => {
+    // Weekdays 1–8 are 1,2,3,6,7,8 (4/5 = weekend). Booked {1,2} → gaps 3,6,7,8.
+    expect(bookingGapDays(2026, 6, new Set([1, 2]), 8)).toEqual([3, 6, 7, 8])
+  })
+  it('FutureMonth_HasNoGaps', () => {
+    expect(bookingGapDays(2026, 6, new Set(), 0)).toEqual([])
+  })
+  it('EveryWeekdayBooked_HasNoGaps', () => {
+    expect(bookingGapDays(2026, 6, new Set([1, 2, 3, 6, 7, 8]), 8)).toEqual([])
+  })
+  it('CutoffClampsToTheMonthLength', () => {
+    // cutoff beyond the month still only considers real days; nothing booked → every past weekday.
+    const gaps = bookingGapDays(2026, 6, new Set(), 999)
+    expect(gaps).toContain(31) // Jul 31 2026 is a Friday
+    expect(gaps).not.toContain(4) // Saturday
   })
 })

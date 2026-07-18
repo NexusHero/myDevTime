@@ -39,8 +39,24 @@ describe('assembleCatalog', () => {
     { id: 'p2', name: 'Loose ends', clientId: null, hourlyRateOverride: null, fixedFeeMinor: null },
   ]
   const tasks = [
-    { id: 't1', name: 'Ledger', projectId: 'p1', archived: true },
-    { id: 't2', name: 'UI', projectId: 'p1', archived: false },
+    {
+      id: 't1',
+      name: 'Ledger',
+      projectId: 'p1',
+      archived: true,
+      category: null,
+      complexity: null,
+      estimateMinutes: null,
+    },
+    {
+      id: 't2',
+      name: 'UI',
+      projectId: 'p1',
+      archived: false,
+      category: null,
+      complexity: null,
+      estimateMinutes: null,
+    },
   ]
 
   it('GroupsProjectsUnderClientAndTasksUnderProject', () => {

@@ -34,6 +34,10 @@ export const taskSchema = z.object({
   projectId: z.string(),
   name: z.string(),
   billableDefault: z.boolean(),
+  // Effort estimation (REQ-041) — nullable: a task without an estimate is the honest default.
+  category: z.string().nullable(),
+  complexity: z.string().nullable(),
+  estimateMinutes: z.number().int().nullable(),
   archived: z.boolean(),
   ...timestamps,
 })
