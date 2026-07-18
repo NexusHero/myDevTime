@@ -22,6 +22,8 @@ import { effectiveRate, priceWeek, weekLoadFromMinutes } from '@mydevtime/domain
 import { useVisibility } from '../roles/RoleContext'
 import { weeklyBalance } from '../reports/balanceRow'
 import { useReports } from '../hooks/useReports'
+import { downloadReportsCsv } from '../reports/exportCsv'
+import { useToast } from '../components/core/Toast'
 import { useRevenueBudget } from '../hooks/useRevenueBudget'
 import { useOvertimeTrend } from '../hooks/useOvertimeTrend'
 import { useBalance } from '../hooks/useBalance'
@@ -339,6 +341,7 @@ export function ReportsScreen(): React.JSX.Element {
   const stacked = width < 720
   const [range, setRange] = useState<Range>('week')
   const [view, setView] = useState<'overview' | 'money' | 'balance'>('overview')
+  const toast = useToast()
   // Role visibility (design v14 §R): a Stempler (Employed) never sees €/clients/billing, so
   // the Revenue & Budget view is hidden for them; Overview and Balance stay for every role.
   const showMoney = useVisibility().isVisible('invoicing')
@@ -988,8 +991,23 @@ export function ReportsScreen(): React.JSX.Element {
               </Pressable>
             ))}
           </View>
-          <Button size="sm" variant="ghost" disabled>
-            Export — coming soon
+          {/* Reports/analytics CSV export (REQ-045): the deterministic `reportToCsv` core turns the
+              live window's figures into a CSV download (web); on native the download is unavailable
+              and we say so. Disabled until there is data to export — never an empty file. */}
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={!reports.data}
+            onPress={() => {
+              const d = reports.data
+              if (!d) return
+              const ok = downloadReportsCsv(range, d)
+              toast.show(
+                ok ? 'Reports exported as CSV.' : 'CSV export is available on the web app.',
+              )
+            }}
+          >
+            Export CSV
           </Button>
         </View>
       }
