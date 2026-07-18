@@ -8,12 +8,15 @@ import { SmartAddService } from './smart-add.service.js'
 import { AiContext } from './ai.context.js'
 import { ASSISTANT, type Assistant } from './assistant.js'
 import { AI_INSIGHTS, type AiInsightsPort } from './insights.js'
-import { AssistantDto, InsightDto, NlEntryDto, SmartAddDto } from './ai.dto.js'
+import { STANDUP_WRITER, type StandupWriter } from './standup.js'
+import { AssistantDto, InsightDto, NlEntryDto, SmartAddDto, StandupDto } from './ai.dto.js'
 
 /** One grounded-assistant answer costs one credit (ADR-0008). */
 const ASSISTANT_CREDIT_COST = 1
 /** One grounded insight (KI1–KI4) costs one credit, charged only on a real AI proposal. */
 const INSIGHT_CREDIT_COST = 1
+/** One AI standup narration costs one credit, charged only on a real AI proposal (ADR-0008). */
+const STANDUP_CREDIT_COST = 1
 
 /**
  * The `ai` module (LLM proposals, NL entry, assistant — ADR-0025/0029). The status
@@ -30,6 +33,7 @@ export class AiController {
     private readonly ctx: AiContext,
     @Inject(ASSISTANT) private readonly assistant: Assistant,
     @Inject(AI_INSIGHTS) private readonly insights: AiInsightsPort,
+    @Inject(STANDUP_WRITER) private readonly standup: StandupWriter,
   ) {}
 
   @Get('status')
@@ -92,6 +96,40 @@ export class AiController {
       charged = true
     }
     return { ...proposal, charged }
+  }
+
+  /**
+   * The AI standup / summary (REQ-014): the caller's own grouped durations are arranged into a
+   * slot-protected report and the LLM narrates around the numbers — never changing one (slot
+   * integrity, ADR-0005). A credit is debited once only when the AI actually wrote the narrative;
+   * a down provider, no credits, an empty day, or a draft that dropped a figure all degrade to the
+   * free plain template. Read-only: nothing is written to the timesheet.
+   */
+  @Post('standup')
+  @UseGuards(AuthGuard)
+  async standupReport(@CurrentUser() user: AuthenticatedUser, @Body() body: StandupDto) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    const allowAi = (await balanceFor(db, workspaceId)) >= STANDUP_CREDIT_COST
+    const result = await this.standup.compose(
+      {
+        date: body.date,
+        yesterday: body.yesterday ?? [],
+        today: body.today ?? [],
+        blockers: body.blockers ?? [],
+      },
+      { allowAi },
+    )
+    let charged = false
+    if (result.source === 'ai-proposal') {
+      await debit(db, workspaceId, {
+        amount: STANDUP_CREDIT_COST,
+        category: 'assistant',
+        reason: 'AI standup narrative',
+        operationId: `standup:${workspaceId}:${body.date}:${randomUUID()}`,
+      })
+      charged = true
+    }
+    return { source: result.source, text: result.text, report: result.report, charged }
   }
 
   /**
