@@ -12,6 +12,23 @@ import { PlannerYear } from './PlannerYear'
  * occurrences and produce the same figures via the deterministic `buildMonthDays`/`buildYearMonths`
  * (ADR-0005) — the calendar library only lays out and renders; it computes no number.
  */
+/**
+ * An editable local canvas block for the **web** week/day timegrid (design v20 §Cal). `day` is the
+ * 0-based column offset from the shown week's Monday; `startMin` is minutes from 08:00; `lenMin` the
+ * duration. Native ignores these entirely — it keeps the hand-built RN `DayColumn` canvas — so this
+ * shape only feeds FullCalendar's drag/resize on web. The `index` is the block's position in the
+ * array the Planner passes to its move/resize handlers, so an edit maps straight back to state.
+ */
+export interface TimegridBlock {
+  readonly index: number
+  readonly day: number
+  readonly startMin: number
+  readonly lenMin: number
+  readonly label: string
+  readonly color: string
+  readonly kind: string
+}
+
 export interface PlannerCalendarProps {
   readonly view: 'month' | 'year' | 'week' | 'day'
   readonly year: number
@@ -27,6 +44,18 @@ export interface PlannerCalendarProps {
   readonly targetHours: number
   readonly onDrillDay?: (day: number) => void
   readonly onDrillMonth?: (month0: number) => void
+  /** Editable blocks for the web timegrid (design v20 §Cal); native ignores them. */
+  readonly editableBlocks?: readonly TimegridBlock[]
+  /** Local midnight (ms) of the shown week's Monday — the anchor for day+min ↔ datetime on web. */
+  readonly weekStartMs?: number
+  /** Web timegrid: a block was dragged to a new day/time (both snapped to 15 min). */
+  readonly onBlockMove?: (index: number, day: number, startMin: number) => void
+  /** Web timegrid: a block's duration changed at its edge (snapped to 15 min). */
+  readonly onBlockResize?: (index: number, lenMin: number) => void
+  /** Web timegrid: a block was clicked → open its typed drawer. */
+  readonly onBlockOpen?: (index: number) => void
+  /** Web timegrid: an empty slot was selected → create a block at that day/time. */
+  readonly onSlotCreate?: (day: number, startMin: number) => void
 }
 
 export function PlannerCalendar({
