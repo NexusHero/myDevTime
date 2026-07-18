@@ -375,6 +375,12 @@ export function ProfileScreen({
         onPress={() => onNavigate('rates')}
       />
       <Row
+        title="Categorization rules"
+        subtitle="Auto-propose a category for matching entries"
+        trailing={chevron}
+        onPress={() => onNavigate('rules')}
+      />
+      <Row
         title="All settings"
         subtitle="Preferences, subscription, data & privacy"
         trailing={chevron}
