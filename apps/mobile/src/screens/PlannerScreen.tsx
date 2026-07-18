@@ -2,7 +2,7 @@ import { FlashList } from '@shopify/flash-list'
 import Animated, { useSharedValue, useAnimatedStyle, runOnJS } from 'react-native-reanimated'
 import { GestureDetector, Gesture } from 'react-native-gesture-handler'
 import { useEffect, useMemo, useState } from 'react'
-import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
+import { Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import {
   assignLanes,
   dropTarget,
@@ -34,7 +34,7 @@ import { createProject } from '../api/tracking'
 import { occurrencesToBlocks, type RecurringBlock } from '../planner/recurring'
 import { useWeekOccurrences } from '../hooks/useWeekOccurrences'
 import { useMonthOccurrences } from '../hooks/useMonthOccurrences'
-import { PlannerCalendar } from '../components/planner/PlannerCalendar'
+import { PlannerCalendar, type TimegridBlock } from '../components/planner/PlannerCalendar'
 import {
   PlannerNewEntryDialog,
   type NewEntryDraft,
@@ -1706,6 +1706,22 @@ export function PlannerScreen(): React.JSX.Element {
     START_HOUR,
   ).filter(rb => inLayer(rb.kind, layer))
 
+  // Web timegrid (design v20 §Cal, ADR-0068): on web the Week/Day grid is FullCalendar's editable
+  // timegrid; native keeps the RN `DayColumn` canvas. The same local blocks feed both — mapped here
+  // to the timegrid's shape, with each block's index so a drag/resize maps back to `moveBlock`/
+  // `resizeBlock` exactly as the RN canvas does. `weekStartMs` is the shown week's Monday midnight.
+  const webTimegrid = Platform.OS === 'web'
+  const weekStartMs = weekDays[0]?.dateMs
+  const timegridBlocks: readonly TimegridBlock[] = shownBlocks.map((b, index) => ({
+    index,
+    day: b.day,
+    startMin: b.start,
+    lenMin: b.len,
+    label: b.label,
+    color: canvasBlockColor(t, b),
+    kind: b.kind,
+  }))
+
   // Month/Year (Kalender) views (design v18 PlannerViews): the shown month/year is the real
   // current one; occurrences over the whole window are fetched (empty without an API → honest
   // empty calendar) and shaped by the pure `buildMonthDays`/`buildYearMonths`. The daily target
@@ -2074,32 +2090,52 @@ export function PlannerScreen(): React.JSX.Element {
                     padding={false}
                     style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}
                   >
-                    <View style={{ flexDirection: 'row' }}>
-                      <HourGutter />
-                      <View
-                        style={{ flex: 1 }}
-                        onLayout={e => {
-                          const w = e.nativeEvent.layout.width
-                          if (w > 0) setDayColW(w)
-                        }}
-                      >
-                        <DayColumn
-                          day={day}
-                          index={dayI}
-                          flex
-                          blocks={shownBlocks}
-                          recurring={recurringBlocks}
-                          colWidth={dayColW}
-                          onResizeBlock={resizeBlock}
-                          onMoveBlock={moveBlock}
-                          onOpenBlock={setOpenIndex}
-                          showReality={showReality}
-                          onCreateAt={min => createBlockAt(dayI, min)}
-                          eveningZone
-                          nonWorking={[0, 6].includes(new Date(day.dateMs).getDay())}
-                        />
+                    {webTimegrid && weekStartMs !== undefined ? (
+                      // Web (design v20 §Cal): FullCalendar's editable timegrid for the single day —
+                      // drag/resize/create/open all route to the same handlers the RN canvas uses.
+                      <PlannerCalendar
+                        view="day"
+                        year={calYear}
+                        month0={calMonth0}
+                        today={calToday}
+                        anchorDate={localDayKey(day.dateMs)}
+                        occurrences={occurrences.filter(o => inLayer(o.kind, layer))}
+                        targetHours={DAILY_TARGET_HOURS}
+                        editableBlocks={timegridBlocks}
+                        weekStartMs={weekStartMs}
+                        onBlockMove={moveBlock}
+                        onBlockResize={resizeBlock}
+                        onBlockOpen={setOpenIndex}
+                        onSlotCreate={(d, min) => createBlockAt(d, min)}
+                      />
+                    ) : (
+                      <View style={{ flexDirection: 'row' }}>
+                        <HourGutter />
+                        <View
+                          style={{ flex: 1 }}
+                          onLayout={e => {
+                            const w = e.nativeEvent.layout.width
+                            if (w > 0) setDayColW(w)
+                          }}
+                        >
+                          <DayColumn
+                            day={day}
+                            index={dayI}
+                            flex
+                            blocks={shownBlocks}
+                            recurring={recurringBlocks}
+                            colWidth={dayColW}
+                            onResizeBlock={resizeBlock}
+                            onMoveBlock={moveBlock}
+                            onOpenBlock={setOpenIndex}
+                            showReality={showReality}
+                            onCreateAt={min => createBlockAt(dayI, min)}
+                            eveningZone
+                            nonWorking={[0, 6].includes(new Date(day.dateMs).getDay())}
+                          />
+                        </View>
                       </View>
-                    </View>
+                    )}
                   </Card>
                   {/* Instruments rail — glanceable day signals from real data (design v20). */}
                   <PlannerDayInstruments />
@@ -2246,49 +2282,69 @@ export function PlannerScreen(): React.JSX.Element {
               }}
             >
               <Card padding={false} style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}>
-                <View style={{ flexDirection: 'row' }}>
-                  <HourGutter />
-                  <View
-                    style={{ flex: 1, flexDirection: 'row' }}
-                    onLayout={e => {
-                      if (!stacked) {
-                        const w = e.nativeEvent.layout.width / weekDays.length
-                        if (w > 0) setColWidth(w)
-                      }
-                    }}
-                  >
-                    <FlashList
-                      data={weekDays}
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      estimatedItemSize={stacked ? COL_WIDTH : colWidth}
-                      keyExtractor={(day: (typeof weekDays)[0]) => day.name}
-                      extraData={{ shownBlocks, recurringBlocks, colWidth, stacked, showReality }}
-                      renderItem={({
-                        item: day,
-                        index: di,
-                      }: {
-                        item: (typeof weekDays)[0]
-                        index: number
-                      }) => (
-                        <View style={{ width: stacked ? COL_WIDTH : colWidth, height: '100%' }}>
-                          <DayColumn
-                            day={day}
-                            index={di}
-                            flex={false}
-                            blocks={shownBlocks}
-                            recurring={recurringBlocks}
-                            colWidth={stacked ? COL_WIDTH : colWidth}
-                            onResizeBlock={resizeBlock}
-                            onMoveBlock={moveBlock}
-                            onOpenBlock={setOpenIndex}
-                            showReality={showReality}
-                          />
-                        </View>
-                      )}
-                    />
+                {webTimegrid && weekStartMs !== undefined ? (
+                  // Web (design v20 §Cal): FullCalendar's editable 7-day timegrid — same blocks, same
+                  // move/resize/create/open handlers as the RN columns, so nothing behaves differently.
+                  <PlannerCalendar
+                    view="week"
+                    year={calYear}
+                    month0={calMonth0}
+                    today={calToday}
+                    anchorDate={localDayKey(weekStartMs)}
+                    occurrences={occurrences.filter(o => inLayer(o.kind, layer))}
+                    targetHours={DAILY_TARGET_HOURS}
+                    editableBlocks={timegridBlocks}
+                    weekStartMs={weekStartMs}
+                    onBlockMove={moveBlock}
+                    onBlockResize={resizeBlock}
+                    onBlockOpen={setOpenIndex}
+                    onSlotCreate={(d, min) => createBlockAt(d, min)}
+                  />
+                ) : (
+                  <View style={{ flexDirection: 'row' }}>
+                    <HourGutter />
+                    <View
+                      style={{ flex: 1, flexDirection: 'row' }}
+                      onLayout={e => {
+                        if (!stacked) {
+                          const w = e.nativeEvent.layout.width / weekDays.length
+                          if (w > 0) setColWidth(w)
+                        }
+                      }}
+                    >
+                      <FlashList
+                        data={weekDays}
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        estimatedItemSize={stacked ? COL_WIDTH : colWidth}
+                        keyExtractor={(day: (typeof weekDays)[0]) => day.name}
+                        extraData={{ shownBlocks, recurringBlocks, colWidth, stacked, showReality }}
+                        renderItem={({
+                          item: day,
+                          index: di,
+                        }: {
+                          item: (typeof weekDays)[0]
+                          index: number
+                        }) => (
+                          <View style={{ width: stacked ? COL_WIDTH : colWidth, height: '100%' }}>
+                            <DayColumn
+                              day={day}
+                              index={di}
+                              flex={false}
+                              blocks={shownBlocks}
+                              recurring={recurringBlocks}
+                              colWidth={stacked ? COL_WIDTH : colWidth}
+                              onResizeBlock={resizeBlock}
+                              onMoveBlock={moveBlock}
+                              onOpenBlock={setOpenIndex}
+                              showReality={showReality}
+                            />
+                          </View>
+                        )}
+                      />
+                    </View>
                   </View>
-                </View>
+                )}
               </Card>
               {inboxOpen && <TaskInbox tasks={tasks} onPlan={planTask} onDone={doneTask} />}
             </View>

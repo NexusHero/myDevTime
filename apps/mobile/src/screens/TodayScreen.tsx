@@ -108,6 +108,9 @@ export function TodayScreen(): React.JSX.Element {
   // Punch-out mood is asked once, in the moment of stamping out — never a standing
   // widget (design v4 / OLBI rationale). Set on punch-out, cleared by the row itself.
   const [askMood, setAskMood] = useState(false)
+  // Drift → re-plan (design v20 §Today AI moment): dismissed once per session so the nudge to
+  // re-plan a slipping day never nags.
+  const [replanDismissed, setReplanDismissed] = useState(false)
   const timer = useTimerContext()
   const toast = useToast()
   // Design v20 confirmations: starting and stopping the hero tracker lands a
@@ -191,6 +194,15 @@ export function TodayScreen(): React.JSX.Element {
           : { bg: t.color.overlay, fg: t.color.ink2 }
     return { label: `Plan ${String(pct)}%`, ...tone }
   })()
+
+  // Drift → re-plan (design v20 §Today, the first grounded AI moment): when today's tracked focus
+  // has fallen materially behind the plan, offer to re-plan the rest of the day. The drift comes
+  // straight from the deterministic `PlanReview` (ADR-0005), and "Re-plan" runs the real Co-Planner
+  // generator (`planner.repropose`) — the app proposes, never books. Needs a live plan to re-plan.
+  const driftReplan =
+    planner.live && !replanDismissed && planner.review !== null && planner.review.driftMin <= -30
+      ? planner.review
+      : null
 
   const planBlocks = (plan?.blocks ?? []).map((b, i) => ({ ...b, index: i }))
   const visibleBlocks = planBlocks.filter(b => !dismissed.includes(b.index))
@@ -1068,6 +1080,40 @@ export function TodayScreen(): React.JSX.Element {
         )}
 
         {forgottenCard}
+
+        {driftReplan !== null && (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: t.spacing.s3,
+              padding: t.spacing.s4,
+              borderRadius: t.radius.card,
+              borderWidth: 1,
+              borderColor: t.color.accent,
+              backgroundColor: t.color.accentSoft,
+            }}
+          >
+            <View style={{ flex: 1, minWidth: 180 }}>
+              <Text style={{ fontSize: t.fontSize.sm, fontWeight: '700', color: t.color.ink }}>
+                {`✦ Behind plan by ${formatDuration(Math.abs(driftReplan.driftMin) * 60_000)} h`}
+              </Text>
+              <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2, marginTop: 2 }}>
+                Tracked focus is under today&apos;s plan. Re-plan the rest of the day — a proposal
+                you decide on, nothing is booked for you.
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
+              <Button size="sm" disabled={planner.busy} onPress={() => planner.repropose()}>
+                Re-plan day
+              </Button>
+              <Button size="sm" variant="ghost" onPress={() => setReplanDismissed(true)}>
+                Dismiss
+              </Button>
+            </View>
+          </View>
+        )}
 
         {askMood && <MoodCheck onDone={() => setAskMood(false)} />}
 
