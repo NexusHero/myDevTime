@@ -53,6 +53,7 @@ import {
 import { TaskInbox } from '../components/planner/TaskInbox'
 import { PlannerEntryDrawer, type DrawerEntry } from '../components/planner/PlannerEntryDrawer'
 import { PlannerViewMenu } from '../components/planner/PlannerViewMenu'
+import { PlannerStartPicker } from '../components/planner/PlannerStartPicker'
 import { useTheme } from '../theme/ThemeProvider'
 import { usePlanner } from '../hooks/usePlanner'
 import { usePreferences } from '../hooks/usePreferences'
@@ -1784,6 +1785,11 @@ export function PlannerScreen(): React.JSX.Element {
             {view === 'Year' ? 'Plan year' : view === 'Month' ? 'Plan month' : 'Plan week'}
           </Button>
         </View>
+
+        {/* In-bar start-picker (design v20 day-tracker row): pick a project + optional task and
+            start the shared live timer straight from the Planner — real catalog, real timer,
+            start/stop toasts. Additive: the week canvas, ghosts and reality overlay are untouched. */}
+        {view === 'Week' && <PlannerStartPicker clients={catalog.data ?? []} />}
 
         {/* Capacity head-trace (design v14 §F Stufe 2): the week's TRUE plannable capacity —
             the contracted target minus your own life/protected commitments ("KW32 nur 24h"),
