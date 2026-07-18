@@ -43,7 +43,7 @@ export interface NewEntryDraft {
   /** A personal (life) entry — never counted as work time (design v19 §F). */
   readonly isLife: boolean
   /** The recurrence series kind this entry produces (design v20 typed "+ New"). */
-  readonly seriesKind: 'focus' | 'meeting' | 'life'
+  readonly seriesKind: 'focus' | 'meeting' | 'life' | 'travel'
   /** The chosen project id, or null for Life / no project. */
   readonly projectId: string | null
   readonly priority: Priority
@@ -78,7 +78,7 @@ export function PlannerNewEntryDialog({
   const [description, setDescription] = useState('')
   // Typed "+ New" (design v20): Task (work), Meeting (work, no effort estimate), or Life
   // (personal). `isLife` stays derived so the rest of the form is unchanged.
-  const [kind, setKind] = useState<'task' | 'meeting' | 'life'>('task')
+  const [kind, setKind] = useState<'task' | 'meeting' | 'life' | 'travel'>('task')
   const isLife = kind === 'life'
   const [projectId, setProjectId] = useState<string | null>(null)
   const [priority, setPriority] = useState<Priority>(2)
@@ -113,7 +113,14 @@ export function PlannerNewEntryDialog({
       title: trimmed,
       description: description.trim(),
       isLife,
-      seriesKind: kind === 'life' ? 'life' : kind === 'meeting' ? 'meeting' : 'focus',
+      seriesKind:
+        kind === 'life'
+          ? 'life'
+          : kind === 'meeting'
+            ? 'meeting'
+            : kind === 'travel'
+              ? 'travel'
+              : 'focus',
       projectId: isLife ? null : projectId,
       priority,
       estHours,
@@ -174,7 +181,13 @@ export function PlannerNewEntryDialog({
           }}
         >
           <Text style={{ flex: 1, fontSize: t.fontSize.xl, fontWeight: '700', color: t.color.ink }}>
-            {kind === 'life' ? 'New life entry' : kind === 'meeting' ? 'New meeting' : 'New task'}
+            {kind === 'life'
+              ? 'New life entry'
+              : kind === 'meeting'
+                ? 'New meeting'
+                : kind === 'travel'
+                  ? 'New travel'
+                  : 'New task'}
           </Text>
           <Pressable onPress={close} accessibilityRole="button" accessibilityLabel="Cancel">
             <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink3 }}>Cancel</Text>
@@ -186,10 +199,11 @@ export function PlannerNewEntryDialog({
           keyboardShouldPersistTaps="handled"
         >
           {/* Type: Task · Meeting · Life (design v20 typed "+ New") */}
-          <SegmentedControl<'task' | 'meeting' | 'life'>
+          <SegmentedControl<'task' | 'meeting' | 'life' | 'travel'>
             segments={[
               { value: 'task', label: 'Task' },
               { value: 'meeting', label: 'Meeting' },
+              { value: 'travel', label: 'Travel' },
               { value: 'life', label: 'Life' },
             ]}
             active={kind}
@@ -337,7 +351,9 @@ export function PlannerNewEntryDialog({
                 ? 'Add to day'
                 : kind === 'meeting'
                   ? 'Create meeting'
-                  : 'Create task'}
+                  : kind === 'travel'
+                    ? 'Create travel'
+                    : 'Create task'}
             </Button>
           </View>
         </View>

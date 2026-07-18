@@ -17,7 +17,7 @@ export class OccurrencesQueryDto extends createZodDto(
 export class CreateSeriesDto extends createZodDto(
   z
     .object({
-      kind: z.enum(['meeting', 'focus', 'break', 'life']),
+      kind: z.enum(['meeting', 'focus', 'break', 'life', 'travel']),
       title: z.string().trim().min(1).max(200),
       anchorDate: calendarDate,
       startMin: z.number().int().min(0).max(1439),

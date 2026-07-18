@@ -9,7 +9,7 @@ import type { Occurrence, SeriesKind } from '../api/recurrence.js'
  */
 
 /** The canvas kinds the Planner renders. A recurring `focus` series is a fixed planned block. */
-export type RecurringBlockKind = 'meeting' | 'actual' | 'break' | 'life'
+export type RecurringBlockKind = 'meeting' | 'actual' | 'break' | 'life' | 'travel'
 
 export interface RecurringBlock {
   /** Day index within the shown week (0-based). */
@@ -32,6 +32,7 @@ const KIND_MAP: Record<SeriesKind, RecurringBlockKind> = {
   focus: 'actual',
   break: 'break',
   life: 'life',
+  travel: 'travel',
 }
 
 /**

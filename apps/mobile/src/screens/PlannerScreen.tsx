@@ -95,7 +95,7 @@ const STACK_BREAKPOINT = 860
 const NOW = new Date()
 const NOW_MIN = Math.max(0, Math.min((NOW.getHours() - START_HOUR) * 60 + NOW.getMinutes(), SPAN))
 
-type CanvasKind = 'actual' | 'meeting' | 'ghost' | 'break' | 'life'
+type CanvasKind = 'actual' | 'meeting' | 'ghost' | 'break' | 'life' | 'travel'
 /** Calendar RSVP for a meeting: accepted (solid), tentative (hatched), fyi (dimmed, not counted). */
 type Rsvp = 'accepted' | 'tentative' | 'fyi'
 
@@ -189,6 +189,8 @@ function canvasBlockColor(t: Theme, b: CanvasBlock): string {
   // Life blocks (design v14 §F) wear the sage `--life` token — family is not a project, so it
   // never borrows a project color. Its time reduces the plannable capacity (the head-trace).
   if (b.kind === 'life') return t.color.life
+  // Travel (design v20 §G4): a distinct in-transit tone, never a project fill.
+  if (b.kind === 'travel') return t.color.warn
   if (b.kind === 'break' || b.project === undefined) return t.color.ink3
   return projectColor(b.project, t.mode)
 }
@@ -1703,7 +1705,13 @@ export function PlannerScreen(): React.JSX.Element {
           start: startMin,
           len: lenMin,
           label: draft.title,
-          kind: draft.isLife ? 'life' : draft.seriesKind === 'meeting' ? 'meeting' : 'ghost',
+          kind: draft.isLife
+            ? 'life'
+            : draft.seriesKind === 'meeting'
+              ? 'meeting'
+              : draft.seriesKind === 'travel'
+                ? 'travel'
+                : 'ghost',
           ...(draft.isLife || draft.projectId === null ? {} : { project: draft.projectId }),
         },
       ])
