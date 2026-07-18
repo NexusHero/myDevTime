@@ -57,6 +57,7 @@ import { PlannerStartPicker } from '../components/planner/PlannerStartPicker'
 import { PlannerDayTracker } from '../components/planner/PlannerDayTracker'
 import { PlannerDayInstruments } from '../components/planner/PlannerDayInstruments'
 import { useToast } from '../components/core/Toast'
+import { useAbsences } from '../hooks/useAbsences'
 import { useTheme } from '../theme/ThemeProvider'
 import { usePlanner } from '../hooks/usePlanner'
 import { usePreferences } from '../hooks/usePreferences'
@@ -1655,6 +1656,7 @@ export function PlannerScreen(): React.JSX.Element {
   // placed at the next free slot, then the week + calendar reload. Nothing is invented (ADR-0005);
   // without an API the create is a no-op and the dialog says so, rather than faking a row.
   const catalog = useCatalog()
+  const absences = useAbsences()
   const dialogProjects = (catalog.data ?? [])
     .flatMap(c => c.projects)
     .map(p => ({ id: p.id, name: p.name }))
@@ -1946,8 +1948,38 @@ export function PlannerScreen(): React.JSX.Element {
             const dayI = dayIdx >= 0 ? dayIdx : 0
             const day = weekDays[dayI]
             if (day === undefined) return null
+            // All-day banner (design v20): if a real absence covers the shown day, surface it above
+            // the grid — vacation/sick/holiday is not a plannable slot. From live absences, no mock.
+            const dayKey = localDayKey(day.dateMs)
+            const dayAbsence = (absences.data?.upcoming ?? []).find(
+              a => dayKey >= a.startDate && dayKey <= a.endDate,
+            )
             return (
               <>
+                {dayAbsence && (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: t.spacing.s2,
+                      paddingHorizontal: t.spacing.s3,
+                      paddingVertical: t.spacing.s2,
+                      borderRadius: t.radius.block,
+                      borderLeftWidth: 3,
+                      borderLeftColor: t.color.warn,
+                      backgroundColor: t.color.warnSoft,
+                    }}
+                  >
+                    <Text
+                      style={{ fontSize: t.fontSize.xs, fontWeight: '700', color: t.color.ink }}
+                    >
+                      {`◦ ${dayAbsence.kind.charAt(0).toUpperCase()}${dayAbsence.kind.slice(1)}`}
+                    </Text>
+                    <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>
+                      all day — not a plannable slot
+                    </Text>
+                  </View>
+                )}
                 <PlannerDayTracker clients={catalog.data ?? []} />
                 <View
                   style={{
