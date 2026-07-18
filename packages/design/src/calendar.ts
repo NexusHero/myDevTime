@@ -47,6 +47,35 @@ export function monthGrid(year: number, month0: number, weekStartsMonday = true)
   return weeks
 }
 
+/** Whether a calendar day falls on a weekday (Mon–Fri) — the days a booking gap is meaningful. */
+export function isWeekdayDate(year: number, month0: number, day: number): boolean {
+  const dow = new Date(year, month0, day).getDay()
+  return dow >= 1 && dow <= 5
+}
+
+/**
+ * Deterministic booking-gap days for the Planner month overview (REQ-037, ADR-0013/0005): the
+ * **past weekdays** in the month that carry no booking — an honest "nothing booked here" marker.
+ * A gap is never a future day (you can't have missed a booking that hasn't happened) and never a
+ * weekend (not a working day). `bookedDays` is the set of day-of-month numbers with at least one
+ * entry; `cutoffDay` is the last day to consider "past" (inclusive) — the caller passes `today − 1`
+ * for the current month, the month length for a fully past month, and `0` for a future month (no
+ * gaps). Same inputs → same days, sorted ascending.
+ */
+export function bookingGapDays(
+  year: number,
+  month0: number,
+  bookedDays: ReadonlySet<number>,
+  cutoffDay: number,
+): number[] {
+  const gaps: number[] = []
+  const last = Math.min(cutoffDay, daysInMonth(year, month0))
+  for (let d = 1; d <= last; d++) {
+    if (!bookedDays.has(d) && isWeekdayDate(year, month0, d)) gaps.push(d)
+  }
+  return gaps
+}
+
 /** Weekday column headers in the grid's order (two-letter, English). */
 export function weekdayHeaders(weekStartsMonday = true): readonly string[] {
   return weekStartsMonday

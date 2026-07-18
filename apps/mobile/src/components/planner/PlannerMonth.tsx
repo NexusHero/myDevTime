@@ -1,5 +1,12 @@
 import { Pressable, View } from 'react-native'
-import { dayLoad, loadTone, monthGrid, projectColor, weekdayHeaders } from '@mydevtime/design'
+import {
+  bookingGapDays,
+  dayLoad,
+  loadTone,
+  monthGrid,
+  projectColor,
+  weekdayHeaders,
+} from '@mydevtime/design'
 import type { LoadTone } from '@mydevtime/design'
 import { Text } from '../core/Text'
 import { useTheme } from '../../theme/ThemeProvider'
@@ -53,6 +60,13 @@ export function PlannerMonth({
   const t = useTheme()
   const weeks = monthGrid(year, month0)
   const headers = weekdayHeaders(true)
+  // Booking-gap markers (design v13 §K / competitor parity, REQ-037): the past weekdays with no
+  // entry — an honest "nothing booked here". Deterministic (`bookingGapDays`, ADR-0005): only the
+  // current month has a "today" cutoff, so nothing in the future is ever flagged as missed.
+  const bookedDays = new Set(
+    [...days].filter(([, d]) => d.tasks.length > 0 || d.events.length > 0).map(([day]) => day),
+  )
+  const gapDays = new Set(bookingGapDays(year, month0, bookedDays, today > 0 ? today - 1 : 0))
 
   return (
     <View style={{ flex: 1 }}>
@@ -108,12 +122,18 @@ export function PlannerMonth({
             const isToday = cell.date === today
             const shown = tasks.slice(0, 3)
             const tone = loadTone(load, targetHours)
+            const hasActivity = tasks.length > 0 || events.length > 0
+            const isGap = gapDays.has(cell.date)
 
             return (
               <Pressable
                 key={ci}
                 accessibilityRole="button"
-                accessibilityLabel={`${String(cell.date)} — ${String(tasks.length)} tasks`}
+                accessibilityLabel={
+                  isGap
+                    ? `${String(cell.date)} — nothing booked`
+                    : `${String(cell.date)} — ${String(tasks.length)} tasks`
+                }
                 onPress={() => onDrill?.(cell.date)}
                 style={{
                   flex: 1,
@@ -150,6 +170,33 @@ export function PlannerMonth({
                   >
                     {cell.date}
                   </Text>
+                  {/* Activity dot (REQ-037): a filled accent dot marks a day that has any entry. */}
+                  {hasActivity && (
+                    <View
+                      style={{
+                        width: 5,
+                        height: 5,
+                        borderRadius: 3,
+                        marginLeft: 4,
+                        backgroundColor: t.color.accent,
+                      }}
+                    />
+                  )}
+                  {/* Booking-gap marker (REQ-037): a hollow warn ring on a past weekday with no
+                      entry — an honest "nothing booked here", never on a future day or weekend. */}
+                  {isGap && (
+                    <View
+                      accessibilityLabel="Nothing booked"
+                      style={{
+                        width: 5,
+                        height: 5,
+                        borderRadius: 3,
+                        marginLeft: 4,
+                        borderWidth: 1,
+                        borderColor: t.color.warn,
+                      }}
+                    />
+                  )}
                   {load > 0 && (
                     <Text
                       style={{

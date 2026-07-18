@@ -93,7 +93,14 @@ export {
   type Interval,
   type LanePlacement,
 } from './planner.js'
-export { monthGrid, daysInMonth, weekdayHeaders, type DayCell } from './calendar.js'
+export {
+  monthGrid,
+  daysInMonth,
+  weekdayHeaders,
+  isWeekdayDate,
+  bookingGapDays,
+  type DayCell,
+} from './calendar.js'
 
 // App shell (#11): the navigation route map (deep-link build/parse for every
 // screen) and the responsive width→chrome model. Pure, platform-independent.

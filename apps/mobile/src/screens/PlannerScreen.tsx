@@ -2435,6 +2435,10 @@ export function PlannerScreen(): React.JSX.Element {
             today={calToday}
             occurrences={shownCalOccurrences}
             targetHours={DAILY_TARGET_HOURS}
+            // Woche ⇄ Monat navigation (REQ-037): a month day drills into the Day view; a year
+            // month drills into the Month view. The segmented control is the reverse zoom out.
+            onDrillDay={() => setView('Day')}
+            onDrillMonth={() => setView('Month')}
           />
         )}
       </ScrollView>
