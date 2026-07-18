@@ -150,6 +150,105 @@ Parallelism notes:
   proposal garnish may degrade (documented fallback in the ADR) — and the shipped UI passed the
   #39 prototype gate, no design-in-code shortcuts.
 
+## Task list to 1.0 — full status checklist
+
+The single, consolidated list of **everything still open on the path to the first shippable
+version**, so no task lives only in a PR description. It folds together (a) the open backlog
+issues and (b) the design/client follow-ups that have no issue yet. Status legend: **✅ done ·
+🟡 partial (some acceptance criteria met, rest open) · ⬜ open · 🔎 verify (looks delivered by
+later work — confirm against the code, then close the issue)**. This list is the source of truth
+for sequencing; the per-issue acceptance criteria remain the definition of done.
+
+### M2 — Client apps
+
+- 🟡 **#12** Mobile timer UX: today view, quick start/stop, entry editing (REQ-007) — Today
+  hero + entries + editing ship; open: ≤2-tap-from-open recents, background Live-Activity/
+  notification with a stop action, tablet split-view parity.
+- 🟡 **#42** Idle & forgotten-tracking detection (REQ-033) — the forgotten-timer trim proposal
+  ships; open: missing punch-in/out hints, device-idle signal, the "Korrekturen" inbox.
+- 🟡 **#47** Month overview: activity dots per day + booking-gap markers (REQ-037) — the Month
+  calendar ships (v18); open: the deterministic **gap detection** + month summary footer.
+- ⬜ **#49** System quick actions: Siri/App-Intents/Shortcuts (iOS) + Quick-Settings Tile
+  (Android) (REQ-039) — needs the shared headless action layer + native surfaces.
+- ⬜ **#50** Classic day list: Canvas ⇄ Liste toggle with per-entry amounts + day subtotals
+  (REQ-040).
+- 🟡 **#90** Task effort estimation: baseline + own estimate + AI review (REQ-041) — the
+  quote-from-history core ships; open: the estimation form (attribute pickers → live range),
+  task estimate fields + provenance, the AI review, plan-vs-actual surfacing.
+- ⬜ **#117** Vertical drag & drop for planner blocks (overlaps the v20 timegrid follow-up below).
+- 🔎 **#266** Planner Month/Year utilization aggregation (REQ-046) — Month/Year views render real
+  data since v18/v20; confirm the deterministic per-day/per-week load aggregation is wired, then
+  close.
+
+### M3 — Automation & AI
+
+- ⬜ **#15** Calendar integration: Google & Microsoft OAuth, event ingestion as capture source
+  (REQ-010) — the `CalendarProviderPort` + Null adapter exist; open: real OAuth + ingestion.
+- 🔎 **#16** Deterministic rules engine: versioned matchers for auto-categorization (REQ-011) —
+  the categorization rules engine landed (KI-1); confirm rule-CRUD UI + dry-run preview, then close.
+- 🟡 **#17** LLM provider adapter + AI categorization proposals (REQ-012) — the `LlmPort` +
+  proposal flow ship; open: batch "categorize my week" + confidence sort + entitlement gating.
+- 🔎 **#19** AI summaries: weekly/monthly reviews & standup reports (REQ-014) — delivered by KI-3;
+  confirm slot-integrity tests + standup copy, then close.
+- ⬜ **#31** Spike: meeting-capture & ASR approach → **ADR-0009 Accepted** (blocks #32/#33, feeds
+  #29/#34).
+- 🟡 **#32** Meeting transcription pipeline: capture → ASR → stored transcript (REQ-025) — the
+  consent-first notes core ships; open: the real ASR `TranscriptionPort` behind ADR-0009's winner.
+- 🟡 **#33** AI meeting insights: summaries, action items, reusable prompts (REQ-026) — grounded
+  insights over typed notes ship; open: reusable custom prompts + action-item → task flow.
+- ⬜ **#43** Calendar write-back: mirror tracked blocks into Google/Microsoft calendars (REQ-034).
+- 🟡 **#44** Dev-tool export: meeting insights & action items to Jira/Linear/Slack (REQ-035) — the
+  export surface ships (KI-3); open: the real `ExportTargetPort` OAuth adapters + retry queue.
+
+### M4 — Monetization
+
+- ⬜ **#23** Store subscriptions: StoreKit 2 (iOS) + Play Billing (Android) with server
+  notifications (REQ-018) — the entitlement service + credit ledger already back it.
+
+### M5 — Launch
+
+- 🟡 **#24** Security hardening baseline (REQ-019) — rate-limit hardening landed; open: the authz
+  sweep test, headers/CORS, prompt-injection review, threat model.
+- ⬜ **#25** Privacy/DSGVO package: export, erasure, retention, no-training matrix (REQ-020).
+- ⬜ **#26** Observability & ops baseline: logging, metrics, alerts, backup/restore runbook
+  (REQ-021).
+- 🟡 **#27** E2E suite: golden paths across web + both mobile platforms (REQ-022) — a Playwright
+  web suite runs in CI; open: the mobile matrix + the 20-consecutive-green flake gate.
+- ⬜ **#28** Distribution: web launch (PWA) + App Store & Play Store submissions (REQ-023).
+- ⬜ **#29** Pricing decision: free-tier limits + Pro price points → ADR (REQ-024) (blocks #28).
+
+### Quality / foundation
+
+- ⬜ **#152** RN/Expo on-device validation checklist C1–C7 (ADR-0004) — needs real iOS/Android
+  hardware; drops the "provisional" from ADR-0004.
+- ⬜ **#190** Spike: close the web accessibility / semantic-HTML gap (react-native-web) → findings
+  doc; feeds #263.
+- 🟡 **#263** Accessibility baseline: semantic HTML/ARIA, keyboard nav, screen-reader labels
+  (REQ-043) — instrument labels + contrast are enforced; open: role mapping, keyboard operability,
+  axe in the E2E tier.
+- ⬜ **#265** Reports/analytics export (CSV/PDF), distinct from the timesheet export (REQ-045) —
+  wires the Reports "Export — coming soon" control.
+
+### Design/client follow-ups from v20 (no issue yet — file as they are picked up)
+
+Landed already (PR #315): Toast + confirmation toasts, the Planner "View" popover, the in-bar
+start-picker, the FullCalendar web seam (ADR-0068), and default-screen → Planner. **Still open:**
+
+- ⬜ Planner **Day-view canvas** (tracker row + instruments rail) — "Today" as the day stage of
+  the Planner.
+- ⬜ FullCalendar **week/day timegrid** with drag & resize (web); native drag/drop is #117.
+- ⬜ "+ New" extended to **five typed entries** (Task, manual actual, Meeting, Travel, Life) +
+  richer actual/meeting/life drawers (rebook, ±15-min nudge, rate/billable, duplicate, attachments,
+  action-items, partner Free/Busy request).
+- ⬜ Empty-slot tap-to-create · KW ‹ › navigation · conflict/overflow banners · all-day banner +
+  evening zone.
+- ⬜ **Travel** block type on the canvas (route/km/mode, half-rate billable) — needs the billing
+  backend touch (project rates → revenue, travel type).
+- ⬜ Today **AI moments** (drift→replan, protected-time digest, richer draft queue, hero
+  autocomplete, auto-tracker booking proposal, plan-adherence chip, idle window) + Today header
+  status chips.
+- ⬜ D14 protected-time nudge relocation (bottom-centre, ~8 s after clock-in).
+
 ## Post-1.0 backlog (deferred deliberately, not forgotten)
 
 - **Developer-focused capture**: Git-commit/branch/issue-key → auto-suggested entries, IDE

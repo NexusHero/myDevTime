@@ -34,9 +34,7 @@ import { createProject } from '../api/tracking'
 import { occurrencesToBlocks, type RecurringBlock } from '../planner/recurring'
 import { useWeekOccurrences } from '../hooks/useWeekOccurrences'
 import { useMonthOccurrences } from '../hooks/useMonthOccurrences'
-import { buildMonthDays, buildYearMonths } from '../planner/calendarMonth'
-import { PlannerMonth } from '../components/planner/PlannerMonth'
-import { PlannerYear } from '../components/planner/PlannerYear'
+import { PlannerCalendar } from '../components/planner/PlannerCalendar'
 import {
   PlannerNewEntryDialog,
   type NewEntryDraft,
@@ -49,13 +47,13 @@ import {
   Badge,
   Button,
   Card,
-  EmptyState,
   Icon,
   SegmentedControl,
 } from '../components/index'
 import { TaskInbox } from '../components/planner/TaskInbox'
 import { PlannerEntryDrawer, type DrawerEntry } from '../components/planner/PlannerEntryDrawer'
 import { PlannerViewMenu } from '../components/planner/PlannerViewMenu'
+import { PlannerStartPicker } from '../components/planner/PlannerStartPicker'
 import { useTheme } from '../theme/ThemeProvider'
 import { usePlanner } from '../hooks/usePlanner'
 import { usePreferences } from '../hooks/usePreferences'
@@ -1788,6 +1786,11 @@ export function PlannerScreen(): React.JSX.Element {
           </Button>
         </View>
 
+        {/* In-bar start-picker (design v20 day-tracker row): pick a project + optional task and
+            start the shared live timer straight from the Planner — real catalog, real timer,
+            start/stop toasts. Additive: the week canvas, ghosts and reality overlay are untouched. */}
+        {view === 'Week' && <PlannerStartPicker clients={catalog.data ?? []} />}
+
         {/* Capacity head-trace (design v14 §F Stufe 2): the week's TRUE plannable capacity —
             the contracted target minus your own life/protected commitments ("KW32 nur 24h"),
             from the deterministic `weekCapacity` core (ADR-0005). Honest by construction: with
@@ -1839,24 +1842,6 @@ export function PlannerScreen(): React.JSX.Element {
               </View>
             )
           })()}
-
-        {view === 'Month' && (
-          <Card>
-            <EmptyState
-              title="Month view — coming soon"
-              hint="The planned load per day across the month appears here once utilization aggregation is live."
-            />
-          </Card>
-        )}
-
-        {view === 'Year' && (
-          <Card>
-            <EmptyState
-              title="Year view — coming soon"
-              hint="The weekly intensity across the year appears here once utilization aggregation is live."
-            />
-          </Card>
-        )}
 
         {view === 'Week' && (
           <>
@@ -2059,24 +2044,14 @@ export function PlannerScreen(): React.JSX.Element {
         {/* Month view (design v18 PlannerViews): tasks = filled chips (project color + priority
             dot), events = hollow banners that never count, day-load bar vs the daily target. Real
             occurrences; an empty month renders an honest empty grid. */}
-        {view === 'Month' && (
-          <PlannerMonth
+        {(view === 'Month' || view === 'Year') && (
+          <PlannerCalendar
+            view={view === 'Month' ? 'month' : 'year'}
             year={calYear}
             month0={calMonth0}
             today={calToday}
-            days={buildMonthDays(shownCalOccurrences, [], { year: calYear, month0: calMonth0 })}
+            occurrences={shownCalOccurrences}
             targetHours={DAILY_TARGET_HOURS}
-          />
-        )}
-
-        {/* Year view (design v18 PlannerViews): twelve month cards with planned hours + a
-            five-week intensity strip; the current month wears a live-orange border. */}
-        {view === 'Year' && (
-          <PlannerYear
-            months={buildYearMonths(shownCalOccurrences, [], {
-              year: calYear,
-              nowMonth0: calMonth0,
-            })}
           />
         )}
       </ScrollView>
