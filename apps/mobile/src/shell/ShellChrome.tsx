@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { Slot, usePathname, useRouter } from 'expo-router'
 import { Text } from '../components/core/Text'
+import { useToast } from '../components/core/Toast'
+import type { StartTimerInput } from '../api/timer'
 import {
   PHONE_TABS,
   SIDEBAR_ITEMS,
@@ -85,19 +87,52 @@ export function ShellChrome(): React.JSX.Element {
   const pomodoro = usePomodoro()
   const [islandExpanded, setIslandExpanded] = useState(false)
   const timerActive = timer.running !== null || timer.paused
+
+  // Design v20 confirmations: every start / stop / pause / clock action lands a
+  // transient toast (the pill from `Toast.tsx`). The wrappers only add feedback —
+  // the underlying timer/punch-clock behaviour is untouched — and both the Island
+  // and the Command Bar dispatch through them, so the confirmation is consistent
+  // wherever the action is triggered. English copy (UI is English-only).
+  const toast = useToast()
+  const startTimer = (input?: StartTimerInput, label?: string): void => {
+    timer.punchIn(input)
+    toast.show(label != null ? `Timer running on ${label}.` : 'Timer running.')
+  }
+  const stopTimer = (): void => {
+    const tracked = timer.elapsed // snapshot before the optimistic clear
+    timer.punchOut()
+    toast.show(`Timer stopped — ${tracked} tracked.`)
+  }
+  const pauseTimer = (): void => {
+    timer.pause()
+    toast.show('Timer paused.')
+  }
+  const resumeTimer = (): void => {
+    timer.resume()
+    toast.show('Timer resumed.')
+  }
+
   const islandActions: readonly IslandAction[] = timerActive
     ? [
         timer.paused
-          ? { label: timer.busy ? '…' : 'Resume', onPress: timer.resume }
-          : { label: 'Pause', onPress: timer.pause },
-        { label: timer.busy ? '…' : 'Punch out', onPress: timer.punchOut },
+          ? { label: timer.busy ? '…' : 'Resume', onPress: resumeTimer }
+          : { label: 'Pause', onPress: pauseTimer },
+        { label: timer.busy ? '…' : 'Punch out', onPress: stopTimer },
       ]
-    : [{ label: timer.busy ? '…' : 'Punch in', onPress: () => timer.punchIn() }]
+    : [{ label: timer.busy ? '…' : 'Punch in', onPress: () => startTimer() }]
   // Command Bar (design v10 §D11): a global palette wired to the real timer, punch
   // clock, catalog projects and navigation. ⌘K / Ctrl-K opens it on web; a trigger
   // pill opens it everywhere. Its actions dispatch to the same seams the screens use.
   const worktime = useWorktime()
   const catalog = useCatalog()
+  const clockIn = (): void => {
+    worktime.clockIn()
+    toast.show('Clocked in.')
+  }
+  const clockOut = (): void => {
+    worktime.clockOut()
+    toast.show('Clocked out.')
+  }
   const [cmdOpen, setCmdOpen] = useState(false)
   // The Assistant overlay (ADR-0063): opened by the ✦ button or ⌘K, floats over the
   // current screen — a layer, not a place.
@@ -121,26 +156,30 @@ export function ShellChrome(): React.JSX.Element {
   const runCommand = (action: CommandAction): void => {
     switch (action.type) {
       case 'timer-start':
-        timer.punchIn()
+        startTimer()
         break
       case 'timer-pause':
-        timer.pause()
+        pauseTimer()
         break
       case 'timer-resume':
-        timer.resume()
+        resumeTimer()
         break
       case 'timer-stop':
-        timer.punchOut()
+        stopTimer()
         break
       case 'clock-in':
-        worktime.clockIn()
+        clockIn()
         break
       case 'clock-out':
-        worktime.clockOut()
+        clockOut()
         break
-      case 'start-project':
-        timer.punchIn({ projectId: action.projectId })
+      case 'start-project': {
+        const name = (catalog.data ?? [])
+          .flatMap(c => c.projects)
+          .find(p => p.id === action.projectId)?.name
+        startTimer({ projectId: action.projectId }, name)
         break
+      }
       case 'navigate':
         go(action.screen)
         break
