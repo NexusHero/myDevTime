@@ -118,6 +118,10 @@ interface CanvasBlock {
   readonly rec?: boolean
   /** The 🛡 protection flag (design v14 D14): mutes own nudges; also consumes capacity. */
   readonly protectedFlag?: boolean
+  /** Travel route (design v20 §G4) — the trip's From/To; distance is user-entered km, never inferred. */
+  readonly routeFrom?: string
+  readonly routeTo?: string
+  readonly distanceKm?: number | null
 }
 
 interface DemoDay {
@@ -1418,6 +1422,9 @@ export function PlannerScreen(): React.JSX.Element {
           ...(openBlock.rsvp !== undefined ? { rsvp: openBlock.rsvp } : {}),
           ...(openBlock.ext !== undefined ? { ext: openBlock.ext } : {}),
           ...(openBlock.rec !== undefined ? { rec: openBlock.rec } : {}),
+          ...(openBlock.routeFrom !== undefined ? { routeFrom: openBlock.routeFrom } : {}),
+          ...(openBlock.routeTo !== undefined ? { routeTo: openBlock.routeTo } : {}),
+          ...(openBlock.distanceKm !== undefined ? { distanceKm: openBlock.distanceKm } : {}),
           protected: openBlock.protectedFlag === true,
         }
   const setOpenRsvp = (rsvp: Rsvp): void =>
@@ -1453,6 +1460,28 @@ export function PlannerScreen(): React.JSX.Element {
   const acceptOpen = (): void => {
     setBlocks(bs => bs.map((b, i) => (i === openIndex ? { ...b, kind: 'actual' } : b)))
     setOpenIndex(null)
+  }
+  // Save the travel route (design v20 §G4): store From/To/km on the open block and, when both ends
+  // are named, title it `From → To`. The km is exactly what the user typed — nothing is inferred
+  // (ADR-0005). A toast confirms; the drawer stays open so the route reads back.
+  const saveTravelDetail = (detail: { from: string; to: string; km: number | null }): void => {
+    setBlocks(bs =>
+      bs.map((b, i) =>
+        i === openIndex
+          ? {
+              ...b,
+              routeFrom: detail.from,
+              routeTo: detail.to,
+              distanceKm: detail.km,
+              label:
+                detail.from.length > 0 && detail.to.length > 0
+                  ? `${detail.from} → ${detail.to}`
+                  : b.label,
+            }
+          : b,
+      ),
+    )
+    toast.show('Route saved.')
   }
   // Make the open block a recurring series (design v17 §F4): persist the rule via the recurrence
   // API from the block's day/time. The occurrence math is the server's deterministic core
@@ -2293,12 +2322,14 @@ export function PlannerScreen(): React.JSX.Element {
         )}
       </ScrollView>
       <PlannerEntryDrawer
+        key={openIndex ?? 'none'}
         entry={drawerEntry}
         onClose={() => setOpenIndex(null)}
         {...(drawerEntry?.kind === 'meeting' ? { onRsvp: setOpenRsvp } : {})}
         {...(drawerEntry?.kind === 'actual'
           ? { onDelete: removeOpen, onNudge: nudgeOpen, onDuplicate: duplicateOpen }
           : {})}
+        {...(drawerEntry?.kind === 'travel' ? { onTravelDetail: saveTravelDetail } : {})}
         {...(drawerEntry?.kind === 'ghost' ? { onAccept: acceptOpen, onDismiss: removeOpen } : {})}
         {...(drawerEntry !== null &&
         (drawerEntry.kind === 'meeting' ||

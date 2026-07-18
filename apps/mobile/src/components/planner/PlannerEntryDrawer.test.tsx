@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest'
 import { act } from 'react'
 import TestRenderer from 'react-test-renderer'
@@ -74,6 +75,27 @@ describe('PlannerEntryDrawer', () => {
     expect(texts(r)).toContain('Booked time')
     pressByLabel(r, 'Delete')
     expect(onDelete).toHaveBeenCalledTimes(1)
+  })
+
+  it('PlannerEntryDrawer_travel_savesTheEnteredRoute_G4', () => {
+    const onTravelDetail = vi.fn()
+    const entry: DrawerEntry = {
+      kind: 'travel',
+      title: 'Trip',
+      timeLabel: '08:00–09:00',
+      color: '#e8a33d',
+      routeFrom: 'Office',
+      routeTo: 'Client site',
+      distanceKm: 42,
+    }
+    const r = render(
+      <PlannerEntryDrawer entry={entry} onClose={() => {}} onTravelDetail={onTravelDetail} />,
+    )
+    expect(texts(r)).toContain('Travel')
+    // The seeded route + distance read back, and saving hands the parsed values to the Planner —
+    // the km is exactly what was entered, never inferred (ADR-0005).
+    pressByLabel(r, 'Save route')
+    expect(onTravelDetail).toHaveBeenCalledWith({ from: 'Office', to: 'Client site', km: 42 })
   })
 
   it('PlannerEntryDrawer_protectToggle_firesOnProtect_D14', () => {

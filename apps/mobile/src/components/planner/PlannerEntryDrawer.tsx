@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, View, useWindowDimensions } from 'react-native'
 import type { RecurrenceRule } from '@mydevtime/domain'
 import { Text } from '../core/Text'
-import { Badge, Button, Icon, IconButton, SegmentedControl, Switch } from '../index'
+import { Badge, Button, Icon, IconButton, Input, SegmentedControl, Switch } from '../index'
 import { RecurrenceEditor } from './RecurrenceEditor'
 import { useTheme } from '../../theme/ThemeProvider'
 
@@ -36,6 +36,12 @@ export interface DrawerEntry {
   readonly rec?: boolean
   /** Whether the 🛡 protection flag is on (design v14 D14). */
   readonly protected?: boolean
+  /** Travel (design v20 §G4): the trip's start place, e.g. `Office`. */
+  readonly routeFrom?: string
+  /** Travel: the trip's destination, e.g. `Client site`. */
+  readonly routeTo?: string
+  /** Travel: the user-entered one-way distance in km (never inferred — ADR-0005). */
+  readonly distanceKm?: number | null
 }
 
 const KIND_LABEL: Record<EntryKind, string> = {
@@ -70,6 +76,8 @@ export interface PlannerEntryDrawerProps {
   readonly onNudge?: (deltaMin: number) => void
   /** Duplicate the block on the same day (design v20 drawer). */
   readonly onDuplicate?: () => void
+  /** Travel (design v20 §G4): save the entered route + distance onto the trip. */
+  readonly onTravelDetail?: (detail: { from: string; to: string; km: number | null }) => void
   /** Ghost: accept the Co-Planner proposal. */
   readonly onAccept?: () => void
   /** Ghost: dismiss the proposal. */
@@ -88,6 +96,7 @@ export function PlannerEntryDrawer({
   onDelete,
   onNudge,
   onDuplicate,
+  onTravelDetail,
   onAccept,
   onDismiss,
   onProtect,
@@ -97,6 +106,13 @@ export function PlannerEntryDrawer({
   const { width } = useWindowDimensions()
   // The in-progress recurrence rule for the ↻ editor; the Planner persists it on save.
   const [rule, setRule] = useState<RecurrenceRule>({ freq: 'none', end: { kind: 'never' } })
+  // Travel route draft (design v20 §G4). Seeded from the entry; distance stays a raw string so a
+  // half-typed number never coerces — it is parsed only on save, and only the user ever enters it.
+  const [routeFrom, setRouteFrom] = useState(entry?.routeFrom ?? '')
+  const [routeTo, setRouteTo] = useState(entry?.routeTo ?? '')
+  const [distance, setDistance] = useState(
+    entry?.distanceKm != null ? String(entry.distanceKm) : '',
+  )
   if (entry === null) return null
 
   const panelWidth = Math.min(380, width - 24)
@@ -260,6 +276,48 @@ export function PlannerEntryDrawer({
             <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, lineHeight: 18 }}>
               A break — counts toward your daily break target, not billable time.
             </Text>
+          )}
+
+          {/* Travel route card (design v20 §G4): a trip's From → To and distance. The distance is
+              yours to enter — we never infer a number that could reach a report (ADR-0005). Saving
+              hands the route back to the Planner, which persists it and titles the block. */}
+          {entry.kind === 'travel' && onTravelDetail !== undefined && (
+            <View style={{ gap: t.spacing.s3 }}>
+              <Input
+                label="From"
+                placeholder="e.g. Office"
+                value={routeFrom}
+                onChangeText={setRouteFrom}
+              />
+              <Input
+                label="To"
+                placeholder="e.g. Client site"
+                value={routeTo}
+                onChangeText={setRouteTo}
+              />
+              <Input
+                label="Distance (km)"
+                placeholder="one-way, e.g. 42"
+                value={distance}
+                onChangeText={setDistance}
+                keyboardType="numeric"
+              />
+              <View style={{ flexDirection: 'row' }}>
+                <Button
+                  size="sm"
+                  onPress={() => {
+                    const parsed = Number.parseFloat(distance.replace(',', '.'))
+                    onTravelDetail({
+                      from: routeFrom.trim(),
+                      to: routeTo.trim(),
+                      km: Number.isFinite(parsed) && parsed > 0 ? parsed : null,
+                    })
+                  }}
+                >
+                  Save route
+                </Button>
+              </View>
+            </View>
           )}
 
           {/* Protection flag (design v14 D14): a flag on this existing entry that governs
