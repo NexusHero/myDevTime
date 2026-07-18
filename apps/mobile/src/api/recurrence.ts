@@ -13,7 +13,7 @@ export type SeriesFreq = z.infer<typeof seriesFreqSchema>
 export const seriesEndKindSchema = z.enum(['never', 'until', 'count'])
 export type SeriesEndKind = z.infer<typeof seriesEndKindSchema>
 
-export const seriesKindSchema = z.enum(['meeting', 'focus', 'break', 'life'])
+export const seriesKindSchema = z.enum(['meeting', 'focus', 'break', 'life', 'travel'])
 export type SeriesKind = z.infer<typeof seriesKindSchema>
 
 export const seriesSchema = z.object({
