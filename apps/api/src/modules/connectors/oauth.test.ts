@@ -7,6 +7,7 @@ import {
   freshAccessToken,
   masterKeyFromEnv,
   oauthClient,
+  preserveRefreshToken,
   redirectUriFor,
   refreshAccessToken,
   tokenEndpoint,
@@ -203,6 +204,21 @@ describe('freshAccessToken', () => {
       { nowMs: () => now },
     )
     expect(token).toBeNull()
+  })
+})
+
+describe('preserveRefreshToken', () => {
+  it('KeepsTheFreshTokenWhenTheProviderIssuesOne', () => {
+    expect(preserveRefreshToken('new', 'old')).toBe('new')
+  })
+
+  it('FallsBackToTheStoredTokenWhenTheProviderOmitsIt', () => {
+    // Google omits refresh_token on a repeat auth-code exchange — the stored one must survive.
+    expect(preserveRefreshToken(null, 'old')).toBe('old')
+  })
+
+  it('IsNullOnlyWhenNeitherExists', () => {
+    expect(preserveRefreshToken(null, null)).toBeNull()
   })
 })
 
