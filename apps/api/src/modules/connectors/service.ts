@@ -46,6 +46,15 @@ const AUTHORIZE_ENDPOINT: Record<ConnectorId, string> = {
   'apple-calendar': 'https://appleid.apple.com/auth/authorize',
 }
 
+/**
+ * Provider-specific authorize params. Google only issues a refresh token when the
+ * request asks for offline access and re-consents — without these the connection
+ * silently dies when the first access token expires.
+ */
+const AUTHORIZE_EXTRA_PARAMS: Partial<Record<ConnectorId, Readonly<Record<string, string>>>> = {
+  'google-calendar': { access_type: 'offline', prompt: 'consent' },
+}
+
 /** The env var holding a provider's OAuth client id (secret stays server-only). */
 export function clientIdEnvKey(id: ConnectorId): string {
   return `CONNECTOR_${id.toUpperCase().replace(/-/g, '_')}_CLIENT_ID`
@@ -77,6 +86,9 @@ export function buildAuthorizeUrl(
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('state', opts.state)
   if (scopes.length > 0) url.searchParams.set('scope', scopes.join(' '))
+  for (const [k, v] of Object.entries(AUTHORIZE_EXTRA_PARAMS[id] ?? {})) {
+    url.searchParams.set(k, v)
+  }
   return url.toString()
 }
 
