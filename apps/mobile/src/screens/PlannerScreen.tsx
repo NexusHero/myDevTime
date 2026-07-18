@@ -2,7 +2,7 @@ import { FlashList } from '@shopify/flash-list'
 import Animated, { useSharedValue, useAnimatedStyle, runOnJS } from 'react-native-reanimated'
 import { GestureDetector, Gesture } from 'react-native-gesture-handler'
 import { useEffect, useMemo, useState } from 'react'
-import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
+import { Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import {
   assignLanes,
   dropTarget,
@@ -34,7 +34,7 @@ import { createProject } from '../api/tracking'
 import { occurrencesToBlocks, type RecurringBlock } from '../planner/recurring'
 import { useWeekOccurrences } from '../hooks/useWeekOccurrences'
 import { useMonthOccurrences } from '../hooks/useMonthOccurrences'
-import { PlannerCalendar } from '../components/planner/PlannerCalendar'
+import { PlannerCalendar, type TimegridBlock } from '../components/planner/PlannerCalendar'
 import {
   PlannerNewEntryDialog,
   type NewEntryDraft,
@@ -118,6 +118,10 @@ interface CanvasBlock {
   readonly rec?: boolean
   /** The 🛡 protection flag (design v14 D14): mutes own nudges; also consumes capacity. */
   readonly protectedFlag?: boolean
+  /** Travel route (design v20 §G4) — the trip's From/To; distance is user-entered km, never inferred. */
+  readonly routeFrom?: string
+  readonly routeTo?: string
+  readonly distanceKm?: number | null
 }
 
 interface DemoDay {
@@ -1418,6 +1422,9 @@ export function PlannerScreen(): React.JSX.Element {
           ...(openBlock.rsvp !== undefined ? { rsvp: openBlock.rsvp } : {}),
           ...(openBlock.ext !== undefined ? { ext: openBlock.ext } : {}),
           ...(openBlock.rec !== undefined ? { rec: openBlock.rec } : {}),
+          ...(openBlock.routeFrom !== undefined ? { routeFrom: openBlock.routeFrom } : {}),
+          ...(openBlock.routeTo !== undefined ? { routeTo: openBlock.routeTo } : {}),
+          ...(openBlock.distanceKm !== undefined ? { distanceKm: openBlock.distanceKm } : {}),
           protected: openBlock.protectedFlag === true,
         }
   const setOpenRsvp = (rsvp: Rsvp): void =>
@@ -1453,6 +1460,28 @@ export function PlannerScreen(): React.JSX.Element {
   const acceptOpen = (): void => {
     setBlocks(bs => bs.map((b, i) => (i === openIndex ? { ...b, kind: 'actual' } : b)))
     setOpenIndex(null)
+  }
+  // Save the travel route (design v20 §G4): store From/To/km on the open block and, when both ends
+  // are named, title it `From → To`. The km is exactly what the user typed — nothing is inferred
+  // (ADR-0005). A toast confirms; the drawer stays open so the route reads back.
+  const saveTravelDetail = (detail: { from: string; to: string; km: number | null }): void => {
+    setBlocks(bs =>
+      bs.map((b, i) =>
+        i === openIndex
+          ? {
+              ...b,
+              routeFrom: detail.from,
+              routeTo: detail.to,
+              distanceKm: detail.km,
+              label:
+                detail.from.length > 0 && detail.to.length > 0
+                  ? `${detail.from} → ${detail.to}`
+                  : b.label,
+            }
+          : b,
+      ),
+    )
+    toast.show('Route saved.')
   }
   // Make the open block a recurring series (design v17 §F4): persist the rule via the recurrence
   // API from the block's day/time. The occurrence math is the server's deterministic core
@@ -1676,6 +1705,22 @@ export function PlannerScreen(): React.JSX.Element {
     weekDates,
     START_HOUR,
   ).filter(rb => inLayer(rb.kind, layer))
+
+  // Web timegrid (design v20 §Cal, ADR-0068): on web the Week/Day grid is FullCalendar's editable
+  // timegrid; native keeps the RN `DayColumn` canvas. The same local blocks feed both — mapped here
+  // to the timegrid's shape, with each block's index so a drag/resize maps back to `moveBlock`/
+  // `resizeBlock` exactly as the RN canvas does. `weekStartMs` is the shown week's Monday midnight.
+  const webTimegrid = Platform.OS === 'web'
+  const weekStartMs = weekDays[0]?.dateMs
+  const timegridBlocks: readonly TimegridBlock[] = shownBlocks.map((b, index) => ({
+    index,
+    day: b.day,
+    startMin: b.start,
+    lenMin: b.len,
+    label: b.label,
+    color: canvasBlockColor(t, b),
+    kind: b.kind,
+  }))
 
   // Month/Year (Kalender) views (design v18 PlannerViews): the shown month/year is the real
   // current one; occurrences over the whole window are fetched (empty without an API → honest
@@ -2045,32 +2090,52 @@ export function PlannerScreen(): React.JSX.Element {
                     padding={false}
                     style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}
                   >
-                    <View style={{ flexDirection: 'row' }}>
-                      <HourGutter />
-                      <View
-                        style={{ flex: 1 }}
-                        onLayout={e => {
-                          const w = e.nativeEvent.layout.width
-                          if (w > 0) setDayColW(w)
-                        }}
-                      >
-                        <DayColumn
-                          day={day}
-                          index={dayI}
-                          flex
-                          blocks={shownBlocks}
-                          recurring={recurringBlocks}
-                          colWidth={dayColW}
-                          onResizeBlock={resizeBlock}
-                          onMoveBlock={moveBlock}
-                          onOpenBlock={setOpenIndex}
-                          showReality={showReality}
-                          onCreateAt={min => createBlockAt(dayI, min)}
-                          eveningZone
-                          nonWorking={[0, 6].includes(new Date(day.dateMs).getDay())}
-                        />
+                    {webTimegrid && weekStartMs !== undefined ? (
+                      // Web (design v20 §Cal): FullCalendar's editable timegrid for the single day —
+                      // drag/resize/create/open all route to the same handlers the RN canvas uses.
+                      <PlannerCalendar
+                        view="day"
+                        year={calYear}
+                        month0={calMonth0}
+                        today={calToday}
+                        anchorDate={localDayKey(day.dateMs)}
+                        occurrences={occurrences.filter(o => inLayer(o.kind, layer))}
+                        targetHours={DAILY_TARGET_HOURS}
+                        editableBlocks={timegridBlocks}
+                        weekStartMs={weekStartMs}
+                        onBlockMove={moveBlock}
+                        onBlockResize={resizeBlock}
+                        onBlockOpen={setOpenIndex}
+                        onSlotCreate={(d, min) => createBlockAt(d, min)}
+                      />
+                    ) : (
+                      <View style={{ flexDirection: 'row' }}>
+                        <HourGutter />
+                        <View
+                          style={{ flex: 1 }}
+                          onLayout={e => {
+                            const w = e.nativeEvent.layout.width
+                            if (w > 0) setDayColW(w)
+                          }}
+                        >
+                          <DayColumn
+                            day={day}
+                            index={dayI}
+                            flex
+                            blocks={shownBlocks}
+                            recurring={recurringBlocks}
+                            colWidth={dayColW}
+                            onResizeBlock={resizeBlock}
+                            onMoveBlock={moveBlock}
+                            onOpenBlock={setOpenIndex}
+                            showReality={showReality}
+                            onCreateAt={min => createBlockAt(dayI, min)}
+                            eveningZone
+                            nonWorking={[0, 6].includes(new Date(day.dateMs).getDay())}
+                          />
+                        </View>
                       </View>
-                    </View>
+                    )}
                   </Card>
                   {/* Instruments rail — glanceable day signals from real data (design v20). */}
                   <PlannerDayInstruments />
@@ -2217,49 +2282,69 @@ export function PlannerScreen(): React.JSX.Element {
               }}
             >
               <Card padding={false} style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}>
-                <View style={{ flexDirection: 'row' }}>
-                  <HourGutter />
-                  <View
-                    style={{ flex: 1, flexDirection: 'row' }}
-                    onLayout={e => {
-                      if (!stacked) {
-                        const w = e.nativeEvent.layout.width / weekDays.length
-                        if (w > 0) setColWidth(w)
-                      }
-                    }}
-                  >
-                    <FlashList
-                      data={weekDays}
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      estimatedItemSize={stacked ? COL_WIDTH : colWidth}
-                      keyExtractor={(day: (typeof weekDays)[0]) => day.name}
-                      extraData={{ shownBlocks, recurringBlocks, colWidth, stacked, showReality }}
-                      renderItem={({
-                        item: day,
-                        index: di,
-                      }: {
-                        item: (typeof weekDays)[0]
-                        index: number
-                      }) => (
-                        <View style={{ width: stacked ? COL_WIDTH : colWidth, height: '100%' }}>
-                          <DayColumn
-                            day={day}
-                            index={di}
-                            flex={false}
-                            blocks={shownBlocks}
-                            recurring={recurringBlocks}
-                            colWidth={stacked ? COL_WIDTH : colWidth}
-                            onResizeBlock={resizeBlock}
-                            onMoveBlock={moveBlock}
-                            onOpenBlock={setOpenIndex}
-                            showReality={showReality}
-                          />
-                        </View>
-                      )}
-                    />
+                {webTimegrid && weekStartMs !== undefined ? (
+                  // Web (design v20 §Cal): FullCalendar's editable 7-day timegrid — same blocks, same
+                  // move/resize/create/open handlers as the RN columns, so nothing behaves differently.
+                  <PlannerCalendar
+                    view="week"
+                    year={calYear}
+                    month0={calMonth0}
+                    today={calToday}
+                    anchorDate={localDayKey(weekStartMs)}
+                    occurrences={occurrences.filter(o => inLayer(o.kind, layer))}
+                    targetHours={DAILY_TARGET_HOURS}
+                    editableBlocks={timegridBlocks}
+                    weekStartMs={weekStartMs}
+                    onBlockMove={moveBlock}
+                    onBlockResize={resizeBlock}
+                    onBlockOpen={setOpenIndex}
+                    onSlotCreate={(d, min) => createBlockAt(d, min)}
+                  />
+                ) : (
+                  <View style={{ flexDirection: 'row' }}>
+                    <HourGutter />
+                    <View
+                      style={{ flex: 1, flexDirection: 'row' }}
+                      onLayout={e => {
+                        if (!stacked) {
+                          const w = e.nativeEvent.layout.width / weekDays.length
+                          if (w > 0) setColWidth(w)
+                        }
+                      }}
+                    >
+                      <FlashList
+                        data={weekDays}
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        estimatedItemSize={stacked ? COL_WIDTH : colWidth}
+                        keyExtractor={(day: (typeof weekDays)[0]) => day.name}
+                        extraData={{ shownBlocks, recurringBlocks, colWidth, stacked, showReality }}
+                        renderItem={({
+                          item: day,
+                          index: di,
+                        }: {
+                          item: (typeof weekDays)[0]
+                          index: number
+                        }) => (
+                          <View style={{ width: stacked ? COL_WIDTH : colWidth, height: '100%' }}>
+                            <DayColumn
+                              day={day}
+                              index={di}
+                              flex={false}
+                              blocks={shownBlocks}
+                              recurring={recurringBlocks}
+                              colWidth={stacked ? COL_WIDTH : colWidth}
+                              onResizeBlock={resizeBlock}
+                              onMoveBlock={moveBlock}
+                              onOpenBlock={setOpenIndex}
+                              showReality={showReality}
+                            />
+                          </View>
+                        )}
+                      />
+                    </View>
                   </View>
-                </View>
+                )}
               </Card>
               {inboxOpen && <TaskInbox tasks={tasks} onPlan={planTask} onDone={doneTask} />}
             </View>
@@ -2293,12 +2378,14 @@ export function PlannerScreen(): React.JSX.Element {
         )}
       </ScrollView>
       <PlannerEntryDrawer
+        key={openIndex ?? 'none'}
         entry={drawerEntry}
         onClose={() => setOpenIndex(null)}
         {...(drawerEntry?.kind === 'meeting' ? { onRsvp: setOpenRsvp } : {})}
         {...(drawerEntry?.kind === 'actual'
           ? { onDelete: removeOpen, onNudge: nudgeOpen, onDuplicate: duplicateOpen }
           : {})}
+        {...(drawerEntry?.kind === 'travel' ? { onTravelDetail: saveTravelDetail } : {})}
         {...(drawerEntry?.kind === 'ghost' ? { onAccept: acceptOpen, onDismiss: removeOpen } : {})}
         {...(drawerEntry !== null &&
         (drawerEntry.kind === 'meeting' ||
