@@ -4,6 +4,7 @@ import { formatDuration, formatMoneyMinor, formatPercent, projectColor } from '@
 import { Text } from '../components/core/Text'
 import { useTheme } from '../theme/ThemeProvider'
 import {
+  Badge,
   BoxPlot,
   BudgetRing,
   Button,
@@ -31,6 +32,8 @@ import { useCheckin } from '../hooks/useCheckin'
 import { useTrackingHeatmap } from '../hooks/useTrackingHeatmap'
 import { useBudgetBurndown } from '../hooks/useBudgetBurndown'
 import { rangeLabel, type ReportRange } from '../reports/window'
+import { apiBaseUrl } from '../config'
+import { generateStandup, type StandupResult } from '../api/standup'
 import type { ClientRevenueRow } from '../reports/revenueBudget'
 import type { AgingKey, OpenAging } from '../api/invoicing'
 
@@ -130,6 +133,12 @@ function Distribution({ items }: { readonly items: readonly DistItem[] }): React
 
 function overtimeLabel(ms: number): string {
   return `${ms >= 0 ? '+' : ''}${formatDuration(ms)} h`
+}
+
+/** A date as the wire `YYYY-MM-DD` (local calendar day — the standup is about *your* day). */
+function isoDay(d: Date): string {
+  const p = (n: number): string => String(n).padStart(2, '0')
+  return `${String(d.getFullYear())}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
 const AGING_LABEL: Record<AgingKey, string> = {
@@ -654,6 +663,86 @@ export function ReportsScreen(): React.JSX.Element {
     </Card>
   )
 
+  // Standup (REQ-014): turn the window's tracked totals into a narrated standup draft. The
+  // screen only holds per-project totals for the selected window (no per-day split), so those
+  // are exactly the lines sent as "today" — nothing is invented client-side, and the server's
+  // slot-protected composer never changes a number (ADR-0005). Provenance is always shown:
+  // an accent "AI proposal" badge for the LLM narration, neutral "Deterministic" for the free
+  // template fallback. Read-only — nothing is written to the timesheet.
+  const [standupBusy, setStandupBusy] = useState(false)
+  const [standup, setStandup] = useState<StandupResult | null>(null)
+  const [standupError, setStandupError] = useState<string | null>(null)
+  const runStandup = async (): Promise<void> => {
+    const d = reports.data
+    if (d === null) return
+    // The lines the screen actually has: the window's per-project totals; with no split
+    // loaded (but time tracked), a single honest total line.
+    const lines =
+      d.byProject.length > 0
+        ? d.byProject.map(p => ({ label: p.name, ms: p.spentMs }))
+        : d.totalMs > 0
+          ? [{ label: 'Tracked', ms: d.totalMs }]
+          : []
+    setStandupBusy(true)
+    setStandupError(null)
+    try {
+      // `reports.live` gates the button, so a configured base is an invariant here.
+      const res = await generateStandup(apiBaseUrl ?? '', {
+        date: isoDay(new Date()),
+        yesterday: [],
+        today: lines,
+        blockers: [],
+      })
+      setStandup(res)
+    } catch (e) {
+      setStandup(null)
+      setStandupError(e instanceof Error ? e.message : 'Unknown error')
+    } finally {
+      setStandupBusy(false)
+    }
+  }
+  const standupCard = (
+    <Card title="Standup" subtitle="A draft from your tracked time">
+      <View style={{ gap: t.spacing.s3 }}>
+        <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>
+          Turns this window&apos;s tracked totals into a standup draft — the AI phrases it, every
+          number stays yours, and nothing is written back.
+        </Text>
+        <View style={{ flexDirection: 'row' }}>
+          <Button
+            size="sm"
+            disabled={standupBusy || !reports.live || data === null}
+            onPress={() => void runStandup()}
+          >
+            {standupBusy ? 'Generating…' : 'Generate standup'}
+          </Button>
+        </View>
+        {standupError !== null && (
+          <Text accessibilityRole="alert" style={{ fontSize: t.fontSize.xs, color: t.color.crit }}>
+            Standup could not be generated — {standupError}
+          </Text>
+        )}
+        {standup !== null && (
+          <View style={{ gap: t.spacing.s2 }}>
+            <Badge tone={standup.source === 'ai-proposal' ? 'accent' : 'neutral'} size="sm">
+              {standup.source === 'ai-proposal' ? 'AI proposal' : 'Deterministic'}
+            </Badge>
+            <Text
+              style={{
+                fontFamily: t.fontFamily.numeric,
+                fontSize: t.fontSize.xs,
+                lineHeight: 18,
+                color: t.color.ink,
+              }}
+            >
+              {standup.text}
+            </Text>
+          </View>
+        )}
+      </View>
+    </Card>
+  )
+
   // Price of the week (G1): what a week like this costs across intensities — a what-if from
   // this week's tracked total against a standard 8h/5-day frame (rule-based, ADR-0005).
   const weekMin = Math.round(trackedMs / 60_000)
@@ -734,6 +823,7 @@ export function ReportsScreen(): React.JSX.Element {
         {budgetsCard}
       </View>
       {priceCard}
+      {standupCard}
       {heatmapCard}
       {burndownCard}
     </>

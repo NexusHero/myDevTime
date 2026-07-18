@@ -4,6 +4,12 @@ import { formatDuration, projectColor } from '@mydevtime/design'
 import type { LoadLevel, TimesheetDraft } from '@mydevtime/domain'
 import { apiBaseUrl } from '../config'
 import { createEntry } from '../api/timer'
+import {
+  applyCategoryProposal,
+  proposeCategories,
+  type CategorizeResult,
+  type CategoryProposal,
+} from '../api/categorize'
 import { Text } from '../components/core/Text'
 import { useToast } from '../components/core/Toast'
 import { useTheme } from '../theme/ThemeProvider'
@@ -28,6 +34,8 @@ import { usePreferences } from '../hooks/usePreferences'
 import { useInsights } from '../hooks/useInsights'
 import { useTrackReminder } from '../hooks/useTrackReminder'
 import { useForgottenTimer } from '../hooks/useForgottenTimer'
+import { useIdleReturn } from '../hooks/useIdleReturn'
+import { formatIdle } from '../reminder/idleReturn'
 import { usePomodoro } from '../focus/PomodoroContext'
 import { useAutoTracker } from '../autotracker/useAutoTracker'
 import { loadDaySpans, localDayKey } from '../autotracker/dayActivityStore'
@@ -164,6 +172,12 @@ export function TodayScreen(): React.JSX.Element {
     timer.running ? Date.parse(timer.running.startedAt) : null,
     timer.running?.id ?? null,
   )
+
+  // Idle-return (REQ-033, #42): while the timer runs, a long gap in observed activity
+  // (web listeners in `useIdleReturn`, the pure `idleReturn` rule) surfaces as a banner
+  // proposal — Keep dismisses, Stop uses the screen's ordinary stop action. Nothing
+  // auto-modifies the entry (ADR-0005).
+  const idle = useIdleReturn(isRunning)
 
   // Focus mode / Pomodoro (REQ-032): focus intervals run as ordinary timer segments,
   // breaks pause them; this reads the shared session and drives it from the control below.
@@ -692,6 +706,158 @@ export function TodayScreen(): React.JSX.Element {
       setBooking(false)
     }
   }
+  // Category proposals (REQ-012): the AI suggests a project (+ tags/billable) for today's
+  // uncategorized entries — proposals only, with visible provenance and confidence; each is
+  // applied on the user's tap through the ordinary tracking PATCH, then the entries reload
+  // (ADR-0005 — the AI proposes, it never books). The card exists only when a real API backs
+  // the entries (`todayEntries.live` ⇔ an API base is configured) and something is
+  // uncategorized; `source: 'none'` renders its honest empty answer.
+  const [catBusy, setCatBusy] = useState(false)
+  const [catResult, setCatResult] = useState<CategorizeResult | null>(null)
+  const [catError, setCatError] = useState<string | null>(null)
+  const [applyingKey, setApplyingKey] = useState<string | null>(null)
+  const uncategorized = (todayEntries.data ?? []).filter(
+    e => e.projectId === null || e.projectId === '',
+  )
+  /** Resolve a proposed project NAME to its catalog id, case-insensitively; null = no match. */
+  const matchProjectId = (name: string | null): string | null => {
+    if (name === null) return null
+    const needle = name.trim().toLowerCase()
+    for (const client of catalog.data ?? []) {
+      const hit = client.projects.find(p => p.name.toLowerCase() === needle)
+      if (hit) return hit.id
+    }
+    return null
+  }
+  const proposeCats = async (): Promise<void> => {
+    setCatBusy(true)
+    setCatError(null)
+    try {
+      // `todayEntries.live` gates the card, so a configured base is an invariant here.
+      const res = await proposeCategories(
+        apiBaseUrl ?? '',
+        uncategorized.map(e => ({ key: e.id, note: e.note, source: e.source })),
+        (catalog.data ?? []).flatMap(c => c.projects.map(p => p.name)),
+      )
+      setCatResult(res)
+    } catch (e) {
+      setCatError(e instanceof Error ? e.message : 'Unknown error')
+    } finally {
+      setCatBusy(false)
+    }
+  }
+  const applyProposal = async (p: CategoryProposal, projectId: string): Promise<void> => {
+    setApplyingKey(p.key)
+    setCatError(null)
+    try {
+      await applyCategoryProposal(apiBaseUrl ?? '', p.key, {
+        projectId,
+        ...(p.billable === null ? {} : { billable: p.billable }),
+      })
+      todayEntries.reload()
+    } catch (e) {
+      setCatError(e instanceof Error ? e.message : 'Unknown error')
+    } finally {
+      setApplyingKey(null)
+    }
+  }
+  const confidenceTone = (c: CategoryProposal['confidence']): 'good' | 'accent' | 'neutral' =>
+    c === 'high' ? 'good' : c === 'medium' ? 'accent' : 'neutral'
+  const catEntryLabel = (key: string): string => {
+    const entry = uncategorized.find(e => e.id === key)
+    return entry?.note ?? entry?.source ?? key
+  }
+  // Only rows whose entry is still uncategorized — an applied one drops out on reload.
+  const proposalRows = (catResult?.proposals ?? []).filter(p =>
+    uncategorized.some(e => e.id === p.key),
+  )
+  const categoryCard =
+    !todayEntries.live || uncategorized.length === 0 ? null : (
+      <Card
+        title="Category proposals"
+        subtitle="AI suggestions for uncategorized entries — you apply them"
+      >
+        <View style={{ gap: t.spacing.s3 }}>
+          <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>
+            {`${String(uncategorized.length)} ${uncategorized.length === 1 ? 'entry' : 'entries'} without a project. The AI proposes a category — nothing is applied until you tap Apply.`}
+          </Text>
+          {uncategorized.map(e => (
+            <Text
+              key={e.id}
+              style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}
+              numberOfLines={1}
+            >
+              {`· ${e.note ?? e.source}`}
+            </Text>
+          ))}
+          <View style={{ flexDirection: 'row' }}>
+            <Button size="sm" disabled={catBusy} onPress={() => void proposeCats()}>
+              {catBusy ? 'Proposing…' : 'Propose categories'}
+            </Button>
+          </View>
+          {catError !== null && (
+            <Text
+              accessibilityRole="alert"
+              style={{ fontSize: t.fontSize.xs, color: t.color.crit }}
+            >
+              Proposals could not be loaded — {catError}
+            </Text>
+          )}
+          {catResult !== null && catResult.source === 'none' && (
+            <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2 }}>
+              No proposals — the AI had nothing confident to suggest.
+            </Text>
+          )}
+          {catResult !== null && catResult.source === 'ai-proposal' && proposalRows.length > 0 && (
+            <Badge tone="accent" size="sm">
+              AI proposal
+            </Badge>
+          )}
+          {proposalRows.map(p => {
+            const projectId = matchProjectId(p.project)
+            return (
+              <View
+                key={p.key}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: t.spacing.s3,
+                }}
+              >
+                <View style={{ flex: 1, minWidth: 180 }}>
+                  <Text style={{ fontSize: t.fontSize.sm, fontWeight: '600', color: t.color.ink }}>
+                    {`${catEntryLabel(p.key)} → ${p.project ?? 'no project'}`}
+                  </Text>
+                  {p.tags.length > 0 && (
+                    <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2, marginTop: 2 }}>
+                      {p.tags.join(' · ')}
+                    </Text>
+                  )}
+                </View>
+                <Badge tone={confidenceTone(p.confidence)} size="sm">
+                  {p.confidence}
+                </Badge>
+                <Button
+                  size="sm"
+                  disabled={projectId === null || applyingKey !== null}
+                  onPress={() => {
+                    if (projectId !== null) void applyProposal(p, projectId)
+                  }}
+                >
+                  {projectId === null
+                    ? 'Unknown project'
+                    : applyingKey === p.key
+                      ? 'Applying…'
+                      : 'Apply'}
+                </Button>
+              </View>
+            )
+          })}
+        </View>
+      </Card>
+    )
+
   const reviewCard =
     !todayEntries.live || shutdown.drafts.length === 0 ? null : (
       <Card title="Review your tracked day" subtitle="Drafts from the Auto-Tracker — you book them">
@@ -879,6 +1045,51 @@ export function TodayScreen(): React.JSX.Element {
       </View>
     )
   }
+
+  // Idle-return banner (REQ-033, #42): the observed away-stretch while the timer ran, as a
+  // warn-toned proposal. "Keep time" trusts the user and dismisses; "Stop timer" runs the
+  // screen's existing stop action. Nothing is trimmed or edited automatically (ADR-0005).
+  const idleBanner =
+    isRunning && idle.idleMs !== null ? (
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: t.spacing.s3,
+          padding: t.spacing.s4,
+          borderRadius: t.radius.card,
+          borderWidth: 1,
+          borderColor: t.color.warn,
+          backgroundColor: t.color.warnSoft,
+        }}
+      >
+        <View style={{ flex: 1, minWidth: 180 }}>
+          <Text style={{ fontSize: t.fontSize.sm, fontWeight: '700', color: t.color.ink }}>
+            {`You were away for ${formatIdle(idle.idleMs)} while the timer ran.`}
+          </Text>
+          <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2, marginTop: 2 }}>
+            Keep the time if that was work — or stop the timer. Nothing changes until you choose.
+          </Text>
+        </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s2 }}>
+          <Button size="sm" onPress={idle.dismiss}>
+            Keep time
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={timer.busy}
+            onPress={() => {
+              stopTracking()
+              idle.dismiss()
+            }}
+          >
+            Stop timer
+          </Button>
+        </View>
+      </View>
+    ) : null
 
   // Focus mode control (REQ-032): start a Pomodoro (25/5) or, while one runs, show the
   // phase + countdown with skip/stop. Each focus interval is an ordinary timer segment.
@@ -1081,6 +1292,8 @@ export function TodayScreen(): React.JSX.Element {
 
         {forgottenCard}
 
+        {idleBanner}
+
         {driftReplan !== null && (
           <View
             style={{
@@ -1137,6 +1350,7 @@ export function TodayScreen(): React.JSX.Element {
           </View>
         </View>
 
+        {categoryCard}
         {reviewCard}
         {shutdownCard}
       </ScrollView>
