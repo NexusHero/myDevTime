@@ -54,6 +54,9 @@ import { TaskInbox } from '../components/planner/TaskInbox'
 import { PlannerEntryDrawer, type DrawerEntry } from '../components/planner/PlannerEntryDrawer'
 import { PlannerViewMenu } from '../components/planner/PlannerViewMenu'
 import { PlannerStartPicker } from '../components/planner/PlannerStartPicker'
+import { PlannerDayTracker } from '../components/planner/PlannerDayTracker'
+import { PlannerDayInstruments } from '../components/planner/PlannerDayInstruments'
+import { useToast } from '../components/core/Toast'
 import { useTheme } from '../theme/ThemeProvider'
 import { usePlanner } from '../hooks/usePlanner'
 import { usePreferences } from '../hooks/usePreferences'
@@ -75,11 +78,15 @@ import { INBOX_PROJECTS, INBOX_TASKS, type InboxTask } from './plannerInboxData'
  * both snap to the 15-min grid and lanes/overbooking recompute live (design v6).
  */
 
-// ---- Week-canvas geometry: 08:00–18:00, minutes from the top of the window ----
+// ---- Canvas geometry: 08:00–22:00, minutes from the top of the window ----
+// The window runs to 22:00 (design v20) so the evening zone (18–22) is visible; blocks store
+// absolute minutes-from-08:00, so widening the window only rescales pixels, never the data.
 const START_HOUR = 8
-const END_HOUR = 18
+const END_HOUR = 22
 const SPAN = (END_HOUR - START_HOUR) * 60
-const BODY_HEIGHT = 440
+const BODY_HEIGHT = 616 // ~44 px per hour × 14 h
+/** Minutes-from-08:00 of the contracted day end (18:00) — the evening-zone / soll-end line. */
+const SOLL_END_MIN = (18 - START_HOUR) * 60
 const HEADER_HEIGHT = 46
 const GUTTER = 52
 const COL_WIDTH = 150
@@ -614,6 +621,8 @@ function DayColumn({
   onMoveBlock,
   onOpenBlock,
   showReality,
+  onCreateAt,
+  eveningZone,
 }: {
   readonly day: DemoDay
   readonly index: number
@@ -632,6 +641,11 @@ function DayColumn({
   readonly onOpenBlock: (globalIndex: number) => void
   /** Overlay the auto-tracker's reality trace + drift chip (ADR-0064, K1). */
   readonly showReality: boolean
+  /** Tap an empty slot to create a 1 h block at the snapped start (design v20). Optional so the
+   *  week canvas is unchanged unless a caller opts in. */
+  readonly onCreateAt?: (startMin: number) => void
+  /** Shade the evening zone (18–22) and draw the soll-end line at 18:00 (design v20 Day stage). */
+  readonly eveningZone?: boolean
 }): React.JSX.Element {
   const t = useTheme()
   const hours: number[] = []
@@ -746,6 +760,21 @@ function DayColumn({
           backgroundColor: day.today ? `${t.color.accentSoft}66` : 'transparent',
         }}
       >
+        {/* Empty-slot tap-to-create (design v20): a tap on open canvas creates a 1 h block at the
+            snapped time. Rendered first so the blocks below catch their own taps; only present when
+            a caller wires `onCreateAt`. */}
+        {onCreateAt && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add an entry at the tapped time"
+            onPress={e => {
+              const raw = (e.nativeEvent.locationY / BODY_HEIGHT) * SPAN
+              const snapped = Math.max(0, Math.min(Math.round(raw / 30) * 30, SPAN - 30))
+              onCreateAt(snapped)
+            }}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+        )}
         {hours.map(h => (
           <View
             key={h}
@@ -776,6 +805,38 @@ function DayColumn({
             }}
           />
         ))}
+        {/* Evening zone (design v20): the hours past the contracted day end (18:00) read muted,
+            with a dashed soll-end line at 18:00 — a glanceable "after hours" cue. Client-side,
+            pointer-transparent so it never blocks taps or drags. */}
+        {eveningZone && (
+          <>
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: (SOLL_END_MIN / SPAN) * BODY_HEIGHT,
+                bottom: 0,
+                backgroundColor: t.color.ink,
+                opacity: 0.05,
+              }}
+            />
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: (SOLL_END_MIN / SPAN) * BODY_HEIGHT,
+                borderTopWidth: 1.5,
+                borderTopColor: t.color.ink3,
+                borderStyle: 'dashed',
+                opacity: 0.6,
+              }}
+            />
+          </>
+        )}
         {/* Reality trace (ADR-0064, K1): the auto-tracker's active spans as a slim
             neutral strip on the day column's right edge — observed, not booked, so it
             reads muted (never a project fill). Plan and reality on one surface. */}
@@ -1262,7 +1323,9 @@ export function PlannerScreen(): React.JSX.Element {
   // The canvas always shows the real current week; the header labels its ISO week
   // number (KW) — no prev/next affordance that changes a counter but not the data.
   const week = CURRENT_WEEK
-  const [view, setView] = useState<'Week' | 'Month' | 'Year'>('Week')
+  // The Planner opens on the **Day** stage (design v20: "Today" is the day view of the calendar);
+  // Week/Month/Year zoom out from it. Today stays its own route too — this only adds the Day zoom.
+  const [view, setView] = useState<'Day' | 'Week' | 'Month' | 'Year'>('Day')
   // Work / Life / Both layer filter (design v17 §F6.5). One person, one timeline:
   // work and life share the calendar, and this filter only changes what is *shown*,
   // never what exists — capacity and price still read the full block set below.
@@ -1287,6 +1350,17 @@ export function PlannerScreen(): React.JSX.Element {
   // One day column's on-screen width, measured from the columns row, so a horizontal
   // drag maps to whole-day steps. Falls back to the fixed width on the phone canvas.
   const [colWidth, setColWidth] = useState(COL_WIDTH)
+  // The Day view renders a single full-width column; its measured width drives the same
+  // drag mapping the week uses (design v20 Day stage).
+  const [dayColW, setDayColW] = useState(COL_WIDTH)
+  const toast = useToast()
+  // Empty-slot tap-to-create (design v20): drop a 1 h actual block at the tapped, snapped time on
+  // the given day; a transient toast confirms it. Clamped inside the 08–18 window.
+  const createBlockAt = (day: number, startMin: number): void => {
+    const start = Math.max(0, Math.min(startMin, SPAN - 60))
+    setBlocks(bs => [...bs, { day, start, len: 60, label: 'New entry', kind: 'actual' }])
+    toast.show(`Entry created — ${clock(start)}–${clock(start + 60)}.`)
+  }
   const resizeBlock = (globalIndex: number, lenMin: number): void =>
     setBlocks(bs => bs.map((b, i) => (i === globalIndex ? { ...b, len: lenMin } : b)))
   const moveBlock = (globalIndex: number, day: number, startMin: number): void =>
@@ -1705,6 +1779,7 @@ export function PlannerScreen(): React.JSX.Element {
           <View style={{ maxWidth: 260, minWidth: 200, flexGrow: 1 }}>
             <SegmentedControl
               segments={[
+                { value: 'Day', label: 'Day' },
                 { value: 'Week', label: 'Week' },
                 { value: 'Month', label: 'Month' },
                 { value: 'Year', label: 'Year' },
@@ -1782,7 +1857,13 @@ export function PlannerScreen(): React.JSX.Element {
             />
           )}
           <Button size="sm">
-            {view === 'Year' ? 'Plan year' : view === 'Month' ? 'Plan month' : 'Plan week'}
+            {view === 'Year'
+              ? 'Plan year'
+              : view === 'Month'
+                ? 'Plan month'
+                : view === 'Day'
+                  ? 'Plan day'
+                  : 'Plan week'}
           </Button>
         </View>
 
@@ -1840,6 +1921,64 @@ export function PlannerScreen(): React.JSX.Element {
                   />
                 </View>
               </View>
+            )
+          })()}
+
+        {view === 'Day' &&
+          (() => {
+            // "Today" is the day stage of the Planner (design v20): the tracker row starts the
+            // shared timer, and one full-width DayColumn shows the day's plan + reality on the same
+            // 08–18 canvas the week uses — same blocks, same deterministic geometry (ADR-0005), so
+            // nothing is duplicated or mocked. Today (in another visible day) falls back to column 0.
+            const dayIdx = weekDays.findIndex(d => d.today === true)
+            const dayI = dayIdx >= 0 ? dayIdx : 0
+            const day = weekDays[dayI]
+            if (day === undefined) return null
+            return (
+              <>
+                <PlannerDayTracker clients={catalog.data ?? []} />
+                <View
+                  style={{
+                    flexDirection: stacked ? 'column' : 'row',
+                    gap: t.spacing.s4,
+                    alignItems: 'flex-start',
+                  }}
+                >
+                  <Card
+                    padding={false}
+                    style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}
+                  >
+                    <View style={{ flexDirection: 'row' }}>
+                      <HourGutter />
+                      <View
+                        style={{ flex: 1 }}
+                        onLayout={e => {
+                          const w = e.nativeEvent.layout.width
+                          if (w > 0) setDayColW(w)
+                        }}
+                      >
+                        <DayColumn
+                          day={day}
+                          index={dayI}
+                          flex
+                          blocks={shownBlocks}
+                          recurring={recurringBlocks}
+                          colWidth={dayColW}
+                          onResizeBlock={resizeBlock}
+                          onMoveBlock={moveBlock}
+                          onOpenBlock={setOpenIndex}
+                          showReality={showReality}
+                          onCreateAt={min => createBlockAt(dayI, min)}
+                          eveningZone
+                        />
+                      </View>
+                    </View>
+                  </Card>
+                  {/* Instruments rail — glanceable day signals from real data (design v20). */}
+                  <PlannerDayInstruments />
+                </View>
+                <Legend />
+              </>
             )
           })()}
 
