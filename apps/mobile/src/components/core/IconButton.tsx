@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { Pressable, type ViewStyle } from 'react-native'
+import { focusRingStyle } from './focusRing'
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
@@ -22,6 +24,7 @@ export function IconButton({
   onPress,
 }: IconButtonProps): React.JSX.Element {
   const t = useTheme()
+  const [focused, setFocused] = useState(false)
   const filled = variant === 'filled'
 
   const style = ({ pressed }: { pressed: boolean }): ViewStyle => ({
@@ -34,11 +37,15 @@ export function IconButton({
     borderColor: filled ? t.color.border : 'transparent',
     backgroundColor: filled ? t.color.raised : active ? t.color.accentSoft : 'transparent',
     opacity: pressed ? 0.7 : 1,
+    // Visible keyboard focus (REQ-043): a web-only accent ring, no unfocused change.
+    ...focusRingStyle(t, focused),
   })
 
   return (
     <Pressable
       onPress={() => onPress?.()}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
