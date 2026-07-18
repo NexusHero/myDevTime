@@ -1397,6 +1397,26 @@ export function PlannerScreen(): React.JSX.Element {
     setBlocks(bs => bs.filter((_, i) => i !== openIndex))
     setOpenIndex(null)
   }
+  // ±15-min nudge (design v20 drawer): shift the open block's start, clamped inside the window.
+  const nudgeOpen = (deltaMin: number): void => {
+    setBlocks(bs =>
+      bs.map((b, i) =>
+        i === openIndex
+          ? { ...b, start: Math.max(0, Math.min(b.start + deltaMin, SPAN - b.len)) }
+          : b,
+      ),
+    )
+  }
+  // Duplicate (design v20 drawer): append a copy right after the open block, clamped; the lane
+  // model shows both. A toast confirms.
+  const duplicateOpen = (): void => {
+    const b = openBlock
+    if (b === undefined) return
+    const start = Math.min(b.start + b.len, SPAN - b.len)
+    setBlocks(bs => [...bs, { ...b, start }])
+    setOpenIndex(null)
+    toast.show('Entry duplicated.')
+  }
   const acceptOpen = (): void => {
     setBlocks(bs => bs.map((b, i) => (i === openIndex ? { ...b, kind: 'actual' } : b)))
     setOpenIndex(null)
@@ -2242,7 +2262,9 @@ export function PlannerScreen(): React.JSX.Element {
         entry={drawerEntry}
         onClose={() => setOpenIndex(null)}
         {...(drawerEntry?.kind === 'meeting' ? { onRsvp: setOpenRsvp } : {})}
-        {...(drawerEntry?.kind === 'actual' ? { onDelete: removeOpen } : {})}
+        {...(drawerEntry?.kind === 'actual'
+          ? { onDelete: removeOpen, onNudge: nudgeOpen, onDuplicate: duplicateOpen }
+          : {})}
         {...(drawerEntry?.kind === 'ghost' ? { onAccept: acceptOpen, onDismiss: removeOpen } : {})}
         {...(drawerEntry !== null &&
         (drawerEntry.kind === 'meeting' ||

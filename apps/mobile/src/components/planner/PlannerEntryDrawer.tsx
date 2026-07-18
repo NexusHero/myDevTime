@@ -66,6 +66,10 @@ export interface PlannerEntryDrawerProps {
   readonly onStartTimer?: () => void
   /** Booked time: delete it (with the caller's undo). */
   readonly onDelete?: () => void
+  /** Shift the block's start by ±15 min (design v20 drawer). */
+  readonly onNudge?: (deltaMin: number) => void
+  /** Duplicate the block on the same day (design v20 drawer). */
+  readonly onDuplicate?: () => void
   /** Ghost: accept the Co-Planner proposal. */
   readonly onAccept?: () => void
   /** Ghost: dismiss the proposal. */
@@ -82,6 +86,8 @@ export function PlannerEntryDrawer({
   onRsvp,
   onStartTimer,
   onDelete,
+  onNudge,
+  onDuplicate,
   onAccept,
   onDismiss,
   onProtect,
@@ -197,17 +203,35 @@ export function PlannerEntryDrawer({
           )}
 
           {entry.kind === 'actual' && (
-            <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
-              {onStartTimer !== undefined && (
-                <Button size="sm" onPress={onStartTimer}>
-                  Start timer
-                </Button>
+            <View style={{ gap: t.spacing.s2 }}>
+              {onNudge !== undefined && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
+                  <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>Nudge</Text>
+                  <Button size="sm" variant="ghost" onPress={() => onNudge(-15)}>
+                    −15 min
+                  </Button>
+                  <Button size="sm" variant="ghost" onPress={() => onNudge(15)}>
+                    +15 min
+                  </Button>
+                </View>
               )}
-              {onDelete !== undefined && (
-                <Button size="sm" variant="ghost" onPress={onDelete}>
-                  Delete
-                </Button>
-              )}
+              <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
+                {onStartTimer !== undefined && (
+                  <Button size="sm" onPress={onStartTimer}>
+                    Start timer
+                  </Button>
+                )}
+                {onDuplicate !== undefined && (
+                  <Button size="sm" variant="ghost" onPress={onDuplicate}>
+                    Duplicate
+                  </Button>
+                )}
+                {onDelete !== undefined && (
+                  <Button size="sm" variant="ghost" onPress={onDelete}>
+                    Delete
+                  </Button>
+                )}
+              </View>
             </View>
           )}
 
