@@ -27,7 +27,7 @@ import {
 import { ContextBanner, type ContextBannerProps } from '../components/planner/ContextBanner'
 import { priceWeekFromBlocks } from '../planner/weekPrice'
 import { weekCapacityFromBlocks } from '../planner/capacityTrace'
-import { inLayer, PLANNER_LAYERS, type PlannerLayer } from '../planner/layer'
+import { inLayer, type PlannerLayer } from '../planner/layer'
 import { apiBaseUrl } from '../config'
 import { createSeries } from '../api/recurrence'
 import { createProject } from '../api/tracking'
@@ -55,6 +55,7 @@ import {
 } from '../components/index'
 import { TaskInbox } from '../components/planner/TaskInbox'
 import { PlannerEntryDrawer, type DrawerEntry } from '../components/planner/PlannerEntryDrawer'
+import { PlannerViewMenu } from '../components/planner/PlannerViewMenu'
 import { useTheme } from '../theme/ThemeProvider'
 import { usePlanner } from '../hooks/usePlanner'
 import { usePreferences } from '../hooks/usePreferences'
@@ -1528,38 +1529,9 @@ export function PlannerScreen(): React.JSX.Element {
     )
   }
 
-  // Work / Life / Both filter pills (design v17 §F6.5). Default "Both"; a solo user who
-  // never adds a life entry sees the same canvas either way.
-  const LAYER_LABEL: Record<PlannerLayer, string> = { both: 'Both', work: 'Work', life: 'Life' }
-  const layerChip = (value: PlannerLayer): React.JSX.Element => {
-    const active = layer === value
-    return (
-      <Pressable
-        key={value}
-        onPress={() => setLayer(value)}
-        accessibilityRole="button"
-        accessibilityLabel={`Layer: ${LAYER_LABEL[value]}`}
-        style={{
-          paddingVertical: 4,
-          paddingHorizontal: 12,
-          borderRadius: t.radius.pill,
-          borderWidth: 1,
-          borderColor: active ? t.color.accent : t.color.border,
-          backgroundColor: active ? t.color.accentSoft : t.color.surface,
-        }}
-      >
-        <Text
-          style={{
-            fontSize: t.fontSize['2xs'],
-            fontWeight: '600',
-            color: active ? t.color.accentText : t.color.ink2,
-          }}
-        >
-          {LAYER_LABEL[value]}
-        </Text>
-      </Pressable>
-    )
-  }
+  // Work / Life / Both filter (design v17 §F6.5) now lives in the v20 "View" popover
+  // (`PlannerViewMenu`) alongside the Reality toggle — the Reduktions-Pass keeps the header quiet.
+  // Default "Both"; a solo user who never adds a life entry sees the same canvas either way.
 
   // Only the *shown* blocks are filtered by the layer; the full `blocks` set still
   // feeds capacity and price so the numbers never lie about what exists.
@@ -1798,24 +1770,18 @@ export function PlannerScreen(): React.JSX.Element {
             </Button>
           )}
           {view === 'Week' && (
-            <Button
-              size="sm"
-              variant={showReality ? 'primary' : 'ghost'}
-              onPress={() => {
-                if (!prefs.autoTracker) {
+            <PlannerViewMenu
+              layer={layer}
+              onLayer={setLayer}
+              realityOn={realityOn}
+              onReality={next => {
+                if (next && !prefs.autoTracker) {
                   setInboxNote('Turn on Auto-Tracker in Settings to overlay your reality.')
                   return
                 }
-                setRealityOn(o => !o)
+                setRealityOn(next)
               }}
-            >
-              ● Reality
-            </Button>
-          )}
-          {view === 'Week' && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s1 }}>
-              {PLANNER_LAYERS.map(layerChip)}
-            </View>
+            />
           )}
           <Button size="sm">
             {view === 'Year' ? 'Plan year' : view === 'Month' ? 'Plan month' : 'Plan week'}
