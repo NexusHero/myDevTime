@@ -8,12 +8,25 @@ import { SmartAddService } from './smart-add.service.js'
 import { AiContext } from './ai.context.js'
 import { ASSISTANT, type Assistant } from './assistant.js'
 import { AI_INSIGHTS, type AiInsightsPort } from './insights.js'
-import { AssistantDto, InsightDto, NlEntryDto, SmartAddDto } from './ai.dto.js'
+import { STANDUP_WRITER, type StandupWriter } from './standup.js'
+import { CATEGORIZER, type Categorizer } from './categorize.js'
+import {
+  AssistantDto,
+  CategorizeDto,
+  InsightDto,
+  NlEntryDto,
+  SmartAddDto,
+  StandupDto,
+} from './ai.dto.js'
 
 /** One grounded-assistant answer costs one credit (ADR-0008). */
 const ASSISTANT_CREDIT_COST = 1
 /** One grounded insight (KI1–KI4) costs one credit, charged only on a real AI proposal. */
 const INSIGHT_CREDIT_COST = 1
+/** One AI standup narration costs one credit, charged only on a real AI proposal (ADR-0008). */
+const STANDUP_CREDIT_COST = 1
+/** One categorization batch costs one credit, charged only when the AI actually proposed (ADR-0008). */
+const CATEGORIZE_CREDIT_COST = 1
 
 /**
  * The `ai` module (LLM proposals, NL entry, assistant — ADR-0025/0029). The status
@@ -30,6 +43,8 @@ export class AiController {
     private readonly ctx: AiContext,
     @Inject(ASSISTANT) private readonly assistant: Assistant,
     @Inject(AI_INSIGHTS) private readonly insights: AiInsightsPort,
+    @Inject(STANDUP_WRITER) private readonly standup: StandupWriter,
+    @Inject(CATEGORIZER) private readonly categorizer: Categorizer,
   ) {}
 
   @Get('status')
@@ -80,7 +95,11 @@ export class AiController {
   async insight(@CurrentUser() user: AuthenticatedUser, @Body() body: InsightDto) {
     const { db, workspaceId } = await this.ctx.workspaceOf(user)
     const allowAi = (await balanceFor(db, workspaceId)) >= INSIGHT_CREDIT_COST
-    const proposal = await this.insights.propose(body.kind, body.facts, { allowAi })
+    // REQ-026: the optional custom focus biases emphasis only — the grounding rules win.
+    const proposal = await this.insights.propose(body.kind, body.facts, {
+      allowAi,
+      customPrompt: body.customPrompt,
+    })
     let charged = false
     if (proposal.source === 'ai-proposal' && !proposal.refused) {
       await debit(db, workspaceId, {
@@ -92,6 +111,69 @@ export class AiController {
       charged = true
     }
     return { ...proposal, charged }
+  }
+
+  /**
+   * The AI standup / summary (REQ-014): the caller's own grouped durations are arranged into a
+   * slot-protected report and the LLM narrates around the numbers — never changing one (slot
+   * integrity, ADR-0005). A credit is debited once only when the AI actually wrote the narrative;
+   * a down provider, no credits, an empty day, or a draft that dropped a figure all degrade to the
+   * free plain template. Read-only: nothing is written to the timesheet.
+   */
+  @Post('standup')
+  @UseGuards(AuthGuard)
+  async standupReport(@CurrentUser() user: AuthenticatedUser, @Body() body: StandupDto) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    const allowAi = (await balanceFor(db, workspaceId)) >= STANDUP_CREDIT_COST
+    const result = await this.standup.compose(
+      {
+        date: body.date,
+        yesterday: body.yesterday ?? [],
+        today: body.today ?? [],
+        blockers: body.blockers ?? [],
+      },
+      { allowAi },
+    )
+    let charged = false
+    if (result.source === 'ai-proposal') {
+      await debit(db, workspaceId, {
+        amount: STANDUP_CREDIT_COST,
+        category: 'assistant',
+        reason: 'AI standup narrative',
+        operationId: `standup:${workspaceId}:${body.date}:${randomUUID()}`,
+      })
+      charged = true
+    }
+    return { source: result.source, text: result.text, report: result.report, charged }
+  }
+
+  /**
+   * AI categorization proposals (REQ-012, #17): the LLM proposes a project (strictly out
+   * of the caller's `knownProjects` — never invented), tags, billability and a confidence
+   * per uncategorized entry. Proposals only — the client confirms before anything is
+   * written, and confirmed entries carry `ai-proposal` provenance (ADR-0005). One credit
+   * is debited only when the AI actually produced at least one proposal; a down provider,
+   * no credits, or an unparseable completion degrade to `none` and cost nothing (ADR-0008).
+   */
+  @Post('categorize')
+  @UseGuards(AuthGuard)
+  async categorize(@CurrentUser() user: AuthenticatedUser, @Body() body: CategorizeDto) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    const allowAi = (await balanceFor(db, workspaceId)) >= CATEGORIZE_CREDIT_COST
+    const result = await this.categorizer.compose(body.items, body.knownProjects ?? [], {
+      allowAi,
+    })
+    let charged = false
+    if (result.source === 'ai-proposal' && result.proposals.length > 0) {
+      await debit(db, workspaceId, {
+        amount: CATEGORIZE_CREDIT_COST,
+        category: 'assistant',
+        reason: 'AI categorization proposals',
+        operationId: `categorize:${workspaceId}:${randomUUID()}`,
+      })
+      charged = true
+    }
+    return { source: result.source, charged, proposals: result.proposals }
   }
 
   /**

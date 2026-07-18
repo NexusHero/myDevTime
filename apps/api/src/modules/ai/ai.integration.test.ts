@@ -12,6 +12,8 @@ import { NlEntryService } from './nl-entry.service.js'
 import { SmartAddService } from './smart-add.service.js'
 import { LlmAssistant } from './assistant.js'
 import { LlmInsights } from './insights.js'
+import { LlmStandupWriter } from './standup.js'
+import { LlmCategorizer } from './categorize.js'
 import { NullLlm } from './llm/null-llm.js'
 import { LlmUnavailableError, type LlmPort, type LlmRequest, type LlmResult } from './llm/port.js'
 
@@ -74,6 +76,8 @@ describe.skipIf(!databaseUrl)('ai module (integration)', () => {
       ctx,
       new LlmAssistant(llm),
       new LlmInsights(llm),
+      new LlmStandupWriter(llm),
+      new LlmCategorizer(llm),
     )
   }
 
@@ -161,6 +165,128 @@ describe.skipIf(!databaseUrl)('ai module (integration)', () => {
 
     expect(await balanceFor(db, wsA)).toBe(4)
     expect(await balanceFor(db, wsB)).toBe(0)
+  })
+
+  const standupInput = {
+    date: '2026-07-18',
+    yesterday: [{ label: 'Sync engine', ms: 3 * 3_600_000 }],
+    today: [{ label: 'Rules API', ms: 90 * 60_000 }],
+    blockers: [],
+  }
+  // A narrative that repeats every protected figure — 3h, 1h 30m, and the two totals (3h, 1h 30m).
+  const goodStandup =
+    'Yesterday: 3h on Sync engine. Today: 1h 30m on Rules API. Totals 3h and 1h 30m.'
+
+  it('Standup_AiNarrative_DebitsExactlyOneCredit', async () => {
+    await grant(db, wsA, { amount: 5, category: 'monthly-grant' })
+    const controller = controllerWith(new FakeLlm(true, goodStandup))
+
+    const res = await controller.standupReport(userA, standupInput)
+
+    expect(res.source).toBe('ai-proposal')
+    expect(res.charged).toBe(true)
+    expect(res.report.totalYesterdayMs).toBe(3 * 3_600_000)
+    expect(await balanceFor(db, wsA)).toBe(4)
+  })
+
+  it('Standup_SlotViolation_FallsBackToPlainAndDoesNotCharge', async () => {
+    await grant(db, wsA, { amount: 5, category: 'monthly-grant' })
+    // The model changed a figure (2h instead of 3h) → slot integrity rejects it, no charge.
+    const controller = controllerWith(new FakeLlm(true, 'Worked 2h yesterday, some today.'))
+
+    const res = await controller.standupReport(userA, standupInput)
+
+    expect(res.source).toBe('deterministic')
+    expect(res.charged).toBe(false)
+    expect(await balanceFor(db, wsA)).toBe(5)
+  })
+
+  it('Standup_ProviderDown_DegradesToPlainAndDoesNotCharge', async () => {
+    await grant(db, wsA, { amount: 5, category: 'monthly-grant' })
+    const controller = controllerWith(new FakeLlm(false, 'unused'))
+
+    const res = await controller.standupReport(userA, standupInput)
+
+    expect(res.source).toBe('deterministic')
+    expect(res.charged).toBe(false)
+    expect(await balanceFor(db, wsA)).toBe(5)
+  })
+
+  it('Standup_MeteringIsWorkspaceIsolated', async () => {
+    await grant(db, wsA, { amount: 5, category: 'monthly-grant' })
+    const controller = controllerWith(new FakeLlm(true, goodStandup))
+
+    await controller.standupReport(userA, standupInput)
+
+    expect(await balanceFor(db, wsA)).toBe(4)
+    expect(await balanceFor(db, wsB)).toBe(0)
+  })
+
+  const categorizeItems = [{ key: 'e1', note: 'finanzo dashboard review', source: 'calendar' }]
+  // A valid strict-JSON answer naming a known project (lowercase — canonicalized on parse).
+  const goodCategorization =
+    '[{"key":"e1","project":"finanzo","tags":["review"],"billable":true,"confidence":"high"}]'
+
+  it('Categorize_AiProposals_DebitsExactlyOneCredit', async () => {
+    await grant(db, wsA, { amount: 5, category: 'monthly-grant' })
+    const controller = controllerWith(new FakeLlm(true, goodCategorization))
+
+    const res = await controller.categorize(userA, {
+      items: categorizeItems,
+      knownProjects: ['Finanzo'],
+    })
+
+    expect(res.source).toBe('ai-proposal')
+    expect(res.charged).toBe(true)
+    expect(res.proposals).toHaveLength(1)
+    expect(res.proposals[0]?.project).toBe('Finanzo')
+    expect(await balanceFor(db, wsA)).toBe(4)
+  })
+
+  it('Categorize_UnknownProject_IsNulledNeverInvented', async () => {
+    await grant(db, wsA, { amount: 5, category: 'monthly-grant' })
+    // The model proposes a project that is NOT in the caller's vocabulary — the proposal
+    // must carry project: null rather than an invented name (REQ-012, ADR-0005).
+    const invented =
+      '[{"key":"e1","project":"Atlantis","tags":["review"],"billable":true,"confidence":"high"}]'
+    const controller = controllerWith(new FakeLlm(true, invented))
+
+    const res = await controller.categorize(userA, {
+      items: categorizeItems,
+      knownProjects: ['Finanzo'],
+    })
+
+    expect(res.source).toBe('ai-proposal')
+    expect(res.proposals[0]?.project).toBeNull()
+  })
+
+  it('Categorize_ProviderDown_NoProposalsNoCharge', async () => {
+    await grant(db, wsA, { amount: 5, category: 'monthly-grant' })
+    const controller = controllerWith(new FakeLlm(false, 'unused'))
+
+    const res = await controller.categorize(userA, {
+      items: categorizeItems,
+      knownProjects: ['Finanzo'],
+    })
+
+    expect(res.source).toBe('none')
+    expect(res.proposals).toEqual([])
+    expect(res.charged).toBe(false)
+    expect(await balanceFor(db, wsA)).toBe(5)
+  })
+
+  it('Categorize_NoCredits_SkipsAiNoCharge', async () => {
+    // Zero balance → allowAi:false → the categorizer never runs the model and nothing is charged.
+    const controller = controllerWith(new FakeLlm(true, goodCategorization))
+
+    const res = await controller.categorize(userA, {
+      items: categorizeItems,
+      knownProjects: ['Finanzo'],
+    })
+
+    expect(res.source).toBe('none')
+    expect(res.charged).toBe(false)
+    expect(await balanceFor(db, wsA)).toBe(0)
   })
 
   it('NlEntry_DeterministicParse_ReturnsDraftAndPersistsNothing', async () => {
