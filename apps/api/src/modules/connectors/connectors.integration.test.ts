@@ -3,7 +3,7 @@ import { and, eq, inArray } from 'drizzle-orm'
 import { loadConfig } from '../../config.js'
 import { createDb } from '../../db/client.js'
 import { user } from '../../db/auth-schema.js'
-import { connectorGrants, connectorTokens, workspaces } from '../../db/schema.js'
+import { connectorGrants, connectorTokens, workspaceMembers, workspaces } from '../../db/schema.js'
 import { buildApp } from '../../app.js'
 import { resolveWorkspaceId } from '../../core/workspace.js'
 import { deleteToken, getToken, hasToken, putToken } from './vault.js'
@@ -26,6 +26,17 @@ const databaseUrl = process.env.DATABASE_URL
 // A deterministic 32-byte master key (raw utf-8) — the vault seals under this.
 const MASTER_KEY = Buffer.from('0123456789abcdef0123456789abcdef', 'utf8')
 
+// Config for the guarded HTTP surface: auth configured, so AuthGuard runs for real
+// (401 without a session; a real Better-Auth session for the authenticated cases).
+const HTTP_CONFIG = loadConfig({ LOG_LEVEL: 'silent', AUTH_SECRET: 'x'.repeat(32) })
+const AUTH_PASSWORD = 'sup3r-secret-pw'
+
+type App = Awaited<ReturnType<typeof buildApp>>
+
+function cookieHeader(res: { cookies: readonly { name: string; value: string }[] }): string {
+  return res.cookies.map(c => `${c.name}=${c.value}`).join('; ')
+}
+
 describe.skipIf(!databaseUrl)('connectors vault + consent (integration)', () => {
   const handle = createDb(databaseUrl!)
   const db = handle.db
@@ -33,6 +44,45 @@ describe.skipIf(!databaseUrl)('connectors vault + consent (integration)', () => 
   const idB = 'itest-conn-b'
   let wsA = ''
   let wsB = ''
+
+  // Fresh Better-Auth users signed up through the HTTP surface (they need a real
+  // account/password to obtain a session cookie — the idA/idB rows have neither).
+  const authEmails = ['conn-authz@itest.local', 'conn-preview@itest.local']
+
+  /** Remove a signed-up user and its provisioned workspace (+ any connector rows). */
+  async function cleanupAuthUser(email: string): Promise<void> {
+    const rows = await db.select({ id: user.id }).from(user).where(eq(user.email, email))
+    const u = rows[0]
+    if (!u) return
+    const members = await db
+      .select({ workspaceId: workspaceMembers.workspaceId })
+      .from(workspaceMembers)
+      .where(eq(workspaceMembers.userId, u.id))
+    for (const m of members) {
+      await db.delete(connectorTokens).where(eq(connectorTokens.workspaceId, m.workspaceId))
+      await db.delete(connectorGrants).where(eq(connectorGrants.workspaceId, m.workspaceId))
+      await db.delete(workspaces).where(eq(workspaces.id, m.workspaceId))
+    }
+    await db.delete(user).where(eq(user.id, u.id))
+  }
+
+  /** Sign a fresh, verified user up through the API and return its session cookie. */
+  async function authedCookie(app: App, email: string): Promise<string> {
+    await cleanupAuthUser(email)
+    await app.inject({
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      payload: { name: 'Conn User', email, password: AUTH_PASSWORD },
+    })
+    // Simulate the email-verification step so sign-in is allowed.
+    await db.update(user).set({ emailVerified: true }).where(eq(user.email, email))
+    const signIn = await app.inject({
+      method: 'POST',
+      url: '/api/auth/sign-in/email',
+      payload: { email, password: AUTH_PASSWORD },
+    })
+    return cookieHeader(signIn)
+  }
 
   beforeAll(async () => {
     for (const [id, email] of [
@@ -52,6 +102,7 @@ describe.skipIf(!databaseUrl)('connectors vault + consent (integration)', () => 
   })
 
   afterAll(async () => {
+    for (const email of authEmails) await cleanupAuthUser(email)
     await db.delete(workspaces).where(eq(workspaces.id, wsA))
     await db.delete(workspaces).where(eq(workspaces.id, wsB))
     await db.delete(user).where(eq(user.id, idA))
@@ -163,6 +214,56 @@ describe.skipIf(!databaseUrl)('connectors vault + consent (integration)', () => 
     })
     const res = await app.inject({ method: 'GET', url: '/api/connectors' })
     expect(res.statusCode).toBe(401)
+    await app.close()
+  })
+
+  it('Authorize_Unauthenticated_Returns401', async () => {
+    const app = await buildApp({ config: HTTP_CONFIG, db: handle })
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/connectors/google-calendar/authorize',
+    })
+    expect(res.statusCode).toBe(401)
+    await app.close()
+  })
+
+  it('Callback_Unauthenticated_Returns401', async () => {
+    const app = await buildApp({ config: HTTP_CONFIG, db: handle })
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/connectors/google-calendar/callback?code=abc&state=xyz',
+    })
+    expect(res.statusCode).toBe(401)
+    await app.close()
+  })
+
+  it('Authorize_AuthenticatedButNotConfigured_Returns409WithoutUrl', async () => {
+    // No CONNECTOR_GOOGLE_CALENDAR_CLIENT_ID/SECRET in the env → the honest
+    // "not configured" path: a 409 conflict, never a 500 and never a fake URL.
+    const app = await buildApp({ config: HTTP_CONFIG, db: handle })
+    const cookie = await authedCookie(app, 'conn-authz@itest.local')
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/connectors/google-calendar/authorize',
+      headers: { cookie },
+    })
+    expect(res.statusCode).toBe(409)
+    expect(res.statusCode).not.toBe(500)
+    expect(res.json()).not.toHaveProperty('url')
+    await app.close()
+  })
+
+  it('Preview_AuthenticatedWithoutConsent_Returns409', async () => {
+    // Consent-first (REQ-025/ADR-0033): a fresh user has granted nothing, so the
+    // preview refuses with 409 before any provider work happens.
+    const app = await buildApp({ config: HTTP_CONFIG, db: handle })
+    const cookie = await authedCookie(app, 'conn-preview@itest.local')
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/connectors/google-calendar/preview',
+      headers: { cookie },
+    })
+    expect(res.statusCode).toBe(409)
     await app.close()
   })
 })
