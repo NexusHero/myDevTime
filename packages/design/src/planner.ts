@@ -78,6 +78,24 @@ export function loadTone(load: number, soll: number): LoadTone {
 }
 
 /**
+ * Week-load intensity for the Planner **Year** heat strip (design v18 §Year, REQ-046): the same
+ * prio-weighted load a week carries, bucketed against the weekly target into four levels —
+ * `0` idle · `1` light (≤40 %) · `2` steady (≤80 %) · `3` heavy (over 80 %). Pure so the year's
+ * five-row strip is deterministic (ADR-0005); a non-positive load reads idle, and a non-positive
+ * target reads heavy (any load with no target to measure against is "over").
+ */
+export type WeekIntensity = 0 | 1 | 2 | 3
+
+export function weekIntensity(load: number, weeklyTarget: number): WeekIntensity {
+  if (!(load > 0)) return 0
+  if (!(weeklyTarget > 0)) return 3
+  const ratio = load / weeklyTarget
+  if (ratio <= 0.4) return 1
+  if (ratio <= 0.8) return 2
+  return 3
+}
+
+/**
  * Snap a raw (drag-derived) duration to the planner's grid (design v6 resize):
  * round to the nearest `gridMin` step, then clamp to `[minMin, maxMin]`. Pure so
  * the gesture layer stays a thin wrapper and the 15-minute raster is deterministic

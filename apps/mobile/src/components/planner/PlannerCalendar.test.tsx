@@ -83,4 +83,22 @@ describe('PlannerCalendar (native)', () => {
     expect(out).toContain('Jul')
     expect(out).toContain('Jan')
   })
+
+  it('Year_ShowsPlannedHoursFromTheUtilizationCore_REQ046', () => {
+    // The Year strip is fed by the deterministic utilization aggregation (`buildYearMonths` →
+    // `dayLoad`/`weekIntensity`, REQ-046): a single 2 h occurrence in July renders as "2h", every
+    // empty month as "—". This pins that the views render straight from that core, no mock data.
+    const out = texts(
+      <PlannerCalendar
+        view="year"
+        year={2026}
+        month0={6}
+        today={0}
+        occurrences={[occ('2026-07-13', 'Sync engine')]}
+        targetHours={8.33}
+      />,
+    )
+    expect(out).toContain('2h')
+    expect(out).toContain('—')
+  })
 })
