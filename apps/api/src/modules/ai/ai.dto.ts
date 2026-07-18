@@ -44,3 +44,24 @@ export class InsightDto extends createZodDto(
     facts: z.array(z.string().min(1).max(600)).max(100),
   }),
 ) {}
+
+/** One grouped standup line: a project/task label and its tracked duration (ms). */
+const standupLine = z.object({
+  label: z.string().min(1).max(200),
+  ms: z.number().int().nonnegative(),
+})
+
+/**
+ * The AI standup request (REQ-014): the caller's own grouped durations for yesterday/today
+ * plus any typed blockers. The server arranges these into a slot-protected report and the LLM
+ * narrates around the numbers — it never invents one. The client supplies its own facts, so the
+ * `ai` module stays free of `tracking`/`worktime` coupling and workspace-safe by construction.
+ */
+export class StandupDto extends createZodDto(
+  z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    yesterday: z.array(standupLine).max(100).optional(),
+    today: z.array(standupLine).max(100).optional(),
+    blockers: z.array(z.string().min(1).max(300)).max(20).optional(),
+  }),
+) {}

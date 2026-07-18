@@ -6,6 +6,7 @@ import { NlEntryService } from './nl-entry.service.js'
 import { SmartAddService } from './smart-add.service.js'
 import { assistantProvider } from './assistant.js'
 import { aiInsightsProvider } from './insights.js'
+import { standupWriterProvider } from './standup.js'
 import { llmProvider } from './llm/llm.provider.js'
 
 /**
@@ -24,6 +25,7 @@ import { llmProvider } from './llm/llm.provider.js'
     AiContext,
     assistantProvider,
     aiInsightsProvider,
+    standupWriterProvider,
   ],
 })
 export class AiModule {}
