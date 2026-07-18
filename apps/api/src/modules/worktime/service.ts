@@ -81,9 +81,18 @@ export interface ClockInInput {
   source?: string | undefined
 }
 
-/** A Postgres `unique_violation` (SQLSTATE 23505) surfacing through the driver. */
-function isUniqueViolation(err: unknown): boolean {
-  return typeof err === 'object' && err !== null && (err as { code?: unknown }).code === '23505'
+/**
+ * A Postgres `unique_violation` (SQLSTATE 23505) surfacing through the driver. Drizzle wraps the
+ * pg error in a `DrizzleQueryError` and hangs the original on `.cause`, so the code is nested, not
+ * top-level — walk the cause chain (bounded) so the concurrent-clock-in loser is always mapped to
+ * a clean `ValidationError`, never a raw 500 (audit M9). Missing this nesting was a race-only flake.
+ */
+export function isUniqueViolation(err: unknown): boolean {
+  for (let e: unknown = err, depth = 0; e != null && depth < 5; depth += 1) {
+    if (typeof e === 'object' && (e as { code?: unknown }).code === '23505') return true
+    e = (e as { cause?: unknown }).cause
+  }
+  return false
 }
 
 /**
