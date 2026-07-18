@@ -1,7 +1,7 @@
 import { FlashList } from '@shopify/flash-list'
 import Animated, { useSharedValue, useAnimatedStyle, runOnJS } from 'react-native-reanimated'
 import { GestureDetector, Gesture } from 'react-native-gesture-handler'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import {
   assignLanes,
@@ -146,11 +146,13 @@ const MONTH_SHORT = [
 const WEEK_DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] as const
 
 /** The real current Mon–Fri work week, with `today` flagged on the matching date. */
-function buildWeek(): readonly DemoDay[] {
+/** The visible Mon–Sun week, shifted by `offsetWeeks` (0 = this week; ± for KW navigation). Only
+ *  the real current day is flagged `today`, so an off-current week shows no "now" line. */
+function buildWeek(offsetWeeks = 0): readonly DemoDay[] {
   const now = new Date()
   const monday = new Date(now)
   const daysSinceMonday = (now.getDay() + 6) % 7
-  monday.setDate(now.getDate() - daysSinceMonday)
+  monday.setDate(now.getDate() - daysSinceMonday + offsetWeeks * 7)
   monday.setHours(0, 0, 0, 0)
   const todayKey = now.toDateString()
   return WEEK_DAY_NAMES.map((name, i) => {
@@ -166,8 +168,6 @@ function buildWeek(): readonly DemoDay[] {
   })
 }
 
-const weekDays = buildWeek()
-
 /** The real ISO-8601 calendar week number for a date (KW), so the header never
  *  shows an arbitrary counter — the canvas always renders the current week. */
 function isoWeek(d: Date): number {
@@ -179,8 +179,6 @@ function isoWeek(d: Date): number {
   firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3)
   return 1 + Math.round((date.getTime() - firstThursday.getTime()) / (7 * 24 * 3_600_000))
 }
-
-const CURRENT_WEEK = isoWeek(new Date())
 
 /** day 0–4 · start/len in minutes from 08:00 · kind + project id for the color. */
 const DEMO_BLOCKS: readonly CanvasBlock[] = []
@@ -1322,9 +1320,11 @@ export function PlannerScreen(): React.JSX.Element {
   const t = useTheme()
   const { width } = useWindowDimensions()
   const stacked = width < STACK_BREAKPOINT
-  // The canvas always shows the real current week; the header labels its ISO week
-  // number (KW) — no prev/next affordance that changes a counter but not the data.
-  const week = CURRENT_WEEK
+  // KW navigation (design v20): the header's ‹ › shift the visible week; 0 = this week. The whole
+  // canvas + the occurrence queries re-key off `weekDays`, so nothing else needs to know the offset.
+  const [weekOffset, setWeekOffset] = useState(0)
+  const weekDays = useMemo(() => buildWeek(weekOffset), [weekOffset])
+  const week = isoWeek(new Date(weekDays[0]?.dateMs ?? Date.now()))
   // The Planner opens on the **Day** stage (design v20: "Today" is the day view of the calendar);
   // Week/Month/Year zoom out from it. Today stays its own route too — this only adds the Day zoom.
   const [view, setView] = useState<'Day' | 'Week' | 'Month' | 'Year'>('Day')
@@ -1796,41 +1796,45 @@ export function PlannerScreen(): React.JSX.Element {
               onChange={setView}
             />
           </View>
-          {view === 'Week' && (
-            <>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  borderWidth: 1,
-                  borderColor: t.color.border,
-                  borderRadius: t.radius.pill,
-                  paddingVertical: 6,
-                  paddingHorizontal: 14,
-                  backgroundColor: t.color.surface,
-                }}
+          {(view === 'Week' || view === 'Day') && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                borderWidth: 1,
+                borderColor: t.color.border,
+                borderRadius: t.radius.pill,
+                backgroundColor: t.color.surface,
+              }}
+            >
+              {/* KW ‹ › navigation (design v20): step the visible week; a middle tap returns to now. */}
+              <Pressable
+                onPress={() => setWeekOffset(o => o - 1)}
+                accessibilityRole="button"
+                accessibilityLabel="Previous week"
+                style={{ paddingVertical: 6, paddingHorizontal: 12 }}
               >
-                <Text
-                  style={{
-                    fontSize: t.fontSize.xs,
-                    fontWeight: '600',
-                    color: t.color.ink,
-                    textAlign: 'center',
-                  }}
-                >
-                  This week · KW {week}
+                <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>‹</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setWeekOffset(0)}
+                accessibilityRole="button"
+                accessibilityLabel="This week"
+                disabled={weekOffset === 0}
+              >
+                <Text style={{ fontSize: t.fontSize.xs, fontWeight: '600', color: t.color.ink }}>
+                  {weekOffset === 0 ? `This week · KW ${String(week)}` : `KW ${String(week)}`}
                 </Text>
-              </View>
-              <Text
-                style={{
-                  fontFamily: t.fontFamily.numeric,
-                  fontSize: t.fontSize.xs,
-                  color: t.color.ink2,
-                }}
+              </Pressable>
+              <Pressable
+                onPress={() => setWeekOffset(o => o + 1)}
+                accessibilityRole="button"
+                accessibilityLabel="Next week"
+                style={{ paddingVertical: 6, paddingHorizontal: 12 }}
               >
-                <Text style={{ color: t.color.ink, fontWeight: '600' }}>—</Text>
-              </Text>
-            </>
+                <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>›</Text>
+              </Pressable>
+            </View>
           )}
           {/* New-Entry dialog trigger (design v19) — create a Task or Life entry by hand. */}
           <Button size="sm" variant="primary" onPress={() => setNewEntryOpen(true)}>
