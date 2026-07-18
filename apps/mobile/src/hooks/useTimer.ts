@@ -14,7 +14,7 @@ import {
   type TimeEntry,
 } from '../api/timer.js'
 import { reconcileTimer } from '../timer/reconcile.js'
-import { loadTimerSession, saveTimerSession } from '../timer/timerStore.js'
+import { loadTimerSession, saveTimerSession, timerSessionReady } from '../timer/timerStore.js'
 
 /**
  * The live timer for the Island (REQ-004, ux-vision §2.3). Three modes:
@@ -107,7 +107,11 @@ export function useTimer(): TimerResource {
     }
     setLoading(true)
     getRunning(base)
-      .then(entry => {
+      .then(async entry => {
+        // The local session store hydrates asynchronously on native (AsyncStorage);
+        // wait for it before reading, or the cache is still null and reconcile would
+        // drop — then the persist effect would erase — a paused/banked session (REQ-004).
+        await timerSessionReady()
         if (!alive) return
         const restored = reconcileTimer(entry, loadTimerSession())
         setRunning(restored.running)

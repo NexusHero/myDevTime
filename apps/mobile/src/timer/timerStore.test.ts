@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { memoryKvStorage } from './kvStorage.js'
+import { memoryKvStorage, type KvStorage } from './kvStorage.js'
 import {
   initTimerStore,
   loadTimerSession,
@@ -76,6 +76,35 @@ describe('timerStore', () => {
     expect(localStorage.getItem('mydevtime.timer.session')).toBe(
       JSON.stringify({ accumulatedMs: 60_000, pausedInput: null, pausedSinceMs: null }),
     )
+  })
+
+  it('LoadBeforeAsyncHydration_IsNull_ButValueAfterReady', async () => {
+    // The native contract the useTimer hook relies on: while an async store's `get` is still
+    // pending, the cache is null; only after `timerSessionReady()` resolves is the stored session
+    // readable. Reading before awaiting would drop a paused/banked session (the reviewed bug).
+    const durable = memoryKvStorage()
+    await initTimerStore(durable)
+    saveTimerSession({ accumulatedMs: 99_000, pausedInput: { note: 'x' }, pausedSinceMs: 1_700 })
+
+    const stored = await durable.get('mydevtime.timer.session')
+    let resolveGet!: (v: string | null) => void
+    const pending = new Promise<string | null>(resolve => {
+      resolveGet = resolve
+    })
+    const slow: KvStorage = {
+      get: () => pending,
+      set: durable.set.bind(durable),
+      remove: durable.remove.bind(durable),
+    }
+    const ready = initTimerStore(slow) // "restart" against the slow store — hydration pending
+    expect(loadTimerSession()).toBeNull() // cache not hydrated yet
+    resolveGet(stored) // the AsyncStorage read lands
+    await ready
+    expect(loadTimerSession()).toEqual({
+      accumulatedMs: 99_000,
+      pausedInput: { note: 'x' },
+      pausedSinceMs: 1_700,
+    })
   })
 
   it('RoundTripThroughInjectedSeam_SurvivesRehydration', async () => {
