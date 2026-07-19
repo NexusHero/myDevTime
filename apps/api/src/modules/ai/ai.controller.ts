@@ -10,10 +10,14 @@ import { ASSISTANT, type Assistant } from './assistant.js'
 import { AI_INSIGHTS, type AiInsightsPort } from './insights.js'
 import { STANDUP_WRITER, type StandupWriter } from './standup.js'
 import { CATEGORIZER, type Categorizer } from './categorize.js'
+import { ESTIMATOR, type Estimator } from './estimate.js'
+import { MEETING_INSIGHTS, type MeetingInsightsService } from './meeting-insights.js'
 import {
   AssistantDto,
   CategorizeDto,
+  EstimateDto,
   InsightDto,
+  MeetingInsightsDto,
   NlEntryDto,
   SmartAddDto,
   StandupDto,
@@ -27,6 +31,10 @@ const INSIGHT_CREDIT_COST = 1
 const STANDUP_CREDIT_COST = 1
 /** One categorization batch costs one credit, charged only when the AI actually proposed (ADR-0008). */
 const CATEGORIZE_CREDIT_COST = 1
+/** One AI task-estimate review costs one credit, charged only on a real AI proposal (ADR-0008). */
+const ESTIMATE_CREDIT_COST = 1
+/** One AI meeting summary costs one credit, charged only on a real AI proposal (ADR-0008). */
+const MEETING_INSIGHTS_CREDIT_COST = 1
 
 /**
  * The `ai` module (LLM proposals, NL entry, assistant — ADR-0025/0029). The status
@@ -45,6 +53,8 @@ export class AiController {
     @Inject(AI_INSIGHTS) private readonly insights: AiInsightsPort,
     @Inject(STANDUP_WRITER) private readonly standup: StandupWriter,
     @Inject(CATEGORIZER) private readonly categorizer: Categorizer,
+    @Inject(ESTIMATOR) private readonly estimator: Estimator,
+    @Inject(MEETING_INSIGHTS) private readonly meetingInsights: MeetingInsightsService,
   ) {}
 
   @Get('status')
@@ -174,6 +184,85 @@ export class AiController {
       charged = true
     }
     return { source: result.source, charged, proposals: result.proposals }
+  }
+
+  /**
+   * AI task-estimate review (REQ-041, #90): the deterministic baseline range for the task's
+   * category + complexity grounds and bounds an optional AI adjustment (the LLM proposes a single
+   * minute estimate, clamped into a sane multiple of the baseline — it can nudge, never fabricate,
+   * ADR-0005). One credit is debited only when the AI actually proposed; a down provider, no
+   * credits, or an unparseable completion degrade to the free baseline midpoint (ADR-0008).
+   * Proposal-only: nothing is written — the client confirms via the existing `setTaskEstimate`.
+   */
+  @Post('estimate')
+  @UseGuards(AuthGuard)
+  async estimate(@CurrentUser() user: AuthenticatedUser, @Body() body: EstimateDto) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    const allowAi = (await balanceFor(db, workspaceId)) >= ESTIMATE_CREDIT_COST
+    const result = await this.estimator.compose(
+      {
+        category: body.category,
+        complexity: body.complexity,
+        note: body.note,
+        samples: body.samples,
+      },
+      { allowAi },
+    )
+    let charged = false
+    if (result.source === 'ai-proposal') {
+      await debit(db, workspaceId, {
+        amount: ESTIMATE_CREDIT_COST,
+        category: 'assistant',
+        reason: 'AI task-estimate review',
+        operationId: `estimate:${workspaceId}:${randomUUID()}`,
+      })
+      charged = true
+    }
+    return {
+      source: result.source,
+      charged,
+      estimateMinutes: result.estimateMinutes,
+      rationale: result.rationale,
+      baselineMin: result.baselineMin,
+      baselineMax: result.baselineMax,
+    }
+  }
+
+  /**
+   * Meeting insights over a supplied transcript (REQ-026, #33): grounded fact lines and
+   * **confirmed-only** action-item proposals come back deterministically and free (never
+   * auto-created — the client creates a task only when the user confirms one via
+   * `POST /api/tracking/tasks`). An optional AI summary is grounded in the transcript with the
+   * caller's `customPrompt` biasing emphasis only; one credit is debited only when that AI summary
+   * is produced. A down provider or no credits degrade to a deterministic summary and cost nothing.
+   */
+  @Post('meeting-insights')
+  @UseGuards(AuthGuard)
+  async meetingInsightsReview(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: MeetingInsightsDto,
+  ) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    const allowAi = (await balanceFor(db, workspaceId)) >= MEETING_INSIGHTS_CREDIT_COST
+    const result = await this.meetingInsights.compose(body.segments, {
+      allowAi,
+      customPrompt: body.customPrompt,
+    })
+    let charged = false
+    if (result.summary.source === 'ai-proposal') {
+      await debit(db, workspaceId, {
+        amount: MEETING_INSIGHTS_CREDIT_COST,
+        category: 'assistant',
+        reason: 'AI meeting summary',
+        operationId: `meeting-insights:${workspaceId}:${randomUUID()}`,
+      })
+      charged = true
+    }
+    return {
+      summary: { source: result.summary.source, text: result.summary.text, charged },
+      facts: result.facts,
+      actionItems: result.actionItems,
+    }
   }
 
   /**
