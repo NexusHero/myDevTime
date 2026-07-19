@@ -10,6 +10,7 @@ import { standupWriterProvider } from './standup.js'
 import { categorizerProvider } from './categorize.js'
 import { estimatorProvider } from './estimate.js'
 import { meetingInsightsProvider } from './meeting-insights.js'
+import { companionProvider } from './companion.js'
 import { llmProvider } from './llm/llm.provider.js'
 import { ExportController } from './export/export.controller.js'
 import { exportTargetProvider } from './export/target.provider.js'
@@ -36,6 +37,7 @@ import { exportTargetProvider } from './export/target.provider.js'
     categorizerProvider,
     estimatorProvider,
     meetingInsightsProvider,
+    companionProvider,
     exportTargetProvider,
   ],
 })

@@ -12,6 +12,8 @@ import {
 } from '../api/categorize'
 import { Text } from '../components/core/Text'
 import { useToast } from '../components/core/Toast'
+import { EveningCompanionCard } from '../components/today/EveningCompanionCard'
+import type { CompanionDayInput, CompanionSuggestion } from '../api/companion'
 import { useTheme } from '../theme/ThemeProvider'
 import {
   AICallout,
@@ -1162,6 +1164,52 @@ export function TodayScreen(): React.JSX.Element {
     </View>
   ) : null
 
+  // Evening Companion (design v14 §H): weave the day's fragmented care-signals into one warm voice.
+  // The DayReviewInput is gathered from what Today already holds — the deterministic evening review
+  // (`planner.review`, ADR-0005) for planned/tracked focus and plan drift, and the plan's meeting
+  // blocks for the meeting counts (back-to-back = a meeting starting exactly when the previous ended).
+  // Signals Today has no honest source for are omitted rather than guessed: overtime and missed breaks
+  // (no worktime feed here) stay 0, mood is left absent (the punch-out MoodCheck is transient, not a
+  // persisted 1–5 score), and there is no per-day load history to feed the baseline, so it stays wide.
+  const companionMeetings = (plan?.blocks ?? [])
+    .filter(b => b.kind === 'meeting')
+    .sort((a, b) => a.startMin - b.startMin)
+  let companionBackToBack = 0
+  for (let i = 1; i < companionMeetings.length; i += 1) {
+    const prev = companionMeetings[i - 1]
+    const cur = companionMeetings[i]
+    if (prev !== undefined && cur !== undefined && cur.startMin === prev.startMin + prev.lenMin) {
+      companionBackToBack += 1
+    }
+  }
+  const companionDay: CompanionDayInput = {
+    plannedMinutes: Math.max(0, Math.round(planner.review?.plannedFocusMin ?? 0)),
+    actualMinutes: Math.max(
+      0,
+      Math.round(planner.review?.trackedFocusMin ?? shutdown.summary.trackedMs / 60_000),
+    ),
+    // No worktime feed on Today → overtime and break shortfall are omitted honestly (0), not guessed.
+    overtimeMinutes: 0,
+    breakShortfallMinutes: 0,
+    meetingCount: companionMeetings.length,
+    backToBackMeetingCount: companionBackToBack,
+    // Mood is absent: the punch-out MoodCheck is a transient EMA prompt, not a stored 1–5 score.
+    planDriftMinutes: Math.round(planner.review?.driftMin ?? 0),
+    isAbsenceDay: false,
+  }
+  const confirmCompanionSuggestion = (_suggestion: CompanionSuggestion): void => {
+    // No protected-time/planner apply endpoint is reachable from here, so confirming is an HONEST
+    // proposal: acknowledge it and point to the Planner — nothing is booked for the user (ADR-0005).
+    toast.show('Noted — set it up in the Planner when you plan tomorrow. Nothing was booked.')
+  }
+  const eveningCompanionCard = (
+    <EveningCompanionCard
+      baseUrl={apiBaseUrl}
+      day={companionDay}
+      onConfirmSuggestion={confirmCompanionSuggestion}
+    />
+  )
+
   // Today carries the clock in its hero tracker, so the persistent Island is hidden
   // here and shown on every other screen from the AppShell (design v2 — never two
   // clocks). A little bottom clearance keeps the last card off the tab bar.
@@ -1353,6 +1401,7 @@ export function TodayScreen(): React.JSX.Element {
         {categoryCard}
         {reviewCard}
         {shutdownCard}
+        {eveningCompanionCard}
       </ScrollView>
     </View>
   )
