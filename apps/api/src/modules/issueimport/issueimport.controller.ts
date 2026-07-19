@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { AuthGuard, CurrentUser, type AuthenticatedUser } from '../auth/contract.js'
 import { NotFoundError } from '../../errors.js'
@@ -14,8 +14,18 @@ import {
   tokenEndpoint,
   vaultTokenStore,
 } from '../connectors/oauth.js'
-import { previewImport, providerForConnector, resolveIssueImportPort } from './service.js'
-import { ConnectorIdParamDto, IssuePreviewQueryDto } from './issueimport.dto.js'
+import {
+  importedKeys,
+  previewImport,
+  providerForConnector,
+  recordImported,
+  resolveIssueImportPort,
+} from './service.js'
+import {
+  ConnectorIdParamDto,
+  IssuePreviewQueryDto,
+  RecordImportedBodyDto,
+} from './issueimport.dto.js'
 
 /**
  * Everything the vault-backed token flow needs from the environment, or a 409 why not. Mirrors the
@@ -110,7 +120,45 @@ export class IssueImportController {
       accessToken,
       ...(azure !== null ? { azure } : {}),
     })
-    // Consent already checked; pass `true` and let availability/HTTP failures degrade honestly.
-    return previewImport(port, true, { state: query.state ?? 'open' })
+    // Subtract what this user already imported so previously imported tickets are not re-proposed
+    // (REQ-066). Consent already checked; pass `true` and let availability/HTTP failures degrade.
+    const already = await importedKeys(db, key)
+    return previewImport(port, true, { state: query.state ?? 'open' }, already)
+  }
+
+  /**
+   * Record the tickets the client just imported (REQ-066): one link row per `{ externalKey, taskId }`
+   * so the next preview no longer re-proposes them. This writes **link rows only** — it never
+   * creates a task (ADR-0005: the client created each task via the tracking endpoint, then calls
+   * this to record the link). Same consent-first gate as the preview; scoped to the caller's
+   * workspace + user. Returns `{ recorded }`.
+   */
+  @Post(':id/issues/import')
+  async import(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param() params: ConnectorIdParamDto,
+    @Body() body: RecordImportedBodyDto,
+  ) {
+    if (!isConnectorId(params.id)) throw new NotFoundError('unknown connector')
+    const provider = providerForConnector(params.id)
+    if (provider === 'null') {
+      throw new ConflictError(`'${params.id}' does not support issue import`)
+    }
+    const connector: ConnectorId = params.id
+    const { db, workspaceId, userId } = await this.ctx.contextOf(user)
+    const granted = await grantedCapabilities(db, { workspaceId, userId, connector })
+    if (!granted.includes('inbound')) {
+      throw new ConflictError(`consent for 'inbound' has not been granted for ${connector}`)
+    }
+    for (const item of body.items) {
+      await recordImported(db, {
+        workspaceId,
+        userId,
+        connector,
+        externalKey: item.externalKey,
+        ...(item.taskId !== undefined ? { taskId: item.taskId } : {}),
+      })
+    }
+    return { recorded: body.items.length }
   }
 }

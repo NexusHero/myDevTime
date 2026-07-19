@@ -1,13 +1,41 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { eq, inArray } from 'drizzle-orm'
+import type { ExternalIssue } from '@mydevtime/domain'
 import { loadConfig } from '../../config.js'
 import { createDb } from '../../db/client.js'
 import { user } from '../../db/auth-schema.js'
 import { connectorGrants, connectorTokens, workspaceMembers, workspaces } from '../../db/schema.js'
+import { importedIssues } from '../../db/issueimport-schema.js'
 import { buildApp } from '../../app.js'
 import { resolveWorkspaceId } from '../../core/workspace.js'
 import { putToken } from '../connectors/vault.js'
 import { setGrant } from '../connectors/consent.js'
+import { importedKeys, previewImport, recordImported } from './service.js'
+import type { IssueImportPort, ListIssuesOptions } from './port.js'
+
+/** A stub port returning fixed issues — the seam previewImport plans over (no vendor call). */
+class StubPort implements IssueImportPort {
+  readonly provider = 'github' as const
+  constructor(private readonly issues: readonly ExternalIssue[]) {}
+  available(): Promise<boolean> {
+    return Promise.resolve(true)
+  }
+  listIssues(_opts: ListIssuesOptions): Promise<readonly ExternalIssue[]> {
+    return Promise.resolve(this.issues)
+  }
+}
+
+const issue = (over: Partial<ExternalIssue> = {}): ExternalIssue => ({
+  source: 'github',
+  externalId: '1',
+  key: 'acme/app#1',
+  title: 'Do the thing',
+  state: 'open',
+  url: 'https://github.com/acme/app/issues/1',
+  labels: ['bug'],
+  updatedAtMs: 1000,
+  ...over,
+})
 
 /**
  * The issue-import preview surface against a REAL Postgres (ADR-0005) — mirrors the connectors
@@ -32,7 +60,7 @@ function cookieHeader(res: { cookies: readonly { name: string; value: string }[]
 describe.skipIf(!databaseUrl)('issue import preview (integration)', () => {
   const handle = createDb(databaseUrl!)
   const db = handle.db
-  const authEmails = ['issue-import@itest.local']
+  const authEmails = ['issue-import@itest.local', 'issue-import-b@itest.local']
   let ws = ''
 
   async function cleanupAuthUser(email: string): Promise<void> {
@@ -77,6 +105,7 @@ describe.skipIf(!databaseUrl)('issue import preview (integration)', () => {
     if (ws) {
       await db.delete(connectorTokens).where(inArray(connectorTokens.workspaceId, [ws]))
       await db.delete(connectorGrants).where(inArray(connectorGrants.workspaceId, [ws]))
+      await db.delete(importedIssues).where(inArray(importedIssues.workspaceId, [ws]))
     }
   })
 
@@ -134,6 +163,80 @@ describe.skipIf(!databaseUrl)('issue import preview (integration)', () => {
     })
     expect(res.statusCode).toBe(409)
     expect(res.statusCode).not.toBe(500)
+    await app.close()
+  })
+
+  it('RecordImport_Unauthenticated_Returns401', async () => {
+    const app = await buildApp({ config: HTTP_CONFIG, db: handle })
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/connectors/github/issues/import',
+      payload: { items: [{ externalKey: 'acme/app#1' }] },
+    })
+    expect(res.statusCode).toBe(401)
+    await app.close()
+  })
+
+  it('RecordedKey_IsNotReProposed_OnNextPreview', async () => {
+    // Real Postgres round-trip (REQ-066): after recording an externalKey, a preview over the same
+    // issues no longer proposes that key — the honest gap is closed by the store, not faked.
+    const app = await buildApp({ config: HTTP_CONFIG, db: handle })
+    const { userId } = await authed(app, 'issue-import@itest.local')
+    ws = await resolveWorkspaceId(db, userId, 'Issue User')
+    const key = { workspaceId: ws, userId, connector: 'github' }
+
+    const issues = [issue({ key: 'acme/app#1' }), issue({ key: 'acme/app#2', externalId: '2' })]
+
+    const before = await previewImport(
+      new StubPort(issues),
+      true,
+      { state: 'open' },
+      await importedKeys(db, key),
+    )
+    expect(before.proposals.map(p => p.externalKey).sort()).toEqual(['acme/app#1', 'acme/app#2'])
+
+    await recordImported(db, { ...key, externalKey: 'acme/app#1' })
+    // Idempotent: recording the same key twice does not duplicate it.
+    await recordImported(db, { ...key, externalKey: 'acme/app#1' })
+    expect(await importedKeys(db, key)).toEqual(['acme/app#1'])
+
+    const after = await previewImport(
+      new StubPort(issues),
+      true,
+      { state: 'open' },
+      await importedKeys(db, key),
+    )
+    expect(after.proposals.map(p => p.externalKey)).toEqual(['acme/app#2'])
+    await app.close()
+  })
+
+  it('ImportedKeys_AreWorkspaceIsolated', async () => {
+    // A key imported in another workspace must not dedup mine (ADR-0015, negative isolation).
+    const app = await buildApp({ config: HTTP_CONFIG, db: handle })
+    const other = await authed(app, 'issue-import-b@itest.local')
+    const otherWs = await resolveWorkspaceId(db, other.userId, 'Issue User B')
+    await recordImported(db, {
+      workspaceId: otherWs,
+      userId: other.userId,
+      connector: 'github',
+      externalKey: 'acme/app#1',
+    })
+
+    const { userId } = await authed(app, 'issue-import@itest.local')
+    ws = await resolveWorkspaceId(db, userId, 'Issue User')
+    const key = { workspaceId: ws, userId, connector: 'github' }
+
+    // My store is empty even though another workspace imported the same key.
+    expect(await importedKeys(db, key)).toEqual([])
+    const mine = await previewImport(
+      new StubPort([issue({ key: 'acme/app#1' })]),
+      true,
+      { state: 'open' },
+      await importedKeys(db, key),
+    )
+    expect(mine.proposals.map(p => p.externalKey)).toEqual(['acme/app#1'])
+
+    await db.delete(importedIssues).where(inArray(importedIssues.workspaceId, [otherWs]))
     await app.close()
   })
 })

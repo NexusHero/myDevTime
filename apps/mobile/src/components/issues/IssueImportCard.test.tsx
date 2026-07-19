@@ -13,11 +13,12 @@ import type { IssueImportPreview } from '../../api/issues.js'
  * NOTHING; selecting proposals and hitting Import creates exactly one task per selected proposal
  * via the existing task-create client — never a fake or auto import.
  */
-const { previewIssueImport, createTask } = vi.hoisted(() => ({
+const { previewIssueImport, recordImported, createTask } = vi.hoisted(() => ({
   previewIssueImport: vi.fn(),
+  recordImported: vi.fn(),
   createTask: vi.fn(),
 }))
-vi.mock('../../api/issues.js', () => ({ previewIssueImport }))
+vi.mock('../../api/issues.js', () => ({ previewIssueImport, recordImported }))
 vi.mock('../../api/tracking.js', () => ({ createTask }))
 
 const { IssueImportCard } = await import('./IssueImportCard.js')
@@ -129,9 +130,10 @@ describe('IssueImportCard', () => {
     expect(createTask).not.toHaveBeenCalled()
   })
 
-  it('SelectAndImport_CreatesOneTaskPerSelectedProposal', async () => {
+  it('SelectAndImport_CreatesOneTaskPerSelectedProposal_AndRecordsTheLink', async () => {
     previewIssueImport.mockResolvedValueOnce(OK_PREVIEW)
     createTask.mockResolvedValue({ id: 'task-1', name: 'Fix the login bug', projectId: 'p1' })
+    recordImported.mockResolvedValue({ recorded: 1 })
     const r = render(<IssueImportCard baseUrl="https://api.test" projects={PROJECTS} />)
 
     await press(button(r, 'Preview GitHub'))
@@ -143,6 +145,11 @@ describe('IssueImportCard', () => {
       name: 'Fix the login bug',
       projectId: 'p1',
     })
+    // After the create succeeds, the link is recorded so the next preview won't re-propose it.
+    expect(recordImported).toHaveBeenCalledTimes(1)
+    expect(recordImported).toHaveBeenCalledWith('https://api.test', 'github', [
+      { externalKey: 'gh#1', taskId: 'task-1' },
+    ])
     expect(tree(r)).toContain('1 task imported into Website')
   })
 })

@@ -1,4 +1,7 @@
 import { toTaskProposals, type CandidateTaskProposal, type ExternalIssue } from '@mydevtime/domain'
+import { and, eq } from 'drizzle-orm'
+import type { Db } from '../../db/client.js'
+import { importedIssues } from '../../db/issueimport-schema.js'
 import {
   IssueImportUnavailableError,
   type IssueImportPort,
@@ -75,6 +78,68 @@ export function resolveIssueImportPort(
   }
 }
 
+/** Identifies one user's imported-issue store for a connector (workspace-scoped, non-optional). */
+export interface ImportedIssueKey {
+  readonly workspaceId: string
+  readonly userId: string
+  readonly connector: string
+}
+
+/** One recorded import link: the ticket's `externalKey` and, optionally, the task it created. */
+export interface ImportedIssueRecord extends ImportedIssueKey {
+  readonly externalKey: string
+  readonly taskId?: string
+}
+
+/**
+ * Record that a ticket has been imported (REQ-066): a link row only — it never creates a task
+ * (ADR-0005; the client creates the task via the tracking endpoint, then records the link here).
+ * Idempotent: importing the same `(workspace, user, connector, externalKey)` twice updates the
+ * link rather than duplicating it, so the store is a clean seen-set. Workspace- and user-scoped by
+ * construction.
+ */
+export async function recordImported(db: Db, record: ImportedIssueRecord): Promise<void> {
+  const taskId = record.taskId ?? null
+  await db
+    .insert(importedIssues)
+    .values({
+      workspaceId: record.workspaceId,
+      userId: record.userId,
+      connector: record.connector,
+      externalKey: record.externalKey,
+      taskId,
+      importedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: [
+        importedIssues.workspaceId,
+        importedIssues.userId,
+        importedIssues.connector,
+        importedIssues.externalKey,
+      ],
+      set: { taskId, importedAt: new Date() },
+    })
+}
+
+/**
+ * The external keys this user has already imported for a connector — the dedup seen-set the
+ * preview subtracts so an already-imported ticket is not re-proposed (REQ-066). Scoped to the
+ * caller's workspace + user by construction (ADR-0015); another workspace's imports never leak in.
+ */
+export async function importedKeys(db: Db, key: ImportedIssueKey): Promise<string[]> {
+  const rows = await db
+    .select({ externalKey: importedIssues.externalKey })
+    .from(importedIssues)
+    .where(
+      and(
+        eq(importedIssues.workspaceId, key.workspaceId),
+        eq(importedIssues.userId, key.userId),
+        eq(importedIssues.connector, key.connector),
+      ),
+    )
+  return rows.map(r => r.externalKey)
+}
+
 export interface ImportPreview {
   /** The deterministic proposals, or empty when the tracker is off/unconsented. */
   readonly proposals: readonly CandidateTaskProposal[]
@@ -88,14 +153,16 @@ const EMPTY = (status: ImportPreview['status']): ImportPreview => ({ proposals: 
  * Preview an issue import: consent-gated, availability-gated, then a deterministic mapping. Returns
  * proposals only — the caller creates nothing until the user confirms a candidate (via the existing
  * tracking endpoint). A provider that throws `IssueImportUnavailableError` mid-list degrades to an
- * empty `unavailable` preview (ADR-0005). `alreadyImportedKeys` is `[]` for now: there is no
- * imported-issue store yet, so every open ticket is proposed on each preview — documented honestly
- * rather than faked.
+ * empty `unavailable` preview (ADR-0005). `alreadyImportedKeys` is the caller's imported-issue
+ * seen-set (REQ-066): tickets whose `externalKey` is in it are not re-proposed, so re-previewing
+ * after an import no longer re-offers what was already imported. It defaults to `[]` for callers
+ * with no store (unit tests, degraded paths).
  */
 export async function previewImport(
   port: IssueImportPort,
   consented: boolean,
   opts: ListIssuesOptions = {},
+  alreadyImportedKeys: readonly string[] = [],
 ): Promise<ImportPreview> {
   if (!consented) return EMPTY('no-consent')
   if (!(await port.available())) return EMPTY('unavailable')
@@ -106,6 +173,8 @@ export async function previewImport(
     if (err instanceof IssueImportUnavailableError) return EMPTY('unavailable')
     throw err
   }
-  const proposals = toTaskProposals(issues, [], { includeClosed: opts.state === 'all' })
+  const proposals = toTaskProposals(issues, alreadyImportedKeys, {
+    includeClosed: opts.state === 'all',
+  })
   return { proposals, status: 'ok' }
 }
