@@ -1202,9 +1202,15 @@ export function TodayScreen(): React.JSX.Element {
     // proposal: acknowledge it and point to the Planner — nothing is booked for the user (ADR-0005).
     toast.show('Noted — set it up in the Planner when you plan tomorrow. Nothing was booked.')
   }
+  // The local day under review — the same tz-aware "today" the worktime/summary hooks derive, so the
+  // server records the load and windows the worktime feed against the day the user actually sees.
+  const companionTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+  const companionDate = new Date().toLocaleDateString('en-CA', { timeZone: companionTz })
   const eveningCompanionCard = (
     <EveningCompanionCard
       baseUrl={apiBaseUrl}
+      date={companionDate}
+      tz={companionTz}
       day={companionDay}
       onConfirmSuggestion={confirmCompanionSuggestion}
     />

@@ -3,7 +3,6 @@ import { View } from 'react-native'
 import {
   requestEveningCompanion,
   type CompanionDayInput,
-  type CompanionHistoryDay,
   type CompanionLoadLevel,
   type CompanionSignal,
   type CompanionSuggestion,
@@ -28,10 +27,12 @@ import { useTheme } from '../../theme/ThemeProvider'
 export interface EveningCompanionCardProps {
   /** The backend base URL, or `null` on demo data (the reflect button is then disabled). */
   readonly baseUrl: string | null
+  /** The local day under review as `'YYYY-MM-DD'` — the server records the load and windows worktime. */
+  readonly date: string
+  /** IANA time zone the day is local to; defaults to UTC on the server when omitted. */
+  readonly tz?: string
   /** The day's raw signals, gathered by Today from its own real state. */
   readonly day: CompanionDayInput
-  /** Recent days (oldest→newest) for the person's own baseline; may be empty. */
-  readonly history?: readonly CompanionHistoryDay[]
   /** Confirm the forward suggestion — an honest proposal the parent routes/acknowledges, never books. */
   readonly onConfirmSuggestion?: (suggestion: CompanionSuggestion) => void
 }
@@ -106,8 +107,9 @@ function confirmLabel(kind: string): string {
 
 export function EveningCompanionCard({
   baseUrl,
+  date,
+  tz,
   day,
-  history,
   onConfirmSuggestion,
 }: EveningCompanionCardProps): React.JSX.Element {
   const t = useTheme()
@@ -120,7 +122,7 @@ export function EveningCompanionCard({
     setBusy(true)
     setError(null)
     try {
-      const input = history !== undefined && history.length > 0 ? { day, history } : { day }
+      const input = tz !== undefined ? { date, tz, day } : { date, day }
       setResult(await requestEveningCompanion(baseUrl, input))
     } catch (e) {
       setResult(null)
