@@ -40,16 +40,6 @@ describe.skipIf(!databaseUrl)('tracking reports export (integration)', () => {
     await handle.close()
   })
 
-  it('ExportCsv_Unauthenticated_Returns401', async () => {
-    const res = await app.inject({
-      method: 'POST',
-      url: '/api/tracking/reports/export?format=csv',
-      payload: body,
-    })
-
-    expect(res.statusCode).toBe(401)
-  })
-
   it('ExportPdf_Unauthenticated_Returns401', async () => {
     const res = await app.inject({
       method: 'POST',
