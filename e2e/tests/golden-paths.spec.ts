@@ -69,7 +69,13 @@ test.describe('acceptance · golden paths', () => {
     await page.waitForTimeout(1500)
 
     await test.step('stop the timer', async () => {
-      await punchButton(page, 'Stop').click()
+      // While a session is live the punch button intentionally "breathes" (LiveButton, ADR-0048
+      // motion) — a continuous ~6% scale that is design, not a bug. That keeps the element from
+      // ever reaching Playwright's "stable" state, and reanimated's web reduced-motion detection
+      // does not reliably honour the runner's reducedMotion: 'reduce'. Force the click past the
+      // stability wait: the button is visible and centred, the scale is about its own centre, and
+      // every post-click assertion below still fully verifies the stop actually happened.
+      await punchButton(page, 'Stop').click({ force: true })
       // The confirmation toast lands and the control flips back to Start.
       await expect(page.getByText(/Timer stopped/)).toBeVisible()
       await expect(punchButton(page, 'Start')).toBeVisible()
