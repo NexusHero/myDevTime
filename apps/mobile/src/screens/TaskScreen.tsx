@@ -11,6 +11,7 @@ import { useCatalog } from './useCatalog'
 import { useTaskEntries } from '../hooks/useTaskEntries'
 import { entryDurationMs } from '../api/timer'
 import { TaskEstimateCard } from '../components/task/TaskEstimateCard'
+import { TaskAiEstimateCard } from '../components/task/TaskAiEstimateCard'
 import { setTaskEstimate } from '../api/tracking'
 import { useToast } from '../components/core/Toast'
 import { apiBaseUrl } from '../config'
@@ -101,6 +102,25 @@ export function TaskScreen({
       .finally(() => setSavingEstimate(false))
   }
 
+  // Apply a reviewed AI estimate (REQ-041): the AI only ever proposed — persisting the number is a
+  // deliberate user action through the same deterministic `setTaskEstimate` path (ADR-0005).
+  const applyAiEstimate = (estimateMinutes: number): void => {
+    if (apiBaseUrl === null) {
+      toast.show('Connect an account to save estimates.')
+      return
+    }
+    setSavingEstimate(true)
+    setTaskEstimate(apiBaseUrl, task.id, { estimateMinutes })
+      .then(() => {
+        toast.show('Estimate applied.')
+        catalog.reload()
+      })
+      .catch((e: unknown) =>
+        toast.show(e instanceof Error ? e.message : 'Could not apply estimate.'),
+      )
+      .finally(() => setSavingEstimate(false))
+  }
+
   // The task summary is the fixed list header; the entry history is the virtualized
   // body — it is the one unbounded list here, so only its visible rows mount
   // (ADR-0045 §Perf). Loading/error/empty collapse to the empty slot.
@@ -177,6 +197,16 @@ export function TaskScreen({
         spentMs={task.spentMs}
         busy={savingEstimate}
         onSave={saveEstimate}
+      />
+
+      {/* AI estimate review (REQ-041): assist-only proposal over the same category/complexity;
+          nothing persists until the user taps Apply, which reuses the deterministic save path. */}
+      <TaskAiEstimateCard
+        baseUrl={apiBaseUrl}
+        category={task.category ?? null}
+        complexity={task.complexity ?? null}
+        applying={savingEstimate}
+        onApply={applyAiEstimate}
       />
 
       <View

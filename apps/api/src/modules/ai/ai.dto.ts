@@ -115,3 +115,54 @@ export class StandupDto extends createZodDto(
     blockers: z.array(z.string().min(1).max(300)).max(20).optional(),
   }),
 ) {}
+
+/** Broad work category and complexity — the two dimensions of the deterministic baseline (REQ-041). */
+const taskCategory = z.enum(['feature', 'bug', 'chore', 'research', 'meeting'])
+const taskComplexity = z.enum(['trivial', 'small', 'medium', 'large', 'xlarge'])
+
+/**
+ * The AI task-estimate review request (REQ-041, #90): the task's category + complexity (the
+ * deterministic baseline's inputs), an optional note, and optional comparable past samples the
+ * client already tracked. The server computes the baseline range and the LLM may only *adjust*
+ * within a multiple of it — the number is a proposal the client confirms via `setTaskEstimate`
+ * (ADR-0005); nothing is written here.
+ */
+export class EstimateDto extends createZodDto(
+  z.object({
+    category: taskCategory.optional(),
+    complexity: taskComplexity.optional(),
+    note: z.string().max(500).optional(),
+    samples: z
+      .array(
+        z.object({
+          category: taskCategory,
+          complexity: taskComplexity,
+          actualMinutes: z.number().int().nonnegative(),
+        }),
+      )
+      .max(50)
+      .optional(),
+  }),
+) {}
+
+/**
+ * The meeting-insights request (REQ-026, #33): a transcript (segments the client captured with
+ * consent — live audio capture is out of scope, #31/#32) plus an optional focus that biases what
+ * an AI summary emphasises. The server extracts grounded facts and confirmed-only action-item
+ * proposals deterministically; nothing is written to a timesheet/task (ADR-0005).
+ */
+export class MeetingInsightsDto extends createZodDto(
+  z.object({
+    segments: z
+      .array(
+        z.object({
+          speaker: z.string().min(1).max(120).optional(),
+          startMs: z.number().int().nonnegative().optional(),
+          endMs: z.number().int().nonnegative().optional(),
+          text: z.string().min(1).max(2000),
+        }),
+      )
+      .max(500),
+    customPrompt: z.string().min(1).max(500).optional(),
+  }),
+) {}

@@ -14,6 +14,7 @@ import { ConnectorsModule } from './modules/connectors/connectors.module.js'
 import { RecurrenceModule } from './modules/recurrence/recurrence.module.js'
 import { SharingModule } from './modules/sharing/sharing.module.js'
 import { PrivacyModule } from './modules/privacy/privacy.module.js'
+import { ObservabilityModule } from './modules/observability/observability.module.js'
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler'
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis'
 import { APP_GUARD } from '@nestjs/core'
@@ -62,6 +63,7 @@ export class AppModule {
         RecurrenceModule,
         SharingModule,
         PrivacyModule,
+        ObservabilityModule,
       ],
       providers: [
         {

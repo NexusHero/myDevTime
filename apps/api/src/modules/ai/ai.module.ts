@@ -8,6 +8,8 @@ import { assistantProvider } from './assistant.js'
 import { aiInsightsProvider } from './insights.js'
 import { standupWriterProvider } from './standup.js'
 import { categorizerProvider } from './categorize.js'
+import { estimatorProvider } from './estimate.js'
+import { meetingInsightsProvider } from './meeting-insights.js'
 import { llmProvider } from './llm/llm.provider.js'
 import { ExportController } from './export/export.controller.js'
 import { exportTargetProvider } from './export/target.provider.js'
@@ -32,6 +34,8 @@ import { exportTargetProvider } from './export/target.provider.js'
     aiInsightsProvider,
     standupWriterProvider,
     categorizerProvider,
+    estimatorProvider,
+    meetingInsightsProvider,
     exportTargetProvider,
   ],
 })
