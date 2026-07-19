@@ -4,7 +4,16 @@ import {
   type ImportedBlock,
   type MergeProposal,
 } from '@mydevtime/domain'
-import { CalendarUnavailableError, type CalendarPort, type CalendarRange } from './port.js'
+import {
+  CalendarUnavailableError,
+  type CalendarPort,
+  type CalendarProvider,
+  type CalendarRange,
+} from './port.js'
+import { GoogleCalendar } from './google-calendar.js'
+import { MicrosoftCalendar } from './microsoft-calendar.js'
+import { AppleCalendar, type EventKitSource } from './apple-calendar.js'
+import { NullCalendar } from './null-calendar.js'
 
 /**
  * Calendar import planning (REQ-064, design v17 §F6): fetch a provider's events through the narrow
@@ -14,6 +23,66 @@ import { CalendarUnavailableError, type CalendarPort, type CalendarRange } from 
  * and **availability** (a down/unconfigured provider degrades to "nothing proposed", never throws
  * up the stack). Live Google/Apple adapters are spike-gated; the Null adapter exercises this seam.
  */
+
+/**
+ * Map a calendar connector id (registry) → the neutral `CalendarProvider`. Anything
+ * that is not a known calendar connector resolves to `'null'` (graceful degradation).
+ */
+export function providerForConnector(id: string): CalendarProvider {
+  switch (id) {
+    case 'google-calendar':
+      return 'google'
+    case 'microsoft-calendar':
+      return 'microsoft'
+    case 'apple-calendar':
+      return 'apple'
+    default:
+      return 'null'
+  }
+}
+
+/** What each adapter needs from the composition root; all optional so callers wire only what applies. */
+export interface CalendarPortDeps {
+  /** A live OAuth access token (Google/Microsoft), or `null` when not connected/refreshable. */
+  readonly accessToken?: () => Promise<string | null>
+  /** The native EventKit seam (Apple) — only present in a native iOS/macOS build. */
+  readonly eventKit?: EventKitSource
+  /** Test/override transport for the HTTP adapters. */
+  readonly fetchImpl?: typeof fetch
+}
+
+/**
+ * Resolve the read-only `CalendarPort` for a provider, wiring the deps each adapter
+ * needs (skill §2.2 — the one place adapters are selected). google → GoogleCalendar,
+ * microsoft → MicrosoftCalendar, apple → AppleCalendar (native EventKit seam, honestly
+ * unavailable off-device), everything else → NullCalendar. An OAuth provider with no
+ * `accessToken` degrades to Null rather than pretending to be connected.
+ */
+export function resolveCalendarPort(
+  provider: CalendarProvider,
+  deps: CalendarPortDeps = {},
+): CalendarPort {
+  switch (provider) {
+    case 'google':
+      return deps.accessToken === undefined
+        ? new NullCalendar()
+        : new GoogleCalendar({
+            accessToken: deps.accessToken,
+            ...(deps.fetchImpl !== undefined ? { fetchImpl: deps.fetchImpl } : {}),
+          })
+    case 'microsoft':
+      return deps.accessToken === undefined
+        ? new NullCalendar()
+        : new MicrosoftCalendar({
+            accessToken: deps.accessToken,
+            ...(deps.fetchImpl !== undefined ? { fetchImpl: deps.fetchImpl } : {}),
+          })
+    case 'apple':
+      return new AppleCalendar(deps.eventKit !== undefined ? { source: deps.eventKit } : {})
+    default:
+      return new NullCalendar()
+  }
+}
 
 export interface ImportPlan {
   /** The deterministic diff, or an empty proposal when the provider is off/unconsented. */

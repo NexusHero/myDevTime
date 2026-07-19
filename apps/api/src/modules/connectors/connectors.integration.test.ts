@@ -266,4 +266,34 @@ describe.skipIf(!databaseUrl)('connectors vault + consent (integration)', () => 
     expect(res.statusCode).toBe(409)
     await app.close()
   })
+
+  it('MicrosoftAuthorize_AuthenticatedButNotConfigured_Returns409WithoutUrl', async () => {
+    // Microsoft goes through the same env-gated OAuth flow as Google: with no
+    // CONNECTOR_MICROSOFT_CALENDAR_CLIENT_ID/SECRET, an honest 409 (never a 500 / fake URL).
+    const app = await buildApp({ config: HTTP_CONFIG, db: handle })
+    const cookie = await authedCookie(app, 'conn-authz@itest.local')
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/connectors/microsoft-calendar/authorize',
+      headers: { cookie },
+    })
+    expect(res.statusCode).toBe(409)
+    expect(res.statusCode).not.toBe(500)
+    expect(res.json()).not.toHaveProperty('url')
+    await app.close()
+  })
+
+  it('MicrosoftPreview_AuthenticatedWithoutConsent_Returns409', async () => {
+    // The generalized `:id/preview` route resolves the Microsoft adapter but still
+    // enforces consent-first (REQ-025/ADR-0033): no grant → 409 before any provider work.
+    const app = await buildApp({ config: HTTP_CONFIG, db: handle })
+    const cookie = await authedCookie(app, 'conn-preview@itest.local')
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/connectors/microsoft-calendar/preview',
+      headers: { cookie },
+    })
+    expect(res.statusCode).toBe(409)
+    await app.close()
+  })
 })

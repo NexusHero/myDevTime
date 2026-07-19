@@ -7,12 +7,12 @@ import type { ExternalEvent } from '@mydevtime/domain'
  * `ExternalEvent`. **Nothing upstream imports a vendor type.** The port only *reads* — it fetches
  * events for a window; what happens to them is the deterministic `mergeCalendar` core's decision
  * (ADR-0005), which yields ghost-block proposals the user confirms, never an auto-booked entry.
- * Live Google/Apple adapters are gated on their integration spike; the Null adapter ships now as
- * the graceful-degradation default and the seam features test against.
+ * Live Google/Microsoft/Apple adapters are gated on their integration handback; the Null adapter
+ * ships now as the graceful-degradation default and the seam features test against.
  */
 
 /** Calendar providers. `null` is the graceful-degradation default (no provider configured). */
-export type CalendarProvider = 'google' | 'apple' | 'null'
+export type CalendarProvider = 'google' | 'microsoft' | 'apple' | 'null'
 
 /** A half-open instant window `[fromMs, toMs)` to fetch events for. */
 export interface CalendarRange {
