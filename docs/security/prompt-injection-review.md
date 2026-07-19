@@ -35,6 +35,11 @@ Per ADR-0005, across **every** AI endpoint:
 5. **Graceful degradation.** Provider down / no credits ⇒ the deterministic path runs and
    the feature still returns a useful, un-charged result.
 
+![1. The structural contract (why injection cannot escalate) — diagram](../diagrams/security-prompt-injection-review-1.svg)
+
+<details>
+<summary>Mermaid source</summary>
+
 ```mermaid
 flowchart LR
   UT["Untrusted text<br/>(transcript, calendar title,<br/>note, custom prompt)"] --> LLM[LLM adapter]
@@ -47,6 +52,8 @@ flowchart LR
   HUMAN -- no --> DISCARD[Nothing happens]
   LLM -. "no tools · no DB · no network" .-> X((✗))
 ```
+
+</details>
 
 The worst an injected instruction inside a transcript can achieve is to make the LLM
 **emit different proposal text**. It cannot book anything, cannot cross a workspace

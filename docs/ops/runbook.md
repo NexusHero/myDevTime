@@ -19,6 +19,11 @@ limiter (ADR-0050) and, when absent, the limiter falls back to per-instance
 in-memory counters. External vendors (LLM, ASR, Stripe, calendar providers) are
 reached only through ports & adapters — never imported upstream.
 
+![1. Service topology — diagram](../diagrams/ops-runbook-1.svg)
+
+<details>
+<summary>Mermaid source</summary>
+
 ```mermaid
 flowchart LR
   client[Clients: iOS / Android / Web] -->|HTTPS| edge[TLS edge / reverse proxy]
@@ -29,6 +34,8 @@ flowchart LR
   api -.->|ports and adapters| asr[ASR provider]
   api -.->|ports and adapters| stripe[Stripe]
 ```
+
+</details>
 
 Key properties:
 
