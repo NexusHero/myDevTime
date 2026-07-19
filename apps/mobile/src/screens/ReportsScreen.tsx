@@ -24,6 +24,7 @@ import { useVisibility } from '../roles/RoleContext'
 import { weeklyBalance } from '../reports/balanceRow'
 import { useReports } from '../hooks/useReports'
 import { downloadReportsCsv } from '../reports/exportCsv'
+import { downloadReportsPdf } from '../api/reportsExport'
 import { useToast } from '../components/core/Toast'
 import { useRevenueBudget } from '../hooks/useRevenueBudget'
 import { useOvertimeTrend } from '../hooks/useOvertimeTrend'
@@ -1033,6 +1034,25 @@ export function ReportsScreen(): React.JSX.Element {
   const body =
     effectiveView === 'money' ? moneyView : effectiveView === 'balance' ? balanceView : overviewView
 
+  // Reports/analytics PDF export (REQ-045): the PDF rendition needs the server PDFKit infra
+  // (ADR-0020), so we post the live window's deterministic view-model and download the bytes it
+  // renders — the server only formats, never recomputes a figure (ADR-0005). Needs a configured API
+  // and, on native, degrades honestly (the download is web-only). Errors are surfaced, never silent.
+  const [pdfBusy, setPdfBusy] = useState(false)
+  const exportPdf = async (): Promise<void> => {
+    const d = reports.data
+    if (d === null || apiBaseUrl === null) return
+    setPdfBusy(true)
+    try {
+      const ok = await downloadReportsPdf(apiBaseUrl, range, d)
+      toast.show(ok ? 'Reports exported as PDF.' : 'PDF export is available on the web app.')
+    } catch (e) {
+      toast.show(`PDF export failed — ${e instanceof Error ? e.message : 'unknown error'}`)
+    } finally {
+      setPdfBusy(false)
+    }
+  }
+
   return (
     <ScreenScaffold
       header={
@@ -1094,9 +1114,11 @@ export function ReportsScreen(): React.JSX.Element {
               </Pressable>
             ))}
           </View>
-          {/* Reports/analytics CSV export (REQ-045): the deterministic `reportToCsv` core turns the
-              live window's figures into a CSV download (web); on native the download is unavailable
-              and we say so. Disabled until there is data to export — never an empty file. */}
+          {/* Reports/analytics export (REQ-045): the deterministic `reportToCsv` core turns the live
+              window's figures into a CSV download (web); the PDF rendition posts the same view-model
+              to the server PDFKit route (ADR-0020). On native the download is unavailable and we say
+              so. Disabled until there is data to export — never an empty file; PDF also needs the
+              API. */}
           <Button
             size="sm"
             variant="ghost"
@@ -1111,6 +1133,14 @@ export function ReportsScreen(): React.JSX.Element {
             }}
           >
             Export CSV
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={!reports.data || !reports.live || pdfBusy}
+            onPress={() => void exportPdf()}
+          >
+            {pdfBusy ? 'Exporting…' : 'Export PDF'}
           </Button>
         </View>
       }

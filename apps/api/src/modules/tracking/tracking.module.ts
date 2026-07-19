@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common'
 import { AuthModule } from '../auth/auth.module.js'
 import { CatalogController } from './catalog.controller.js'
 import { EntriesController } from './entries.controller.js'
+import { ReportsExportController } from './reports-export.controller.js'
 import { SummaryController } from './summary.controller.js'
 import { TrackingStatusController } from './tracking.controller.js'
 import { TrackingContext } from './tracking.context.js'
@@ -14,7 +15,13 @@ import { TrackingContext } from './tracking.context.js'
  */
 @Module({
   imports: [AuthModule],
-  controllers: [TrackingStatusController, CatalogController, EntriesController, SummaryController],
+  controllers: [
+    TrackingStatusController,
+    CatalogController,
+    EntriesController,
+    SummaryController,
+    ReportsExportController,
+  ],
   providers: [TrackingContext],
 })
 export class TrackingModule {}
