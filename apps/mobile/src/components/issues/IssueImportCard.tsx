@@ -6,7 +6,9 @@ import { useTheme } from '../../theme/ThemeProvider'
 import { ApiError } from '../../api/http.js'
 import {
   previewIssueImport,
+  recordImported,
   type CandidateTaskProposal,
+  type ImportedIssueLink,
   type IssueImportPreview,
   type IssueSource,
 } from '../../api/issues.js'
@@ -114,6 +116,22 @@ export function IssueImportCard({ baseUrl, projects }: IssueImportCardProps): Re
       )
       const created = results.filter(r => r.status === 'fulfilled').length
       const failed = results.length - created
+      // Record each created ticket so the next preview won't re-propose it (REQ-066). Best-effort:
+      // the tasks already exist, so a record failure must not report the import as failed.
+      const links: ImportedIssueLink[] = []
+      results.forEach((r, i) => {
+        const p = chosen[i]
+        if (r.status === 'fulfilled' && p !== undefined) {
+          links.push({ externalKey: p.externalKey, taskId: r.value.id })
+        }
+      })
+      if (links.length > 0) {
+        try {
+          await recordImported(baseUrl, source, links)
+        } catch {
+          // Dedup is best-effort; the created tasks stand regardless.
+        }
+      }
       setImportedCount(created)
       setSelected(new Set())
       toast.show(

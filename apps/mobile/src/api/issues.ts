@@ -1,4 +1,4 @@
-import { getJson } from './http.js'
+import { getJson, postJson } from './http.js'
 import { z } from 'zod'
 
 /**
@@ -64,4 +64,28 @@ export async function previewIssueImport(
   const base = `/api/connectors/${connectorId}/issues/preview`
   const path = qs.length > 0 ? `${base}?${qs}` : base
   return parseIssueImportPreview(await getJson(baseUrl, path, fetchImpl))
+}
+
+/** One imported-ticket link to record: the ticket ref and, when created, its task id. */
+export interface ImportedIssueLink {
+  readonly externalKey: string
+  readonly taskId?: string
+}
+
+export const recordImportedResultSchema = z.object({ recorded: z.number().catch(0).default(0) })
+export type RecordImportedResult = z.infer<typeof recordImportedResultSchema>
+
+/**
+ * Record the tickets just imported (`POST /api/connectors/:id/issues/import`, REQ-066) so the next
+ * preview no longer re-proposes them. This records **link rows only** — the tasks were already
+ * created via the tracking endpoint (ADR-0005). Returns how many links the server recorded.
+ */
+export async function recordImported(
+  baseUrl: string,
+  connectorId: string,
+  items: readonly ImportedIssueLink[],
+  fetchImpl: typeof fetch = fetch,
+): Promise<RecordImportedResult> {
+  const path = `/api/connectors/${connectorId}/issues/import`
+  return recordImportedResultSchema.parse(await postJson(baseUrl, path, { items }, fetchImpl))
 }

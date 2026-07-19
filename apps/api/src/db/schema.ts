@@ -68,3 +68,9 @@ export * from './automation-schema.js'
 
 // Dev-tool export ledger: recorded outcomes per confirmed item (REQ-035).
 export * from './ai-export-schema.js'
+
+// Evening Companion: per-day load-score history for the personal wellbeing baseline (REQ-065).
+export * from './wellbeing-schema.js'
+
+// Ticket import: which external issue keys were imported, so a re-preview never re-proposes them (REQ-066).
+export * from './issueimport-schema.js'
