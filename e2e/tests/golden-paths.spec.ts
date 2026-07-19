@@ -41,11 +41,13 @@ test.describe('acceptance · golden paths', () => {
       await page.getByPlaceholder('you@company.com').fill(user.email)
       await page.getByPlaceholder('At least 8 characters').fill(user.password)
       await page.getByRole('button', { name: /^create free account$/i }).click()
-      // Sign-up auto-authenticates in the E2E stack — the form leaves the DOM. Assert on the
-      // submit *button* (a single, role-scoped node) rather than the bare "Create free account"
-      // text: the Register screen renders that phrase twice (heading + submit button), so a
-      // getByText() would hit two nodes and could trip a strict-mode violation mid-transition.
-      await expect(page.getByRole('button', { name: /^create free account$/i })).toBeHidden()
+      // Sign-up auto-authenticates in the E2E stack — the whole auth form leaves the DOM once the
+      // session is established. Wait on the register form's unique email input rather than the
+      // "Create free account" text (which the screen renders twice — heading + submit button — so a
+      // getByText() hits two nodes) or the submit button alone (which can hide transiently mid-submit,
+      // before auth actually completes, racing the /today navigation). The email input unmounts only
+      // when the authenticated shell replaces the auth screen — a reliable "auth done" signal.
+      await expect(page.getByPlaceholder('you@company.com')).toBeHidden()
     })
 
     await test.step('the app shell is up and Today renders', async () => {
