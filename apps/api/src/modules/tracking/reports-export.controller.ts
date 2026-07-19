@@ -27,16 +27,21 @@ export class ReportsExportController {
     @Res() reply: FastifyReply,
   ): Promise<void> {
     const base = `mydevtime-reports-${body.range}`.replace(/[^\w.-]+/g, '_')
+    // This endpoint reflects the caller's own dashboard view-model back as a file. Force a
+    // download and forbid MIME-sniffing so a browser can never re-interpret the reflected content
+    // as HTML in our origin (defence-in-depth against reflected XSS on a non-HTML download).
     if (query.format === 'pdf') {
       const buffer = await reportToPdf(body)
       await reply
         .header('content-disposition', `attachment; filename="${base}.pdf"`)
+        .header('x-content-type-options', 'nosniff')
         .type('application/pdf')
         .send(buffer)
       return
     }
     await reply
       .header('content-disposition', `attachment; filename="${base}.csv"`)
+      .header('x-content-type-options', 'nosniff')
       .type('text/csv; charset=utf-8')
       .send(reportToCsv(body))
   }
