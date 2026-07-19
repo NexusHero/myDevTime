@@ -36,6 +36,11 @@ built** — where a control is aspirational it says so.
 Authentication is delegated to **Better-Auth**, confined to the `auth` module behind a
 narrow contract (ADR-0007/0017/0025). Nothing upstream imports a Better-Auth type.
 
+![2. Authentication model — diagram](../diagrams/security-hardening-1.svg)
+
+<details>
+<summary>Mermaid source</summary>
+
 ```mermaid
 flowchart LR
   C[Client] -- "cookie / bearer session" --> G[AuthGuard]
@@ -44,6 +49,8 @@ flowchart LR
   G -- "attaches vendor-free AuthenticatedUser" --> H[Controller handler]
   G -. "no session" .-> P[401 problem+json]
 ```
+
+</details>
 
 - **`AuthGuard`** (`modules/auth/auth.guard.ts`) validates the session and attaches a
   vendor-free `AuthenticatedUser` (`{ id, email, emailVerified, name }`) to the request.
@@ -91,6 +98,11 @@ invariant** of the persistence layer (CLAUDE.md non-negotiable, ADR-0015/0025):
   must not read or mutate workspace B's rows. These are unit-level, exhaustive, and part
   of the ≥ 90 % core coverage bar.
 
+![3. Authorization model — workspace isolation by construction — diagram](../diagrams/security-hardening-2.svg)
+
+<details>
+<summary>Mermaid source</summary>
+
 ```mermaid
 flowchart TD
   U[AuthenticatedUser] --> WS["workspaceOf(user) → workspaceId"]
@@ -98,6 +110,8 @@ flowchart TD
   R --> Q["WHERE workspace_id = $workspaceId AND …"]
   note["No repository entry point exists without workspaceId"] -.-> R
 ```
+
+</details>
 
 Connector token queries go further: keyed by `(workspaceId, userId, connector)` so one
 user cannot open another's sealed tokens even within a shared workspace.

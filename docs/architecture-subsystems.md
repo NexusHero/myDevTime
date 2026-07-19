@@ -46,6 +46,11 @@ controllers: `entries-service.ts` delegates to `isValidEntry` in `@mydevtime/dom
 never decides an entry's validity itself (ADR-0005). It owns the `timeEntries` and catalog tables
 (`clients`, `projects`, `tasks`, `tags`) and provisions `workspaces`.
 
+![tracking — entries · catalog · summary — diagram](diagrams/architecture-subsystems-1.svg)
+
+<details>
+<summary>Mermaid source</summary>
+
 ```mermaid
 flowchart TD
   classDef ctrl fill:#e3f0ff,stroke:#2b6cb0,color:#1a365d;
@@ -84,6 +89,8 @@ flowchart TD
   ctxT --> tblWs
 ```
 
+</details>
+
 ---
 
 ## worktime — attendance · schedules · overtime · signable report
@@ -99,6 +106,11 @@ the status probe. All ArbZG-preset break/overtime arithmetic is delegated to `@m
 `attendanceShifts` and `workSchedules` and reads `timeEntries`, `projects`, and `absences` when it
 composes a report. Rendering (`report/pdf.ts`, `report/xlsx.ts`, `report/statement-pdf.ts`) formats a
 report the domain already computed — it never re-does the math.
+
+![worktime — attendance · schedules · overtime · signable report — diagram](diagrams/architecture-subsystems-2.svg)
+
+<details>
+<summary>Mermaid source</summary>
 
 ```mermaid
 flowchart TD
@@ -135,6 +147,8 @@ flowchart TD
   repSrc --> tblRead
 ```
 
+</details>
+
 ---
 
 ## absences — leave · vacation policy & balance · holidays
@@ -146,6 +160,11 @@ probe. Allowance arithmetic is not done in the service: `apps/api/src/modules/ab
 hands stored rows to the deterministic `vacationBalance` core, and the controller resolves public
 holidays through `holidaysForRegion`/`HOLIDAY_REGIONS` in `@mydevtime/domain` (ADR-0005/0010). It owns
 `absences` and `absencePolicies`.
+
+![absences — leave · vacation policy & balance · holidays — diagram](diagrams/architecture-subsystems-3.svg)
+
+<details>
+<summary>Mermaid source</summary>
 
 ```mermaid
 flowchart TD
@@ -176,6 +195,8 @@ flowchart TD
   svc --> tblPol
 ```
 
+</details>
+
 ---
 
 ## planner — versioned day plans · Co-Planner review
@@ -187,6 +208,11 @@ deterministic `label`s, and produces a `briefing`. Placement is not done in the 
 cores and stores their blocks verbatim — it never places time itself (ADR-0005/0011). `labeler.ts`
 delegates to `deterministicLabels`, and `briefer.ts` composes a briefing over the domain `DayPlan`
 type. It owns `plans` and reads `timeEntries` for the plan-vs-actual review.
+
+![planner — versioned day plans · Co-Planner review — diagram](diagrams/architecture-subsystems-4.svg)
+
+<details>
+<summary>Mermaid source</summary>
 
 ```mermaid
 flowchart TD
@@ -221,6 +247,8 @@ flowchart TD
   svc --> tblEntries
 ```
 
+</details>
+
 ---
 
 ## automation — deterministic categorization rules
@@ -235,6 +263,11 @@ the `dryRun` engine in `@mydevtime/domain`, so a rule's behaviour is pure, exhau
 Note on scope: the `automation` module is rules-only. **Calendar ingestion is not in this module** —
 it lives in `connectors` (the `google-calendar/preview` route) over the `calendarsync` port and the
 deterministic `mergeCalendar` core; see the *connectors* section below.
+
+![automation — deterministic categorization rules — diagram](diagrams/architecture-subsystems-5.svg)
+
+<details>
+<summary>Mermaid source</summary>
 
 ```mermaid
 flowchart TD
@@ -261,6 +294,8 @@ flowchart TD
   svc --> core
   svc --> tblRules
 ```
+
+</details>
 
 ---
 
@@ -290,6 +325,11 @@ Credit-priced routes debit the billing ledger through the billing module's **pub
 once **only when the AI actually proposed** — a down provider or a deterministic fallback costs nothing
 (ADR-0008). The module owns `exportRecords` (the export ledger) and reads grounding data from
 `timeEntries`/`plans`/`workspaces`.
+
+![ai — LLM · ASR · assistant · insights · export (proposals only) — diagram](diagrams/architecture-subsystems-6.svg)
+
+<details>
+<summary>Mermaid source</summary>
 
 ```mermaid
 flowchart TD
@@ -346,6 +386,8 @@ flowchart TD
   nlSvc --> tblRead
 ```
 
+</details>
+
 ---
 
 ## billing — rates · budgets · invoicing · entitlements · credit ledger · Stripe rail
@@ -364,6 +406,11 @@ behind the `payments/port.ts` interface; the gateway provider resolves to `null`
 unconfigured and the controller answers 404 (ADR-0006/0008). It owns `rates`, `budgets`,
 `budgetAlerts`, `invoices`, `creditEntries`, `entitlementEvents`, and `billingCustomers`, and reads
 `timeEntries`/`projects`/`clients` for costing.
+
+![billing — rates · budgets · invoicing · entitlements · credit ledger · Stripe rail — diagram](diagrams/architecture-subsystems-7.svg)
+
+<details>
+<summary>Mermaid source</summary>
 
 ```mermaid
 flowchart TD
@@ -415,6 +462,8 @@ flowchart TD
   svc --> tblRead
 ```
 
+</details>
+
 ---
 
 ## connectors — OAuth vault · per-capability consent · calendar adapter
@@ -430,6 +479,11 @@ enforces that nothing runs without a stored, explicit opt-in (consent-first, REQ
 `CalendarPort` (`calendarsync/port.ts`, `GoogleCalendar`/`NullCalendar` adapters), which reads a window
 and yields the deterministic `mergeCalendar` ghost-block **proposals** — it books nothing (ADR-0005). It
 owns `connectorTokens` and `connectorGrants`.
+
+![connectors — OAuth vault · per-capability consent · calendar adapter — diagram](diagrams/architecture-subsystems-8.svg)
+
+<details>
+<summary>Mermaid source</summary>
 
 ```mermaid
 flowchart TD
@@ -475,6 +529,8 @@ flowchart TD
   calPort --> calAd
 ```
 
+</details>
+
 ---
 
 ## auth — Better-Auth edge (authN & sessions)
@@ -488,6 +544,11 @@ Better-Auth instance (null without a DB), `email-port.ts` is the narrow email se
 Every other module imports only this module's public surface — `contract.ts` re-exports `AuthGuard`
 and `CurrentUser`, and `auth.module.ts` exports the guard for `@UseGuards`. It reads the Better-Auth
 schema (`user`/session tables); Better-Auth types never leak upstream.
+
+![auth — Better-Auth edge (authN & sessions) — diagram](diagrams/architecture-subsystems-9.svg)
+
+<details>
+<summary>Mermaid source</summary>
 
 ```mermaid
 flowchart TD
@@ -512,6 +573,8 @@ flowchart TD
   inst --> email
   inst --> tblUser
 ```
+
+</details>
 
 ---
 

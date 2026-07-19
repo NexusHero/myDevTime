@@ -19,6 +19,8 @@
     "coverage": "vitest run --coverage",
     "build": "pnpm -r --if-present build",
     "check:docs": "node scripts/check-docs.mjs",
+    "diagrams": "node scripts/gen-diagrams.mjs",
+    "check:diagrams": "node scripts/gen-diagrams.mjs --check",
     "check:purity": "node scripts/check-domain-purity.mjs",
     "check:req-coverage": "node scripts/check-req-coverage.mjs",
     "check:adherence": "node scripts/check-design-adherence.mjs",
@@ -29,6 +31,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@mermaid-js/mermaid-cli": "^11.16.0",
     "@swc/core": "^1.15.43",
     "@testing-library/react-native": "12.5.1",
     "@types/node": "^26.1.0",
@@ -48,7 +51,9 @@
     "overrides": {
       "vite": ">=6.4.3",
       "@xmldom/xmldom": ">=0.8.13",
-      "@expo/plist>@xmldom/xmldom": "0.8.13"
+      "@expo/plist>@xmldom/xmldom": "0.8.13",
+      "react": "18.3.1",
+      "react-dom": "18.3.1"
     },
     "auditConfig": {
       "ignoreGhsas": [

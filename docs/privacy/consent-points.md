@@ -40,6 +40,11 @@ The lifecycle below holds for every capture/connector consent point. Grant is ex
 use is gated on the stored grant at **every** call; revoke both stops future use **and** triggers
 data handling (token deletion for connectors, no retroactive capture for preferences).
 
+![2. Consent lifecycle — diagram](../diagrams/privacy-consent-points-1.svg)
+
+<details>
+<summary>Mermaid source</summary>
+
 ```mermaid
 stateDiagram-v2
     [*] --> NotConsented: default (meetingConsent=false,\ncalendarSync=false, no grant row)
@@ -54,6 +59,8 @@ stateDiagram-v2
     Revoked --> Erased: DELETE /api/privacy/account
     Erased --> [*]: workspace + identity cascade-deleted (Art. 17)
 ```
+
+</details>
 
 **Enforcement notes (all real code):**
 
