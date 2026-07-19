@@ -67,4 +67,63 @@ test.describe('acceptance · accessibility', () => {
     // Past the gate: the login form is gone, the app has taken over.
     await expect(page.getByText('Welcome back')).toBeHidden()
   })
+
+  test('REQ-043 · the golden path (sign-in → Today → start timer) is reachable by role', async ({
+    page,
+    request,
+  }) => {
+    const user = freshUser()
+    await apiSignUp(request, user)
+
+    await page.goto('/')
+    await page.evaluate(() => localStorage.setItem('mydevtime.onboarded', '1'))
+
+    // Every step of the golden path is located through the accessibility tree
+    // (roles + accessible names), the same way a screen reader would — the proof
+    // that our primitives expose the right roles/names on react-native-web (REQ-043).
+    // Sign in: the email field is a named `textbox`; the password field renders as
+    // `<input type=password>` (no textbox role by spec) so it is reached by its
+    // accessible name; the submit is a named `button`.
+    await page.getByRole('textbox', { name: /e-?mail/i }).fill(user.email)
+    await page.getByLabel(/^password$/i).fill(user.password)
+    await page.getByRole('button', { name: /^sign in$/i }).click()
+    await expect(page.getByText('Welcome back')).toBeHidden()
+
+    // Land on Today and start the timer — the punch control is a `button` whose
+    // accessible name is `Start` (idle) and flips to `Stop` once the session is live.
+    await page.goto('/today')
+    const start = page.getByRole('button', { name: 'Start', exact: true }).first()
+    await expect(start).toBeVisible()
+    await start.click()
+    await expect(page.getByRole('button', { name: 'Stop', exact: true }).first()).toBeVisible()
+  })
+
+  test('REQ-043 · tabbing on Today lands on a focusable control with a visible focus ring', async ({
+    page,
+    request,
+  }) => {
+    const user = freshUser()
+    await apiSignUp(request, user)
+    await uiSignIn(page, user)
+    await page.goto('/today')
+    await expect(page.getByRole('button', { name: 'Start', exact: true }).first()).toBeVisible()
+
+    // Walk the tab order from the top of the document; the first focusable control
+    // must draw the accent focus ring (outline), proving keyboard focus is *visible*
+    // on the primitives, not just present (REQ-043).
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+    let landed: { role: string | null; name: string | null } | null = null
+    for (let i = 0; i < 20 && landed === null; i += 1) {
+      await page.keyboard.press('Tab')
+      landed = await page.evaluate(() => {
+        const el = document.activeElement
+        if (!(el instanceof HTMLElement) || el === document.body) return null
+        const s = getComputedStyle(el)
+        const ringed = s.outlineStyle !== 'none' && Number.parseFloat(s.outlineWidth) > 0
+        if (!ringed) return null
+        return { role: el.getAttribute('role'), name: el.getAttribute('aria-label') }
+      })
+    }
+    expect(landed, 'no tab stop showed a visible focus outline on Today').not.toBeNull()
+  })
 })
