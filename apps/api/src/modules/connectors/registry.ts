@@ -12,6 +12,7 @@ export type ConnectorId =
   | 'jira'
   | 'linear'
   | 'slack'
+  | 'azure-devops'
   | 'google-calendar'
   | 'microsoft-calendar'
   | 'apple-calendar'
@@ -94,6 +95,20 @@ export const CONNECTORS: readonly ConnectorSpec[] = [
     capabilities: [
       { capability: READ, label: 'Read context', scopes: ['channels:history'] },
       { capability: WRITE, label: 'Post summaries', scopes: ['chat:write'] },
+    ],
+  },
+  {
+    // Azure DevOps (Boards / Work Items) — an issues tracker reached over its REST API (WIQL +
+    // work-items batch), OAuth 2.0 (Visual Studio account). Read-only by default: the READ scope
+    // `vso.work` grants read access to work items; a write scope (`vso.work_write`) is only added
+    // when an outbound capability is turned on (ADR-0033). Import stays proposal-only (ADR-0005).
+    id: 'azure-devops',
+    label: 'Azure DevOps',
+    category: 'issues',
+    auth: 'oauth2',
+    capabilities: [
+      { capability: READ, label: 'Read work items', scopes: ['vso.work'] },
+      { capability: WRITE, label: 'Write work items', scopes: ['vso.work_write'] },
     ],
   },
   {
