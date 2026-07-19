@@ -63,6 +63,16 @@ describe.skipIf(!databaseUrl)('issue import preview (integration)', () => {
   const authEmails = ['issue-import@itest.local', 'issue-import-b@itest.local']
   let ws = ''
 
+  // Store-level tests (dedup + workspace isolation) only need real workspace/user ids for the
+  // DB round-trip — they never exercise the guarded HTTP surface, so they seed fixed-id users
+  // directly (like the connectors integration test) rather than signing up over HTTP. That keeps
+  // the whole file under Better-Auth's 5-per-minute sign-up/sign-in limit (auth-instance.ts), which
+  // the six-cookie variant tripped on its last case.
+  const idStore = 'itest-ii-store'
+  const idOther = 'itest-ii-other'
+  let wsStore = ''
+  let wsOther = ''
+
   async function cleanupAuthUser(email: string): Promise<void> {
     const rows = await db.select({ id: user.id }).from(user).where(eq(user.email, email))
     const u = rows[0]
@@ -99,9 +109,19 @@ describe.skipIf(!databaseUrl)('issue import preview (integration)', () => {
 
   beforeAll(async () => {
     for (const email of authEmails) await cleanupAuthUser(email)
+    for (const [id, email] of [
+      [idStore, 'ii-store@itest.local'],
+      [idOther, 'ii-other@itest.local'],
+    ] as const) {
+      await db.delete(user).where(eq(user.id, id))
+      await db.insert(user).values({ id, name: id, email, emailVerified: true })
+    }
+    wsStore = await resolveWorkspaceId(db, idStore, 'Store')
+    wsOther = await resolveWorkspaceId(db, idOther, 'Other')
   })
 
   afterEach(async () => {
+    await db.delete(importedIssues).where(inArray(importedIssues.workspaceId, [wsStore, wsOther]))
     if (ws) {
       await db.delete(connectorTokens).where(inArray(connectorTokens.workspaceId, [ws]))
       await db.delete(connectorGrants).where(inArray(connectorGrants.workspaceId, [ws]))
@@ -111,6 +131,8 @@ describe.skipIf(!databaseUrl)('issue import preview (integration)', () => {
 
   afterAll(async () => {
     for (const email of authEmails) await cleanupAuthUser(email)
+    await db.delete(workspaces).where(inArray(workspaces.id, [wsStore, wsOther]))
+    await db.delete(user).where(inArray(user.id, [idStore, idOther]))
     await handle.close()
   })
 
@@ -180,10 +202,7 @@ describe.skipIf(!databaseUrl)('issue import preview (integration)', () => {
   it('RecordedKey_IsNotReProposed_OnNextPreview', async () => {
     // Real Postgres round-trip (REQ-066): after recording an externalKey, a preview over the same
     // issues no longer proposes that key — the honest gap is closed by the store, not faked.
-    const app = await buildApp({ config: HTTP_CONFIG, db: handle })
-    const { userId } = await authed(app, 'issue-import@itest.local')
-    ws = await resolveWorkspaceId(db, userId, 'Issue User')
-    const key = { workspaceId: ws, userId, connector: 'github' }
+    const key = { workspaceId: wsStore, userId: idStore, connector: 'github' }
 
     const issues = [issue({ key: 'acme/app#1' }), issue({ key: 'acme/app#2', externalId: '2' })]
 
@@ -207,24 +226,18 @@ describe.skipIf(!databaseUrl)('issue import preview (integration)', () => {
       await importedKeys(db, key),
     )
     expect(after.proposals.map(p => p.externalKey)).toEqual(['acme/app#2'])
-    await app.close()
   })
 
   it('ImportedKeys_AreWorkspaceIsolated', async () => {
     // A key imported in another workspace must not dedup mine (ADR-0015, negative isolation).
-    const app = await buildApp({ config: HTTP_CONFIG, db: handle })
-    const other = await authed(app, 'issue-import-b@itest.local')
-    const otherWs = await resolveWorkspaceId(db, other.userId, 'Issue User B')
     await recordImported(db, {
-      workspaceId: otherWs,
-      userId: other.userId,
+      workspaceId: wsOther,
+      userId: idOther,
       connector: 'github',
       externalKey: 'acme/app#1',
     })
 
-    const { userId } = await authed(app, 'issue-import@itest.local')
-    ws = await resolveWorkspaceId(db, userId, 'Issue User')
-    const key = { workspaceId: ws, userId, connector: 'github' }
+    const key = { workspaceId: wsStore, userId: idStore, connector: 'github' }
 
     // My store is empty even though another workspace imported the same key.
     expect(await importedKeys(db, key)).toEqual([])
@@ -235,8 +248,5 @@ describe.skipIf(!databaseUrl)('issue import preview (integration)', () => {
       await importedKeys(db, key),
     )
     expect(mine.proposals.map(p => p.externalKey)).toEqual(['acme/app#1'])
-
-    await db.delete(importedIssues).where(inArray(importedIssues.workspaceId, [otherWs]))
-    await app.close()
   })
 })
