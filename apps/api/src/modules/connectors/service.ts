@@ -47,6 +47,7 @@ const AUTHORIZE_ENDPOINT: Partial<Record<ConnectorId, string>> = {
   jira: 'https://auth.atlassian.com/authorize',
   linear: 'https://linear.app/oauth/authorize',
   slack: 'https://slack.com/oauth/v2/authorize',
+  'azure-devops': 'https://app.vssps.visualstudio.com/oauth2/authorize',
   'google-calendar': 'https://accounts.google.com/o/oauth2/v2/auth',
   'microsoft-calendar': 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
 }

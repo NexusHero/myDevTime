@@ -510,3 +510,16 @@ export {
   WEEKDAY_OVERBOOK_DELTA,
   TREND_DELTA,
 } from './wellbeing/index.js'
+
+// Issue/ticket import core (GitHub Issues + Azure DevOps Work Items → candidate tasks, ADR-0005) —
+// adapters fetch tickets as neutral `ExternalIssue`s; `toTaskProposals` maps, filters closed,
+// dedups (vs already-imported and in-batch) and deterministically orders them into
+// `CandidateTaskProposal`s (`confirmed: false`, `import:<source>` provenance). It never creates —
+// the import proposes candidate tasks, the human confirms (ADR-0005). Pure, framework-free.
+export type {
+  IssueSource,
+  ExternalIssue,
+  CandidateTaskProposal,
+  ImportOptions,
+} from './issueimport/index.js'
+export { toTaskProposals } from './issueimport/index.js'

@@ -80,6 +80,26 @@ export async function createProject(
   return parseProject(await postJson(baseUrl, '/api/tracking/projects', input, fetchImpl))
 }
 
+/** A task to create; `name` + `projectId` are required (the backend defaults billable). */
+export interface NewTask {
+  readonly name: string
+  readonly projectId: string
+  readonly billableDefault?: boolean
+}
+
+/**
+ * Create a task and return the persisted row (`POST /api/tracking/tasks`). Used by
+ * confirm-to-import to turn an accepted issue/ticket **proposal** into a real task
+ * (ADR-0005: the create is the user's confirmation, never an automatic write).
+ */
+export async function createTask(
+  baseUrl: string,
+  input: NewTask,
+  fetchImpl: typeof fetch = fetch,
+): Promise<TaskDTO> {
+  return parseTask(await postJson(baseUrl, '/api/tracking/tasks', input, fetchImpl))
+}
+
 /** The effort-estimation patch for a task (REQ-041); `null` clears a field. */
 export interface TaskEstimatePatch {
   readonly category?: string | null
