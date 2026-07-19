@@ -24,6 +24,13 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
+    // Pin the browser clock to UTC + en-US so date-sensitive journeys are deterministic
+    // regardless of where CI runs. The worktime persona specs inject shifts at UTC
+    // instants (`new Date().toISOString()`) and assert the day the row renders; without
+    // a fixed zone a runner in a behind-UTC timezone can straddle a day boundary and read
+    // a different local date than the one it wrote.
+    timezoneId: 'UTC',
+    locale: 'en-US',
     // Emulate `prefers-reduced-motion: reduce` so the design system's continuous
     // animations (Island/LiveButton pulse, tracker breathing — all gated on
     // reanimated's `useReducedMotion`, which reads this media query on web) settle

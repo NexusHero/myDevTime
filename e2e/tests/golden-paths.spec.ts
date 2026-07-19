@@ -41,8 +41,11 @@ test.describe('acceptance · golden paths', () => {
       await page.getByPlaceholder('you@company.com').fill(user.email)
       await page.getByPlaceholder('At least 8 characters').fill(user.password)
       await page.getByRole('button', { name: /^create free account$/i }).click()
-      // Sign-up auto-authenticates in the E2E stack — the form leaves the DOM.
-      await expect(page.getByText('Create free account')).toBeHidden()
+      // Sign-up auto-authenticates in the E2E stack — the form leaves the DOM. Assert on the
+      // submit *button* (a single, role-scoped node) rather than the bare "Create free account"
+      // text: the Register screen renders that phrase twice (heading + submit button), so a
+      // getByText() would hit two nodes and could trip a strict-mode violation mid-transition.
+      await expect(page.getByRole('button', { name: /^create free account$/i })).toBeHidden()
     })
 
     await test.step('the app shell is up and Today renders', async () => {
@@ -65,17 +68,31 @@ test.describe('acceptance · golden paths', () => {
       await expect(punchButton(page, 'Stop')).toBeVisible()
     })
 
-    // Let the timer actually tick before stopping.
-    await page.waitForTimeout(1500)
+    await test.step('let the session accumulate a tracked second', async () => {
+      // Wait on *state*, not a fixed sleep: the running hero stopwatch carries
+      // `role="timer"` (ReanimatedTimer) and starts at 00:00:00. Polling it off that
+      // value proves at least one second was actually tracked, and — because the clock
+      // only ticks once the running segment is established — also confirms the async
+      // punch-in has fully settled before we try to stop.
+      const clock = page.getByRole('timer')
+      await expect(clock).toBeVisible()
+      await expect(clock).not.toHaveText('00:00:00')
+    })
 
     await test.step('stop the timer', async () => {
+      const stop = punchButton(page, 'Stop')
+      // The punch button is briefly disabled while a punch is in flight (`timer.busy`);
+      // a forced click on a disabled control silently no-ops, so wait it out first. This
+      // replaces the old fixed `waitForTimeout` with a deterministic actionability gate.
+      await expect(stop).toBeEnabled()
       // While a session is live the punch button intentionally "breathes" (LiveButton, ADR-0048
       // motion) — a continuous ~6% scale that is design, not a bug. That keeps the element from
       // ever reaching Playwright's "stable" state, and reanimated's web reduced-motion detection
       // does not reliably honour the runner's reducedMotion: 'reduce'. Force the click past the
-      // stability wait: the button is visible and centred, the scale is about its own centre, and
-      // every post-click assertion below still fully verifies the stop actually happened.
-      await punchButton(page, 'Stop').click({ force: true })
+      // stability wait only (enabledness is asserted above): the button is visible and centred,
+      // the scale is about its own centre, and every post-click assertion below still fully
+      // verifies the stop actually happened.
+      await stop.click({ force: true })
       // The confirmation toast lands and the control flips back to Start.
       await expect(page.getByText(/Timer stopped/)).toBeVisible()
       await expect(punchButton(page, 'Start')).toBeVisible()
