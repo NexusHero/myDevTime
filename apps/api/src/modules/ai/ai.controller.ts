@@ -1,8 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import { Body, Controller, Get, Inject, Post, UseGuards } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
+import { zonedTimeToInstant } from '@mydevtime/domain'
 import { AuthGuard, CurrentUser, type AuthenticatedUser } from '../auth/contract.js'
 import { balanceFor, debit } from '../billing/contract.js'
+import type { Db } from '../../db/client.js'
+import { listShifts, worktimeSummary } from '../worktime/contract.js'
+import { WellbeingService } from '../wellbeing/service.js'
 import { NlEntryService } from './nl-entry.service.js'
 import { SmartAddService } from './smart-add.service.js'
 import { AiContext } from './ai.context.js'
@@ -12,7 +16,12 @@ import { STANDUP_WRITER, type StandupWriter } from './standup.js'
 import { CATEGORIZER, type Categorizer } from './categorize.js'
 import { ESTIMATOR, type Estimator } from './estimate.js'
 import { MEETING_INSIGHTS, type MeetingInsightsService } from './meeting-insights.js'
-import { COMPANION, type CompanionService } from './companion.js'
+import {
+  COMPANION,
+  companionDayLoadScore,
+  type CompanionDayInput,
+  type CompanionService,
+} from './companion.js'
 import {
   AssistantDto,
   CategorizeDto,
@@ -39,6 +48,30 @@ const ESTIMATE_CREDIT_COST = 1
 const MEETING_INSIGHTS_CREDIT_COST = 1
 /** One AI evening-companion narration costs one credit, charged only on a real AI proposal (ADR-0008). */
 const COMPANION_CREDIT_COST = 1
+/** How many of the person's most-recent persisted days the wellbeing baseline is calibrated over. */
+const COMPANION_HISTORY_DAYS = 90
+
+/** Absolute `[from, to)` instants of the local calendar day `date` in `tz` (DST-safe via the core). */
+function localDayWindow(date: string, tz: string): { from: Date; to: Date } {
+  const [year, month, day] = date.split('-').map(Number) as [number, number, number]
+  const from = new Date(zonedTimeToInstant({ year, month, day, hour: 0, minute: 0, second: 0 }, tz))
+  // Next calendar day (UTC arithmetic rolls month/year over cleanly), re-localised in `tz`.
+  const nextUtc = new Date(Date.UTC(year, month - 1, day + 1))
+  const to = new Date(
+    zonedTimeToInstant(
+      {
+        year: nextUtc.getUTCFullYear(),
+        month: nextUtc.getUTCMonth() + 1,
+        day: nextUtc.getUTCDate(),
+        hour: 0,
+        minute: 0,
+        second: 0,
+      },
+      tz,
+    ),
+  )
+  return { from, to }
+}
 
 /**
  * The `ai` module (LLM proposals, NL entry, assistant — ADR-0025/0029). The status
@@ -60,7 +93,36 @@ export class AiController {
     @Inject(ESTIMATOR) private readonly estimator: Estimator,
     @Inject(MEETING_INSIGHTS) private readonly meetingInsights: MeetingInsightsService,
     @Inject(COMPANION) private readonly companion: CompanionService,
+    private readonly wellbeing: WellbeingService,
   ) {}
+
+  /**
+   * The day's real overtime + missed-break minutes from the caller's own worktime feed, or `null`
+   * when the day holds no completed shift (the caller then falls back to the request's own values).
+   * Overtime is the positive part of the day's balance (worked − target); the break shortfall is the
+   * ArbZG deficit summed across the day's shifts. Every number is the deterministic worktime core's
+   * (ADR-0005); this only sums and windows. Workspace-scoped by construction.
+   */
+  private async sourceDaySignals(
+    db: Db,
+    workspaceId: string,
+    date: string,
+    tz: string,
+  ): Promise<{ overtimeMinutes: number; breakShortfallMinutes: number } | null> {
+    const window = localDayWindow(date, tz)
+    const shifts = await listShifts(db, workspaceId, window)
+    if (shifts.length === 0) return null
+    const balance = await worktimeSummary(db, workspaceId, {
+      from: window.from,
+      to: window.to,
+      tz,
+      asOf: window.to,
+    })
+    const overtimeMinutes = Math.max(0, Math.round(balance.balanceMs / 60_000))
+    const breakShortfallMs = shifts.reduce((sum, s) => sum + s.breakShortfallMs, 0)
+    const breakShortfallMinutes = Math.round(breakShortfallMs / 60_000)
+    return { overtimeMinutes, breakShortfallMinutes }
+  }
 
   @Get('status')
   status(): { module: 'ai'; status: 'ok' } {
@@ -271,13 +333,17 @@ export class AiController {
   }
 
   /**
-   * The Evening Companion (design v14 §H, ADR-0005): the deterministic wellbeing core (`reviewDay`
-   * + `computeBaseline`) runs over the caller's own day signals and load history — free, and the
-   * source of every number returned. On top, the LLM weaves those grounded facts into one warm
-   * evening paragraph plus one gentle forward suggestion; a credit is debited once only when that AI
-   * narration is produced. A down provider, no credits, an absence day, or an unusable reply degrade
-   * to a still-caring deterministic template built from the same signals and cost nothing. Nothing is
-   * booked or planned — the suggestion is a proposal the client confirms (ADR-0005).
+   * The Evening Companion (design v14 §H, REQ-065, ADR-0005): the deterministic wellbeing core
+   * (`reviewDay` + `computeBaseline`) runs over the caller's own day — free, and the source of every
+   * number returned. The day's `overtimeMinutes`/`breakShortfallMinutes` are sourced from the caller's
+   * real worktime feed (the request's own values are only a fallback when no shift was recorded that
+   * day); the day's load is then **recorded** (an idempotent upsert), and the baseline is calibrated
+   * over the person's own **persisted** load series — not a client-supplied history. On top, the LLM
+   * weaves those grounded facts into one warm evening paragraph plus one gentle forward suggestion; a
+   * credit is debited once only when that AI narration is produced. A down provider, no credits, an
+   * absence day, or an unusable reply degrade to a still-caring deterministic template built from the
+   * same signals and cost nothing. Nothing is booked or planned — the suggestion is a proposal the
+   * client confirms (ADR-0005). Mood stays honestly omitted (no consented mood store exists yet).
    */
   @Post('evening-companion')
   @UseGuards(AuthGuard)
@@ -286,8 +352,34 @@ export class AiController {
     @Body() body: EveningCompanionDto,
   ) {
     const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    const userId = user.id
+    const tz = body.tz ?? 'UTC'
+    // (a) Source the day's real overtime/break from the worktime feed; keep the request's own values
+    //     only as a fallback when the day holds no completed shift.
+    const feed = await this.sourceDaySignals(db, workspaceId, body.date, tz)
+    const day: CompanionDayInput =
+      feed === null
+        ? body.day
+        : {
+            ...body.day,
+            overtimeMinutes: feed.overtimeMinutes,
+            breakShortfallMinutes: feed.breakShortfallMinutes,
+          }
+    // (b) Record today's deterministic load (upsert) so the baseline runs over a real per-day history.
+    await this.wellbeing.recordDayLoad(db, {
+      workspaceId,
+      userId,
+      day: body.date,
+      loadScore: companionDayLoadScore(day),
+    })
+    // (c) Calibrate the baseline over the person's own persisted series (now including today).
+    const history = await this.wellbeing.recentLoadHistory(
+      db,
+      { workspaceId, userId },
+      COMPANION_HISTORY_DAYS,
+    )
     const allowAi = (await balanceFor(db, workspaceId)) >= COMPANION_CREDIT_COST
-    const result = await this.companion.compose(body.day, body.history ?? [], { allowAi })
+    const result = await this.companion.compose(day, history, { allowAi })
     let charged = false
     if (result.message.source === 'ai-proposal') {
       await debit(db, workspaceId, {

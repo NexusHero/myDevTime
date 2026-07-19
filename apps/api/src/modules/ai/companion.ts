@@ -80,7 +80,7 @@ export interface CompanionOptions {
 const MAX_OUTPUT_TOKENS = 320
 
 /** Bridge the loose DTO day to a domain `DayReviewInput`; `moodScore` is only set when present. */
-function toDayReviewInput(day: CompanionDayInput): DayReviewInput {
+export function toDayReviewInput(day: CompanionDayInput): DayReviewInput {
   const base = {
     plannedMinutes: day.plannedMinutes,
     actualMinutes: day.actualMinutes,
@@ -92,6 +92,15 @@ function toDayReviewInput(day: CompanionDayInput): DayReviewInput {
     isAbsenceDay: day.isAbsenceDay,
   }
   return day.moodScore !== undefined ? { ...base, moodScore: day.moodScore } : base
+}
+
+/**
+ * The deterministic day-load score for a companion day — the exact value persisted to the per-day
+ * load history so the baseline is calibrated over a real series (REQ-065). It is the same `reviewDay`
+ * number the companion narrates from, so recording and narrating never diverge (ADR-0005).
+ */
+export function companionDayLoadScore(day: CompanionDayInput): number {
+  return reviewDay(toDayReviewInput(day)).loadScore
 }
 
 /** One signal as a short, human line. Every number is the signal's own (code's), never invented. */

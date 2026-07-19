@@ -146,17 +146,26 @@ export class EstimateDto extends createZodDto(
 ) {}
 
 /**
- * The Evening Companion request (design v14 §H, ADR-0005): the day's raw, already-computed signals
- * plus an optional recent load-score history for the baseline. The server runs the deterministic
- * wellbeing core (`reviewDay` + `computeBaseline`) over these — free — and only then, optionally,
- * lets the LLM narrate around those grounded facts. Nothing is written or planned (proposal-only).
+ * The Evening Companion request (design v14 §H, REQ-065, ADR-0005): the local calendar day being
+ * reviewed plus the day's raw, already-computed signals. The server sources the day's real
+ * `overtimeMinutes`/`breakShortfallMinutes` from the caller's worktime feed (the request's own values
+ * are only a fallback when that feed is empty), runs the deterministic wellbeing core over the day —
+ * free — **records** the day's load, and calibrates the baseline over the person's own **persisted**
+ * load series (no client-supplied history is trusted any more). Only then, optionally, does the LLM
+ * narrate around those grounded facts. Nothing is written to a timesheet or planned (proposal-only).
  */
 export class EveningCompanionDto extends createZodDto(
   z.object({
+    /** The local calendar day being reviewed, `'YYYY-MM-DD'` — records the load and windows worktime. */
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    /** IANA time zone the day is local to (windows the worktime feed). Defaults to UTC when omitted. */
+    tz: z.string().min(1).optional(),
     day: z.object({
       plannedMinutes: z.number().int().nonnegative(),
       actualMinutes: z.number().int().nonnegative(),
+      /** Fallback overtime minutes — used only when the worktime feed has no shift for the day. */
       overtimeMinutes: z.number().int().nonnegative(),
+      /** Fallback missed-break minutes — used only when the worktime feed has no shift for the day. */
       breakShortfallMinutes: z.number().int().nonnegative(),
       meetingCount: z.number().int().nonnegative(),
       backToBackMeetingCount: z.number().int().nonnegative(),
@@ -170,16 +179,6 @@ export class EveningCompanionDto extends createZodDto(
       planDriftMinutes: z.number().int(),
       isAbsenceDay: z.boolean(),
     }),
-    /** Recent days (oldest→newest) as `{ loadScore, weekday }`, for the person's own baseline. */
-    history: z
-      .array(
-        z.object({
-          loadScore: z.number(),
-          weekday: z.number().int().min(0).max(6),
-        }),
-      )
-      .max(120)
-      .optional(),
   }),
 ) {}
 

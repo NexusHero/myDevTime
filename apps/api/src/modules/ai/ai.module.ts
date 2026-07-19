@@ -11,6 +11,7 @@ import { categorizerProvider } from './categorize.js'
 import { estimatorProvider } from './estimate.js'
 import { meetingInsightsProvider } from './meeting-insights.js'
 import { companionProvider } from './companion.js'
+import { WellbeingService } from '../wellbeing/service.js'
 import { llmProvider } from './llm/llm.provider.js'
 import { ExportController } from './export/export.controller.js'
 import { exportTargetProvider } from './export/target.provider.js'
@@ -38,6 +39,7 @@ import { exportTargetProvider } from './export/target.provider.js'
     estimatorProvider,
     meetingInsightsProvider,
     companionProvider,
+    WellbeingService,
     exportTargetProvider,
   ],
 })

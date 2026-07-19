@@ -3,6 +3,7 @@ import { eq, inArray } from 'drizzle-orm'
 import { createDb } from '../../db/client.js'
 import { user } from '../../db/auth-schema.js'
 import { creditEntries, timeEntries, workspaces } from '../../db/schema.js'
+import { wellbeingDays } from '../../db/wellbeing-schema.js'
 import { resolveWorkspaceId } from '../../core/workspace.js'
 import type { AuthenticatedUser } from '../auth/contract.js'
 import { balanceFor, grant } from '../billing/credits-service.js'
@@ -17,6 +18,7 @@ import { LlmCategorizer } from './categorize.js'
 import { LlmEstimator } from './estimate.js'
 import { LlmMeetingInsights } from './meeting-insights.js'
 import { LlmCompanion } from './companion.js'
+import { WellbeingService } from '../wellbeing/service.js'
 import { NullLlm } from './llm/null-llm.js'
 import { LlmUnavailableError, type LlmPort, type LlmRequest, type LlmResult } from './llm/port.js'
 
@@ -84,6 +86,7 @@ describe.skipIf(!databaseUrl)('ai module (integration)', () => {
       new LlmEstimator(llm),
       new LlmMeetingInsights(llm),
       new LlmCompanion(llm),
+      new WellbeingService(),
     )
   }
 
@@ -101,6 +104,7 @@ describe.skipIf(!databaseUrl)('ai module (integration)', () => {
 
   afterEach(async () => {
     await db.delete(creditEntries).where(inArray(creditEntries.workspaceId, [wsA, wsB]))
+    await db.delete(wellbeingDays).where(inArray(wellbeingDays.workspaceId, [wsA, wsB]))
   })
 
   afterAll(async () => {
@@ -404,7 +408,7 @@ describe.skipIf(!databaseUrl)('ai module (integration)', () => {
     await grant(db, wsA, { amount: 5, category: 'monthly-grant' })
     const controller = controllerWith(new FakeLlm(true, goodCompanion))
 
-    const res = await controller.eveningCompanion(userA, { day: companionDay })
+    const res = await controller.eveningCompanion(userA, { date: '2026-07-18', day: companionDay })
 
     expect(res.message.source).toBe('ai-proposal')
     expect(res.message.charged).toBe(true)
@@ -418,7 +422,7 @@ describe.skipIf(!databaseUrl)('ai module (integration)', () => {
     await grant(db, wsA, { amount: 5, category: 'monthly-grant' })
     const controller = controllerWith(new FakeLlm(false, 'unused'))
 
-    const res = await controller.eveningCompanion(userA, { day: companionDay })
+    const res = await controller.eveningCompanion(userA, { date: '2026-07-18', day: companionDay })
 
     expect(res.message.source).toBe('deterministic')
     expect(res.message.charged).toBe(false)
