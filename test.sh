@@ -19,6 +19,7 @@ run "Typecheck"     pnpm typecheck
 run "Tests + coverage" pnpm coverage
 run "Domain purity" pnpm check:purity
 run "Docs staleness" pnpm check:docs
+run "Diagram drift"  pnpm check:diagrams
 run "Req coverage"  pnpm check:req-coverage
 run "Design adherence" pnpm check:adherence
 

@@ -85,6 +85,11 @@ Concretely:
   changing the protocol semantics**, so it is explicitly deferred, not designed in
   now.
 
+![Decision — diagram](../diagrams/adr-0019-sync-protocol-1.svg)
+
+<details>
+<summary>Mermaid source</summary>
+
 ```mermaid
 sequenceDiagram
     participant D as Device (offline for days)
@@ -94,8 +99,10 @@ sequenceDiagram
     S-->>D: { applied, conflicts:[surfaced], newWatermark }
     D->>S: GET /sync/pull?since=watermark
     S-->>D: { changes:[version > watermark], watermark }
-    D->>D: apply pulled changes; present surfaced conflicts to the user
+    D->>D: apply pulled changes, present surfaced conflicts to the user
 ```
+
+</details>
 
 ## Alternatives considered
 

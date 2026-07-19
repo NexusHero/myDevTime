@@ -255,6 +255,11 @@ boundary; everything a dashed edge crosses is a volatile third party reached thr
 narrow adapter (ports & adapters, process skill §2.2), so a vendor can be swapped or degrade to a
 Null adapter without touching the core.
 
+![System context (C4 level 1) — diagram](diagrams/architecture-1.svg)
+
+<details>
+<summary>Mermaid source</summary>
+
 ```mermaid
 flowchart TB
     user["User<br/>(phone · tablet · browser)"]
@@ -278,6 +283,8 @@ flowchart TB
     api -.->|"checkout · portal · webhooks (REQ-017)"| stripe
     clients -.->|"IAP subscriptions (REQ-018/023)"| stores
 ```
+
+</details>
 
 ## Technical Context {#_technical_context}
 
@@ -338,6 +345,11 @@ The runnable pieces and the dependencies between them. The clients and API are s
 (ADR-0005); vendor SDKs live only behind the ports on the right. The per-module component (C4 L3)
 breakdown lives in [architecture-subsystems.md](architecture-subsystems.md).
 
+![Container view (C4 level 2) — diagram](diagrams/architecture-2.svg)
+
+<details>
+<summary>Mermaid source</summary>
+
 ```mermaid
 flowchart LR
     subgraph clients["Clients — apps/mobile (Expo, RN + RN-Web)"]
@@ -364,6 +376,8 @@ flowchart LR
     mods -->|"drizzle (db module)"| db
     mods -.->|"vendor-confined"| ports
 ```
+
+</details>
 
 ```
 apps/api  (NestJS on the Fastify adapter — module-per-domain, ADR-0025)
@@ -412,6 +426,11 @@ two open rows — the invariant holds even if two starts race. A running timer i
 persisted `started_at` and `ended_at IS NULL`; the elapsed clock is derived from that instant, so
 it survives app kill and device reboot.
 
+![Start a timer — one running timer per workspace (REQ-004) — diagram](diagrams/architecture-3.svg)
+
+<details>
+<summary>Mermaid source</summary>
+
 ```mermaid
 sequenceDiagram
     participant C as Client
@@ -429,12 +448,19 @@ sequenceDiagram
     API-->>C: 201 entry
 ```
 
+</details>
+
 ## Restore a running or paused timer across restart (REQ-004/007)
 
 The server is authoritative for the running segment; the client-only session (banked total + paused
 context) is persisted locally through the `KvStorage` seam (localStorage on web, AsyncStorage on
 native). On start the hook **waits for local hydration** before reconciling, or the async native
 read could race and erase a paused session.
+
+![Restore a running or paused timer across restart (REQ-004/007) — diagram](diagrams/architecture-4.svg)
+
+<details>
+<summary>Mermaid source</summary>
 
 ```mermaid
 sequenceDiagram
@@ -448,12 +474,19 @@ sequenceDiagram
     U->>U: reconcileTimer(server, local) → restored session
 ```
 
+</details>
+
 ## AI categorization proposal → user confirms (REQ-012, ADR-0005/0008)
 
 The LLM only **proposes** a project (strictly out of the caller's known projects — never invented);
 a credit is debited once and only when the AI actually produced a proposal. Nothing is booked until
 the user taps Apply, which goes through the ordinary tracking route and stamps `ai-proposal`
 provenance.
+
+![AI categorization proposal → user confirms (REQ-012, ADR-0005/0008) — diagram](diagrams/architecture-5.svg)
+
+<details>
+<summary>Mermaid source</summary>
 
 ```mermaid
 sequenceDiagram
@@ -472,11 +505,18 @@ sequenceDiagram
     TR-->>C: entry (provenance = ai-proposal)
 ```
 
+</details>
+
 ## Deterministic rules — dry-run then apply (REQ-011, ADR-0005)
 
 Dry-run previews what the pure engine would propose over a batch of entries and **writes nothing**;
 the engine, not the service, decides every match. The user applies proposals through the same
 tracking route, which records `rule:<id>@<version>` provenance.
+
+![Deterministic rules — dry-run then apply (REQ-011, ADR-0005) — diagram](diagrams/architecture-6.svg)
+
+<details>
+<summary>Mermaid source</summary>
 
 ```mermaid
 sequenceDiagram
@@ -492,11 +532,18 @@ sequenceDiagram
     C->>C: user reviews, applies chosen proposals (via tracking PATCH)
 ```
 
+</details>
+
 ## Connect Google Calendar via OAuth (REQ-010)
 
 Authorize builds the provider URL with a signed state that binds the callback to the caller; the
 callback verifies the state, exchanges the code, and seals the tokens into the AEAD vault —
 preserving the stored refresh token when Google omits one on a reconnect.
+
+![Connect Google Calendar via OAuth (REQ-010) — diagram](diagrams/architecture-7.svg)
+
+<details>
+<summary>Mermaid source</summary>
 
 ```mermaid
 sequenceDiagram
@@ -515,12 +562,19 @@ sequenceDiagram
     CON-->>C: connected
 ```
 
+</details>
+
 ## Meeting: consent → transcribe → confirmed action items (REQ-025/026, ADR-0005)
 
 No capture path exists without stored, explicit consent. The transcript comes through the
 `TranscriptionPort` (Null adapter when no ASR is configured); insights and action items are
 **proposals**, and a task is created only on the user's confirmation through the ordinary tracking
 route.
+
+![Meeting: consent → transcribe → confirmed action items (REQ-025/026, ADR-0005) — diagram](diagrams/architecture-8.svg)
+
+<details>
+<summary>Mermaid source</summary>
 
 ```mermaid
 sequenceDiagram
@@ -539,11 +593,18 @@ sequenceDiagram
     C->>TR: POST /tracking/tasks  [on user confirm]
 ```
 
+</details>
+
 ## Invoice from a timesheet (REQ-005/009, ADR-0051)
 
 Every figure on the invoice is computed by the pure pricing/timesheet core from the recorded
 entries; the invoice persists the **frozen** numbers, and the PDF renders those — the AI is nowhere
 near a billable number.
+
+![Invoice from a timesheet (REQ-005/009, ADR-0051) — diagram](diagrams/architecture-9.svg)
+
+<details>
+<summary>Mermaid source</summary>
 
 ```mermaid
 sequenceDiagram
@@ -556,13 +617,20 @@ sequenceDiagram
     B->>DOM: buildTimesheet → priceInvoice (integer money)
     DOM-->>B: line items + totals (deterministic)
     B->>DB: INSERT invoice (frozen figures)
-    B-->>C: invoice; GET .../pdf renders the frozen numbers
+    B-->>C: invoice, then GET .../pdf renders the frozen numbers
 ```
+
+</details>
 
 ## Dev-tool export is idempotent (REQ-035)
 
 Posting an item is its confirmation; the recorded ledger feeds the seen-set so a re-run never
 double-posts, and an unconfigured target records an honest `unavailable` rather than failing.
+
+![Dev-tool export is idempotent (REQ-035) — diagram](diagrams/architecture-10.svg)
+
+<details>
+<summary>Mermaid source</summary>
 
 ```mermaid
 sequenceDiagram
@@ -577,6 +645,8 @@ sequenceDiagram
     EX->>L: record outcome per dedupeKey (sent rows immutable)
     EX-->>C: outcomes (re-run is a no-op for sent keys)
 ```
+
+</details>
 
 ---
 

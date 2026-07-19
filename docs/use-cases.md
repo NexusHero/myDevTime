@@ -78,6 +78,11 @@ AI, calendar, capture, identity, and payment use cases.
 
 ### Diagram 1 — The user's use cases by area {#diagram-user}
 
+![Diagram 1 — The user's use cases by area — diagram](diagrams/use-cases-1.svg)
+
+<details>
+<summary>Mermaid source</summary>
+
 ```mermaid
 flowchart LR
   User(["User"])
@@ -135,7 +140,14 @@ flowchart LR
   User --- USignIn & URole & UCredits & UGdpr
 ```
 
+</details>
+
 ### Diagram 2 — External-system integrations {#diagram-systems}
+
+![Diagram 2 — External-system integrations — diagram](diagrams/use-cases-2.svg)
+
+<details>
+<summary>Mermaid source</summary>
 
 ```mermaid
 flowchart LR
@@ -165,6 +177,8 @@ flowchart LR
   User --- UCSub --- Stripe
   User --- UCIap --- Stores
 ```
+
+</details>
 
 ## Use-case catalog {#catalog}
 
