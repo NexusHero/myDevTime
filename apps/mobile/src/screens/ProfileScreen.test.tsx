@@ -6,7 +6,7 @@ import { ToastProvider } from '../components/core/Toast.js'
 import { SessionProvider } from '../shell/SessionContext.js'
 import { TestQueryProvider } from '../test/TestQueryProvider.js'
 import { ApiError } from '../api/http.js'
-import { Button, Row } from '../components/index.js'
+import { Button, Row, Switch } from '../components/index.js'
 import type { SessionResource } from '../hooks/useSession.js'
 import type { ConnectorsResource } from '../hooks/useConnectors.js'
 import type { CalendarImportPlan, ConnectorStatus } from '../api/connectors.js'
@@ -55,6 +55,21 @@ const GITLAB_CONFIGURED: ConnectorStatus = {
   configured: true,
   connected: false,
   capabilities: [],
+}
+
+/** A configured-but-not-connected GitHub with two per-capability consent toggles. */
+function githubConfigured(inboundGranted: boolean): ConnectorStatus {
+  return {
+    id: 'github',
+    label: 'GitHub',
+    category: 'git',
+    configured: true,
+    connected: false,
+    capabilities: [
+      { capability: 'inbound', label: 'Read issues & commits', granted: inboundGranted },
+      { capability: 'outbound', label: 'Create issues', granted: false },
+    ],
+  }
 }
 
 function googleCalendar(inboundGranted: boolean): ConnectorStatus {
@@ -221,6 +236,56 @@ describe('ProfileScreen', () => {
     expect(tree).toContain('Sprint Planning') // proposal rendered as a ghost row
     expect(tree).toContain('nothing is booked') // labelled as proposals (ADR-0005)
     expect(findButton(renderer, 'Confirm import')).toBeDefined() // honest stub affordance
+  })
+
+  it('ConsentToggle_Renders_AndTogglingUngrantedCapabilityGrantsIt', () => {
+    const setConsent = vi.fn()
+    connectorsHolder.value = makeConnectors({
+      connectors: [githubConfigured(false)],
+      setConsent,
+    })
+    const { session } = fakeSession()
+    const renderer = render(session)
+
+    // Each declared capability is a labelled consent toggle.
+    const toggle = renderer.root
+      .findAllByType(Switch)
+      .find(
+        s =>
+          typeof s.props.accessibilityLabel === 'string' &&
+          s.props.accessibilityLabel.includes('Read issues & commits'),
+      )
+    expect(toggle).toBeDefined()
+
+    // Toggling an ungranted capability grants it via the hook's setConsent(id, cap, true).
+    act(() => {
+      toggle!.props.onChange(true)
+    })
+    expect(setConsent).toHaveBeenCalledWith('github', 'inbound', true)
+  })
+
+  it('Connect_IsGatedAndHinted_UntilACapabilityIsGranted', () => {
+    connectorsHolder.value = makeConnectors({ connectors: [githubConfigured(false)] })
+    const { session } = fakeSession()
+    const renderer = render(session)
+
+    // No consent yet → Connect is disabled and an honest hint explains why.
+    const connectBtn = findButton(renderer, 'Connect')
+    expect(connectBtn).toBeDefined()
+    expect(connectBtn!.props.disabled).toBe(true)
+    expect(JSON.stringify(renderer.toJSON())).toContain('Grant a permission above to connect')
+  })
+
+  it('Connect_BecomesEnabled_OnceACapabilityIsGranted', () => {
+    connectorsHolder.value = makeConnectors({ connectors: [githubConfigured(true)] })
+    const { session } = fakeSession()
+    const renderer = render(session)
+
+    // With inbound granted → Connect is enabled and the copy frames consent as revocable.
+    const connectBtn = findButton(renderer, 'Connect')
+    expect(connectBtn).toBeDefined()
+    expect(connectBtn!.props.disabled).toBe(false)
+    expect(JSON.stringify(renderer.toJSON())).toContain('revocable anytime')
   })
 
   it('CalendarPreview_ConsentGated_ShowsHonestReason', async () => {
