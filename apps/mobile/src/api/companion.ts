@@ -2,9 +2,10 @@ import { postJson } from './http.js'
 import { z } from 'zod'
 
 /**
- * The Evening Companion client (design v14 §H · ADR-0005/0029). The client hands the day's own
- * already-computed signals (planned/actual/overtime/break-shortfall/meetings/mood/plan-drift/absence)
- * plus a short recent load-score history to the server, which runs the deterministic wellbeing core
+ * The Evening Companion client (design v14 §H · ADR-0005/0029). The client hands the local day
+ * (`date` + `tz`) and its own already-computed signals (planned/actual/overtime/break-shortfall/
+ * meetings/mood/plan-drift/absence) to the server, which persists the day's load, runs the
+ * deterministic wellbeing core
  * (`reviewDay` + `computeBaseline`) — free, and the source of every number — and, when affordable,
  * lets the LLM weave those grounded facts into one warm evening paragraph and a gentle forward
  * suggestion. `message.source` carries the provenance the UI must show: `ai-proposal` means the LLM
@@ -92,16 +93,16 @@ export interface CompanionDayInput {
   readonly isAbsenceDay: boolean
 }
 
-/** One past day for the baseline (its load score + the weekday it fell on). */
-export interface CompanionHistoryDay {
-  readonly loadScore: number
-  readonly weekday: number
-}
-
-/** The evening-companion request: the day's signals plus an optional recent load history. */
+/**
+ * The evening-companion request: the local day being reviewed (`'YYYY-MM-DD'` + its IANA time zone,
+ * so the server records the load and windows the worktime feed) plus the day's own signals. The
+ * server owns the recent load history now — it persists each day's score and calibrates the baseline
+ * over the person's real series, so the client no longer sends one.
+ */
 export interface EveningCompanionInput {
+  readonly date: string
+  readonly tz?: string
   readonly day: CompanionDayInput
-  readonly history?: readonly CompanionHistoryDay[]
 }
 
 export function parseEveningCompanion(value: unknown): EveningCompanion {

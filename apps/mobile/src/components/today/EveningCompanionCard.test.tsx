@@ -31,10 +31,8 @@ const DAY: CompanionDayInput = {
   planDriftMinutes: 240,
   isAbsenceDay: false,
 }
-const HISTORY = [
-  { loadScore: 5, weekday: 1 },
-  { loadScore: 6, weekday: 2 },
-]
+const DATE = '2026-07-19'
+const TZ = 'Europe/Berlin'
 
 const AI_RESPONSE = {
   review: {
@@ -85,7 +83,7 @@ async function press(b: TestRenderer.ReactTestInstance): Promise<void> {
 describe('EveningCompanionCard', () => {
   it('Initial_ShowsTheReflectButton_AndNoReflection', () => {
     const r = render(
-      <EveningCompanionCard baseUrl="https://api.test" day={DAY} history={HISTORY} />,
+      <EveningCompanionCard baseUrl="https://api.test" date={DATE} tz={TZ} day={DAY} />,
     )
     expect(button(r, 'Reflect on today')).toBeDefined()
     expect(tree(r)).not.toContain('1 credit used')
@@ -98,15 +96,16 @@ describe('EveningCompanionCard', () => {
     const r = render(
       <EveningCompanionCard
         baseUrl="https://api.test"
+        date={DATE}
+        tz={TZ}
         day={DAY}
-        history={HISTORY}
         onConfirmSuggestion={onConfirmSuggestion}
       />,
     )
     await press(button(r, 'Reflect on today'))
 
     expect(requestEveningCompanion).toHaveBeenCalledTimes(1)
-    expect(requestEveningCompanion.mock.calls[0]?.[1]).toEqual({ day: DAY, history: HISTORY })
+    expect(requestEveningCompanion.mock.calls[0]?.[1]).toEqual({ date: DATE, tz: TZ, day: DAY })
 
     const out = tree(r)
     expect(out).toContain('A full one — let it go for the evening.')
@@ -133,7 +132,7 @@ describe('EveningCompanionCard', () => {
       },
     })
     const r = render(
-      <EveningCompanionCard baseUrl="https://api.test" day={DAY} history={HISTORY} />,
+      <EveningCompanionCard baseUrl="https://api.test" date={DATE} tz={TZ} day={DAY} />,
     )
     await press(button(r, 'Reflect on today'))
 
@@ -146,7 +145,7 @@ describe('EveningCompanionCard', () => {
   })
 
   it('DemoData_DisablesReflect_AndInvitesConnect', () => {
-    const r = render(<EveningCompanionCard baseUrl={null} day={DAY} />)
+    const r = render(<EveningCompanionCard baseUrl={null} date={DATE} tz={TZ} day={DAY} />)
     expect(button(r, 'Reflect on today').props.disabled).toBe(true)
     expect(tree(r)).toContain('Connect an account')
   })
