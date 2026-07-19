@@ -14,6 +14,8 @@ import { LlmAssistant } from './assistant.js'
 import { LlmInsights } from './insights.js'
 import { LlmStandupWriter } from './standup.js'
 import { LlmCategorizer } from './categorize.js'
+import { LlmEstimator } from './estimate.js'
+import { LlmMeetingInsights } from './meeting-insights.js'
 import { NullLlm } from './llm/null-llm.js'
 import { LlmUnavailableError, type LlmPort, type LlmRequest, type LlmResult } from './llm/port.js'
 
@@ -78,6 +80,8 @@ describe.skipIf(!databaseUrl)('ai module (integration)', () => {
       new LlmInsights(llm),
       new LlmStandupWriter(llm),
       new LlmCategorizer(llm),
+      new LlmEstimator(llm),
+      new LlmMeetingInsights(llm),
     )
   }
 
@@ -287,6 +291,96 @@ describe.skipIf(!databaseUrl)('ai module (integration)', () => {
     expect(res.source).toBe('none')
     expect(res.charged).toBe(false)
     expect(await balanceFor(db, wsA)).toBe(0)
+  })
+
+  // feature/medium → baseline 180–480 min; a valid in-bounds AI proposal.
+  const estimateInput = { category: 'feature', complexity: 'medium' } as const
+  const goodEstimate = '{"estimateMinutes":300,"rationale":"medium feature, clear scope"}'
+
+  it('Estimate_AiProposal_DebitsExactlyOneCredit', async () => {
+    await grant(db, wsA, { amount: 5, category: 'monthly-grant' })
+    const controller = controllerWith(new FakeLlm(true, goodEstimate))
+
+    const res = await controller.estimate(userA, estimateInput)
+
+    expect(res.source).toBe('ai-proposal')
+    expect(res.charged).toBe(true)
+    expect(res.estimateMinutes).toBe(300)
+    expect(res.baselineMin).toBe(180)
+    expect(res.baselineMax).toBe(480)
+    expect(await balanceFor(db, wsA)).toBe(4)
+  })
+
+  it('Estimate_ProviderDown_DegradesToBaselineAndDoesNotCharge', async () => {
+    await grant(db, wsA, { amount: 5, category: 'monthly-grant' })
+    const controller = controllerWith(new FakeLlm(false, 'unused'))
+
+    const res = await controller.estimate(userA, estimateInput)
+
+    expect(res.source).toBe('deterministic')
+    expect(res.charged).toBe(false)
+    expect(res.estimateMinutes).toBe(330)
+    expect(await balanceFor(db, wsA)).toBe(5)
+  })
+
+  it('Estimate_NoCredits_SkipsAiNoCharge', async () => {
+    // Zero balance → allowAi:false → the estimator returns the baseline midpoint, nothing charged.
+    const controller = controllerWith(new FakeLlm(true, goodEstimate))
+
+    const res = await controller.estimate(userA, estimateInput)
+
+    expect(res.source).toBe('deterministic')
+    expect(res.charged).toBe(false)
+    expect(await balanceFor(db, wsA)).toBe(0)
+  })
+
+  it('Estimate_MeteringIsWorkspaceIsolated', async () => {
+    await grant(db, wsA, { amount: 5, category: 'monthly-grant' })
+    const controller = controllerWith(new FakeLlm(true, goodEstimate))
+
+    await controller.estimate(userA, estimateInput)
+
+    expect(await balanceFor(db, wsA)).toBe(4)
+    expect(await balanceFor(db, wsB)).toBe(0)
+  })
+
+  const meetingSegments = [
+    { speaker: 'Ann', startMs: 0, endMs: 1000, text: 'We will ship the pricing API on Friday.' },
+    { speaker: 'Ben', startMs: 1000, endMs: 2000, text: 'Ben should review the migration PR.' },
+  ]
+
+  it('MeetingInsights_AiSummary_DebitsExactlyOneCreditAndReturnsConfirmedOnlyActions', async () => {
+    await grant(db, wsA, { amount: 5, category: 'monthly-grant' })
+    const controller = controllerWith(new FakeLlm(true, 'The team agreed to ship the pricing API.'))
+
+    const res = await controller.meetingInsightsReview(userA, { segments: meetingSegments })
+
+    expect(res.summary.source).toBe('ai-proposal')
+    expect(res.summary.charged).toBe(true)
+    expect(res.facts.length).toBeGreaterThan(0)
+    expect(res.actionItems.every(a => (a.provenance as string) === 'ai-proposal')).toBe(true)
+    expect(await balanceFor(db, wsA)).toBe(4)
+  })
+
+  it('MeetingInsights_ProviderDown_DeterministicSummaryDoesNotCharge', async () => {
+    await grant(db, wsA, { amount: 5, category: 'monthly-grant' })
+    const controller = controllerWith(new FakeLlm(false, 'unused'))
+
+    const res = await controller.meetingInsightsReview(userA, { segments: meetingSegments })
+
+    expect(res.summary.source).toBe('deterministic')
+    expect(res.summary.charged).toBe(false)
+    expect(await balanceFor(db, wsA)).toBe(5)
+  })
+
+  it('MeetingInsights_MeteringIsWorkspaceIsolated', async () => {
+    await grant(db, wsA, { amount: 5, category: 'monthly-grant' })
+    const controller = controllerWith(new FakeLlm(true, 'The team agreed to ship the pricing API.'))
+
+    await controller.meetingInsightsReview(userA, { segments: meetingSegments })
+
+    expect(await balanceFor(db, wsA)).toBe(4)
+    expect(await balanceFor(db, wsB)).toBe(0)
   })
 
   it('NlEntry_DeterministicParse_ReturnsDraftAndPersistsNothing', async () => {
