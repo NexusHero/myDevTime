@@ -3,7 +3,12 @@ import { Linking, Platform, Pressable, View, useWindowDimensions } from 'react-n
 import { Text } from '../components/core/Text'
 import { useToast } from '../components/core/Toast'
 import { ApiError } from '../api/http'
-import type { CalendarImportPlan, MergeChange } from '../api/connectors'
+import type {
+  CalendarImportPlan,
+  Capability,
+  ConnectorStatus,
+  MergeChange,
+} from '../api/connectors'
 import {
   PROFILE_HUB_LINKS,
   formatDuration,
@@ -273,6 +278,75 @@ function CalendarImportPreview({
               </Button>
             </>
           )}
+        </View>
+      )}
+    </View>
+  )
+}
+
+/**
+ * Per-capability consent for a connector (REQ-025, ADR-0033): each capability is a
+ * labelled, revocable toggle wired straight to `setConsent`. Consent-first — the
+ * backend `authorize` endpoint refuses (409) until at least one capability is granted,
+ * so a not-yet-connected connector surfaces the **Connect** button only once consent
+ * exists (`hasConsent`), with an honest hint until then. Nothing here connects on its
+ * own; granting a permission is required first and revocable at any time.
+ */
+function ConnectorConsent({
+  item,
+  busy,
+  onToggleConsent,
+  onConnect,
+}: {
+  readonly item: ConnectorStatus
+  readonly busy: boolean
+  readonly onToggleConsent: (capability: Capability, granted: boolean) => void
+  readonly onConnect: () => void
+}): React.JSX.Element {
+  const t = useTheme()
+  const hasConsent = item.capabilities.some(c => c.granted)
+  return (
+    <View
+      style={{
+        marginTop: t.spacing.s2,
+        marginBottom: t.spacing.s2,
+        paddingLeft: 40,
+        gap: t.spacing.s3,
+      }}
+    >
+      <MicroLabel>Permissions</MicroLabel>
+      <View style={{ gap: t.spacing.s3 }}>
+        {item.capabilities.map(cap => (
+          <View
+            key={cap.capability}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: t.spacing.s3,
+            }}
+          >
+            <Text style={{ flex: 1, fontSize: t.fontSize.xs, color: t.color.ink2 }}>
+              {cap.label}
+            </Text>
+            <Switch
+              checked={cap.granted}
+              onChange={next => onToggleConsent(cap.capability, next)}
+              accessibilityLabel={`${item.label} · ${cap.label}`}
+            />
+          </View>
+        ))}
+      </View>
+      {!item.connected && (
+        <View style={{ gap: t.spacing.s2 }}>
+          <Button size="sm" variant="secondary" disabled={busy || !hasConsent} onPress={onConnect}>
+            {busy ? 'Connecting…' : 'Connect'}
+          </Button>
+          <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
+            {hasConsent
+              ? 'Granting a permission is required to connect — revocable anytime.'
+              : 'Grant a permission above to connect.'}
+          </Text>
         </View>
       )}
     </View>
@@ -568,6 +642,12 @@ export function ProfileScreen({
         // Honest state (M3): connected (sealed token) → good; configured but not yet
         // connected → "Connect"; not configured in this deployment → "Planned".
         const busy = connecting === item.id
+        const hasConsent = item.capabilities.some(c => c.granted)
+        // A configured provider exposes its consent toggles; the OAuth **Connect** action
+        // lives in that block, gated on consent (REQ-025/ADR-0033 — the backend authorize
+        // endpoint 409s with no capability granted). Only a configured provider that has no
+        // declared capabilities falls back to connecting straight from the row.
+        const showConsent = item.configured && item.capabilities.length > 0
         const tone: 'good' | 'accent' | 'neutral' = item.connected
           ? 'good'
           : item.configured
@@ -578,9 +658,12 @@ export function ProfileScreen({
           : busy
             ? 'Connecting…'
             : item.configured
-              ? 'Connect'
+              ? hasConsent || !showConsent
+                ? 'Connect'
+                : 'Consent required'
               : 'Planned'
-        // Connected → tap disconnects; configured-not-connected → tap starts OAuth;
+        // Connected → tap disconnects; configured-with-capabilities → connect via the gated
+        // button in the consent block; configured-without-capabilities → tap starts OAuth;
         // not configured → no affordance (honestly "Planned").
         const onPress = item.connected
           ? () =>
@@ -590,46 +673,59 @@ export function ProfileScreen({
                 confirmLabel: 'Disconnect',
                 onConfirm: () => connectors.disconnect(item.id),
               })
-          : item.configured
+          : item.configured && !showConsent
             ? () => handleConnect(item.id)
             : undefined
         return (
-          <Row
-            key={item.id}
-            title={item.label}
-            subtitle={
-              item.connected
-                ? 'Connected · tap to disconnect'
-                : item.configured
-                  ? 'Ready to connect (OAuth)'
-                  : 'Not yet configured for this instance'
-            }
-            leading={
-              <View
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 8,
-                  backgroundColor: t.color.ink,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text
+          <View key={item.id}>
+            <Row
+              title={item.label}
+              subtitle={
+                item.connected
+                  ? 'Connected · tap to disconnect'
+                  : item.configured
+                    ? showConsent && !hasConsent
+                      ? 'Grant a permission below to connect'
+                      : 'Ready to connect (OAuth)'
+                    : 'Not yet configured for this instance'
+              }
+              leading={
+                <View
                   style={{
-                    fontSize: t.fontSize.xs,
-                    fontWeight: '700',
-                    color: t.color.surface,
-                    fontFamily: t.fontFamily.display,
+                    width: 28,
+                    height: 28,
+                    borderRadius: 8,
+                    backgroundColor: t.color.ink,
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}
                 >
-                  {item.label[0]}
-                </Text>
-              </View>
-            }
-            trailing={<Badge tone={tone}>{label}</Badge>}
-            {...(onPress ? { onPress } : {})}
-          />
+                  <Text
+                    style={{
+                      fontSize: t.fontSize.xs,
+                      fontWeight: '700',
+                      color: t.color.surface,
+                      fontFamily: t.fontFamily.display,
+                    }}
+                  >
+                    {item.label[0]}
+                  </Text>
+                </View>
+              }
+              trailing={<Badge tone={tone}>{label}</Badge>}
+              {...(onPress ? { onPress } : {})}
+            />
+            {showConsent && (
+              <ConnectorConsent
+                item={item}
+                busy={busy}
+                onToggleConsent={(capability, granted) =>
+                  connectors.setConsent(item.id, capability, granted)
+                }
+                onConnect={() => handleConnect(item.id)}
+              />
+            )}
+          </View>
         )
       })}
       {googleCalendar?.connected === true && (

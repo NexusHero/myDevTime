@@ -64,6 +64,38 @@ const DEMO_CONNECTORS: readonly ConnectorStatus[] = [
     connected: false,
     capabilities: [],
   },
+  {
+    id: 'azure-devops',
+    label: 'Azure DevOps',
+    category: 'issues',
+    configured: false,
+    connected: false,
+    capabilities: [{ capability: 'inbound', label: 'Read work items', granted: false }],
+  },
+  {
+    id: 'google-calendar',
+    label: 'Google Calendar',
+    category: 'calendar',
+    configured: false,
+    connected: false,
+    capabilities: [{ capability: 'inbound', label: 'Read events', granted: false }],
+  },
+  {
+    id: 'microsoft-calendar',
+    label: 'Microsoft Calendar',
+    category: 'calendar',
+    configured: false,
+    connected: false,
+    capabilities: [{ capability: 'inbound', label: 'Read events', granted: false }],
+  },
+  {
+    id: 'apple-calendar',
+    label: 'Apple Calendar',
+    category: 'calendar',
+    configured: false,
+    connected: false,
+    capabilities: [{ capability: 'inbound', label: 'Read events', granted: false }],
+  },
 ]
 
 export interface ConnectorsResource {
