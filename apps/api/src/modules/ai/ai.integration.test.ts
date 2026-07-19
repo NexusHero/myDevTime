@@ -16,6 +16,7 @@ import { LlmStandupWriter } from './standup.js'
 import { LlmCategorizer } from './categorize.js'
 import { LlmEstimator } from './estimate.js'
 import { LlmMeetingInsights } from './meeting-insights.js'
+import { LlmCompanion } from './companion.js'
 import { NullLlm } from './llm/null-llm.js'
 import { LlmUnavailableError, type LlmPort, type LlmRequest, type LlmResult } from './llm/port.js'
 
@@ -82,6 +83,7 @@ describe.skipIf(!databaseUrl)('ai module (integration)', () => {
       new LlmCategorizer(llm),
       new LlmEstimator(llm),
       new LlmMeetingInsights(llm),
+      new LlmCompanion(llm),
     )
   }
 
@@ -381,6 +383,47 @@ describe.skipIf(!databaseUrl)('ai module (integration)', () => {
 
     expect(await balanceFor(db, wsA)).toBe(4)
     expect(await balanceFor(db, wsB)).toBe(0)
+  })
+
+  const companionDay = {
+    plannedMinutes: 360,
+    actualMinutes: 600,
+    overtimeMinutes: 90,
+    breakShortfallMinutes: 30,
+    meetingCount: 6,
+    backToBackMeetingCount: 3,
+    planDriftMinutes: 240,
+    isAbsenceDay: false,
+  }
+  const goodCompanion = JSON.stringify({
+    narration: 'A full one — let it go for the evening.',
+    suggestion: 'Guard your first hour tomorrow.',
+  })
+
+  it('EveningCompanion_AiNarration_DebitsExactlyOneCredit', async () => {
+    await grant(db, wsA, { amount: 5, category: 'monthly-grant' })
+    const controller = controllerWith(new FakeLlm(true, goodCompanion))
+
+    const res = await controller.eveningCompanion(userA, { day: companionDay })
+
+    expect(res.message.source).toBe('ai-proposal')
+    expect(res.message.charged).toBe(true)
+    // the deterministic core still owns the numbers on the AI path
+    expect(res.review.loadLevel).toBe('overload')
+    expect(res.suggestion?.provenance).toBe('ai-proposal')
+    expect(await balanceFor(db, wsA)).toBe(4)
+  })
+
+  it('EveningCompanion_ProviderDown_DegradesFreeAndDoesNotCharge', async () => {
+    await grant(db, wsA, { amount: 5, category: 'monthly-grant' })
+    const controller = controllerWith(new FakeLlm(false, 'unused'))
+
+    const res = await controller.eveningCompanion(userA, { day: companionDay })
+
+    expect(res.message.source).toBe('deterministic')
+    expect(res.message.charged).toBe(false)
+    expect(res.review.signals.length).toBeGreaterThan(0)
+    expect(await balanceFor(db, wsA)).toBe(5)
   })
 
   it('NlEntry_DeterministicParse_ReturnsDraftAndPersistsNothing', async () => {

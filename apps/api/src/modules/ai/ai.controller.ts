@@ -12,10 +12,12 @@ import { STANDUP_WRITER, type StandupWriter } from './standup.js'
 import { CATEGORIZER, type Categorizer } from './categorize.js'
 import { ESTIMATOR, type Estimator } from './estimate.js'
 import { MEETING_INSIGHTS, type MeetingInsightsService } from './meeting-insights.js'
+import { COMPANION, type CompanionService } from './companion.js'
 import {
   AssistantDto,
   CategorizeDto,
   EstimateDto,
+  EveningCompanionDto,
   InsightDto,
   MeetingInsightsDto,
   NlEntryDto,
@@ -35,6 +37,8 @@ const CATEGORIZE_CREDIT_COST = 1
 const ESTIMATE_CREDIT_COST = 1
 /** One AI meeting summary costs one credit, charged only on a real AI proposal (ADR-0008). */
 const MEETING_INSIGHTS_CREDIT_COST = 1
+/** One AI evening-companion narration costs one credit, charged only on a real AI proposal (ADR-0008). */
+const COMPANION_CREDIT_COST = 1
 
 /**
  * The `ai` module (LLM proposals, NL entry, assistant — ADR-0025/0029). The status
@@ -55,6 +59,7 @@ export class AiController {
     @Inject(CATEGORIZER) private readonly categorizer: Categorizer,
     @Inject(ESTIMATOR) private readonly estimator: Estimator,
     @Inject(MEETING_INSIGHTS) private readonly meetingInsights: MeetingInsightsService,
+    @Inject(COMPANION) private readonly companion: CompanionService,
   ) {}
 
   @Get('status')
@@ -262,6 +267,42 @@ export class AiController {
       summary: { source: result.summary.source, text: result.summary.text, charged },
       facts: result.facts,
       actionItems: result.actionItems,
+    }
+  }
+
+  /**
+   * The Evening Companion (design v14 §H, ADR-0005): the deterministic wellbeing core (`reviewDay`
+   * + `computeBaseline`) runs over the caller's own day signals and load history — free, and the
+   * source of every number returned. On top, the LLM weaves those grounded facts into one warm
+   * evening paragraph plus one gentle forward suggestion; a credit is debited once only when that AI
+   * narration is produced. A down provider, no credits, an absence day, or an unusable reply degrade
+   * to a still-caring deterministic template built from the same signals and cost nothing. Nothing is
+   * booked or planned — the suggestion is a proposal the client confirms (ADR-0005).
+   */
+  @Post('evening-companion')
+  @UseGuards(AuthGuard)
+  async eveningCompanion(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: EveningCompanionDto,
+  ) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    const allowAi = (await balanceFor(db, workspaceId)) >= COMPANION_CREDIT_COST
+    const result = await this.companion.compose(body.day, body.history ?? [], { allowAi })
+    let charged = false
+    if (result.message.source === 'ai-proposal') {
+      await debit(db, workspaceId, {
+        amount: COMPANION_CREDIT_COST,
+        category: 'assistant',
+        reason: 'AI evening companion narration',
+        operationId: `evening-companion:${workspaceId}:${randomUUID()}`,
+      })
+      charged = true
+    }
+    return {
+      review: result.review,
+      baseline: result.baseline,
+      message: { source: result.message.source, text: result.message.text, charged },
+      ...(result.suggestion !== undefined ? { suggestion: result.suggestion } : {}),
     }
   }
 

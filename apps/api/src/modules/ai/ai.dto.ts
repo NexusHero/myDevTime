@@ -146,6 +146,44 @@ export class EstimateDto extends createZodDto(
 ) {}
 
 /**
+ * The Evening Companion request (design v14 §H, ADR-0005): the day's raw, already-computed signals
+ * plus an optional recent load-score history for the baseline. The server runs the deterministic
+ * wellbeing core (`reviewDay` + `computeBaseline`) over these — free — and only then, optionally,
+ * lets the LLM narrate around those grounded facts. Nothing is written or planned (proposal-only).
+ */
+export class EveningCompanionDto extends createZodDto(
+  z.object({
+    day: z.object({
+      plannedMinutes: z.number().int().nonnegative(),
+      actualMinutes: z.number().int().nonnegative(),
+      overtimeMinutes: z.number().int().nonnegative(),
+      breakShortfallMinutes: z.number().int().nonnegative(),
+      meetingCount: z.number().int().nonnegative(),
+      backToBackMeetingCount: z.number().int().nonnegative(),
+      /** Optional self-reported mood, 1 (low)…5 (high). Absent when the user did not log it. */
+      moodScore: z
+        .number()
+        .int()
+        .refine((n): n is 1 | 2 | 3 | 4 | 5 => n >= 1 && n <= 5, 'moodScore must be 1–5')
+        .optional(),
+      /** Signed drift of actual vs plan (`actual − planned`); positive means over the plan. */
+      planDriftMinutes: z.number().int(),
+      isAbsenceDay: z.boolean(),
+    }),
+    /** Recent days (oldest→newest) as `{ loadScore, weekday }`, for the person's own baseline. */
+    history: z
+      .array(
+        z.object({
+          loadScore: z.number(),
+          weekday: z.number().int().min(0).max(6),
+        }),
+      )
+      .max(120)
+      .optional(),
+  }),
+) {}
+
+/**
  * The meeting-insights request (REQ-026, #33): a transcript (segments the client captured with
  * consent — live audio capture is out of scope, #31/#32) plus an optional focus that biases what
  * an AI summary emphasises. The server extracts grounded facts and confirmed-only action-item
