@@ -24,6 +24,14 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
+    // Emulate `prefers-reduced-motion: reduce` so the design system's continuous
+    // animations (Island/LiveButton pulse, tracker breathing — all gated on
+    // reanimated's `useReducedMotion`, which reads this media query on web) settle
+    // to their target state. Without it a perpetually-animating punch control never
+    // reaches a stable box and `click()` retries until timeout — the flake that made
+    // the timer start/stop golden path fail intermittently. Motion is a11y-gated in
+    // production anyway, so this tests the same behaviour, deterministically.
+    reducedMotion: 'reduce',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
 })
