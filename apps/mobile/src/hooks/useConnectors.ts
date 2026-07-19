@@ -1,10 +1,15 @@
 import { useCallback } from 'react'
+import { Platform } from 'react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiBaseUrl } from '../config.js'
 import {
+  authorizeConnector,
   disconnectConnector,
   getConnectors,
+  previewCalendarImport,
   setConsent,
+  type CalendarImportPlan,
+  type CalendarPreviewRange,
   type Capability,
   type ConnectorStatus,
 } from '../api/connectors.js'
@@ -68,6 +73,20 @@ export interface ConnectorsResource {
   readonly error: Error | null
   readonly setConsent: (id: string, capability: Capability, granted: boolean) => void
   readonly disconnect: (id: string) => void
+  /**
+   * Start the OAuth flow: fetch the provider authorize URL and, on web, navigate to
+   * it (`window.location.assign`); on native the URL is returned for the caller to
+   * open (`Linking.openURL`). Rejects with the backend's honest 409 `ApiError` when
+   * the provider isn't configured / no consent is granted — never a fake connect.
+   * Resolves `null` offline (no backend to authorize against).
+   */
+  readonly connect: (id: string) => Promise<string | null>
+  /**
+   * Preview the Google Calendar import: the deterministic `planImport` **proposals**
+   * (ghost blocks, writes nothing — ADR-0005). Rejects with the honest 409 `ApiError`
+   * when `inbound` consent is missing or the calendar isn't connected (REQ-025).
+   */
+  readonly previewCalendar: (range?: CalendarPreviewRange) => Promise<CalendarImportPlan>
 }
 
 export function useConnectors(): ConnectorsResource {
@@ -108,6 +127,30 @@ export function useConnectors(): ConnectorsResource {
     [base, disconnectMutation],
   )
 
+  const doConnect = useCallback(
+    async (id: string): Promise<string | null> => {
+      if (base === null) return null // offline: OAuth needs the vault backend
+      const { url } = await authorizeConnector(base, id)
+      // Web hands off to the provider in the same tab; native returns the URL so the
+      // caller can open it (Linking) and receive the deep-link callback.
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.location.assign(url)
+      }
+      return url
+    },
+    [base],
+  )
+
+  const doPreviewCalendar = useCallback(
+    (range: CalendarPreviewRange = {}): Promise<CalendarImportPlan> => {
+      if (base === null) {
+        return Promise.reject(new Error('Calendar preview needs a configured backend'))
+      }
+      return previewCalendarImport(base, range)
+    },
+    [base],
+  )
+
   return {
     connectors: query.data ?? DEMO_CONNECTORS,
     live,
@@ -117,5 +160,7 @@ export function useConnectors(): ConnectorsResource {
     error: query.error ?? consentMutation.error ?? disconnectMutation.error,
     setConsent: doConsent,
     disconnect: doDisconnect,
+    connect: doConnect,
+    previewCalendar: doPreviewCalendar,
   }
 }

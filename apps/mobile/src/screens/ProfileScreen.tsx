@@ -1,6 +1,9 @@
 import { useState } from 'react'
-import { Pressable, View, useWindowDimensions } from 'react-native'
+import { Linking, Platform, Pressable, View, useWindowDimensions } from 'react-native'
 import { Text } from '../components/core/Text'
+import { useToast } from '../components/core/Toast'
+import { ApiError } from '../api/http'
+import type { CalendarImportPlan, MergeChange } from '../api/connectors'
 import {
   PROFILE_HUB_LINKS,
   formatDuration,
@@ -58,6 +61,23 @@ const MONTH_SHORT = [
 function shortDate(iso: string): string {
   const [, m, d] = iso.slice(0, 10).split('-')
   return `${String(Number(d))}. ${MONTH_SHORT[Number(m) - 1] ?? ''}`
+}
+
+/** Weekday labels indexed by `Date.getDay()` (0 = Sunday) for the preview slot label. */
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
+
+/** A compact `Tue 14:00–15:00` label for a proposed ghost block (display-only). */
+function previewSlot(startMs: number, endMs: number): string {
+  const hm = (ms: number): string => {
+    const at = new Date(ms)
+    return `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`
+  }
+  return `${DOW[new Date(startMs).getDay()] ?? ''} ${hm(startMs)}–${hm(endMs)}`
+}
+
+/** The server's honest reason (RFC 7807 detail/title), or a neutral fallback. */
+function honestReason(err: unknown, fallback: string): string {
+  return err instanceof ApiError ? (err.detail ?? err.title) : fallback
 }
 
 /** Appearance controls, wired to the live ThemeProvider. */
@@ -151,6 +171,114 @@ function MetaRow({
   )
 }
 
+/** A single proposed ghost block — clearly a proposal, styled to read as not-yet-real. */
+function GhostRow({ change }: { readonly change: MergeChange }): React.JSX.Element {
+  const t = useTheme()
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: t.spacing.s2,
+        paddingVertical: t.spacing.s2,
+        paddingHorizontal: t.spacing.s3,
+        borderRadius: t.radius.card,
+        borderWidth: t.borderWidth.medium,
+        borderStyle: 'dashed',
+        borderColor: t.color.border,
+        backgroundColor: t.color.sunk,
+      }}
+    >
+      <View style={{ flex: 1 }}>
+        <Text
+          numberOfLines={1}
+          style={{ fontSize: t.fontSize.sm, fontWeight: '600', color: t.color.ink2 }}
+        >
+          {change.event.title}
+        </Text>
+        <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3, marginTop: 1 }}>
+          {previewSlot(change.event.startMs, change.event.endMs)}
+        </Text>
+      </View>
+      <Badge tone={change.kind === 'new' ? 'accent' : 'neutral'}>
+        {change.kind === 'new' ? 'New' : 'Changed'}
+      </Badge>
+    </View>
+  )
+}
+
+/**
+ * The calendar import preview surface (REQ-010, #15): triggers `previewCalendar` and
+ * renders the returned **proposals** as ghost rows — labelled as proposals that write
+ * nothing (ADR-0005). Consent/connection gaps surface the backend's honest 409 reason;
+ * there is no import-commit endpoint yet, so Confirm is an honest stub toast.
+ */
+function CalendarImportPreview({
+  busy,
+  plan,
+  error,
+  onPreview,
+  onConfirm,
+}: {
+  readonly busy: boolean
+  readonly plan: CalendarImportPlan | null
+  readonly error: string | null
+  readonly onPreview: () => void
+  readonly onConfirm: () => void
+}): React.JSX.Element {
+  const t = useTheme()
+  const changes = plan?.proposal.changes ?? []
+  return (
+    <View
+      style={{
+        marginTop: t.spacing.s3,
+        paddingTop: t.spacing.s3,
+        borderTopWidth: 1,
+        borderTopColor: t.color.border,
+        gap: t.spacing.s3,
+      }}
+    >
+      <MicroLabel>Calendar import</MicroLabel>
+      <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
+        Previews propose ghost blocks to confirm — nothing is booked automatically.
+      </Text>
+      <Button size="sm" variant="secondary" disabled={busy} onPress={onPreview}>
+        {busy ? 'Loading preview…' : 'Preview calendar import'}
+      </Button>
+      {error !== null && (
+        <Text style={{ fontSize: t.fontSize.xs, color: t.color.warn }}>{error}</Text>
+      )}
+      {plan !== null && error === null && (
+        <View style={{ gap: t.spacing.s2 }}>
+          {plan.status !== 'ok' ? (
+            <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>
+              The calendar is unavailable right now — no events proposed.
+            </Text>
+          ) : changes.length === 0 ? (
+            <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>
+              No new events to import — nothing to propose.
+            </Text>
+          ) : (
+            <>
+              <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
+                {String(changes.length)} proposal{changes.length === 1 ? '' : 's'} · nothing is
+                booked (ADR-0005)
+              </Text>
+              {changes.map(change => (
+                <GhostRow key={change.event.uid} change={change} />
+              ))}
+              <Button size="sm" variant="secondary" onPress={onConfirm}>
+                Confirm import
+              </Button>
+            </>
+          )}
+        </View>
+      )}
+    </View>
+  )
+}
+
 export function ProfileScreen({
   onNavigate,
 }: {
@@ -170,6 +298,47 @@ export function ProfileScreen({
   const credits = useCredits()
   const wt = useWorktime()
   const absences = useAbsences()
+  const toast = useToast()
+
+  // OAuth connect + calendar-import preview state (REQ-010, #15). The preview holds
+  // only **proposals** — nothing is booked (ADR-0005) — or the backend's honest 409.
+  const [connecting, setConnecting] = useState<string | null>(null)
+  const [previewBusy, setPreviewBusy] = useState(false)
+  const [previewPlan, setPreviewPlan] = useState<CalendarImportPlan | null>(null)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+
+  const handleConnect = (id: string): void => {
+    setConnecting(id)
+    void (async () => {
+      try {
+        const url = await connectors.connect(id)
+        // Web navigates inside the hook; native opens the returned provider URL.
+        if (url !== null && Platform.OS !== 'web') void Linking.openURL(url)
+      } catch (err) {
+        // 409 "not configured" / "no consent" → show the honest reason, never a fake connect.
+        toast.show(honestReason(err, 'Could not start the connect flow'))
+      } finally {
+        setConnecting(null)
+      }
+    })()
+  }
+
+  const handlePreviewCalendar = (): void => {
+    setPreviewBusy(true)
+    setPreviewError(null)
+    void (async () => {
+      try {
+        setPreviewPlan(await connectors.previewCalendar())
+      } catch (err) {
+        setPreviewPlan(null)
+        setPreviewError(honestReason(err, 'Calendar preview is unavailable right now'))
+      } finally {
+        setPreviewBusy(false)
+      }
+    })()
+  }
+
+  const googleCalendar = connectors.connectors.find(c => c.id === 'google-calendar')
 
   const creditBalance = credits.data?.balance ?? 0
   const ledger = (credits.data?.ledger ?? []).slice(0, 3)
@@ -398,12 +567,32 @@ export function ProfileScreen({
       {connectors.connectors.map(item => {
         // Honest state (M3): connected (sealed token) → good; configured but not yet
         // connected → "Connect"; not configured in this deployment → "Planned".
+        const busy = connecting === item.id
         const tone: 'good' | 'accent' | 'neutral' = item.connected
           ? 'good'
           : item.configured
             ? 'accent'
             : 'neutral'
-        const label = item.connected ? 'Connected' : item.configured ? 'Connect' : 'Planned'
+        const label = item.connected
+          ? 'Connected'
+          : busy
+            ? 'Connecting…'
+            : item.configured
+              ? 'Connect'
+              : 'Planned'
+        // Connected → tap disconnects; configured-not-connected → tap starts OAuth;
+        // not configured → no affordance (honestly "Planned").
+        const onPress = item.connected
+          ? () =>
+              confirmDestructive({
+                title: 'Disconnect integration?',
+                message: `Disconnect ${item.label}? You can reconnect anytime via OAuth.`,
+                confirmLabel: 'Disconnect',
+                onConfirm: () => connectors.disconnect(item.id),
+              })
+          : item.configured
+            ? () => handleConnect(item.id)
+            : undefined
         return (
           <Row
             key={item.id}
@@ -439,20 +628,23 @@ export function ProfileScreen({
               </View>
             }
             trailing={<Badge tone={tone}>{label}</Badge>}
-            {...(item.connected
-              ? {
-                  onPress: () =>
-                    confirmDestructive({
-                      title: 'Disconnect integration?',
-                      message: `Disconnect ${item.label}? You can reconnect anytime via OAuth.`,
-                      confirmLabel: 'Disconnect',
-                      onConfirm: () => connectors.disconnect(item.id),
-                    }),
-                }
-              : {})}
+            {...(onPress ? { onPress } : {})}
           />
         )
       })}
+      {googleCalendar?.connected === true && (
+        <CalendarImportPreview
+          busy={previewBusy}
+          plan={previewPlan}
+          error={previewError}
+          onPreview={handlePreviewCalendar}
+          onConfirm={() =>
+            toast.show(
+              'Import commit isn’t available yet — these are proposals, nothing was booked.',
+            )
+          }
+        />
+      )}
     </Card>
   )
 
