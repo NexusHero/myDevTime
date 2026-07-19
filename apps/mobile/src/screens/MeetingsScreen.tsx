@@ -1,9 +1,15 @@
 import { useState } from 'react'
-import { Pressable, View, useWindowDimensions } from 'react-native'
+import { Pressable, TextInput, View, useWindowDimensions } from 'react-native'
 import { projectColor } from '@mydevtime/design'
 import { Text } from '../components/core/Text'
 import { Badge, Button, Card, EmptyState, ScreenScaffold } from '../components/index'
 import { useTheme } from '../theme/ThemeProvider'
+import { apiBaseUrl } from '../config'
+import {
+  requestMeetingInsights,
+  type MeetingInsightsResult,
+  type MeetingSegment,
+} from '../api/meetingInsights'
 import { MeetingNote } from './MeetingNote'
 
 /**
@@ -66,6 +72,10 @@ export function MeetingsScreen(): React.JSX.Element {
       <ScreenScaffold header={header}>
         {/* KI4 — turn your own meeting notes into grounded follow-ups (no ASR needed). */}
         <MeetingNote />
+        {/* REQ-026/#33 — paste a real transcript (Zoom/Teams/Meet) → grounded insights over the
+            live /api/ai/meeting-insights endpoint. Live auto-capture/ASR is spike-gated (#31), so
+            the honest transcript source today is the one the user brings. */}
+        <TranscriptInsights />
         <EmptyState
           title="No recorded meetings yet"
           hint="Auto-capture with a transcript is coming (consent-first); until then, jot notes above and get grounded follow-ups. Every figure comes from the deterministic core, never the model."
@@ -229,7 +239,9 @@ export function MeetingsScreen(): React.JSX.Element {
             <View style={{ flexDirection: 'row' }}>
               <Button
                 size="sm"
-                onPress={() => setNote('Summarizing would cost 1 AI credit (demo).')}
+                onPress={() =>
+                  setNote('Paste the transcript into the “Summarize a transcript” box to run it.')
+                }
               >
                 ✦ Summarize · 1 credit
               </Button>
@@ -301,5 +313,145 @@ function Section({
       </View>
       {children}
     </View>
+  )
+}
+
+/**
+ * Paste a real meeting transcript → grounded insights over the live
+ * `/api/ai/meeting-insights` endpoint (REQ-026, #33). The summary is the only AI-priced part and
+ * degrades to a free deterministic summary when the provider is down; facts + action items are
+ * deterministic and free, and every action item is a **proposal** (`ai-proposal`) — nothing is
+ * booked (ADR-0005). This is the honest usable surface until auto-capture/ASR lands (#31): the
+ * transcript source is whatever the user brings.
+ */
+export function TranscriptInsights(): React.JSX.Element {
+  const t = useTheme()
+  const [text, setText] = useState('')
+  const [result, setResult] = useState<MeetingInsightsResult | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const base = apiBaseUrl
+  const trimmed = text.trim()
+  const canRun = base !== null && trimmed.length > 0 && !busy
+
+  const run = (): void => {
+    if (base === null || trimmed.length === 0 || busy) return
+    setBusy(true)
+    setError(null)
+    const segments: MeetingSegment[] = [{ text: trimmed }]
+    requestMeetingInsights(base, { segments })
+      .then(r => {
+        setResult(r)
+      })
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : 'Could not summarize the transcript.')
+      })
+      .finally(() => {
+        setBusy(false)
+      })
+  }
+
+  const isAi = result !== null && result.summary.source === 'ai-proposal'
+  const label2xs = {
+    fontSize: t.fontSize['2xs'],
+    fontWeight: '700' as const,
+    color: t.color.ink2,
+    textTransform: 'uppercase' as const,
+    letterSpacing: t.fontSize['2xs'] * t.letterSpacing.wide,
+  }
+
+  return (
+    <Card title="Summarize a transcript">
+      <View style={{ gap: t.spacing.s3 }}>
+        <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, lineHeight: 20 }}>
+          Paste a meeting transcript (Zoom, Teams, Meet…). The summary is AI (1 credit); the facts
+          and action items are deterministic and free — nothing is booked.
+        </Text>
+        <TextInput
+          value={text}
+          onChangeText={setText}
+          placeholder="Paste transcript text…"
+          placeholderTextColor={t.color.ink3}
+          multiline
+          accessibilityLabel="Meeting transcript"
+          style={{
+            minHeight: 96,
+            padding: t.spacing.s3,
+            borderRadius: t.radius.block,
+            borderWidth: 1,
+            borderColor: t.color.border,
+            backgroundColor: t.color.bg,
+            color: t.color.ink,
+            fontSize: t.fontSize.sm,
+            textAlignVertical: 'top',
+          }}
+        />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
+          <Button size="sm" disabled={!canRun} onPress={run}>
+            {busy ? 'Summarizing…' : '✦ Summarize · 1 credit'}
+          </Button>
+          {base === null ? (
+            <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}>
+              Connect a workspace to summarize.
+            </Text>
+          ) : null}
+        </View>
+
+        {error !== null && (
+          <Text accessibilityRole="alert" style={{ fontSize: t.fontSize.sm, color: t.color.warn }}>
+            {error}
+          </Text>
+        )}
+
+        {result !== null && (
+          <View style={{ gap: t.spacing.s4 }}>
+            <View style={{ gap: t.spacing.s2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
+                <Text style={label2xs}>Summary</Text>
+                <Badge tone={isAi ? 'accent' : 'neutral'} size="sm">
+                  {isAi ? 'AI · 1 credit used' : 'Free — provider unavailable'}
+                </Badge>
+              </View>
+              <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, lineHeight: 20 }}>
+                {result.summary.text.length > 0 ? result.summary.text : 'No summary available.'}
+              </Text>
+            </View>
+
+            {result.facts.length > 0 && (
+              <View style={{ gap: t.spacing.s2 }}>
+                <Text style={label2xs}>Facts</Text>
+                {result.facts.map(f => (
+                  <View key={f} style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
+                    <Text style={{ color: t.color.accent }}>•</Text>
+                    <Text style={{ flex: 1, fontSize: t.fontSize.sm, color: t.color.ink2 }}>
+                      {f}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {result.actionItems.length > 0 && (
+              <View style={{ gap: t.spacing.s2 }}>
+                <Text style={label2xs}>Action items · proposals</Text>
+                {result.actionItems.map(a => (
+                  <View
+                    key={a.text}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}
+                  >
+                    <Text style={{ flex: 1, fontSize: t.fontSize.sm, color: t.color.ink }}>
+                      {a.text}
+                    </Text>
+                    <Badge tone="accent" size="sm">
+                      proposal
+                    </Badge>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+      </View>
+    </Card>
   )
 }

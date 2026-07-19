@@ -34,6 +34,8 @@ import { useBudgetBurndown } from '../hooks/useBudgetBurndown'
 import { rangeLabel, type ReportRange } from '../reports/window'
 import { apiBaseUrl } from '../config'
 import { generateStandup, type StandupResult } from '../api/standup'
+import { DevToolExportCard } from '../components/export/DevToolExportCard'
+import type { ExportRunItem } from '../api/export'
 import type { ClientRevenueRow } from '../reports/revenueBudget'
 import type { AgingKey, OpenAging } from '../api/invoicing'
 
@@ -381,6 +383,16 @@ export function ReportsScreen(): React.JSX.Element {
     name: p.name,
     ms: p.spentMs,
   }))
+
+  // Dev-tool export (REQ-035): the confirmed items to push are this window's per-project
+  // summaries — each carries a stable `dedupeKey` so a re-run never double-posts (ADR-0035).
+  const exportItems: readonly ExportRunItem[] = (data?.byProject ?? [])
+    .filter(p => p.spentMs > 0)
+    .map(p => ({
+      dedupeKey: `report:${range}:project:${p.id}`,
+      label: `${p.name} — ${formatDuration(p.spentMs)} h (${label})`,
+      payload: `${formatDuration(p.spentMs)} h tracked in ${label}.`,
+    }))
 
   const loading = reports.loading && data === null
   const error = reports.error !== null && data === null ? reports.error : null
@@ -824,6 +836,7 @@ export function ReportsScreen(): React.JSX.Element {
       </View>
       {priceCard}
       {standupCard}
+      <DevToolExportCard baseUrl={reports.live ? (apiBaseUrl ?? null) : null} items={exportItems} />
       {heatmapCard}
       {burndownCard}
     </>
