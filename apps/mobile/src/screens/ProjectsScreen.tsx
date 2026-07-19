@@ -15,6 +15,7 @@ import type { Client, Project } from './projectsData'
 import { useCatalog } from './useCatalog'
 import { useClientsOpen } from '../hooks/useClientsOpen'
 import { InvoiceDrawer, type DrawerClient } from '../components/invoicing/InvoiceDrawer'
+import { IssueImportCard } from '../components/issues/IssueImportCard'
 import { invoiceExportUrl, voidInvoice, type IssuedInvoiceDTO } from '../api/invoicing'
 import { apiBaseUrl } from '../config'
 
@@ -453,6 +454,9 @@ export function ProjectsScreen({
           </Button>
         </View>
       )}
+
+      {/* Turn issues from a connected GitHub / Azure DevOps connector into tasks (proposals only). */}
+      <IssueImportCard baseUrl={apiBaseUrl} projects={sorted} />
     </ScreenScaffold>
   )
 }

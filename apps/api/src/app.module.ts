@@ -11,6 +11,7 @@ import { AbsencesModule } from './modules/absences/absences.module.js'
 import { PlannerModule } from './modules/planner/planner.module.js'
 import { PreferencesModule } from './modules/preferences/preferences.module.js'
 import { ConnectorsModule } from './modules/connectors/connectors.module.js'
+import { IssueImportModule } from './modules/issueimport/issueimport.module.js'
 import { RecurrenceModule } from './modules/recurrence/recurrence.module.js'
 import { SharingModule } from './modules/sharing/sharing.module.js'
 import { PrivacyModule } from './modules/privacy/privacy.module.js'
@@ -60,6 +61,7 @@ export class AppModule {
         PlannerModule,
         PreferencesModule,
         ConnectorsModule,
+        IssueImportModule,
         RecurrenceModule,
         SharingModule,
         PrivacyModule,

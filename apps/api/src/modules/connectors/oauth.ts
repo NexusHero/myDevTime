@@ -23,6 +23,8 @@ import type { ConnectorId } from './registry.js'
  * reports not-implemented.
  */
 const TOKEN_ENDPOINT: Partial<Record<ConnectorId, string>> = {
+  github: 'https://github.com/login/oauth/access_token',
+  'azure-devops': 'https://app.vssps.visualstudio.com/oauth2/token',
   'google-calendar': 'https://oauth2.googleapis.com/token',
   'microsoft-calendar': 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
 }
