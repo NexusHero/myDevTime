@@ -7,7 +7,14 @@
  * actually configured live in the environment, never here.
  */
 export type ConnectorId =
-  'github' | 'gitlab' | 'jira' | 'linear' | 'slack' | 'google-calendar' | 'apple-calendar'
+  | 'github'
+  | 'gitlab'
+  | 'jira'
+  | 'linear'
+  | 'slack'
+  | 'google-calendar'
+  | 'microsoft-calendar'
+  | 'apple-calendar'
 
 /** What a connector can do; consent is stored per capability (ADR-0033). */
 export type Capability = 'inbound' | 'outbound' | 'capture'
@@ -24,8 +31,13 @@ export interface ConnectorSpec {
   readonly id: ConnectorId
   readonly label: string
   readonly category: 'git' | 'issues' | 'chat' | 'calendar'
-  /** OAuth 2.0 auth type — GitHub can also be a GitHub App (an open decision). */
-  readonly auth: 'oauth2'
+  /**
+   * How the provider is authorized. `oauth2` connectors go through the OAuth
+   * authorize/callback dance; `native` connectors (Apple EventKit) have NO OAuth
+   * calendar API — they are read on-device through a native seam, so the OAuth
+   * connect flow is never offered for them.
+   */
+  readonly auth: 'oauth2' | 'native'
   readonly capabilities: readonly CapabilitySpec[]
 }
 
@@ -99,15 +111,31 @@ export const CONNECTORS: readonly ConnectorSpec[] = [
     ],
   },
   {
-    // Apple Calendar (design v17 §F6) — same calendar port, different adapter. Reached over
-    // CalDAV/Sign-in-with-Apple; the live adapter is spike-gated. Read-only by default, and
-    // capture stays consent-first (REQ-025) like every other calendar source.
-    id: 'apple-calendar',
-    label: 'Apple Calendar',
+    // Microsoft (Outlook / Microsoft 365) Calendar — same calendar port, different adapter.
+    // Reached over Microsoft Graph's calendarView; OAuth 2.0 (Azure AD v2). Read-only by
+    // default; `offline_access` is requested so a refresh token is issued, and capture stays
+    // consent-first (REQ-025) like every other calendar source.
+    id: 'microsoft-calendar',
+    label: 'Microsoft Calendar',
     category: 'calendar',
     auth: 'oauth2',
     capabilities: [
-      { capability: READ, label: 'Read events', scopes: ['calendars.read'] },
+      { capability: READ, label: 'Read events', scopes: ['Calendars.Read', 'offline_access'] },
+      { capability: CAPTURE, label: 'Events as capture candidates', scopes: [] },
+    ],
+  },
+  {
+    // Apple Calendar (design v17 §F6) — same calendar port, different adapter. Apple has NO
+    // OAuth calendar API: on-device calendars are read through the native EventKit framework,
+    // so `auth: 'native'` and the OAuth connect flow is never offered. Read-only by default,
+    // and capture stays consent-first (REQ-025) like every other calendar source. Scopes are
+    // empty because EventKit access is an on-device permission, not an OAuth scope.
+    id: 'apple-calendar',
+    label: 'Apple Calendar',
+    category: 'calendar',
+    auth: 'native',
+    capabilities: [
+      { capability: READ, label: 'Read events', scopes: [] },
       { capability: CAPTURE, label: 'Events as capture candidates', scopes: [] },
     ],
   },

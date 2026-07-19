@@ -35,24 +35,32 @@ export interface ConnectorStatus {
   readonly capabilities: readonly CapabilityStatus[]
 }
 
-/** OAuth authorize endpoints per provider (the token exchange lives in the callback). */
-const AUTHORIZE_ENDPOINT: Record<ConnectorId, string> = {
+/**
+ * OAuth authorize endpoints per provider (the token exchange lives in the callback).
+ * `Partial` because not every connector has an OAuth authorize URL: Apple Calendar is
+ * `auth: 'native'` (EventKit) with no OAuth flow, so it is intentionally absent —
+ * `buildAuthorizeUrl` returns null for it.
+ */
+const AUTHORIZE_ENDPOINT: Partial<Record<ConnectorId, string>> = {
   github: 'https://github.com/login/oauth/authorize',
   gitlab: 'https://gitlab.com/oauth/authorize',
   jira: 'https://auth.atlassian.com/authorize',
   linear: 'https://linear.app/oauth/authorize',
   slack: 'https://slack.com/oauth/v2/authorize',
   'google-calendar': 'https://accounts.google.com/o/oauth2/v2/auth',
-  'apple-calendar': 'https://appleid.apple.com/auth/authorize',
+  'microsoft-calendar': 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
 }
 
 /**
  * Provider-specific authorize params. Google only issues a refresh token when the
  * request asks for offline access and re-consents — without these the connection
- * silently dies when the first access token expires.
+ * silently dies when the first access token expires. Microsoft issues a refresh token
+ * when `offline_access` is in scope (it is, via the registry) and we force consent so
+ * a reconnect re-issues it.
  */
 const AUTHORIZE_EXTRA_PARAMS: Partial<Record<ConnectorId, Readonly<Record<string, string>>>> = {
   'google-calendar': { access_type: 'offline', prompt: 'consent' },
+  'microsoft-calendar': { prompt: 'consent' },
 }
 
 /** The env var holding a provider's OAuth client id (secret stays server-only). */
@@ -79,8 +87,11 @@ export function buildAuthorizeUrl(
   if (!isConfigured(id, env)) return null
   const clientId = env[clientIdEnvKey(id)]
   if (clientId === undefined) return null
+  // A `native` connector (Apple/EventKit) has no authorize endpoint — no OAuth flow.
+  const endpoint = AUTHORIZE_ENDPOINT[id]
+  if (endpoint === undefined) return null
   const scopes = scopesForGrantedCapabilities(id, opts.granted)
-  const url = new URL(AUTHORIZE_ENDPOINT[id])
+  const url = new URL(endpoint)
   url.searchParams.set('client_id', clientId)
   url.searchParams.set('redirect_uri', opts.redirectUri)
   url.searchParams.set('response_type', 'code')

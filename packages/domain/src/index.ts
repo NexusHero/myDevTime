@@ -463,3 +463,50 @@ export {
   compareToBaseline,
   balanceRow,
 } from './insights/health.js'
+
+// Evening Companion / Wellbeing core (design v14 §H, ADR-0005) — the pure foundation for the
+// grounded AI narration + Today evening card. `reviewDay` bands one day's already-computed
+// signals into a four-valued load level + structured facts (no prose); `computeBaseline`
+// calibrates a load-score history to the person's own norm (§H3) with trend + pattern flags.
+// Never a diagnosis, never a fabricated number — the LLM narrates these facts, it never invents them.
+export type {
+  DayLoadLevel,
+  SignalSeverity,
+  DayReviewInput,
+  DayReview,
+  WellbeingSignal,
+  WellbeingSignalKind,
+  LongDaySignal,
+  OvertimeSignal,
+  BreakShortfallSignal,
+  BackToBackMeetingsSignal,
+  MeetingHeavySignal,
+  PlanOverrunSignal,
+  LowMoodSignal,
+  BaselineDay,
+  LoadTrend,
+  WellbeingBaseline,
+  PatternFlag,
+  PatternFlagKind,
+  ConsecutiveHeavyDaysFlag,
+  WeekdayOverbookFlag,
+} from './wellbeing/index.js'
+export {
+  reviewDay,
+  LONG_DAY_MINUTES,
+  COMFORTABLE_MEETINGS,
+  MEETING_HEAVY_MINIMUM,
+  BACK_TO_BACK_MINIMUM,
+  PLAN_OVERRUN_MINIMUM,
+  LOW_MOOD_MAXIMUM,
+  LOAD_BAND_NORMAL,
+  LOAD_BAND_HEAVY,
+  LOAD_BAND_OVERLOAD,
+  computeBaseline,
+  MIN_BASELINE_DAYS,
+  HEAVY_LOAD_SCORE,
+  CONSECUTIVE_HEAVY_MINIMUM,
+  MIN_WEEKDAY_SAMPLES,
+  WEEKDAY_OVERBOOK_DELTA,
+  TREND_DELTA,
+} from './wellbeing/index.js'
