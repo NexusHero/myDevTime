@@ -31,8 +31,11 @@ test.describe('acceptance · app shell + authentication', () => {
     await page.getByRole('button', { name: /^create free account$/i }).click()
     
     // Sign-up is complete and automatically authenticates the user in E2E dev stack.
-    // The registration form leaves the DOM.
-    await expect(page.getByText('Create free account')).toBeHidden()
+    // The registration form leaves the DOM. Assert on the submit *button* (a single,
+    // role-scoped node): the Register screen shows "Create free account" as both a
+    // heading and the submit button, so a bare getByText() matches two nodes and can
+    // trip a strict-mode violation while the auth swap is mid-flight.
+    await expect(page.getByRole('button', { name: /^create free account$/i })).toBeHidden()
   })
 
   test('REQ-007 · a seeded user can sign in and reach the app', async ({ page, request }) => {
