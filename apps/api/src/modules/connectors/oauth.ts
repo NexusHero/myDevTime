@@ -16,9 +16,15 @@ import type { ConnectorId } from './registry.js'
  * the routes report that honestly instead of pretending.
  */
 
-/** Token endpoints for providers with a live exchange. Absent → flow not built yet. */
+/**
+ * Token endpoints for providers with a live exchange. Absent → flow not built yet.
+ * Apple has NO OAuth calendar API (EventKit is native), so it is intentionally absent
+ * here — `tokenEndpoint('apple-calendar')` stays null and its OAuth flow honestly
+ * reports not-implemented.
+ */
 const TOKEN_ENDPOINT: Partial<Record<ConnectorId, string>> = {
   'google-calendar': 'https://oauth2.googleapis.com/token',
+  'microsoft-calendar': 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
 }
 
 export function tokenEndpoint(id: ConnectorId): string | null {

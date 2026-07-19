@@ -2,8 +2,7 @@ import { Body, Controller, Delete, Get, Param, Put, Query, UseGuards } from '@ne
 import { ApiTags } from '@nestjs/swagger'
 import { AuthGuard, CurrentUser, type AuthenticatedUser } from '../auth/contract.js'
 import { NotFoundError, ValidationError } from '../../errors.js'
-import { planImport } from '../calendarsync/service.js'
-import { GoogleCalendar } from '../calendarsync/google-calendar.js'
+import { planImport, providerForConnector, resolveCalendarPort } from '../calendarsync/service.js'
 import { ConnectorsContext } from './connectors.context.js'
 import {
   CalendarPreviewQueryDto,
@@ -11,7 +10,7 @@ import {
   ConsentDto,
   OAuthCallbackQueryDto,
 } from './connectors.dto.js'
-import { isConnectorId, type ConnectorId } from './registry.js'
+import { connectorById, isConnectorId, type ConnectorId } from './registry.js'
 import { grantedCapabilities, revokeAllGrants, setGrant } from './consent.js'
 import { deleteToken, getToken, hasToken, putToken } from './vault.js'
 import { signState, verifyState } from './crypto.js'
@@ -92,34 +91,68 @@ export class ConnectorsController {
   }
 
   /**
-   * Calendar import preview (REQ-010): `planImport`'s proposal for the live
-   * window — ghost blocks to confirm, never a write (ADR-0005). Refuses with 409
-   * unless the user has consented to `inbound` AND a sealed token exists
-   * (consent-first, REQ-025/ADR-0033). Declared before the `:id` routes only for
-   * readability — its path never collides with `:id/authorize|callback|consent`.
+   * Calendar import preview for Google (REQ-010) — the original route a client
+   * already calls, kept intact. It delegates to the generic calendar-preview
+   * helper. Declared before the `:id` routes only for readability — a static path
+   * wins over the parametric `:id/preview` regardless, so both coexist.
    */
   @Get('google-calendar/preview')
   async previewGoogleCalendar(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: CalendarPreviewQueryDto,
   ) {
+    return this.runCalendarPreview(user, 'google-calendar', query)
+  }
+
+  /**
+   * Generic calendar import preview (REQ-010): resolves the right vendor adapter by
+   * connector id for any OAuth calendar connector (Google, Microsoft) and returns
+   * `planImport`'s proposal for the live window — ghost blocks to confirm, never a
+   * write (ADR-0005). Same consent gate as Google (409 unless `inbound` is granted
+   * AND a sealed token exists — consent-first, REQ-025/ADR-0033). A non-calendar or
+   * native connector (Apple/EventKit — no OAuth token here) is a 409/NotFound.
+   */
+  @Get(':id/preview')
+  async previewCalendar(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param() params: ConnectorIdParamDto,
+    @Query() query: CalendarPreviewQueryDto,
+  ) {
+    if (!isConnectorId(params.id)) throw new NotFoundError('unknown connector')
+    const spec = connectorById(params.id)
+    if (spec?.category !== 'calendar' || spec.auth !== 'oauth2') {
+      throw new ConflictError(`'${params.id}' does not support an OAuth calendar preview`)
+    }
+    return this.runCalendarPreview(user, params.id, query)
+  }
+
+  /**
+   * The shared calendar-preview flow behind both routes above: consent + connection
+   * gate, resolve the vendor adapter for the connector's provider (wired to the
+   * vault's live-token accessor), then `planImport` — proposals only, writes nothing.
+   */
+  private async runCalendarPreview(
+    user: AuthenticatedUser,
+    connector: ConnectorId,
+    query: CalendarPreviewQueryDto,
+  ) {
     const { db, workspaceId, userId } = await this.ctx.contextOf(user)
-    const key = { workspaceId, userId, connector: 'google-calendar' }
+    const key = { workspaceId, userId, connector }
     const granted = await grantedCapabilities(db, key)
     if (!granted.includes('inbound')) {
-      throw new ConflictError("consent for 'inbound' has not been granted for google-calendar")
+      throw new ConflictError(`consent for 'inbound' has not been granted for ${connector}`)
     }
     if (!(await hasToken(db, key))) {
-      throw new ConflictError('google-calendar is not connected')
+      throw new ConflictError(`${connector} is not connected`)
     }
-    const flow = requireOAuthFlowConfig('google-calendar')
+    const flow = requireOAuthFlowConfig(connector)
     const now = Date.now()
     const fromMs = query.fromMs ?? now - PREVIEW_WINDOW_MS
     const toMs = query.toMs ?? now + PREVIEW_WINDOW_MS
     if (toMs <= fromMs) throw new ValidationError('toMs must be greater than fromMs')
 
     const store = vaultTokenStore(db, flow.masterKey, key)
-    const port = new GoogleCalendar({
+    const port = resolveCalendarPort(providerForConnector(connector), {
       accessToken: () =>
         freshAccessToken(store, {
           endpoint: flow.endpoint,
