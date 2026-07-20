@@ -511,6 +511,33 @@ export {
   TREND_DELTA,
 } from './wellbeing/index.js'
 
+// Sevi live-load + nudge policy (ADR-0071, REQ-067/069) — the deterministic care buddy core:
+// `evaluateLiveLoad` bands the *running* day (universal ArbZG-grounded hard caps + the person's
+// own baseline band) into calm/watch/speak-up with typed reasons, and `decideNudge` gates whether
+// a speak-up may be voiced right now (opt-in, quiet hours incl. midnight wrap, 🛡 protected block,
+// daily cap) — a held speak-up folds into ONE later digest (REQ-057). Whether Sevi speaks is
+// 100 % these cores; the LLM only phrases (ADR-0005). The intraday `LoadLevel` is exported as
+// `LiveLoadLevel` here — `insights/balance` already owns the plain name at this boundary.
+export type {
+  LoadLevel as LiveLoadLevel,
+  LiveLoadReason,
+  LiveLoadInput,
+  LiveLoad,
+  NudgeContext,
+  NudgeDecision,
+} from './wellbeing/index.js'
+export {
+  evaluateLiveLoad,
+  liveLoadScore,
+  NO_BREAK_CAP_MS,
+  LONG_DAY_CAP_MS,
+  WATCH_FOCUS_MS,
+  WATCH_WORKED_MS,
+  WATCH_BACK_TO_BACK,
+  decideNudge,
+  inQuietWindow,
+} from './wellbeing/index.js'
+
 // Issue/ticket import core (GitHub Issues + Azure DevOps Work Items → candidate tasks, ADR-0005) —
 // adapters fetch tickets as neutral `ExternalIssue`s; `toTaskProposals` maps, filters closed,
 // dedups (vs already-imported and in-batch) and deterministically orders them into
