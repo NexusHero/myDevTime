@@ -26,6 +26,7 @@ issue's comments before implementing it.
 | **M3 — Automation & AI** | Calendar ingestion + write-back, rules engine, LLM proposals, NL entry, summaries, assistant, meeting transcription + insights, dev-tool export, Co-Planner | [#15](https://github.com/NexusHero/myDevTime/issues/15) [#43](https://github.com/NexusHero/myDevTime/issues/43) [#16](https://github.com/NexusHero/myDevTime/issues/16) [#17](https://github.com/NexusHero/myDevTime/issues/17) [#18](https://github.com/NexusHero/myDevTime/issues/18) [#19](https://github.com/NexusHero/myDevTime/issues/19) [#20](https://github.com/NexusHero/myDevTime/issues/20) [#32](https://github.com/NexusHero/myDevTime/issues/32) [#33](https://github.com/NexusHero/myDevTime/issues/33) [#44](https://github.com/NexusHero/myDevTime/issues/44) [#40](https://github.com/NexusHero/myDevTime/issues/40) |
 | **M4 — Monetization** | Entitlement service, AI-credit ledger, Stripe web subscriptions, store IAP | [#21](https://github.com/NexusHero/myDevTime/issues/21) [#34](https://github.com/NexusHero/myDevTime/issues/34) [#22](https://github.com/NexusHero/myDevTime/issues/22) [#23](https://github.com/NexusHero/myDevTime/issues/23) |
 | **M5 — Launch** | Security, privacy/DSGVO, observability, E2E, distribution, pricing | [#24](https://github.com/NexusHero/myDevTime/issues/24) [#25](https://github.com/NexusHero/myDevTime/issues/25) [#26](https://github.com/NexusHero/myDevTime/issues/26) [#27](https://github.com/NexusHero/myDevTime/issues/27) [#28](https://github.com/NexusHero/myDevTime/issues/28) [#29](https://github.com/NexusHero/myDevTime/issues/29) |
+| **M-Sevi — Care buddy** | Turn the fragmented caring signals into **Sevi**, a proactive-but-calm buddy who watches load across work + life and speaks up only when it's hard (ADR-0071) | [#326](https://github.com/NexusHero/myDevTime/issues/326) [#327](https://github.com/NexusHero/myDevTime/issues/327) [#328](https://github.com/NexusHero/myDevTime/issues/328) [#329](https://github.com/NexusHero/myDevTime/issues/329) |
 
 ## Cross-cutting workstreams — start early, they don't wait for their milestone
 
@@ -248,6 +249,34 @@ start-picker, the FullCalendar web seam (ADR-0068), and default-screen → Plann
   autocomplete, auto-tracker booking proposal, plan-adherence chip, idle window) + Today header
   status chips.
 - ⬜ D14 protected-time nudge relocation (bottom-centre, ~8 s after clock-in).
+
+### M-Sevi — the care buddy (ADR-0071, REQ-067…071)
+
+The product already carries the *ingredients* of a caring assistant (MoodCheck, Feierabend, Balance
+baseline, overload/ArbZG warnings, Evening Companion, ADR-0069) — but they are fragmented, silent
+until the app is opened, mood is thrown away, the Co-Planner ignores health, and the vision never
+says "care". **Sevi** grows those signals into **one named, two-way presence** that carries load
+across work **and** life and speaks up **only when it looks hard** (own baseline H3 + a few
+universal ArbZG caps), gated by 🛡 + quiet hours + a 1–2/day cap. Sequenced, one vertical slice per
+PR:
+
+- ⬜ **Slice 1** ([#326](https://github.com/NexusHero/myDevTime/issues/326)) — live-load trigger
+  core (REQ-067) + consented, deletable mood store (REQ-068) + `NotificationPort` (REQ-069, local
+  first, Null default) + the **real-time overwork watch** as the first Sevi moment. *The shared
+  backbone all four moments reuse.*
+- ⬜ **Slice 2** ([#327](https://github.com/NexusHero/myDevTime/issues/327)) — the Scrum-Master at
+  planning time (REQ-070): the over-commitment voice + a **plan-apply seam** (closes today's gap
+  where a suggestion has no wiring back into the plan). *Blocked by Slice 1.*
+- ⬜ **Slice 3** ([#328](https://github.com/NexusHero/myDevTime/issues/328)) — mood-pattern
+  awareness (rides REQ-068): weekday patterns + low-mood softens the proposed plan. *Blocked by
+  Slice 1's mood store.*
+- ⬜ **Slice 4** ([#329](https://github.com/NexusHero/myDevTime/issues/329)) — life care (REQ-071):
+  protect `--life`/🛡 blocks, notice no free evenings, encourage rest days. *Blocked by Slice 1.*
+
+Every slice is proposal-only, degrades to a free deterministic template when the LLM/notification
+vendor is down, holds ≥90 % coverage on the deterministic cores (ADR-0005), and never paywalls the
+care surfaces (REQ-056). **Server-push** (APNs/FCM/Expo push) for cross-device is deferred to its
+own ADR; Slice 1 ships local/on-device notifications only.
 
 ## Post-1.0 backlog (deferred deliberately, not forgotten)
 
