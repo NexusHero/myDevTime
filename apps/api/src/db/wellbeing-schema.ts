@@ -34,3 +34,32 @@ export const wellbeingDays = pgTable(
   },
   t => [uniqueIndex('wellbeing_days_ws_user_day').on(t.workspaceId, t.userId, t.day)],
 )
+
+/**
+ * The consented mood memory (ADR-0071 P3, REQ-068): one row per person per local day carrying
+ * the punch-out MoodCheck word — the deliberate, documented reversal of REQ-065's "mood is NOT
+ * stored", valid **only** under the explicit `moodConsent` preference (enforced server-side in
+ * the wellbeing controller: without consent this table is unreachable, not merely unread).
+ * Never shared, exported, or paywalled, and erasable in one action (delete-all). The unique
+ * (workspace, user, day) index makes a repeated punch-out an **upsert** — the last word of the
+ * day wins, a day counts once. `mood` is the closed domain vocabulary 'good'|'tense'|'stressed';
+ * the load-score row above deliberately stays mood-free (ADR-0005: one number, one source).
+ */
+export const wellbeingMoods = pgTable(
+  'wellbeing_moods',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    // Local calendar day, 'YYYY-MM-DD' text — same clock-free convention as `wellbeing_days`.
+    day: text('day').notNull(),
+    // 'good' | 'tense' | 'stressed' (the domain `Mood` vocabulary).
+    mood: text('mood').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  t => [uniqueIndex('wellbeing_moods_ws_user_day').on(t.workspaceId, t.userId, t.day)],
+)

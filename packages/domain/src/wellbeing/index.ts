@@ -50,6 +50,9 @@ export {
 export type { NudgeContext, NudgeDecision } from './nudgePolicy.js'
 export { decideNudge, inQuietWindow } from './nudgePolicy.js'
 
+export type { Mood } from './mood.js'
+export { moodScoreOf, MOOD_WORDS } from './mood.js'
+
 export type {
   BaselineDay,
   LoadTrend,

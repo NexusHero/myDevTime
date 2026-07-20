@@ -538,6 +538,12 @@ export {
   inQuietWindow,
 } from './wellbeing/index.js'
 
+// Consented mood memory (ADR-0071 P3, REQ-068) — the closed punch-out vocabulary
+// (good/tense/stressed) and its fixed mapping onto `reviewDay`'s 1..5 `moodScore`, finally
+// feeding the `low-mood` signal path. Stored only under explicit opt-in; never a diagnosis.
+export type { Mood } from './wellbeing/index.js'
+export { moodScoreOf, MOOD_WORDS } from './wellbeing/index.js'
+
 // Issue/ticket import core (GitHub Issues + Azure DevOps Work Items → candidate tasks, ADR-0005) —
 // adapters fetch tickets as neutral `ExternalIssue`s; `toTaskProposals` maps, filters closed,
 // dedups (vs already-imported and in-batch) and deterministically orders them into
