@@ -16,7 +16,14 @@ import * as svc from './service.js'
 import { PlannerContext } from './planner.context.js'
 import { PLAN_LABELER, type PlanLabeler } from './labeler.js'
 import { PLAN_BRIEFER, type PlanBriefer } from './briefer.js'
-import { GeneratePlanDto, IdParamDto, PlanDateQueryDto, PlanStatusDto } from './planner.dto.js'
+import {
+  ApplyProposalDto,
+  GeneratePlanDto,
+  IdParamDto,
+  PlanDateQueryDto,
+  PlanStatusDto,
+  ProtectedDayQueryDto,
+} from './planner.dto.js'
 
 /** One AI Co-Planner briefing costs one credit (ADR-0008). */
 const LABEL_CREDIT_COST = 1
@@ -62,6 +69,39 @@ export class PlannerController {
         ...(body.minBlockMin === undefined ? {} : { minBlockMin: body.minBlockMin }),
       },
     })
+  }
+
+  /**
+   * The plan-apply seam (ADR-0071 P4, REQ-070): apply ONE user-confirmed Sevi proposal.
+   * `protect-time` books a durable 🛡 window (idempotent — a repeated confirm cannot stack);
+   * `move-block`/`shrink-block` run the pure domain mutation and persist a NEW accepted plan
+   * version. Only ever called on confirmation — Sevi itself can never book (ADR-0005).
+   */
+  @Post('apply')
+  @HttpCode(200)
+  async apply(@CurrentUser() user: AuthenticatedUser, @Body() body: ApplyProposalDto) {
+    const { db, workspaceId, userId } = await this.ctx.contextOf(user)
+    const proposal = body.proposal
+    if (proposal.kind === 'protect-time') {
+      await svc.addProtectedTime(db, workspaceId, userId, {
+        day: proposal.day,
+        startMin: proposal.startMin,
+        endMin: proposal.endMin,
+      })
+      return { applied: { proposal } }
+    }
+    const plan = await svc.applyBlockMutation(db, workspaceId, userId, proposal.planId, proposal)
+    return { applied: { proposal, resultPlanId: plan.id } }
+  }
+
+  /** The caller's 🛡 protected windows for a day — nudge gating + rendering need them. */
+  @Get('protected')
+  async protectedForDay(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ProtectedDayQueryDto,
+  ) {
+    const { db, workspaceId, userId } = await this.ctx.contextOf(user)
+    return svc.protectedTimesFor(db, workspaceId, userId, query.day)
   }
 
   @Post('plans/:id/status')

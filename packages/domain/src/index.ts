@@ -181,6 +181,10 @@ export type {
   PlanReview,
 } from './planner/plan.js'
 export { buildDayPlan, reviewDayPlan } from './planner/plan.js'
+// Plan-apply seam (ADR-0071 P4, REQ-070) — a *confirmed* Sevi block proposal (move/shrink)
+// applied to the stored blocks purely; the service persists the result as a new plan version.
+export type { PlanBlockMutation } from './planner/applyProposal.js'
+export { applyProposal, blockIdOf, MIN_SHRUNK_BLOCK_MIN } from './planner/applyProposal.js'
 
 // AI-credit ledger (REQ-027, ADR-0008) — append-only signed deltas; balance +
 // usage derived from the log; deterministic, LLM-free (ADR-0005).

@@ -40,3 +40,43 @@ export class GeneratePlanDto extends createZodDto(
 export class PlanStatusDto extends createZodDto(
   z.object({ status: z.enum(['proposed', 'accepted', 'dismissed']) }),
 ) {}
+
+/**
+ * The plan-apply seam's wire shape (ADR-0071 P4, REQ-070): a *confirmed* Sevi proposal the
+ * user accepted. `protect-time` books a durable 🛡 window (`protected_times`); `move-block` /
+ * `shrink-block` mutate a stored plan's blocks purely (domain `applyProposal`) into a NEW
+ * accepted plan version. The client mirrors this exact union.
+ */
+export type PlanProposal =
+  | { kind: 'protect-time'; day: string; startMin: number; endMin: number }
+  | { kind: 'move-block'; planId: string; blockId: string; toStartMin: number }
+  | { kind: 'shrink-block'; planId: string; blockId: string; byMin: number }
+
+const minuteOfDay = z.number().int().min(0).max(1440)
+
+const planProposalSchema = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('protect-time'),
+      day: calendarDate,
+      startMin: minuteOfDay,
+      endMin: minuteOfDay,
+    })
+    .refine(p => p.endMin > p.startMin, { message: 'endMin must be after startMin' }),
+  z.object({
+    kind: z.literal('move-block'),
+    planId: z.uuid(),
+    blockId: z.string().min(1),
+    toStartMin: z.number().int().nonnegative(),
+  }),
+  z.object({
+    kind: z.literal('shrink-block'),
+    planId: z.uuid(),
+    blockId: z.string().min(1),
+    byMin: z.number().int().positive(),
+  }),
+])
+
+export class ApplyProposalDto extends createZodDto(z.object({ proposal: planProposalSchema })) {}
+
+export class ProtectedDayQueryDto extends createZodDto(z.object({ day: calendarDate })) {}

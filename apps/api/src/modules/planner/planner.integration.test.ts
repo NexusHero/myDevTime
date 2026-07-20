@@ -3,7 +3,7 @@ import { eq, inArray } from 'drizzle-orm'
 import { loadConfig } from '../../config.js'
 import { createDb } from '../../db/client.js'
 import { user } from '../../db/auth-schema.js'
-import { plans, workspaces } from '../../db/schema.js'
+import { plans, protectedTimes, workspaces } from '../../db/schema.js'
 import { buildApp } from '../../app.js'
 import { resolveWorkspaceId } from '../../core/workspace.js'
 import * as svc from './service.js'
@@ -39,6 +39,7 @@ describe.skipIf(!databaseUrl)('planner (integration)', () => {
 
   afterEach(async () => {
     await db.delete(plans).where(inArray(plans.workspaceId, [wsA, wsB]))
+    await db.delete(protectedTimes).where(inArray(protectedTimes.workspaceId, [wsA, wsB]))
   })
 
   afterAll(async () => {
@@ -136,5 +137,101 @@ describe.skipIf(!databaseUrl)('planner (integration)', () => {
     })
     expect(res.statusCode).toBe(401)
     await app.close()
+  })
+
+  // ─── The plan-apply seam (ADR-0071 P4, REQ-070) ─────────────────────────────────────────
+
+  it('Apply_Unauthenticated_Returns401', async () => {
+    const app = await buildApp({
+      config: loadConfig({ LOG_LEVEL: 'silent', AUTH_SECRET: 'x'.repeat(32) }),
+      db: handle,
+    })
+    for (const [method, url] of [
+      ['POST', '/api/planner/apply'],
+      ['GET', '/api/planner/protected?day=2026-07-10'],
+    ] as const) {
+      const res = await app.inject({
+        method,
+        url,
+        ...(method === 'POST'
+          ? {
+              payload: {
+                proposal: { kind: 'protect-time', day: '2026-07-10', startMin: 0, endMin: 60 },
+              },
+            }
+          : {}),
+      })
+      expect(res.statusCode).toBe(401)
+    }
+    await app.close()
+  })
+
+  it('AddProtectedTime_IsIdempotentPerExactWindow', async () => {
+    const window = { day: '2026-07-11', startMin: 8 * 60, endMin: 12 * 60 }
+    await svc.addProtectedTime(db, wsA, idA, window)
+    await svc.addProtectedTime(db, wsA, idA, window) // a repeated confirm cannot stack shields
+    const listed = await svc.protectedTimesFor(db, wsA, idA, '2026-07-11')
+    expect(listed).toHaveLength(1)
+    expect(listed[0]).toMatchObject({ ...window, source: 'sevi-proposal' })
+  })
+
+  it('ProtectedTimes_AreWorkspaceIsolated', async () => {
+    await svc.addProtectedTime(db, wsA, idA, { day: '2026-07-11', startMin: 540, endMin: 600 })
+    expect(await svc.protectedTimesFor(db, wsB, idB, '2026-07-11')).toEqual([])
+  })
+
+  it('ApplyBlockMutation_MoveWritesANewAcceptedVersionWithTheMutatedBlocks', async () => {
+    const created = await svc.generatePlan(db, wsA, idA, input)
+    const focusIndex = created.blocks.findIndex(b => b.kind === 'focus')
+    const next = await svc.applyBlockMutation(db, wsA, idA, created.id, {
+      kind: 'move-block',
+      blockId: String(focusIndex),
+      toStartMin: 6 * 60,
+    })
+    expect(next.version).toBe(created.version + 1)
+    expect(next.status).toBe('accepted')
+    // Duration preserved, moved to the front of the (re-sorted) day.
+    const moved = next.blocks[0]
+    expect(moved).toMatchObject({ kind: 'focus', startMin: 6 * 60, lenMin: 90 })
+    // The pre-apply version is untouched in the history.
+    const original = await svc.getPlanById(db, wsA, created.id)
+    expect(original.blocks).toEqual(created.blocks)
+  })
+
+  it('ApplyBlockMutation_ShrinkClampsToTheFloorAndRecomputesFocus', async () => {
+    const created = await svc.generatePlan(db, wsA, idA, input)
+    const focusIndex = created.blocks.findIndex(b => b.kind === 'focus')
+    const next = await svc.applyBlockMutation(db, wsA, idA, created.id, {
+      kind: 'shrink-block',
+      blockId: String(focusIndex),
+      byMin: 500, // far past the block → clamps to the 15-min floor
+    })
+    const shrunk = next.blocks.find(b => b.kind === 'focus')
+    expect(shrunk?.lenMin).toBe(15)
+    expect(next.plannedFocusMin).toBe(
+      next.blocks.filter(b => b.kind === 'focus').reduce((s, b) => s + b.lenMin, 0),
+    )
+  })
+
+  it('ApplyBlockMutation_ForeignPlanId_ReadsAsNotFound', async () => {
+    const created = await svc.generatePlan(db, wsA, idA, input)
+    await expect(
+      svc.applyBlockMutation(db, wsB, idB, created.id, {
+        kind: 'move-block',
+        blockId: '0',
+        toStartMin: 0,
+      }),
+    ).rejects.toThrow(/not found/)
+  })
+
+  it('ApplyBlockMutation_UnknownBlockId_IsAnHonest400', async () => {
+    const created = await svc.generatePlan(db, wsA, idA, input)
+    await expect(
+      svc.applyBlockMutation(db, wsA, idA, created.id, {
+        kind: 'move-block',
+        blockId: '99',
+        toStartMin: 0,
+      }),
+    ).rejects.toThrow(/no block/)
   })
 })
