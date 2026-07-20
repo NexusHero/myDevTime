@@ -548,6 +548,26 @@ export {
 export type { Mood } from './wellbeing/index.js'
 export { moodScoreOf, MOOD_WORDS } from './wellbeing/index.js'
 
+// Sevi life care (ADR-0071 P5, REQ-071) — the deterministic core behind the calm life-care
+// voices: `freeEveningsIn` counts evenings kept free of work (life/breaks never consume one),
+// and `lifeCareSuggestions` derives no-free-evening / life-encroachment / rest-day, most urgent
+// first. Whether a voice may actually be *delivered* stays `decideNudge`'s call (shared cap,
+// quiet hours, 🛡) — this core only states what is true (ADR-0005).
+export type {
+  LifeCareSuggestion,
+  LifeCareSuggestionKind,
+  LifeCareInput,
+  EveningBlock,
+} from './wellbeing/index.js'
+export {
+  lifeCareSuggestions,
+  freeEveningsIn,
+  MIN_EVENING_WINDOW_DAYS,
+  REST_DAY_THRESHOLD_DEFAULT,
+  EVENING_START_MIN,
+  EVENING_END_MIN,
+} from './wellbeing/index.js'
+
 // Issue/ticket import core (GitHub Issues + Azure DevOps Work Items → candidate tasks, ADR-0005) —
 // adapters fetch tickets as neutral `ExternalIssue`s; `toTaskProposals` maps, filters closed,
 // dedups (vs already-imported and in-batch) and deterministically orders them into

@@ -54,6 +54,21 @@ export type { Mood } from './mood.js'
 export { moodScoreOf, MOOD_WORDS } from './mood.js'
 
 export type {
+  LifeCareSuggestion,
+  LifeCareSuggestionKind,
+  LifeCareInput,
+  EveningBlock,
+} from './lifeCare.js'
+export {
+  lifeCareSuggestions,
+  freeEveningsIn,
+  MIN_EVENING_WINDOW_DAYS,
+  REST_DAY_THRESHOLD_DEFAULT,
+  EVENING_START_MIN,
+  EVENING_END_MIN,
+} from './lifeCare.js'
+
+export type {
   BaselineDay,
   LoadTrend,
   WellbeingBaseline,
