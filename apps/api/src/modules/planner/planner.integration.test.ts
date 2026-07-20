@@ -183,6 +183,7 @@ describe.skipIf(!databaseUrl)('planner (integration)', () => {
   it('ApplyBlockMutation_MoveWritesANewAcceptedVersionWithTheMutatedBlocks', async () => {
     const created = await svc.generatePlan(db, wsA, idA, input)
     const focusIndex = created.blocks.findIndex(b => b.kind === 'focus')
+    const before = created.blocks[focusIndex]!
     const next = await svc.applyBlockMutation(db, wsA, idA, created.id, {
       kind: 'move-block',
       blockId: String(focusIndex),
@@ -190,9 +191,10 @@ describe.skipIf(!databaseUrl)('planner (integration)', () => {
     })
     expect(next.version).toBe(created.version + 1)
     expect(next.status).toBe('accepted')
-    // Duration preserved, moved to the front of the (re-sorted) day.
+    // Duration preserved (whatever length the core laid out), moved to the front of the
+    // (re-sorted) day — the assertion pins the MUTATION, never the generator's layout.
     const moved = next.blocks[0]
-    expect(moved).toMatchObject({ kind: 'focus', startMin: 6 * 60, lenMin: 90 })
+    expect(moved).toMatchObject({ kind: 'focus', startMin: 6 * 60, lenMin: before.lenMin })
     // The pre-apply version is untouched in the history.
     const original = await svc.getPlanById(db, wsA, created.id)
     expect(original.blocks).toEqual(created.blocks)
