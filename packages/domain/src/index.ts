@@ -251,6 +251,17 @@ export type {
 } from './capacity/plannable.js'
 export { committedMinutes, dayCapacity, weekCapacity, overbookedMs } from './capacity/plannable.js'
 
+// Scrum-Master advisory (REQ-070, ADR-0071): planned load vs. the honest plannable week,
+// with signed overages, severity levels and confirmable relief candidates — Sevi phrases
+// the finding, this core owns every figure (ADR-0005).
+export type {
+  CommitmentLevel,
+  AdvisoryBlock,
+  ReliefCandidate,
+  CommitmentAdvisory,
+} from './capacity/overcommit.js'
+export { commitmentAdvisory, DEFAULT_OVERCOMMIT_TOLERANCE_MS } from './capacity/overcommit.js'
+
 // Travel entry type (REQ-051, ADR-0065 · design v13 G4) — deterministic travel pricing
 // (reduced-fraction time + per-km allowance, train = full worktime) plus the G4b
 // proposal helpers (return-trip nudge, magnetic chaining, commute favourites). Pure,
