@@ -52,6 +52,10 @@ its npm-backed DB did not carry the `uuid` advisory).
 | GHSA-9ppj-qmqm-q256 | tar | — | expo > @expo/cli > tar |
 | GHSA-r6q2-hw4h-h46w | tar | — | expo > @expo/cli > tar |
 | GHSA-vmf3-w455-68vh | tar 6.2.1 | 6.9 Med | expo > @expo/cli > tar |
+| GHSA-23hp-3jrh-7fpw | tar 6.2.1 | 9.2 Crit | expo > @expo/cli > tar (fix first lands in tar 7.5.19) |
+| GHSA-8x88-c5mf-7j5w | tar 6.2.1 | 8.7 High | expo > @expo/cli > tar (fix first lands in tar 7.5.18) |
+| GHSA-gvwx-54wh-qm9j | tar 6.2.1 | 5.3 Med | expo > @expo/cli > tar (fix first lands in tar 7.5.17) |
+| GHSA-w8wr-v893-vjvp | tar 6.2.1 | 5.3 Med | expo > @expo/cli > tar (fix first lands in tar 7.5.18) |
 | GHSA-67mh-4wv8-2f99 | esbuild | 5.3 Med | better-auth > drizzle-kit (+ tsx/vite dev toolchain) |
 | GHSA-qx2v-qp2m-jg93 | postcss | 6.1 Med | expo > @expo/cli > @expo/metro-config > postcss |
 | GHSA-w5hq-g745-h8pq | uuid (7.0.3 & 8.3.2) | 7.5 High | expo > @expo/cli (xcode > @expo/config-plugins; @expo/bunyan > @expo/rudder-sdk-node) |
