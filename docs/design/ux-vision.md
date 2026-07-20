@@ -12,7 +12,7 @@ design decision below serves that.
 
 ---
 
-## 1. Design principles (the five tests every screen must pass)
+## 1. Design principles (the tests every screen must pass)
 
 1. **Time is material.** Time renders as something you can *touch*: blocks on a canvas that you
    drag, stretch, split, and merge — not rows in a form. If a screen shows time as a table where
@@ -29,6 +29,15 @@ design decision below serves that.
 5. **Keyboard-first web, thumb-first mobile.** Desktop: every action reachable via the command
    palette (`⌘K`) without a mouse. Phone: every daily-loop action reachable one-handed from the
    bottom half of the screen.
+6. **Sevi looks out for the human, and knows when to be quiet.** The app is a *buddy*, not just a
+   tracker: it carries the person's load across work **and** life, and speaks up — as **Sevi**, one
+   named, two-way voice (ADR-0071) — **only when it looks hard** relative to *your own* normal
+   (ADR-0066 H3), plus a few universal red lines (ArbZG breaks/hours). Silence is the default. A
+   surface that **nags** (speaks when the deterministic core says `calm`), **diagnoses** (labels the
+   person — a "burnout score", clinical language), **interrupts protected time** (ignores 🛡 or quiet
+   hours), or **acts on the user's behalf** (books, reschedules, or moves data without a confirm)
+   *fails review*. Care surfaces are never paywalled (REQ-056); only the LLM *phrasing* of a
+   suggestion is credit-metered, the deterministic care is always free.
 
 ## 2. The signature elements (what makes it "ours")
 
