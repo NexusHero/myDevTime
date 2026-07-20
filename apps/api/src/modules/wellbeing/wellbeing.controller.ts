@@ -1,10 +1,10 @@
-import { Body, Controller, Delete, Get, HttpCode, Post, UseGuards } from '@nestjs/common'
+import { Body, Controller, Delete, Get, HttpCode, Post, Query, UseGuards } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { AuthGuard, CurrentUser, type AuthenticatedUser } from '../auth/contract.js'
 import { ConflictError } from '../connectors/oauth.js'
 import { getPreferences } from '../preferences/service.js'
 import { WellbeingContext } from './wellbeing.context.js'
-import { RecordMoodDto } from './wellbeing.dto.js'
+import { LoadHistoryQueryDto, RecordMoodDto } from './wellbeing.dto.js'
 import { WellbeingService } from './service.js'
 
 /** How many most-recent mood days a history read returns (~a quarter of patterns). */
@@ -52,5 +52,18 @@ export class WellbeingController {
     const { db, workspaceId, userId } = await this.ctx.contextOf(user)
     await this.wellbeing.deleteAllMoods(db, { workspaceId, userId })
     return { deleted: true }
+  }
+
+  /**
+   * The caller's own load-score history (oldest→newest), the raw series the client feeds into
+   * `computeBaseline` (H3): the live-load watch and the life-care voices judge "hard" against
+   * *this person's* band, never a fixed number. Free, deterministic, and — like every wellbeing
+   * surface — never paywalled (REQ-056). Read-only; the series is written solely by the
+   * evening-companion path.
+   */
+  @Get('load-history')
+  async loadHistory(@CurrentUser() user: AuthenticatedUser, @Query() query: LoadHistoryQueryDto) {
+    const { db, workspaceId, userId } = await this.ctx.contextOf(user)
+    return this.wellbeing.recentLoadHistory(db, { workspaceId, userId }, query.days)
   }
 }

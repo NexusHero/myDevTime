@@ -15,3 +15,13 @@ export class RecordMoodDto extends createZodDto(
     day: calendarDay.optional(),
   }),
 ) {}
+
+/**
+ * Window for the load-history read that feeds the client-side personal baseline
+ * (`computeBaseline`, H3). Capped at ~half a year so the read stays bounded.
+ */
+export class LoadHistoryQueryDto extends createZodDto(
+  z.object({
+    days: z.coerce.number().int().min(1).max(180).default(90),
+  }),
+) {}

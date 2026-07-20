@@ -116,6 +116,13 @@ describe.skipIf(!databaseUrl)('wellbeing mood store (integration)', () => {
     await app.close()
   })
 
+  it('LoadHistory_Unauthenticated_Returns401', async () => {
+    const app = await buildApp({ config: HTTP_CONFIG, db: handle })
+    const res = await app.inject({ method: 'GET', url: '/api/wellbeing/load-history?days=30' })
+    expect(res.statusCode).toBe(401)
+    await app.close()
+  })
+
   it('MoodOverHttp_ConsentGatedThenFullLifecycle', async () => {
     const app = await buildApp({ config: HTTP_CONFIG, db: handle })
     const cookie = await authed(app)
