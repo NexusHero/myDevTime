@@ -18,6 +18,22 @@ describe('parsePreferences', () => {
     expect(p.weekStartMonday).toBe(DEFAULT_PREFERENCES.weekStartMonday)
     expect(p.reminders).toBe(DEFAULT_PREFERENCES.reminders)
   })
+
+  it('SeviFields_DefaultOffWithTheStandardQuietWindow', () => {
+    // Mirrors the server defaults: proactivity + mood memory opt-in, quiet 22:00→07:00.
+    const p = parsePreferences({})
+    expect(p.seviProactive).toBe(false)
+    expect(p.moodConsent).toBe(false)
+    expect(p.quietStartMin).toBe(1320)
+    expect(p.quietEndMin).toBe(420)
+  })
+
+  it('SeviFields_ParseServerValuesAndHealMalformedOnes', () => {
+    const p = parsePreferences({ seviProactive: true, quietStartMin: 1260, quietEndMin: '7am' })
+    expect(p.seviProactive).toBe(true)
+    expect(p.quietStartMin).toBe(1260)
+    expect(p.quietEndMin).toBe(DEFAULT_PREFERENCES.quietEndMin) // malformed → default
+  })
 })
 
 describe('getPreferences / updatePreferences', () => {

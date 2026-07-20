@@ -4,7 +4,8 @@ import {
   DEFAULT_PREFERENCES,
   getPreferences,
   updatePreferences,
-  type PreferenceKey,
+  type BooleanPreferenceKey,
+  type NumberPreferenceKey,
   type Preferences,
 } from '../api/preferences.js'
 
@@ -14,15 +15,18 @@ import {
  * - **Offline** (`apiBaseUrl` null, local DB open): load/persist in the local
  *   SQLite store (ADR-0040), so toggles survive a reload with no backend.
  * - **Demo** (no DB yet, e.g. the test gate): keep them in memory.
- * A toggle updates optimistically and rolls back if the write fails; `live` lets
- * the UI note when changes are being saved remotely.
+ * A change updates optimistically and rolls back if the write fails; `live` lets
+ * the UI note when changes are being saved remotely. `setPref` flips the boolean
+ * toggles; `setNumberPref` sets the quiet-hours minutes (ADR-0071) — split so a
+ * boolean can never be written into a minute field or vice versa.
  */
 export interface PreferencesResource {
   readonly prefs: Preferences
   readonly live: boolean
   readonly loading: boolean
   readonly error: Error | null
-  readonly setPref: (key: PreferenceKey, value: boolean) => void
+  readonly setPref: (key: BooleanPreferenceKey, value: boolean) => void
+  readonly setNumberPref: (key: NumberPreferenceKey, value: number) => void
 }
 
 export function usePreferences(): PreferencesResource {
@@ -55,18 +59,20 @@ export function usePreferences(): PreferencesResource {
     }
   }, [base])
 
-  const setPref = useCallback(
-    (key: PreferenceKey, value: boolean) => {
+  // One optimistic write path for both value kinds: apply locally, persist, roll
+  // back on failure. The typed wrappers below keep key/value pairs honest.
+  const applyPatch = useCallback(
+    (patch: Partial<Preferences>) => {
       setPrefs(previous => {
-        const optimistic = { ...previous, [key]: value }
+        const optimistic = { ...previous, ...patch }
         if (base !== null) {
-          updatePreferences(base, { [key]: value })
+          updatePreferences(base, patch)
             .then(saved => {
               setPrefs(saved)
               setError(null)
             })
             .catch((cause: unknown) => {
-              setPrefs(previous) // roll back the toggle
+              setPrefs(previous) // roll back the change
               setError(cause instanceof Error ? cause : new Error(String(cause)))
             })
         }
@@ -76,5 +82,19 @@ export function usePreferences(): PreferencesResource {
     [base],
   )
 
-  return { prefs, live, loading, error, setPref }
+  const setPref = useCallback(
+    (key: BooleanPreferenceKey, value: boolean) => {
+      applyPatch({ [key]: value })
+    },
+    [applyPatch],
+  )
+
+  const setNumberPref = useCallback(
+    (key: NumberPreferenceKey, value: number) => {
+      applyPatch({ [key]: value })
+    },
+    [applyPatch],
+  )
+
+  return { prefs, live, loading, error, setPref, setNumberPref }
 }
