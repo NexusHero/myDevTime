@@ -53,6 +53,13 @@ export { decideNudge, inQuietWindow } from './nudgePolicy.js'
 export type { Mood } from './mood.js'
 export { moodScoreOf, MOOD_WORDS } from './mood.js'
 
+// Weekday mood-pattern awareness (ADR-0071, REQ-068): `moodPatterns` flags the weekdays that
+// *repeatedly* run low over the consented mood memory — never from one bad day, and honestly
+// "not enough data" until some weekday reaches the sample minimum. `moodEntryOf` derives the
+// weekday clock-free with the server's exact `weekdayOf` convention (UTC, Sunday 0).
+export type { MoodPatternEntry, LowMoodWeekday, MoodPatterns } from './moodPatterns.js'
+export { moodPatterns, moodEntryOf, MIN_WEEKDAY_MOOD_SAMPLES } from './moodPatterns.js'
+
 export type {
   BaselineDay,
   LoadTrend,

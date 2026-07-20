@@ -548,6 +548,14 @@ export {
 export type { Mood } from './wellbeing/index.js'
 export { moodScoreOf, MOOD_WORDS } from './wellbeing/index.js'
 
+// Weekday mood-pattern awareness (ADR-0071, REQ-068) — Sevi's calm observation over the
+// consented mood memory: the weekdays that *repeatedly* run low (≥ the sample minimum AND a
+// median mood at/below the low-mood line). One bad day is never a pattern; too little data is
+// an honest `enoughData: false`, never an early verdict. Pure; the weekday convention is the
+// server's `weekdayOf` (UTC, Sunday 0), pinned by `moodEntryOf` so both ends always agree.
+export type { MoodPatternEntry, LowMoodWeekday, MoodPatterns } from './wellbeing/index.js'
+export { moodPatterns, moodEntryOf, MIN_WEEKDAY_MOOD_SAMPLES } from './wellbeing/index.js'
+
 // Issue/ticket import core (GitHub Issues + Azure DevOps Work Items → candidate tasks, ADR-0005) —
 // adapters fetch tickets as neutral `ExternalIssue`s; `toTaskProposals` maps, filters closed,
 // dedups (vs already-imported and in-batch) and deterministically orders them into
