@@ -90,6 +90,23 @@ overwriting the past, always undoable), and a **yesterday-healing** banner that 
 detected unbooked gap from what the tracker observed. All are proposals with provenance (ADR-0005),
 never silent writes.
 
+### 2.7 The calm canvas & the plan that repairs itself (binding, ADR-0072)
+
+The planner's job is a **daily loop**, and its design rule is **Ruhe als Default**: the week shows
+only the accepted plan and the now-line. Everything else — reality trace, ghosts, life shades,
+capacity head-trace, the backlog rail — lives behind **layer chips**, one tap away and never all
+loud at once. UI that stacks layers by default fails review. Blocks carry a strict type hierarchy,
+project colour only as an edge, and four unmistakable states (planned / live / done / missed);
+unplanned edge hours compress so the visible week is the lived week.
+
+When the day breaks, the **drift chip is the handle, not just the indicator**: one tap shows the
+repaired remainder as ghosts and one tap applies it — the plan **never moves without a tap**.
+Stretching past the personal capacity line is allowed only as an **informed deal**: the price is
+stated before the tap, a conscious accept keeps Sevi's own-baseline voice quiet for that day, and
+the ArbZG hard caps are never planned past — overflow moves visibly to tomorrow. An **empty
+planner is Sevi's stage**: two or three questions produce the first ghost week; there is no demo
+data, ever.
+
 ## 3. Information architecture — the calendar is the living place
 
 The IA is **four places + an avatar** (ADR-0063). The calendar (Today's Day Canvas and the
