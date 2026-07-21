@@ -185,6 +185,14 @@ export { buildDayPlan, reviewDayPlan } from './planner/plan.js'
 // applied to the stored blocks purely; the service persists the result as a new plan version.
 export type { PlanBlockMutation } from './planner/applyProposal.js'
 export { applyProposal, blockIdOf, MIN_SHRUNK_BLOCK_MIN } from './planner/applyProposal.js'
+// Daily-loop batch mutations (ADR-0072) — one-tap repair re-layout + fill-week/first-run
+// additions, applied to the stored blocks purely; persisted as a new accepted plan version.
+export type { RelayoutPlacement, BlockAddition } from './planner/applyProposal.js'
+export { relayoutDay, addBlocks } from './planner/applyProposal.js'
+// Shared minute-window math (ADR-0072) — the one gap computation the reflow (repair) and
+// packing (fill-week) cores build on: clip, merge, and invert obstacles into free windows.
+export type { MinuteWindow } from './planner/model.js'
+export { freeWindows } from './planner/model.js'
 
 // AI-credit ledger (REQ-027, ADR-0008) — append-only signed deltas; balance +
 // usage derived from the log; deterministic, LLM-free (ADR-0005).
