@@ -13,6 +13,7 @@ import {
 import { Text } from '../components/core/Text'
 import { useToast } from '../components/core/Toast'
 import { EveningCompanionCard } from '../components/today/EveningCompanionCard'
+import { SeviWatch } from '../components/today/SeviWatch'
 import type { CompanionDayInput, CompanionSuggestion } from '../api/companion'
 import { useTheme } from '../theme/ThemeProvider'
 import {
@@ -1308,6 +1309,10 @@ export function TodayScreen(): React.JSX.Element {
         </View>
 
         {heroBar}
+
+        {/* Sevi's real-time overwork watch (ADR-0071, REQ-067/069) — a calm inline
+            status line near the top of the day; renders nothing at all while calm. */}
+        <SeviWatch />
 
         {pomodoroCard}
 
