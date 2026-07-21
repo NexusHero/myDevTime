@@ -90,6 +90,37 @@ export class PlannerController {
       })
       return { applied: { proposal } }
     }
+    // Batch kinds of the daily loop (ADR-0072): one-tap repair + fill-week/first-run — the
+    // same confirm-only seam, with the applying feature recorded as the version's source.
+    if (proposal.kind === 'relayout-day') {
+      const plan = await svc.applyRelayout(
+        db,
+        workspaceId,
+        userId,
+        proposal.planId,
+        proposal.placements,
+        proposal.provenance,
+      )
+      return { applied: { proposal, resultPlanId: plan.id } }
+    }
+    if (proposal.kind === 'add-blocks') {
+      const plan = await svc.applyAddBlocks(
+        db,
+        workspaceId,
+        userId,
+        proposal.day,
+        // exactOptionalPropertyTypes: an absent taskId stays absent, never `undefined`.
+        proposal.blocks.map(b => ({
+          startMin: b.startMin,
+          lenMin: b.lenMin,
+          kind: b.kind,
+          label: b.label,
+          ...(b.taskId === undefined ? {} : { taskId: b.taskId }),
+        })),
+        proposal.provenance,
+      )
+      return { applied: { proposal, resultPlanId: plan.id } }
+    }
     const plan = await svc.applyBlockMutation(db, workspaceId, userId, proposal.planId, proposal)
     return { applied: { proposal, resultPlanId: plan.id } }
   }

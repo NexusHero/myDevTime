@@ -51,3 +51,85 @@ describe('ApplyProposalDto', () => {
     ).toBe(false)
   })
 })
+
+describe('ApplyProposalDto — batch kinds (ADR-0072)', () => {
+  const schema = ApplyProposalDto.schema
+  const planId = '3e9a3a3e-7b56-4b2c-9c39-3a2f9adcb111'
+  const placement = { blockId: '1', startMin: 720, lenMin: 60 }
+  const block = { startMin: 540, lenMin: 90, kind: 'focus', label: 'Kickoff' }
+
+  it('AcceptsAWellFormedRelayoutAndAddBlocks', () => {
+    for (const proposal of [
+      { kind: 'relayout-day', planId, placements: [placement], provenance: 'planner-reflow' },
+      { kind: 'add-blocks', day: '2026-07-21', blocks: [block], provenance: 'planner-fill' },
+      {
+        kind: 'add-blocks',
+        day: '2026-07-21',
+        blocks: [{ ...block, taskId: 't1' }],
+        provenance: 'planner-firstrun',
+      },
+    ]) {
+      expect(schema.safeParse({ proposal }).success).toBe(true)
+    }
+  })
+
+  it('RejectsEmptyPlacementsAndEmptyBlocks', () => {
+    expect(
+      schema.safeParse({
+        proposal: { kind: 'relayout-day', planId, placements: [], provenance: 'planner-reflow' },
+      }).success,
+    ).toBe(false)
+    expect(
+      schema.safeParse({
+        proposal: { kind: 'add-blocks', day: '2026-07-21', blocks: [], provenance: 'planner-fill' },
+      }).success,
+    ).toBe(false)
+  })
+
+  it('RejectsMinutesOutOfBoundsAndLengthsBelowTheFloor', () => {
+    for (const bad of [
+      { ...placement, startMin: -1 },
+      { ...placement, startMin: 1441 },
+      { ...placement, lenMin: 14 },
+    ]) {
+      expect(
+        schema.safeParse({
+          proposal: {
+            kind: 'relayout-day',
+            planId,
+            placements: [bad],
+            provenance: 'planner-reflow',
+          },
+        }).success,
+      ).toBe(false)
+    }
+    expect(
+      schema.safeParse({
+        proposal: {
+          kind: 'add-blocks',
+          day: '2026-07-21',
+          blocks: [{ ...block, lenMin: 14 }],
+          provenance: 'planner-fill',
+        },
+      }).success,
+    ).toBe(false)
+  })
+
+  it('RejectsAForeignProvenance', () => {
+    expect(
+      schema.safeParse({
+        proposal: { kind: 'relayout-day', planId, placements: [placement], provenance: 'sevi' },
+      }).success,
+    ).toBe(false)
+    expect(
+      schema.safeParse({
+        proposal: {
+          kind: 'add-blocks',
+          day: '2026-07-21',
+          blocks: [block],
+          provenance: 'planner-reflow',
+        },
+      }).success,
+    ).toBe(false)
+  })
+})
