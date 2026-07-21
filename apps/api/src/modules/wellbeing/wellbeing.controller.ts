@@ -16,7 +16,9 @@ const MOOD_HISTORY_DAYS = 90
  * erase it all in one action. Every route runs behind `AuthGuard` and scopes to the caller's
  * workspace + user via `WellbeingContext`. Consent is enforced *server-side* on the write path
  * (an honest 409, mirroring the REQ-025 pattern): without the stored opt-in, storage is
- * impossible, not merely hidden. The mood value itself is never logged on any of these paths.
+ * impossible, not merely hidden. Revoking consent also empties the read path (stored words
+ * stop steering the client); only the erase stays ungated. The mood value itself is never
+ * logged on any of these paths.
  */
 @ApiTags('wellbeing')
 @Controller('api/wellbeing')
@@ -44,6 +46,12 @@ export class WellbeingController {
   @Get('mood')
   async history(@CurrentUser() user: AuthenticatedUser) {
     const { db, workspaceId, userId } = await this.ctx.contextOf(user)
+    // Revoked consent stops READS as well as writes ("mood stays honestly absent"): the rows
+    // keep existing until the user erases them, but without the live opt-in the history is
+    // served empty — otherwise MoodEaseCard & friends would keep nudging off old words the
+    // person has withdrawn. The DELETE below stays ungated: erasure must always work.
+    const prefs = await getPreferences(db, workspaceId, userId)
+    if (!prefs.moodConsent) return []
     return this.wellbeing.moodHistory(db, { workspaceId, userId }, MOOD_HISTORY_DAYS)
   }
 

@@ -14,6 +14,8 @@ import * as svc from './service.js'
  * The consented mood store against a REAL Postgres (ADR-0071 P3, REQ-068). The critical
  * property is consent-first *by the server*: without the stored `moodConsent` preference a
  * POST is an honest 409 (RFC 7807) and — verified via a direct read — **nothing** is stored.
+ * Revoking consent stops READS as well: the GET serves an empty history while the rows still
+ * exist, and the ungated DELETE still erases them (erasure never needs an opt-in).
  * With consent the write persists and is idempotent per day (the last word wins), the history
  * reads back newest-first, one DELETE wipes everything, and — like every entity — the store is
  * workspace-isolated (negative isolation). The HTTP cases sign one real user up through
@@ -172,7 +174,29 @@ describe.skipIf(!databaseUrl)('wellbeing mood store (integration)', () => {
     expect(history.statusCode).toBe(200)
     expect(history.json()).toEqual([{ day: '2026-07-20', mood: 'good' }])
 
-    // One DELETE wipes the entire history (ADR-0071 P3: erasable in one action).
+    // Revoking consent stops READS too (mood stays honestly absent): the API serves an
+    // empty history off the still-stored rows — old words must not keep steering nudges.
+    const revoke = await app.inject({
+      method: 'PUT',
+      url: '/api/preferences',
+      headers: { cookie },
+      payload: { moodConsent: false },
+    })
+    expect(revoke.statusCode).toBe(200)
+    const hidden = await app.inject({
+      method: 'GET',
+      url: '/api/wellbeing/mood',
+      headers: { cookie },
+    })
+    expect(hidden.statusCode).toBe(200)
+    expect(hidden.json()).toEqual([])
+    // …while the row itself still exists — revocation hides, only erasure deletes.
+    expect(await svc.moodHistory(db, { workspaceId: httpWs, userId: httpUserId }, 30)).toHaveLength(
+      1,
+    )
+
+    // One DELETE wipes the entire history (ADR-0071 P3: erasable in one action) — and it
+    // works with consent OFF: erasure must never be gated behind an opt-in.
     const wipe = await app.inject({
       method: 'DELETE',
       url: '/api/wellbeing/mood',
@@ -185,6 +209,8 @@ describe.skipIf(!databaseUrl)('wellbeing mood store (integration)', () => {
       headers: { cookie },
     })
     expect(after.json()).toEqual([])
+    // The rows are truly gone (direct read) — consent-off hiding and erasure are distinct.
+    expect(await svc.moodHistory(db, { workspaceId: httpWs, userId: httpUserId }, 30)).toEqual([])
     await app.close()
   })
 

@@ -145,7 +145,9 @@ export async function moodHistory(db: Db, scope: DayLoadScope, days: number): Pr
 
 /**
  * Erase the person's **entire** mood history in one action (ADR-0071 P3: consented, deletable
- * memory — one tap wipes everything, no partial keep).
+ * memory — one tap wipes everything, no partial keep). Honest limit: a day's mood may already
+ * have flowed into that day's recorded composite `wellbeing_days.loadScore`; the erase removes
+ * every raw mood row but does not retroactively unmix that influence from the day-load history.
  */
 export async function deleteAllMoods(db: Db, scope: DayLoadScope): Promise<void> {
   await db
