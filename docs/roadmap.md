@@ -27,6 +27,7 @@ issue's comments before implementing it.
 | **M4 — Monetization** | Entitlement service, AI-credit ledger, Stripe web subscriptions, store IAP | [#21](https://github.com/NexusHero/myDevTime/issues/21) [#34](https://github.com/NexusHero/myDevTime/issues/34) [#22](https://github.com/NexusHero/myDevTime/issues/22) [#23](https://github.com/NexusHero/myDevTime/issues/23) |
 | **M5 — Launch** | Security, privacy/DSGVO, observability, E2E, distribution, pricing | [#24](https://github.com/NexusHero/myDevTime/issues/24) [#25](https://github.com/NexusHero/myDevTime/issues/25) [#26](https://github.com/NexusHero/myDevTime/issues/26) [#27](https://github.com/NexusHero/myDevTime/issues/27) [#28](https://github.com/NexusHero/myDevTime/issues/28) [#29](https://github.com/NexusHero/myDevTime/issues/29) |
 | **M-Sevi — Care buddy** | Turn the fragmented caring signals into **Sevi**, a proactive-but-calm buddy who watches load across work + life and speaks up only when it's hard (ADR-0071) | [#326](https://github.com/NexusHero/myDevTime/issues/326) [#327](https://github.com/NexusHero/myDevTime/issues/327) [#328](https://github.com/NexusHero/myDevTime/issues/328) [#329](https://github.com/NexusHero/myDevTime/issues/329) |
+| **M-Planner — Daily loop** | Fix the planner's broken daily loop against the one metric **daily voluntary use**: one-tap day repair (ghost reflow, informed stretch deal, ArbZG caps inviolable), backlog rail + "Fülle meine Woche", and the calm-canvas redesign with Sevi first run (ADR-0072) | [#339](https://github.com/NexusHero/myDevTime/issues/339) [#340](https://github.com/NexusHero/myDevTime/issues/340) [#341](https://github.com/NexusHero/myDevTime/issues/341) |
 
 ## Cross-cutting workstreams — start early, they don't wait for their milestone
 
@@ -273,6 +274,29 @@ PR:
   mood store.*
 - ✅ **Slice 4** ([#329](https://github.com/NexusHero/myDevTime/issues/329)) — life care (REQ-071):
   protect `--life`/🛡 blocks, notice no free evenings, encourage rest days. *Rides Slice 1's policy + baseline feeds.*
+
+### M-Planner — the daily loop (ADR-0072, REQ-072…074)
+
+The grill session (2026-07-21) fixed the planner's verdict: its three daily-flow breaks — filling
+takes too long, the plan dies at noon, the backlog bridge is missing — are **one broken loop**, and
+the milestone's single metric is **daily voluntary use**. The competitive frame is a deliberate mix
+of Motion's self-repairing plan, Sunsama's ritual and our own dev-week league — never silent
+automation: **the plan never moves without a tap** (ADR-0005/0071 stand unamended). Strict slice
+order, each shippable alone:
+
+- **Slice 1** ([#339](https://github.com/NexusHero/myDevTime/issues/339)) — **one-tap day repair**
+  (REQ-072): pure `planner/reflow` re-lays a broken day as a ghost proposal; the drift chip becomes
+  the action; stretching past the personal line is an *informed deal* (price before the tap,
+  day-scoped baseline quiet, ArbZG caps inviolable). *The noon fix — first, because without it every
+  planned morning dies by 14:00.*
+- **Slice 2** ([#340](https://github.com/NexusHero/myDevTime/issues/340)) — **backlog rail +
+  "Fülle meine Woche"** (REQ-073): imported issues + own tasks at estimate height; drag one or pack
+  the whole rail into a ghost week (pure `planner/packing`, 60-min deterministic default, violet AI
+  refinement), one confirm. *The morning fix.*
+- **Slice 3** ([#341](https://github.com/NexusHero/myDevTime/issues/341)) — **calm canvas + Sevi
+  first run** (REQ-074): plan + now-line as the only default layer, block redesign with four states,
+  edge-hour compression, and the empty planner as Sevi's onboarding stage — gated on an approved
+  before/after artifact. *The habit fix.*
 
 Every slice is proposal-only, degrades to a free deterministic template when the LLM/notification
 vendor is down, holds ≥90 % coverage on the deterministic cores (ADR-0005), and never paywalls the
