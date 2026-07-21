@@ -25,6 +25,7 @@ import {
   type TimedSpan,
 } from '@mydevtime/domain'
 import { ContextBanner, type ContextBannerProps } from '../components/planner/ContextBanner'
+import { SeviAdvisory } from '../components/planner/SeviAdvisory'
 import { priceWeekFromBlocks } from '../planner/weekPrice'
 import { weekCapacityFromBlocks } from '../planner/capacityTrace'
 import { inLayer, type PlannerLayer } from '../planner/layer'
@@ -2052,6 +2053,13 @@ export function PlannerScreen(): React.JSX.Element {
               </View>
             )
           })()}
+
+        {/* Sevi Scrum-Master at planning time (REQ-070, ADR-0071): ONE calm banner when the
+            week's planned load exceeds the honest plannable capacity, with confirm-gated
+            relief routed through the plan-apply seam. Renders nothing when the plan fits. */}
+        {view === 'Week' && (
+          <SeviAdvisory blocks={blocks} weekDates={weekDates} occurrences={occurrences} />
+        )}
 
         {view === 'Day' &&
           (() => {
