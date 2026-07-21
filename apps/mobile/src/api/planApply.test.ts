@@ -63,6 +63,68 @@ describe('applyPlanProposal', () => {
   })
 })
 
+describe('applyPlanProposal — batch kinds (ADR-0072)', () => {
+  const relayout: PlanProposal = {
+    kind: 'relayout-day',
+    planId: '3e9a3a3e-7b56-4b2c-9c39-3a2f9adcb111',
+    placements: [{ blockId: '1', startMin: 840, lenMin: 60 }],
+    provenance: 'planner-reflow',
+  }
+  const add: PlanProposal = {
+    kind: 'add-blocks',
+    day: '2026-07-21',
+    blocks: [{ startMin: 540, lenMin: 90, kind: 'focus', label: 'Kickoff', taskId: 't1' }],
+    provenance: 'planner-firstrun',
+  }
+
+  it('RoundTripsARelayoutProposalThroughTheSameApplyRoute', async () => {
+    let seenUrl = ''
+    let seenBody = ''
+    const fetchImpl = ((url: string, init?: RequestInit) => {
+      seenUrl = url
+      seenBody = (init?.body as string | undefined) ?? ''
+      return Promise.resolve(
+        jsonResponse(200, { applied: { proposal: relayout, resultPlanId: 'p-3' } }),
+      )
+    }) as unknown as typeof fetch
+
+    const out = await applyPlanProposal('https://api.test', relayout, fetchImpl)
+
+    expect(seenUrl).toBe('https://api.test/api/planner/apply')
+    expect(JSON.parse(seenBody)).toEqual({ proposal: relayout })
+    expect(out).toEqual({ proposal: relayout, resultPlanId: 'p-3' })
+  })
+
+  it('RoundTripsAnAddBlocksProposal', async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(jsonResponse(200, { applied: { proposal: add, resultPlanId: 'p-1' } })),
+    )
+    const out = await applyPlanProposal('https://api.test', add, fetchImpl)
+    expect(out).toEqual({ proposal: add, resultPlanId: 'p-1' })
+  })
+
+  it('EmptyPlacementsInTheEcho_FailTheParse', async () => {
+    // The schema mirrors the server's nonempty rule — an empty batch is never a valid echo.
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(
+        jsonResponse(200, { applied: { proposal: { ...relayout, placements: [] } } }),
+      ),
+    )
+    await expect(
+      applyPlanProposal('https://api.test', relayout, fetchImpl as typeof fetch),
+    ).rejects.toThrow()
+  })
+
+  it('EmptyBlocksInTheEcho_FailTheParse', async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(jsonResponse(200, { applied: { proposal: { ...add, blocks: [] } } })),
+    )
+    await expect(
+      applyPlanProposal('https://api.test', add, fetchImpl as typeof fetch),
+    ).rejects.toThrow()
+  })
+})
+
 describe('getProtectedTimes', () => {
   it('GetsTheDaysWindowsAndParsesThem', async () => {
     let seenUrl = ''
