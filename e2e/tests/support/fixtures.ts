@@ -170,6 +170,36 @@ export async function seedOvercommittedWeek(
     expect(
       res.ok(),
       `seed series "${s.title}" failed (${String(res.status())}): ${await res.text()}`,
+/**
+ * Store the explicit mood-memory opt-in (ADR-0071 P3, REQ-068) for the signed-in user. Pass an
+ * AUTHENTICATED context (`page.request` after `uiSignIn`) — the standalone `request` fixture
+ * carries no session cookie and the preferences route sits behind the auth guard.
+ */
+export async function enableMoodConsent(request: APIRequestContext): Promise<void> {
+  const res = await request.put('/api/preferences', { data: { moodConsent: true } })
+  expect(res.ok(), `mood consent failed (${String(res.status())}): ${await res.text()}`).toBeTruthy()
+}
+
+/** One seeded mood day for `seedMoodSeries` — the server's closed vocabulary, day overridden. */
+export interface MoodSeed {
+  readonly day: string
+  readonly mood: 'good' | 'tense' | 'stressed'
+}
+
+/**
+ * Seed a mood series through the REAL consent-gated endpoint (`POST /api/wellbeing/mood` with
+ * the per-entry day override) — call `enableMoodConsent` first, and pass the same
+ * authenticated context (`page.request`); without the stored opt-in the server answers 409.
+ */
+export async function seedMoodSeries(
+  request: APIRequestContext,
+  entries: readonly MoodSeed[],
+): Promise<void> {
+  for (const entry of entries) {
+    const res = await request.post('/api/wellbeing/mood', { data: entry })
+    expect(
+      res.ok(),
+      `mood seed for ${entry.day} failed (${String(res.status())}): ${await res.text()}`,
     ).toBeTruthy()
   }
 }
