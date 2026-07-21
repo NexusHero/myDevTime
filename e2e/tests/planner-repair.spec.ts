@@ -93,17 +93,20 @@ test.describe('acceptance · one-tap day repair (REQ-072)', () => {
       expect(repaired!.startMin).toBeGreaterThanOrEqual(now - 2)
       expect(repaired!.lenMin).toBe(60)
       repairedTimeLabel = `${hhmm(repaired!.startMin)}–${hhmm(repaired!.startMin + 60)}`
-      // __DIAG__ one-shot: what does the client actually render vs. what the server persisted?
-      await page.waitForTimeout(3000)
-      const shownTimes = await page.getByText(/\d\d:\d\d[–-]\d\d:\d\d/).allInnerTexts()
-      const cardText = await page
-        .locator('div', { hasText: 'Co-Planner' })
-        .last()
-        .innerText()
-        .catch(() => '<<no co-planner card>>')
+      // __DIAG__ one-shot: what is actually on the Today screen after the repair confirm?
+      await page.waitForTimeout(2000)
+      const url = page.url()
+      const bodyText = (await page.locator('body').innerText().catch(() => '<<no body>>')).slice(
+        0,
+        2500,
+      )
+      const hasCoPlanner = await page.getByText('Co-Planner').count()
+      const hasChip = await page
+        .getByRole('button', { name: 'Plan gerissen · Reparieren' })
+        .count()
       // eslint-disable-next-line no-console
       console.log(
-        `__DIAG__ ${JSON.stringify({ expected: repairedTimeLabel, shownTimes, plan: after, cardText })}`,
+        `__DIAG2__ ${JSON.stringify({ expected: repairedTimeLabel, url, hasCoPlanner, hasChip, bodyText })}`,
       )
       // The Co-Planner card re-reads the new version and shows the repaired time.
       await expect(page.getByText(repairedTimeLabel).first()).toBeVisible()
