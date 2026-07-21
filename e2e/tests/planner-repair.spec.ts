@@ -57,6 +57,9 @@ test.describe('acceptance · one-tap day repair (REQ-072)', () => {
     const now = utcMinuteNow()
     await seedBrokenDay(request, now)
     await uiSignIn(page, user)
+    // The repair is asserted on the Today Co-Planner card (its HH:MM–HH:MM block labels); the
+    // app's home route is the Planner canvas, so land on Today explicitly.
+    await page.goto('/today')
 
     await test.step('the drift chip is the action: Reparieren on the adherence chip', async () => {
       await expect(repairChip(page)).toBeVisible()
@@ -93,21 +96,6 @@ test.describe('acceptance · one-tap day repair (REQ-072)', () => {
       expect(repaired!.startMin).toBeGreaterThanOrEqual(now - 2)
       expect(repaired!.lenMin).toBe(60)
       repairedTimeLabel = `${hhmm(repaired!.startMin)}–${hhmm(repaired!.startMin + 60)}`
-      // __DIAG__ one-shot: what is actually on the Today screen after the repair confirm?
-      await page.waitForTimeout(2000)
-      const url = page.url()
-      const bodyText = (await page.locator('body').innerText().catch(() => '<<no body>>')).slice(
-        0,
-        2500,
-      )
-      const hasCoPlanner = await page.getByText('Co-Planner').count()
-      const hasChip = await page
-        .getByRole('button', { name: 'Plan gerissen · Reparieren' })
-        .count()
-      // eslint-disable-next-line no-console
-      console.log(
-        `__DIAG2__ ${JSON.stringify({ expected: repairedTimeLabel, url, hasCoPlanner, hasChip, bodyText })}`,
-      )
       // The Co-Planner card re-reads the new version and shows the repaired time.
       await expect(page.getByText(repairedTimeLabel).first()).toBeVisible()
     })
@@ -167,6 +155,9 @@ test.describe('acceptance · one-tap day repair (REQ-072)', () => {
     const plannedEnd = now + 150
     const price = `+60 min über deiner Linie · Feierabend ~${hhmm(plannedEnd + 60)}`
     await uiSignIn(page, user)
+    // The stretch price + repaired plan are asserted on the Today Co-Planner card; the app's
+    // home route is the Planner canvas, so land on Today explicitly.
+    await page.goto('/today')
 
     await test.step('the ghost preview states the deal before any tap', async () => {
       await repairChip(page).click()
