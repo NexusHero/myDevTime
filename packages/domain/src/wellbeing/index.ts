@@ -61,6 +61,21 @@ export type { MoodPatternEntry, LowMoodWeekday, MoodPatterns } from './moodPatte
 export { moodPatterns, moodEntryOf, MIN_WEEKDAY_MOOD_SAMPLES } from './moodPatterns.js'
 
 export type {
+  LifeCareSuggestion,
+  LifeCareSuggestionKind,
+  LifeCareInput,
+  EveningBlock,
+} from './lifeCare.js'
+export {
+  lifeCareSuggestions,
+  freeEveningsIn,
+  MIN_EVENING_WINDOW_DAYS,
+  REST_DAY_THRESHOLD_DEFAULT,
+  EVENING_START_MIN,
+  EVENING_END_MIN,
+} from './lifeCare.js'
+
+export type {
   BaselineDay,
   LoadTrend,
   WellbeingBaseline,
