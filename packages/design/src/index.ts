@@ -124,3 +124,25 @@ export {
   type NavMode,
   type Chrome,
 } from './responsive.js'
+
+// Calm canvas (ADR-0072 D3, issue #341): time compression + the four block states.
+export {
+  MORNING_EDGE_MIN,
+  EVENING_EDGE_MIN,
+  COMPRESSED_BAND_WEIGHT_MIN,
+  compressWindow,
+  compressedTotalWeight,
+  compressedY,
+  compressedRect,
+  compressedMinAt,
+  type CompressBand,
+  type CompressOptions,
+} from './planner/compress.js'
+export {
+  MISSED_COVERAGE_MIN,
+  intervalCoverage,
+  plannerBlockState,
+  blockStateStyle,
+  type PlannerBlockState,
+  type BlockStateStyle,
+} from './planner/blockState.js'
