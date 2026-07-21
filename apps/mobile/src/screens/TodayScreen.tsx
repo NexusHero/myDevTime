@@ -33,7 +33,9 @@ import {
   ReanimatedTimer,
   type OverflowItem,
 } from '../components/index'
+import { DayRepairSheet } from '../components/planner/DayRepairSheet'
 import { useTimerContext } from '../timer/TimerContext'
+import { useDayRepair } from '../hooks/useDayRepair'
 import { usePlanner } from '../hooks/usePlanner'
 import { usePreferences } from '../hooks/usePreferences'
 import { useInsights } from '../hooks/useInsights'
@@ -149,6 +151,9 @@ export function TodayScreen(): React.JSX.Element {
   // replan all go through the planner service — no local ghost constants.
   const planner = usePlanner()
   const plan = planner.plan
+  // One-tap day repair (ADR-0072 D1, REQ-072): the drift chip becomes the action — the
+  // adherence chip below opens the ghost preview when the pure core has a repair to offer.
+  const repair = useDayRepair(planner)
   const isRunning = timer.running !== null
   const paused = timer.paused
   // The session is "active" (has time on it) whether the segment is running or paused.
@@ -1295,7 +1300,12 @@ export function TodayScreen(): React.JSX.Element {
               from the deterministic evening review (`PlanReview`) — never an AI guess, never
               fabricated. Shown only once there is a plan with planned focus to compare against. */}
           {planAdherence !== null && (
-            <View
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                repair.proposal !== null ? 'Plan gerissen · Reparieren' : planAdherence.label
+              }
+              onPress={repair.proposal !== null ? repair.openPreview : undefined}
               style={{
                 paddingHorizontal: t.spacing.s2,
                 paddingVertical: 2,
@@ -1304,9 +1314,9 @@ export function TodayScreen(): React.JSX.Element {
               }}
             >
               <Text style={{ fontSize: t.fontSize.xs, fontWeight: '600', color: planAdherence.fg }}>
-                {planAdherence.label}
+                {`${planAdherence.label}${repair.proposal !== null ? ' · Reparieren' : ''}`}
               </Text>
-            </View>
+            </Pressable>
           )}
         </View>
 
@@ -1315,6 +1325,10 @@ export function TodayScreen(): React.JSX.Element {
         {/* Sevi's real-time overwork watch (ADR-0071, REQ-067/069) — a calm inline
             status line near the top of the day; renders nothing at all while calm. */}
         <SeviWatch />
+
+        {/* One-tap day repair preview (ADR-0072 D1, REQ-072): the ghost proposal opened by the
+            adherence chip above (chip=false — the existing chip is the handle on Today). */}
+        <DayRepairSheet repair={repair} chip={false} />
 
         {pomodoroCard}
 

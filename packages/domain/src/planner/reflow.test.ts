@@ -181,11 +181,13 @@ describe('reflowDay · invariant 2 — the hard cap is inviolable, overflow is h
       const { input, proposal } = randomDay(rnd)
       const missed = new Set(input.missedIds)
       const movable = input.blocks.filter(
-        b => b.locked !== true && b.kind !== 'meeting' && (missed.has(b.id) || b.startMin >= input.nowMin),
+        b =>
+          b.locked !== true &&
+          b.kind !== 'meeting' &&
+          (missed.has(b.id) || b.startMin >= input.nowMin),
       )
       const placedIds = new Set(proposal.placements.map(p => p.id))
-      const movedIds =
-        proposal.overflow.kind === 'moved' ? proposal.overflow.movedBlockIds : []
+      const movedIds = proposal.overflow.kind === 'moved' ? proposal.overflow.movedBlockIds : []
       for (const b of movable) {
         expect(placedIds.has(b.id) || movedIds.includes(b.id)).toBe(true)
       }
