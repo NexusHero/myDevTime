@@ -41,7 +41,8 @@ export interface TimegridPlanBlock {
   readonly lenMin: number
   readonly label: string
   readonly state: PlannerBlockState
-  readonly edgeColor: string
+  /** The project (or kind) colour — worn as the block's bold fill (issue #341). */
+  readonly fillColor: string
 }
 
 export interface PlannerCalendarProps {

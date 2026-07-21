@@ -19,6 +19,7 @@ import {
   plannerBlockRect,
   plannerBlockState,
   projectColor,
+  readableInk,
   snapDurationMin,
   type CompressBand,
   type LanePlacement,
@@ -101,6 +102,9 @@ const START_HOUR = 8
 const END_HOUR = 22
 const SPAN = (END_HOUR - START_HOUR) * 60
 const BODY_HEIGHT = 616 // ~44 px per hour × 14 h
+/** A readable floor for a plan block (issue #341): a short block never squashes to a
+ *  sliver — title + time still fit even when compression maps it small. */
+const MIN_PLAN_BLOCK_PX = 34
 /** Minutes-from-08:00 of the contracted day end (18:00) — the evening-zone / soll-end line. */
 const SOLL_END_MIN = (18 - START_HOUR) * 60
 const HEADER_HEIGHT = 46
@@ -246,8 +250,8 @@ function clockAbs(minOfDay: number): string {
 /**
  * An accepted-plan block on the canvas (ADR-0072 D3): the calm default layer.
  * Absolute day minutes (the seam's shape), a derived four-way state and the
- * project/kind colour it wears as an edge. Read-only — plan mutations flow
- * through the plan-apply seam only (ADR-0071).
+ * project/kind colour it wears as a bold fill (issue #341). Read-only — plan
+ * mutations flow through the plan-apply seam only (ADR-0071).
  */
 interface PlanCanvasBlock {
   readonly day: number
@@ -255,7 +259,7 @@ interface PlanCanvasBlock {
   readonly lenMin: number
   readonly label: string
   readonly state: PlannerBlockState
-  readonly edgeColor: string
+  readonly fillColor: string
 }
 
 /** A tiny outlined glyph badge inside a block (↻ recurring, ⇄ OL, ? tentative, FYI). */
@@ -427,25 +431,27 @@ function CanvasBlockView({
     elevation: 6,
   }
 
-  // Block redesign (issue #341): strict type hierarchy (title > time > meta) and the
-  // project colour worn ONLY as the left edge — never a fill. Fills stay neutral
-  // surfaces in every kind, so density reads calm at real volumes (ux-vision §2.7).
-  const labelColor = fyi
-    ? t.color.ink3
-    : isGhost || tentative
-      ? color
-      : isBreak
-        ? t.color.ink3
-        : t.color.ink
-  const timeColor = isGhost ? color : t.color.ink2
+  // Block redesign (issue #341, owner-revised): the project colour is the block's
+  // BOLD FILL — "Farbe knallt, Ruhe kommt aus Layern" (calm comes from the layer
+  // chips + edge-hour compression, not from draining the colour). Strict type
+  // hierarchy (title > time > meta); text ink is the luminance-readable choice on
+  // the fill so contrast holds. Ghosts stay outline (a proposal), breaks/FYI sit on
+  // a quiet sunk fill.
+  const filled = block.kind === 'actual' || solidMeeting
+  const fillInk = readableInk(color)
+  const labelColor = filled
+    ? fillInk
+    : fyi
+      ? t.color.ink3
+      : isGhost || tentative
+        ? color
+        : isBreak
+          ? t.color.ink3
+          : t.color.ink
+  const timeColor = filled ? fillInk : isGhost ? color : t.color.ink2
   const badgeColor = labelColor
 
-  const baseBg =
-    block.kind === 'actual' || solidMeeting
-      ? t.color.surface
-      : isBreak || fyi
-        ? t.color.sunk
-        : 'transparent'
+  const baseBg = filled ? color : isBreak || fyi ? t.color.sunk : 'transparent'
   const backgroundColor = popped && baseBg === 'transparent' ? t.color.surface : baseBg
 
   const showTime = true
@@ -465,7 +471,9 @@ function CanvasBlockView({
           ...(popped ? { zIndex: 20, ...elevatedShadow } : null),
           borderRadius: t.radius.chip,
           overflow: 'hidden',
-          borderWidth: isGhost ? 1.5 : isBreak ? 1 : tentative ? 1.5 : fyi ? 1 : 1,
+          // The fill carries the colour; only non-filled kinds wear an outline —
+          // ghosts (dashed proposal), breaks (dashed), tentative/FYI meetings.
+          borderWidth: isGhost ? 1.5 : isBreak ? 1 : tentative ? 1.5 : fyi ? 1 : 0,
           borderStyle: isGhost || isBreak ? 'dashed' : fyi ? 'dotted' : 'solid',
           borderColor: isGhost
             ? color
@@ -475,20 +483,7 @@ function CanvasBlockView({
                 ? color
                 : fyi
                   ? t.color.borderStrong
-                  : block.kind === 'actual' || solidMeeting
-                    ? t.color.border
-                    : 'transparent',
-          // The one place colour lives: the edge (3px for real blocks, hairline ghosts).
-          borderLeftWidth:
-            block.kind === 'actual' || solidMeeting ? 3 : isGhost ? 1.5 : isBreak ? 1 : undefined,
-          borderLeftColor:
-            block.kind === 'actual' || solidMeeting
-              ? color
-              : isGhost
-                ? color
-                : isBreak
-                  ? t.color.borderStrong
-                  : undefined,
+                  : 'transparent',
           backgroundColor,
         },
         animStyle,
@@ -1039,12 +1034,13 @@ function DayColumn({
             label={pb.label}
             timeLabel={`${clockAbs(pb.startMin)}–${clockAbs(pb.startMin + pb.lenMin)}`}
             state={pb.state}
-            edgeColor={pb.edgeColor}
+            fillColor={pb.fillColor}
             top={compressedY(bands, pb.startMin) * BODY_HEIGHT}
-            height={
+            height={Math.max(
               (compressedY(bands, pb.startMin + pb.lenMin) - compressedY(bands, pb.startMin)) *
-              BODY_HEIGHT
-            }
+                BODY_HEIGHT,
+              MIN_PLAN_BLOCK_PX,
+            )}
           />
         ))}
         {dayEntries.map(({ b, globalIndex }, i) => (
@@ -1178,40 +1174,18 @@ function Legend(): React.JSX.Element {
   )
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 16 }}>
-      {/* Block redesign (issue #341): colour is an EDGE, never a fill — the legend
-          teaches exactly what the canvas renders. */}
+      {/* Block redesign (issue #341, owner-revised): the project colour FILLS the
+          block — the legend teaches exactly what the canvas renders. */}
       <Item
         label="Booked"
         swatch={
-          <View
-            style={{
-              width: 16,
-              height: 11,
-              borderRadius: 3,
-              backgroundColor: t.color.surface,
-              borderWidth: 1,
-              borderColor: t.color.border,
-              borderLeftWidth: 3,
-              borderLeftColor: sample,
-            }}
-          />
+          <View style={{ width: 16, height: 11, borderRadius: 3, backgroundColor: sample }} />
         }
       />
       <Item
         label="Meeting"
         swatch={
-          <View
-            style={{
-              width: 16,
-              height: 11,
-              borderRadius: 3,
-              backgroundColor: t.color.surface,
-              borderWidth: 1,
-              borderColor: t.color.border,
-              borderLeftWidth: 3,
-              borderLeftColor: meeting,
-            }}
-          />
+          <View style={{ width: 16, height: 11, borderRadius: 3, backgroundColor: meeting }} />
         }
       />
       <Item
@@ -1222,12 +1196,10 @@ function Legend(): React.JSX.Element {
               width: 16,
               height: 11,
               borderRadius: 3,
-              backgroundColor: t.color.surface,
-              borderWidth: 1,
+              backgroundColor: sample,
+              borderWidth: 1.5,
               borderStyle: 'dashed',
-              borderColor: t.color.crit,
-              borderLeftWidth: 3,
-              borderLeftColor: sample,
+              borderColor: readableInk(sample),
             }}
           />
         }
@@ -1941,11 +1913,11 @@ export function PlannerScreen(): React.JSX.Element {
           dayNowMin,
           observed === null ? null : intervalCoverage(b.startMin, b.lenMin, observed),
         ),
-        edgeColor:
+        fillColor:
           b.kind === 'meeting'
-            ? t.color.ink2
+            ? t.color.accent
             : b.kind === 'break'
-              ? t.color.borderStrong
+              ? t.color.sunk
               : projectColor(b.taskId ?? b.label, t.mode),
       }))
     },

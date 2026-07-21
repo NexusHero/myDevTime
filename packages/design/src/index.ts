@@ -140,9 +140,16 @@ export {
 } from './planner/compress.js'
 export {
   MISSED_COVERAGE_MIN,
+  INK_ON_DARK,
+  INK_ON_LIGHT,
+  DONE_MUTE,
+  FILL_INK_TARGET,
   intervalCoverage,
   plannerBlockState,
   blockStateStyle,
+  readableInk,
+  legibleFill,
+  mixHex,
   type PlannerBlockState,
   type BlockStateStyle,
 } from './planner/blockState.js'

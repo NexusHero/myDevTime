@@ -1,16 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import { act, useEffect } from 'react'
 import TestRenderer from 'react-test-renderer'
-import { ACCENT_THEMES, blockStateStyle, palettes, type AccentTheme } from '@mydevtime/design'
-import type { PlannerBlockState } from '@mydevtime/design'
+import {
+  ACCENT_THEMES,
+  blockStateStyle,
+  palettes,
+  type AccentTheme,
+  type PlannerBlockState,
+} from '@mydevtime/design'
 import { PlanBlockView } from './PlanBlockView.js'
 import { ThemeProvider, useAccent, useThemePref } from '../../theme/ThemeProvider.js'
 
 /**
- * Render tests (ADR-0027) for the redesigned plan block (issue #341): the four
- * states are unmistakable — each carries its marker glyph and state label — in
- * light AND dark across ALL THREE accents, and the project colour is worn only
- * as the left edge, never as the block's fill.
+ * Render tests (ADR-0027) for the plan block (issue #341, owner-revised to bold
+ * fills): the project colour is the block's FILL (never drained), the four states
+ * are unmistakable — each carries its marker glyph and state label, and `missed`
+ * additionally wears the dashed tear edge the repair (#339) needs — in light AND
+ * dark across ALL THREE accents, with luminance-readable ink.
  */
 
 function ThemeSetter({
@@ -31,6 +37,8 @@ function ThemeSetter({
   return <>{children}</>
 }
 
+const FILL = '#00937c'
+
 function render(
   mode: 'dark' | 'light',
   accent: AccentTheme,
@@ -45,7 +53,7 @@ function render(
             label="Sync-Engine"
             timeLabel="09:00–11:00"
             state={state}
-            edgeColor="#1fa894"
+            fillColor={FILL}
             top={40}
             height={80}
           />
@@ -78,23 +86,22 @@ const COMBOS = ACCENT_THEMES.flatMap(accent =>
 describe('PlanBlockView', () => {
   for (const { accent, mode } of COMBOS) {
     describe(`${accent}/${mode}`, () => {
-      it.each(STATES)('%s · marker, state label, edge-not-fill', state => {
+      it.each(STATES)('%s · project colour fills the block, state on top', state => {
         const r = render(mode, accent, state)
         const root = r.root.findByProps({
           accessibilityLabel: `Sync-Engine, 09:00–11:00, ${state === 'live' ? 'live now' : state}`,
         })
         const style = flat(root.props.style)
-        const expected = blockStateStyle(state, palettes[accent][mode])
-        // The fill is the state's neutral surface — never the project colour.
+        const expected = blockStateStyle(state, FILL, palettes[accent][mode])
+        // The project colour is the fill — for planned/live/missed it is the exact
+        // colour, for done a muted-but-coloured version; never a neutral surface.
         expect(style['backgroundColor']).toBe(expected.fill)
-        expect(style['backgroundColor']).not.toBe('#1fa894')
-        // The project colour lives on the edge.
-        expect(style['borderLeftColor']).toBe('#1fa894')
-        expect(style['borderLeftWidth']).toBe(3)
-        // Missed is the only dashed frame; done the only receding one.
+        if (state !== 'done') expect(style['backgroundColor']).toBe(FILL)
+        expect(style['backgroundColor']).not.toBe(palettes[accent][mode].surface)
+        // Missed is the only dashed tear edge (the repair handle).
         expect(style['borderStyle']).toBe(state === 'missed' ? 'dashed' : 'solid')
-        expect(style['opacity']).toBe(state === 'done' ? 0.8 : 1)
-        // The state marker glyph is present (planned carries none).
+        expect(style['borderWidth']).toBe(state === 'missed' ? 1.5 : 0)
+        // Title + time carry the luminance-readable ink.
         const texts = r.root
           .findAll(n => typeof n.type === 'string')
           .flatMap(n => n.children)
@@ -117,7 +124,7 @@ describe('PlanBlockView', () => {
             label="Standup"
             timeLabel="09:00–09:15"
             state="planned"
-            edgeColor="#1fa894"
+            fillColor={FILL}
             top={0}
             height={10}
           />

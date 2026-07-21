@@ -13,7 +13,12 @@ import type {
   EventInput,
 } from '@fullcalendar/core'
 import type { EventResizeDoneArg } from '@fullcalendar/interaction'
-import { blockStateStyle, projectColor, type PlannerBlockState } from '@mydevtime/design'
+import {
+  blockStateStyle,
+  projectColor,
+  readableInk,
+  type PlannerBlockState,
+} from '@mydevtime/design'
 import { Text } from '../core/Text'
 import { useTheme } from '../../theme/ThemeProvider'
 import type { PlannerCalendarProps } from './PlannerCalendar'
@@ -144,7 +149,7 @@ export function PlannerCalendar({
             end: new Date(weekStartMs + pb.day * DAY_MS + (pb.startMin + pb.lenMin) * 60_000),
             editable: false,
             extendedProps: {
-              color: pb.edgeColor,
+              color: pb.fillColor,
               isLife: false,
               priority: null,
               blockIndex: null,
@@ -154,10 +159,11 @@ export function PlannerCalendar({
     return [...occEvents, ...blockEvents, ...planEvents]
   }, [occurrences, editableBlocks, planBlocks, weekStartMs, t.color.life, t.color.accent, t.mode])
 
-  // Custom event renderer (ADR-0068 — never the library theme), redesigned per
-  // issue #341: neutral fills, the project colour only as an edge, and the four
-  // block states (planned/live/done/missed) styled by the shared, AA-checked
-  // `blockStateStyle` — the identical language the RN canvas wears.
+  // Custom event renderer (ADR-0068 — never the library theme), per issue #341
+  // (owner-revised): the project colour is the block's bold FILL, the four block
+  // states (planned/live/done/missed) read on top via the shared, AA-checked
+  // `blockStateStyle` (luminance-readable ink) — the identical language the RN
+  // canvas wears; calm comes from the layer chips, not from draining the colour.
   const STATE_GLYPH: Record<PlannerBlockState, string | null> = {
     planned: null,
     live: '●',
@@ -172,7 +178,9 @@ export function PlannerCalendar({
       planState?: PlannerBlockState
     }
     if (ext.planState !== undefined) {
-      const s = blockStateStyle(ext.planState, t.color)
+      // Owner-revised (issue #341): the project colour is the bold fill; state reads
+      // on top — missed keeps the fill + a dashed tear edge (#339's repair handle).
+      const s = blockStateStyle(ext.planState, ext.color, t.color)
       const glyph = STATE_GLYPH[ext.planState]
       return (
         <View
@@ -184,12 +192,9 @@ export function PlannerCalendar({
             paddingVertical: 2,
             borderRadius: 4,
             backgroundColor: s.fill,
-            borderWidth: 1,
+            borderWidth: s.dashed ? 1.5 : 0,
             borderStyle: s.dashed ? 'dashed' : 'solid',
-            borderColor: s.dashed && s.marker !== null ? s.marker : t.color.border,
-            borderLeftWidth: 2.5,
-            borderLeftColor: ext.color,
-            opacity: s.dimmed ? 0.8 : 1,
+            borderColor: s.edge ?? 'transparent',
           }}
         >
           {glyph !== null && (
@@ -203,8 +208,13 @@ export function PlannerCalendar({
         </View>
       )
     }
-    const prioColor =
+    // Occurrences + editable canvas blocks (issue #341, owner-revised): the colour
+    // knallt — project colour (or sage `--life`) as the bold fill, with the
+    // luminance-readable ink, plus the priority pip. Calm comes from the layer
+    // chips + compression, not from draining the colour.
+    const prioPip =
       ext.priority === 1 ? t.color.crit : ext.priority === 2 ? t.color.warn : t.color.ink3
+    const ink = readableInk(ext.color)
     return (
       <View
         style={{
@@ -214,19 +224,13 @@ export function PlannerCalendar({
           paddingHorizontal: 5,
           paddingVertical: 2,
           borderRadius: 4,
-          // Neutral fill; the colour lives on the edge (issue #341).
-          backgroundColor: ext.isLife ? t.color.lifeSoft : t.color.surface,
-          borderLeftWidth: 2.5,
-          borderLeftColor: ext.color,
+          backgroundColor: ext.color,
         }}
       >
-        {!ext.isLife && (
-          <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: prioColor }} />
+        {!ext.isLife && ext.priority !== null && (
+          <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: prioPip }} />
         )}
-        <Text
-          numberOfLines={1}
-          style={{ fontSize: 9, fontWeight: '700', color: ext.isLife ? t.color.life : t.color.ink }}
-        >
+        <Text numberOfLines={1} style={{ fontSize: 9, fontWeight: '700', color: ink }}>
           {arg.event.title}
         </Text>
       </View>

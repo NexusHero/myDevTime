@@ -4,22 +4,24 @@ import { Text } from '../core/Text'
 import { useTheme } from '../../theme/ThemeProvider'
 
 /**
- * The redesigned plan block (ADR-0072 D3, REQ-074, issue #341): strict type
- * hierarchy (title > time > meta), the project colour as an **edge** — never a
- * fill — and one of four unmistakable states: `planned / live / done / missed`.
- * All state colours come from the pure, AA-checked `blockStateStyle` in
- * `@mydevtime/design`, so the RN canvas and the web renderers wear the identical
- * language. Presentational and read-only: the state is derived upstream
- * (deterministically, from the clock + observed coverage — ADR-0005); `missed`
- * is exactly the state the one-tap repair (#339) consumes.
+ * The plan block (ADR-0072 D3, REQ-074, issue #341 — owner-revised): strict type
+ * hierarchy (title > time > meta), the project colour as the block's **bold fill**
+ * ("Farbe knallt, Ruhe kommt aus Layern"), and one of four unmistakable states:
+ * `planned / live / done / missed`. State reads *on top of* the fill, never by
+ * draining it — planned is the full fill, live adds the orange live pip, done
+ * recedes (muted fill, still coloured), missed keeps the fill and gains a dashed
+ * tear edge (the handle the one-tap repair, #339, consumes). Fill + luminance-
+ * readable ink come from the pure, AA-checked `blockStateStyle` in
+ * `@mydevtime/design`, so the RN canvas and the web renderers wear one language.
+ * Presentational and read-only: the state is derived upstream (ADR-0005).
  */
 export interface PlanBlockViewProps {
   readonly label: string
   /** `HH:MM–HH:MM`, pre-formatted by the caller. */
   readonly timeLabel: string
   readonly state: PlannerBlockState
-  /** The project colour (or kind tone) — worn only as the left edge. */
-  readonly edgeColor: string
+  /** The project (or kind) colour — worn as the block's bold fill. */
+  readonly fillColor: string
   /** Pixel offsets within the day column (compressed mapping is the caller's). */
   readonly top: number
   readonly height: number
@@ -43,12 +45,12 @@ export function PlanBlockView({
   label,
   timeLabel,
   state,
-  edgeColor,
+  fillColor,
   top,
   height,
 }: PlanBlockViewProps): React.JSX.Element {
   const t = useTheme()
-  const s = blockStateStyle(state, t.color)
+  const s = blockStateStyle(state, fillColor, t.color)
   const px = Math.max(height, 14)
   return (
     <View
@@ -62,14 +64,12 @@ export function PlanBlockView({
         height: px,
         borderRadius: t.radius.chip,
         overflow: 'hidden',
+        // Colour knallt: the project colour fills the block. State is an addition —
+        // a missed block keeps its fill and wears a dashed tear edge (the repair handle).
         backgroundColor: s.fill,
-        // Colour lives on the edge, state on the frame: missed tears the outline.
-        borderWidth: 1,
+        borderWidth: s.dashed ? 1.5 : 0,
         borderStyle: s.dashed ? 'dashed' : 'solid',
-        borderColor: s.dashed && s.marker !== null ? s.marker : t.color.border,
-        borderLeftWidth: 3,
-        borderLeftColor: edgeColor,
-        opacity: s.dimmed ? 0.8 : 1,
+        borderColor: s.edge ?? 'transparent',
         paddingHorizontal: 7,
         justifyContent: 'center',
       }}

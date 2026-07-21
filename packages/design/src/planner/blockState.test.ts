@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { AA_LARGE, AA_NORMAL, meetsAA } from '../contrast.js'
-import { ACCENT_THEMES, palettes, type Palette } from '../palette.js'
+import { ACCENT_THEMES, palettes, projectColors, type Palette } from '../palette.js'
 import {
+  INK_ON_DARK,
+  INK_ON_LIGHT,
   MISSED_COVERAGE_MIN,
   blockStateStyle,
   intervalCoverage,
+  mixHex,
   plannerBlockState,
+  readableInk,
   type PlannerBlockState,
 } from './blockState.js'
 
@@ -16,7 +20,6 @@ describe('intervalCoverage', () => {
   })
 
   it('PartialAndOverlappingObservations_NeverDoubleCount', () => {
-    // Two observations covering the same first half → exactly 0.5, not 1.
     const observed = [
       { startMin: 540, lenMin: 30 },
       { startMin: 550, lenMin: 20 },
@@ -67,39 +70,76 @@ describe('plannerBlockState', () => {
   })
 })
 
-/**
- * The four states' AA contract (issue #341): every ink the block styles place on
- * the block's own fill clears WCAG AA — titles as normal text, times and markers
- * as large/bold text — in light **and** dark across **all three accents**. A
- * palette tweak that breaks any of the 24 state × accent × mode combinations
- * fails the build (extends the palette a11y contract in contrast.test.ts).
- */
-const STATES: readonly PlannerBlockState[] = ['planned', 'live', 'done', 'missed']
-const combos: readonly [string, Palette][] = ACCENT_THEMES.flatMap(accent => [
-  [`${accent}/dark`, palettes[accent].dark] as [string, Palette],
-  [`${accent}/light`, palettes[accent].light] as [string, Palette],
-])
-
-describe.each(combos)('block-state styles · %s', (_name, p: Palette) => {
-  it.each(STATES)(
-    '%s · title clears AA normal, time and marker clear AA large on the fill',
-    state => {
-      const s = blockStateStyle(state, p)
-      expect(meetsAA(s.title, s.fill, AA_NORMAL)).toBe(true)
-      expect(meetsAA(s.time, s.fill, AA_LARGE)).toBe(true)
-      if (s.marker !== null) expect(meetsAA(s.marker, s.fill, AA_LARGE)).toBe(true)
-    },
-  )
-
-  it('ProjectColourIsNeverTheFill_FillsAreNeutralSurfaces', () => {
-    for (const state of STATES) {
-      const s = blockStateStyle(state, p)
-      expect([p.surface, p.sunk, p.raised]).toContain(s.fill)
-    }
+describe('colour helpers', () => {
+  it('MixHex_InterpolatesAndClampsT', () => {
+    expect(mixHex('#000000', '#ffffff', 0.5)).toBe('#808080')
+    expect(mixHex('#000000', '#ffffff', 0)).toBe('#000000')
+    expect(mixHex('#ff0000', '#0000ff', 2)).toBe('#0000ff') // t clamped to 1
   })
 
-  it('OnlyMissed_WearsTheDashedEdge_OnlyDone_Recedes', () => {
-    expect(STATES.filter(st => blockStateStyle(st, p).dashed)).toEqual(['missed'])
-    expect(STATES.filter(st => blockStateStyle(st, p).dimmed)).toEqual(['done'])
+  it('ReadableInk_PicksTheHigherContrastCandidate', () => {
+    // A bright fill takes the near-black ink; a dark fill takes the near-white.
+    expect(readableInk('#f5d90a')).toBe(INK_ON_LIGHT)
+    expect(readableInk('#123456')).toBe(INK_ON_DARK)
+  })
+})
+
+/**
+ * The four states' AA contract (issue #341, owner-revised to bold fills). The fill
+ * is the actual project colour (muted toward the surface for `done`), and the
+ * luminance-picked ink carries every glyph that *reads as text* — the title
+ * (normal, 4.5:1) and the time (large, 3:1) — plus the missed tear edge, on that
+ * fill, for **every** project colour, in light AND dark, across all four states.
+ * The `live` marker is the orange status pip (the now/live signal), decorative
+ * like the now-line — exempt from the text contract, exactly as `live` is in the
+ * palette a11y contract (contrast.test.ts). A palette change that breaks the ink's
+ * legibility on any real fill fails the build.
+ */
+const STATES: readonly PlannerBlockState[] = ['planned', 'live', 'done', 'missed']
+
+describe.each(ACCENT_THEMES)('block-state legibility · %s accent', accent => {
+  for (const mode of ['dark', 'light'] as const) {
+    const p: Palette = palettes[accent][mode]
+    describe.each(projectColors[mode])(`${mode} fill %s`, fill => {
+      it.each(STATES)('%s · title AA-normal, time AA-large, tear edge visible', state => {
+        const s = blockStateStyle(state, fill, p)
+        expect(meetsAA(s.title, s.fill, AA_NORMAL)).toBe(true)
+        expect(meetsAA(s.time, s.fill, AA_LARGE)).toBe(true)
+        // The done/missed markers are the readable ink; the live pip is exempt.
+        if (s.marker !== null && state !== 'live') {
+          expect(meetsAA(s.marker, s.fill, AA_LARGE)).toBe(true)
+        }
+        if (s.edge !== null) expect(meetsAA(s.edge, s.fill, AA_LARGE)).toBe(true)
+      })
+    })
+  }
+})
+
+describe('block-state form', () => {
+  const p = palettes.sovereign.light
+  // A project colour that already clears AA — it passes through legibleFill unchanged,
+  // so the "colour is the fill" contract is exact for it.
+  const fill = '#00937c'
+
+  it('EveryState_KeepsAColouredFill_ProjectColourIsNeverDrained', () => {
+    // planned/live/missed keep the exact project fill; done stays clearly coloured.
+    expect(blockStateStyle('planned', fill, p).fill).toBe(fill)
+    expect(blockStateStyle('live', fill, p).fill).toBe(fill)
+    expect(blockStateStyle('missed', fill, p).fill).toBe(fill)
+    const done = blockStateStyle('done', fill, p).fill
+    expect(done).not.toBe(fill) // muted vs. the full-strength planned fill
+    expect(done).not.toBe(p.surface) // …but still clearly coloured, not drained
+  })
+
+  it('OnlyMissed_WearsTheDashedTearEdge_TheRepairHandle', () => {
+    expect(STATES.filter(st => blockStateStyle(st, fill, p).dashed)).toEqual(['missed'])
+    expect(blockStateStyle('missed', fill, p).edge).not.toBeNull()
+  })
+
+  it('LiveWearsTheLiveMarker_DoneAndMissedCarryTheirOwn_PlannedHasNone', () => {
+    expect(blockStateStyle('planned', fill, p).marker).toBeNull()
+    expect(blockStateStyle('live', fill, p).marker).toBe(p.live)
+    expect(blockStateStyle('done', fill, p).marker).not.toBeNull()
+    expect(blockStateStyle('missed', fill, p).marker).not.toBeNull()
   })
 })
