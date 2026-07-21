@@ -606,3 +606,17 @@ export type {
   ImportOptions,
 } from './issueimport/index.js'
 export { toTaskProposals } from './issueimport/index.js'
+
+// One-tap day repair (ADR-0072 D1, REQ-072) — `reflowDay` re-lays the remainder of a broken
+// day as a ghost proposal: never past the ArbZG cap, never over fixed/kept blocks, never
+// re-ordered, idempotent on an unbroken day; a stretch past the personal capacity line is
+// priced up front and cap overflow moves visibly (`overflow`), never silently. Pure — the
+// plan-apply seam (and only a user tap) turns the proposal into a new plan version.
+export type {
+  ReflowBlock,
+  FixedObstacle,
+  ReflowInput,
+  ReflowOverflow,
+  ReflowProposal,
+} from './planner/reflow.js'
+export { reflowDay } from './planner/reflow.js'
