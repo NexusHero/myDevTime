@@ -53,9 +53,14 @@ import { TravelEntry } from './TravelEntry'
 import { useCatalog } from './useCatalog'
 import { findProject } from './projectsData'
 
-/** Minutes-from-midnight → `HH:MM`. */
+/**
+ * Minutes-from-midnight → `HH:MM`. Wrapped at the day-frame edge (`% 24`) so a block ending on
+ * minute 1440 reads `00:00`, matching the shared convention used by the Co-Planner seam, the
+ * one-tap repair preview (`useDayRepair`), and the acceptance specs — the card must never show
+ * `24:00` for the same block the seam labels `00:00`.
+ */
 function hhmm(min: number): string {
-  const h = Math.floor(min / 60)
+  const h = Math.floor(min / 60) % 24
   const m = min % 60
   const p = (n: number): string => String(n).padStart(2, '0')
   return `${p(h)}:${p(m)}`
