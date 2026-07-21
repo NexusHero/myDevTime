@@ -124,6 +124,8 @@ export async function protectNow(request: APIRequestContext): Promise<void> {
     },
   })
   expect(res.ok(), `protect failed (${String(res.status())}): ${await res.text()}`).toBeTruthy()
+}
+
 /** The Monday of the current local week as `YYYY-MM-DD` — the Planner's `weekOffset = 0`
  *  column origin, so seeded series land exactly on the visible week canvas. */
 export function currentWeekMonday(): string {
@@ -170,6 +172,10 @@ export async function seedOvercommittedWeek(
     expect(
       res.ok(),
       `seed series "${s.title}" failed (${String(res.status())}): ${await res.text()}`,
+    ).toBeTruthy()
+  }
+}
+
 /**
  * Store the explicit mood-memory opt-in (ADR-0071 P3, REQ-068) for the signed-in user. Pass an
  * AUTHENTICATED context (`page.request` after `uiSignIn`) — the standalone `request` fixture
@@ -202,6 +208,8 @@ export async function seedMoodSeries(
       `mood seed for ${entry.day} failed (${String(res.status())}): ${await res.text()}`,
     ).toBeTruthy()
   }
+}
+
 /** The UTC calendar day (`YYYY-MM-DD`) — the runner is pinned to UTC, so this is "today" app-side too. */
 export function utcDayKey(offsetDays = 0): string {
   return new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
