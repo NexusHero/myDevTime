@@ -49,6 +49,12 @@ const envSchema = z
       .enum(['true', 'false'])
       .default('true')
       .transform(v => v === 'true'),
+    // Ceiling for the GLOBAL per-client-IP throttler (100/min default, SKILL §4).
+    // Production keeps the default; only the E2E stack raises it, because there the
+    // whole browser suite funnels through nginx as ONE client IP — 34 journeys plus
+    // the clients' periodic polls legitimately exceed a single user's budget
+    // (ADR-0053, same escape-hatch class as AUTH_RATE_LIMIT_ENABLED above).
+    THROTTLE_LIMIT: z.coerce.number().int().positive().default(100),
 
     // Transactional email (verification, password reset, account-deletion). When
     // SMTP_URL is set the SMTP transport is used; otherwise emails are logged
