@@ -1,11 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
-import {
-  LOW_MOOD_MAXIMUM,
-  MIN_SHRUNK_BLOCK_MIN,
-  blockIdOf,
-  moodScoreOf,
-} from '@mydevtime/domain'
+import { LOW_MOOD_MAXIMUM, MIN_SHRUNK_BLOCK_MIN, blockIdOf, moodScoreOf } from '@mydevtime/domain'
 import { getMoodHistory } from '../../api/mood.js'
 import { getPlan, type DayPlan } from '../../api/planner.js'
 import { applyPlanProposal } from '../../api/planApply.js'
@@ -161,10 +156,7 @@ export function MoodEaseCard({ baseUrl, date }: MoodEaseCardProps): React.JSX.El
         <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
           {applied
             ? pick('You confirmed this change.', 'Du hast diese Änderung bestätigt.')
-            : pick(
-                'Nothing changes until you confirm.',
-                'Nichts ändert sich, bis du bestätigst.',
-              )}
+            : pick('Nothing changes until you confirm.', 'Nichts ändert sich, bis du bestätigst.')}
         </Text>
       </View>
     </Card>

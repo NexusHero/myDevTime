@@ -66,9 +66,9 @@ describe('useMoodPattern', () => {
 describe('moodPatternNote', () => {
   it('FirstLowWeekday_BecomesOneCalmLocalisedLine', () => {
     // jsdom's navigator.language is en-US → the English phrasing.
-    expect(moodPatternNote({ lowWeekdays: [{ weekday: 2, medianMood: 2 }], enoughData: true })).toBe(
-      'Tuesdays often tense',
-    )
+    expect(
+      moodPatternNote({ lowWeekdays: [{ weekday: 2, medianMood: 2 }], enoughData: true }),
+    ).toBe('Tuesdays often tense')
   })
 
   it('NoLowWeekday_YieldsNoNote', () => {
