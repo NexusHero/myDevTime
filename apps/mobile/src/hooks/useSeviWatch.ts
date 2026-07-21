@@ -4,6 +4,7 @@ import { apiBaseUrl } from '../config.js'
 import { getProtectedTimes, type ProtectedTime } from '../api/planApply.js'
 import { createNotificationPort } from '../notifications/port.js'
 import { nudgesSentToday, SEVI_DAILY_CAP, tryClaimNudge } from '../sevi/nudgeBudget.js'
+import { stretchAckActive } from '../sevi/stretchAck.js'
 import { pick } from '../i18n/strings.js'
 import { useLiveLoad } from './useLiveLoad.js'
 import { usePreferences } from './usePreferences.js'
@@ -180,6 +181,10 @@ export function useSeviWatch(): SeviWatchResource {
         // the atomic claim below is the one and only spend.
         nudgesSentToday: nudgesSentToday(nowMs) - (alreadyClaimedThis ? 1 : 0),
         dailyCap: SEVI_DAILY_CAP,
+        // Day-scoped stretch acknowledgment (ADR-0072 D1): an accepted repair past the own
+        // capacity line was CHOSEN — the policy quiets the own-baseline tier for today only
+        // (hard-cap speak-ups still get through; that precedence lives in the pure core).
+        stretchAckActive: stretchAckActive(nowMs),
       })
 
   const deliver = decision?.deliver === true

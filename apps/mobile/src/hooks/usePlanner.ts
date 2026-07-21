@@ -62,6 +62,8 @@ export interface PlannerResource {
   readonly briefing: PlanBriefing | null
   readonly briefingBusy: boolean
   readonly requestBriefing: () => void
+  /** Re-read the day's latest stored plan (e.g. after a seam apply wrote a new version). */
+  readonly refresh: () => void
 }
 
 export function usePlanner(): PlannerResource {
@@ -74,6 +76,9 @@ export function usePlanner(): PlannerResource {
   const [review, setReview] = useState<PlanReview | null>(null)
   const [briefing, setBriefing] = useState<PlanBriefing | null>(null)
   const [briefingBusy, setBriefingBusy] = useState(false)
+  // Bumped by `refresh` to re-run the load effect — a seam apply (e.g. the one-tap day
+  // repair, ADR-0072) writes a NEW plan version server-side that this hook must re-read.
+  const [reloadTick, setReloadTick] = useState(0)
 
   useEffect(() => {
     let alive = true
@@ -96,7 +101,7 @@ export function usePlanner(): PlannerResource {
     return () => {
       alive = false
     }
-  }, [base])
+  }, [base, reloadTick])
 
   // Evening review: plan-vs-actual focus, read from the deterministic core.
   useEffect(() => {
@@ -180,5 +185,8 @@ export function usePlanner(): PlannerResource {
     briefing,
     briefingBusy,
     requestBriefing,
+    refresh: useCallback(() => {
+      setReloadTick(t => t + 1)
+    }, []),
   }
 }

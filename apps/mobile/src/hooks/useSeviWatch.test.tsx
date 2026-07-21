@@ -283,4 +283,37 @@ describe('useSeviWatch', () => {
     expect(seams.notify).not.toHaveBeenCalled()
     r.unmount()
   })
+
+  // ─── Day-scoped stretch acknowledgment wiring (ADR-0072 D1, REQ-072) ──────────────────────
+
+  it('StretchAcknowledged_OwnBaselineSpeakUp_StaysQuiet_NoBudgetSpent', async () => {
+    const { recordStretchAck, resetStretchAck } = await import('../sevi/stretchAck.js')
+    try {
+      recordStretchAck(Date.now())
+      // An own-baseline speak-up (no universal cap crossed) — the accepted stretch was chosen.
+      seams.load = { level: 'speak-up', reasons: ['above-baseline'], hardCapHit: false }
+      const r = await renderProbe()
+      expect(latest.visible).toBe(false)
+      expect(latest.digestPending).toBe(false) // chosen ⇒ nothing to digest later either
+      expect(seams.notify).not.toHaveBeenCalled()
+      expect(nudgesSentToday(Date.now())).toBe(0)
+      r.unmount()
+    } finally {
+      resetStretchAck()
+    }
+  })
+
+  it('StretchAcknowledged_HardCapSpeakUp_StillDelivers', async () => {
+    const { recordStretchAck, resetStretchAck } = await import('../sevi/stretchAck.js')
+    try {
+      recordStretchAck(Date.now())
+      seams.load = { ...SPEAK_UP } // hardCapHit: true — the ArbZG caps stay inviolable
+      const r = await renderProbe()
+      expect(latest.visible).toBe(true)
+      expect(seams.notify).toHaveBeenCalledTimes(1)
+      r.unmount()
+    } finally {
+      resetStretchAck()
+    }
+  })
 })
