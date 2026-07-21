@@ -80,12 +80,9 @@ export function oauthClient(
   return { clientId, clientSecret }
 }
 
-/** 409 for flows that need configuration/connection state the deployment lacks. */
-export class ConflictError extends AppError {
-  constructor(detail?: string) {
-    super({ status: 409, type: 'about:blank', title: 'Conflict', ...(detail ? { detail } : {}) })
-  }
-}
+// `ConflictError` moved to the shared `errors.ts` (other modules need it without crossing this
+// module's boundary); re-exported so existing internal users keep their import path.
+export { ConflictError } from '../../errors.js'
 
 /** 502 when the provider's token endpoint refuses or is unreachable. */
 export class TokenExchangeError extends AppError {

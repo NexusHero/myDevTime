@@ -59,3 +59,15 @@ export class UnauthorizedError extends AppError {
     })
   }
 }
+
+/**
+ * 409 for requests that clash with required state the deployment or the caller lacks — a
+ * missing consent preference, an unconfigured provider, an absent vault key. Shared here
+ * (not in any one module) because several modules gate on state this way; a module importing
+ * it from another module's internals would breach the boundary rule (ADR-0025).
+ */
+export class ConflictError extends AppError {
+  constructor(detail?: string) {
+    super({ status: 409, type: 'about:blank', title: 'Conflict', ...(detail ? { detail } : {}) })
+  }
+}

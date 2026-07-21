@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Post, Query, UseGuards } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { AuthGuard, CurrentUser, type AuthenticatedUser } from '../auth/contract.js'
-import { ConflictError } from '../connectors/oauth.js'
+import { ConflictError } from '../../errors.js'
 import { getPreferences } from '../preferences/contract.js'
 import { WellbeingContext } from './wellbeing.context.js'
 import { LoadHistoryQueryDto, RecordMoodDto } from './wellbeing.dto.js'
