@@ -19,6 +19,11 @@ flake gate).
 | `e2e/tests/golden-paths.spec.ts` | The three daily golden journeys (auth → Today → Reports) + a keyboard-focus check. |
 | `e2e/tests/user-personas.spec.ts` | Work-time personas (Light / Normal / Heavy) and ArbZG §4 break-rule warnings. |
 | `e2e/tests/a11y.spec.ts` | axe-core WCAG A/AA gate + keyboard/role operability (REQ-043). Owned separately; listed here so the map is complete. |
+| `e2e/tests/planner-entry.spec.ts` | Planner "+ New" Task dialog → persisted series block on the week canvas (REQ-060). |
+| `e2e/tests/project-drilldown.spec.ts` | Projects list → Project detail → Task detail over a seeded catalog (REQ-001). |
+| `e2e/tests/export-download.spec.ts` | Reports "Export CSV" as a real browser download with deterministic content (REQ-009). |
+| `e2e/tests/nl-quick-add.spec.ts` | NL capture: deterministic parse → reviewed draft → confirmed booking (REQ-013). |
+| `e2e/tests/feierabend.spec.ts` | Today "Close the day" card: idle hiding + booked figure + ritual (REQ-063). |
 
 ## Determinism / anti-flake conventions
 
@@ -66,12 +71,19 @@ These are the rules the suite is held to; new specs must follow them.
 | Sign-in golden path operable by keyboard alone | REQ-043 | `a11y` · *…operable by keyboard alone* | Keyboard-only field entry + Enter to submit. |
 | Golden path reachable by role | REQ-043 | `a11y` · *…reachable by role* | Every step located via the accessibility tree. |
 | Tab lands on a focusable control with a visible ring | REQ-043 | `a11y` · *tabbing on Today…* | Focus ring is *visible*, not just present. |
+| Planner "+ New": create a Task → block on the week canvas, survives reload | REQ-060 | `planner-entry` · *creating a Task…* + *cancelling the dialog creates nothing* | Persists as a single-occurrence series (`POST /api/recurrence`); the web week canvas (FullCalendar timegrid, ADR-0068) renders the re-projected occurrence after reload. Negative: cancel → nothing created. |
+| Projects drill-down: list → project → task over a seeded catalog | REQ-001 | `project-drilldown` · *seeded catalog…* | Catalog seeded via the real `POST /api/tracking/{clients,projects,tasks}`; navigation asserted via real URLs (`/projects/:id`, `/tasks/:id`). |
+| Reports CSV export as a real browser download | REQ-009 | `export-download` · *a seeded entry exports…* | Asserts the Playwright `download` event, the `mydevtime-reports-week.csv` filename, and non-empty deterministic content naming the seeded project. The signable work-time PDF/XLSX report half of REQ-009 stays with the billing/export integration tests. |
+| NL quick add: deterministic phrase → draft → confirm → booked | REQ-013 | `nl-quick-add` · *a deterministic phrase…* | Drives the shipped Smart-Add surface on Today (the dedicated `NlQuickAdd` card is not mounted); a clock-range phrase stays on the deterministic Stage 1 (`needsAi: false`) so **no LLM provider** is needed; booked figure re-asserted after reload. |
+| Feierabend "Close the day": idle hiding, booked figure, ritual close | REQ-063 | `feierabend` · both tests | Browser-covers the booked-entries feed (empty day hides the card; seeded entries show `Booked 1:30 h` + the clean message + the ritual button). The local auto-tracker half (tracked reality/drafts) is render-/unit-test-covered (`today/shutdown.test.ts`), not fakeable end-to-end. |
 
 ## Coverage map — empty / loading / error states
 
 | State | Covered? | Spec · test | Notes |
 |-------|----------|-------------|-------|
 | **Empty** — work-time week with no shifts | ✅ | `user-personas` · *Light User* | Asserts "No shifts this week yet." + "Not clocked in". |
+| **Empty** — a fresh user's Projects list | ✅ | `project-drilldown` · *a fresh user sees the honest empty state* | Asserts "No projects yet" + the create hint. |
+| **Empty** — an empty day hides the Feierabend card (`idle`) | ✅ | `feierabend` · *an empty day is idle* | Absence asserted after Today is anchored (punch control visible). |
 | **Empty** — no plan / no uncategorized entries on Today | ➖ implicit | — | Today's Co-Planner/Auto-Tracker render honest empty states; not asserted directly. Candidate follow-up. |
 | **Error** — wrong password rejected | ✅ | `shell-auth` · *wrong password is rejected…* | Gate stays closed ("Welcome back" remains). |
 | **Error** — no error surfaced on a successful stop | ✅ | `golden-paths` · *tracking golden path* | Negative check: `/could not|failed/i` count is 0. |
