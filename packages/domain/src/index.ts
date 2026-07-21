@@ -606,3 +606,11 @@ export type {
   ImportOptions,
 } from './issueimport/index.js'
 export { toTaskProposals } from './issueimport/index.js'
+
+// Fill-week packing core (REQ-073, ADR-0072 D2) — "Fülle meine Woche" as pure logic: the
+// caller resolves windows (freeWindows over meetings/🛡/absences/plan), estimates (explicit
+// or the deterministic 60-min default) and priority; `packWeek` lays the backlog into the
+// week — windows only, never over a day's capacity line (no stretch here), priority order
+// with stable ties, whole-or-unplaced with ≥30-min split fragments, byte-equal reruns.
+export type { PackItem, PackInput, PackResult } from './planner/packing.js'
+export { packWeek, MIN_SPLIT_FRAGMENT_MIN } from './planner/packing.js'
