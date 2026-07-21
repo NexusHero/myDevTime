@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiBaseUrl } from '../config.js'
 import {
   generatePlan,
@@ -62,8 +62,11 @@ export interface PlannerResource {
   readonly briefing: PlanBriefing | null
   readonly briefingBusy: boolean
   readonly requestBriefing: () => void
-  /** Re-read the day's latest stored plan (e.g. after a seam apply wrote a new version). */
-  readonly refresh: () => void
+  /**
+   * Re-read the day's latest stored plan (e.g. after a seam apply wrote a new version). Resolves
+   * once the freshly read plan is in state, so callers can await the in-place repaint.
+   */
+  readonly refresh: () => Promise<void>
 }
 
 export function usePlanner(): PlannerResource {
@@ -76,32 +79,40 @@ export function usePlanner(): PlannerResource {
   const [review, setReview] = useState<PlanReview | null>(null)
   const [briefing, setBriefing] = useState<PlanBriefing | null>(null)
   const [briefingBusy, setBriefingBusy] = useState(false)
-  // Bumped by `refresh` to re-run the load effect — a seam apply (e.g. the one-tap day
-  // repair, ADR-0072) writes a NEW plan version server-side that this hook must re-read.
-  const [reloadTick, setReloadTick] = useState(0)
-
+  // Guards a late fetch from writing state after the screen unmounted.
+  const mounted = useRef(true)
   useEffect(() => {
-    let alive = true
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
+
+  // Read today's latest stored plan authoritatively — the initial load AND the `refresh` the
+  // plan-apply seam calls after writing a new version (the one-tap day repair, ADR-0072). It is
+  // a direct fetch → setPlan, NOT a bumped effect dependency: routing the re-read through an
+  // effect made an in-place repair fail to repaint the Co-Planner until a full reload (the
+  // browser-acceptance regression). Resolves once the new plan is in state, so callers can await
+  // the repaint. The day frame is fixed (08:00–18:00); `base` is stable, so re-reads never race.
+  const load = useCallback(async (): Promise<void> => {
     setLoading(true)
     const date = todayIso()
-    const load: Promise<DayPlan | null> =
-      base === null ? Promise.resolve(null) : getPlan(base, date)
-    load
-      .then(p => {
-        if (!alive) return
+    try {
+      const p = base === null ? null : await getPlan(base, date)
+      if (mounted.current) {
         setPlan(p)
         setError(null)
-      })
-      .catch((cause: unknown) => {
-        if (alive) setError(cause instanceof Error ? cause : new Error(String(cause)))
-      })
-      .finally(() => {
-        if (alive) setLoading(false)
-      })
-    return () => {
-      alive = false
+      }
+    } catch (cause: unknown) {
+      if (mounted.current) setError(cause instanceof Error ? cause : new Error(String(cause)))
+    } finally {
+      if (mounted.current) setLoading(false)
     }
-  }, [base, reloadTick])
+  }, [base])
+
+  useEffect(() => {
+    void load()
+  }, [load])
 
   // Evening review: plan-vs-actual focus, read from the deterministic core.
   useEffect(() => {
@@ -185,8 +196,6 @@ export function usePlanner(): PlannerResource {
     briefing,
     briefingBusy,
     requestBriefing,
-    refresh: useCallback(() => {
-      setReloadTick(t => t + 1)
-    }, []),
+    refresh: load,
   }
 }

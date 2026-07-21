@@ -217,13 +217,13 @@ export function useDayRepair(planner: PlannerResource): DayRepairResource {
       })),
       provenance: 'planner-reflow',
     })
-      .then(() => {
+      .then(async () => {
         // A consciously accepted stretch is CHOSEN, not drifted into: acknowledge it for the
         // rest of the day so Sevi's own-baseline tier stays quiet (hard caps stay loud —
         // enforced by the domain policy, not here).
         if (proposal.overflow.kind === 'stretch') recordStretchAck(Date.now())
         setPreviewOpen(false)
-        planner.refresh() // the seam wrote a new accepted version — re-read it
+        await planner.refresh() // the seam wrote a new accepted version — re-read it in place
       })
       .catch((cause: unknown) => {
         setError(cause instanceof Error ? cause : new Error(String(cause)))
