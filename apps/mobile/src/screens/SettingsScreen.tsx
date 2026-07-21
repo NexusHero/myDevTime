@@ -23,6 +23,9 @@ import { useSessionContext } from '../shell/SessionContext'
 import { confirmDestructive } from '../utils/confirmDestructive'
 import { apiBaseUrl } from '../config.js'
 import { deleteAccount, requestDataExport, triggerJsonDownload } from '../api/privacy.js'
+import { deleteMoodHistory } from '../api/mood.js'
+import { createNotificationPort } from '../notifications/port.js'
+import type { NumberPreferenceKey } from '../api/preferences.js'
 import { createShare, listShares, revokeShare, shareLinkUrl, type Share } from '../api/sharing.js'
 import { SubScreenHeader } from './SubScreenHeader'
 import type { ThemePref } from '../theme/resolveMode'
@@ -37,6 +40,22 @@ import type { UserRole } from '@mydevtime/domain'
  * flows will own. Consent and data-ownership items are surfaced explicitly
  * (REQ-025 / GDPR), not buried.
  */
+/** Minutes-from-midnight → `HH:MM` (the quiet-hours display format). */
+function hhmm(min: number): string {
+  const p = (n: number): string => String(n).padStart(2, '0')
+  return `${p(Math.floor(min / 60))}:${p(min % 60)}`
+}
+
+/** `HH:MM` → minutes of day, or `null` when the text is not a valid wall-clock time. */
+function parseHHMM(text: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(text.trim())
+  if (m === null) return null
+  const hours = Number(m[1])
+  const minutes = Number(m[2])
+  if (hours > 23 || minutes > 59) return null
+  return hours * 60 + minutes
+}
+
 function SectionLabel({ children }: { children: string }): React.JSX.Element {
   const t = useTheme()
   return (
@@ -64,7 +83,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
   const { role, setRole } = useVisibility()
 
   // Persisted per user + workspace (M10); optimistic, saved via the preferences API.
-  const { prefs, setPref: setToggle, live: prefsLive } = usePreferences()
+  const { prefs, setPref: setToggle, setNumberPref, live: prefsLive } = usePreferences()
 
   // Entry points whose flow isn't built yet: shown honestly as "coming soon" rather
   // than as a tappable chevron that does nothing (audit M-4).
@@ -133,6 +152,53 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
           .catch((e: unknown) => {
             setDeleteError(errMessage(e, 'Account could not be deleted. Please try again.'))
             setDeleting(false)
+          })
+      },
+    })
+  }
+
+  // Sevi (ADR-0071, REQ-069): proactivity is an explicit opt-in; enabling it is the
+  // natural moment to ask the OS/browser for notification permission (the port
+  // degrades to a no-op when no channel exists — Sevi then stays in-app only).
+  const onProactiveSevi = (v: boolean): void => {
+    setToggle('seviProactive', v)
+    if (v) void createNotificationPort().requestPermission()
+  }
+
+  // Quiet hours are edited as HH:MM text but stored as minutes of day; the local
+  // text state keeps half-typed values on screen, and only a valid wall-clock time
+  // is ever committed through `setNumberPref` (a malformed patch never leaves here).
+  const [quietStartText, setQuietStartText] = useState<string | null>(null)
+  const [quietEndText, setQuietEndText] = useState<string | null>(null)
+  const onQuietChange = (
+    key: NumberPreferenceKey,
+    text: string,
+    setText: (t: string | null) => void,
+  ): void => {
+    setText(text)
+    const minutes = parseHHMM(text)
+    if (minutes !== null) setNumberPref(key, minutes)
+  }
+
+  // Mood memory (REQ-068): deletable memory, one action — behind an explicit confirm.
+  const [moodBusy, setMoodBusy] = useState(false)
+  const onDeleteMoodHistory = (): void => {
+    if (base === null || moodBusy) return
+    confirmDestructive({
+      title: 'Delete mood history?',
+      message: 'This erases every stored punch-out mood. This cannot be undone.',
+      confirmLabel: 'Delete',
+      onConfirm: () => {
+        setMoodBusy(true)
+        deleteMoodHistory(base)
+          .then(() => {
+            toast.show('Your mood history was deleted.')
+          })
+          .catch((e: unknown) => {
+            toast.show(errMessage(e, 'Mood history could not be deleted. Please try again.'))
+          })
+          .finally(() => {
+            setMoodBusy(false)
           })
       },
     })
@@ -378,6 +444,50 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
         </Card>
       </View>
 
+      {/* Sevi (ADR-0071, REQ-069): the care buddy's proactivity is an explicit opt-in
+          (off by default), and the quiet-hours window is the person's own — a held
+          nudge folds into one later digest, never a queue of pings. */}
+      <View>
+        <SectionLabel>Sevi</SectionLabel>
+        <Card>
+          <Row
+            title="Proactive Sevi"
+            subtitle="May speak up on a hard day — at most twice, never in quiet hours"
+            trailing={
+              <Switch
+                checked={prefs.seviProactive}
+                onChange={onProactiveSevi}
+                accessibilityLabel="Proactive Sevi"
+              />
+            }
+          />
+          <View style={{ padding: t.spacing.s4, gap: t.spacing.s3 }}>
+            <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink2, lineHeight: 18 }}>
+              Quiet hours — Sevi never pings in this window; anything urgent waits as a single
+              digest afterwards.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: t.spacing.s3 }}>
+              <View style={{ flex: 1 }}>
+                <Input
+                  label="Quiet from"
+                  value={quietStartText ?? hhmm(prefs.quietStartMin)}
+                  onChangeText={text => onQuietChange('quietStartMin', text, setQuietStartText)}
+                  placeholder="22:00"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Input
+                  label="Quiet until"
+                  value={quietEndText ?? hhmm(prefs.quietEndMin)}
+                  onChangeText={text => onQuietChange('quietEndMin', text, setQuietEndText)}
+                  placeholder="07:00"
+                />
+              </View>
+            </View>
+          </View>
+        </Card>
+      </View>
+
       <View>
         <SectionLabel>Meetings & AI</SectionLabel>
         <Card>
@@ -562,6 +672,37 @@ export function SettingsScreen({ onBack }: { onBack: () => void }): React.JSX.El
                   {exportError}
                 </Text>
               )}
+            </View>
+
+            {/* Mood memory (ADR-0071 P3, REQ-068): stored only under this explicit,
+                revocable consent (the server 409s without it) and deletable in one
+                action — a GDPR data control, surfaced here, never buried. */}
+            <View style={{ gap: t.spacing.s2 }}>
+              <Row
+                title="Mood memory"
+                subtitle="Store your punch-out mood — only with this consent"
+                trailing={
+                  <Switch
+                    checked={prefs.moodConsent}
+                    onChange={v => setToggle('moodConsent', v)}
+                    accessibilityLabel="Mood memory"
+                  />
+                }
+              />
+              <Row
+                title="Mood history"
+                subtitle="Deletable memory — erase every stored mood in one step"
+                trailing={
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onPress={onDeleteMoodHistory}
+                    disabled={!live || moodBusy}
+                  >
+                    Delete mood history
+                  </Button>
+                }
+              />
             </View>
 
             <View
