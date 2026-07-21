@@ -357,3 +357,56 @@ export async function enableSevi(request: APIRequestContext): Promise<void> {
   })
   expect(res.ok(), `enableSevi failed (${String(res.status())}): ${await res.text()}`).toBeTruthy()
 }
+
+// ─── One-tap day repair seams (ADR-0072 D1, REQ-072) ───────────────────────────────────────
+
+/** One exact block of a seeded day plan (minutes from UTC midnight — the runner is UTC). */
+export interface SeedPlanBlock {
+  readonly startMin: number
+  readonly lenMin: number
+  readonly kind: 'meeting' | 'focus' | 'break'
+  readonly label: string
+}
+
+/**
+ * Seed today's plan with EXACT placements as one ACCEPTED version through the real plan-apply
+ * seam (`add-blocks` — the same wire the fill-week confirm uses), so the repair specs start
+ * from a deterministic layout instead of the generator's break rhythm. Call with the seeded
+ * user's STANDALONE `request` context (the cookie-jar rule at the top of this file).
+ */
+export async function seedAcceptedPlanToday(
+  request: APIRequestContext,
+  blocks: readonly SeedPlanBlock[],
+): Promise<void> {
+  const res = await request.post('/api/planner/apply', {
+    data: {
+      proposal: { kind: 'add-blocks', day: utcDayKey(), blocks, provenance: 'planner-fill' },
+    },
+  })
+  expect(res.ok(), `seed plan failed (${String(res.status())}): ${await res.text()}`).toBeTruthy()
+}
+
+/** The stored latest plan row for today, raw from `GET /api/planner/plans` (null when none). */
+export async function readPlanToday(request: APIRequestContext): Promise<{
+  id: string
+  version: number
+  status: string
+  blocks: { startMin: number; lenMin: number; kind: string; label: string }[]
+} | null> {
+  const res = await request.get(`/api/planner/plans?date=${utcDayKey()}`)
+  expect(res.ok(), `read plan failed (${String(res.status())}): ${await res.text()}`).toBeTruthy()
+  const text = await res.text()
+  if (text === '' || text === 'null') return null
+  return JSON.parse(text) as {
+    id: string
+    version: number
+    status: string
+    blocks: { startMin: number; lenMin: number; kind: string; label: string }[]
+  }
+}
+
+/** The current UTC minute of day (0..1439) — the axis the repair seeds are laid on. */
+export function utcMinuteNow(): number {
+  const now = new Date()
+  return now.getUTCHours() * 60 + now.getUTCMinutes()
+}
