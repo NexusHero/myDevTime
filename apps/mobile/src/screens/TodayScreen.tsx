@@ -13,6 +13,7 @@ import {
 import { Text } from '../components/core/Text'
 import { useToast } from '../components/core/Toast'
 import { EveningCompanionCard } from '../components/today/EveningCompanionCard'
+import { MoodEaseCard } from '../components/today/MoodEaseCard'
 import { SeviWatch } from '../components/today/SeviWatch'
 import { postMood } from '../api/mood'
 import type { CompanionDayInput, CompanionSuggestion } from '../api/companion'
@@ -1431,6 +1432,9 @@ export function TodayScreen(): React.JSX.Element {
         {categoryCard}
         {reviewCard}
         {shutdownCard}
+        {/* Sevi's lighter-day proposal (REQ-068 pattern awareness) sits directly above the
+            evening review — a low-mood day offers one confirmable ease before the day closes. */}
+        <MoodEaseCard baseUrl={apiBaseUrl} date={companionDate} />
         {eveningCompanionCard}
       </ScrollView>
     </View>
