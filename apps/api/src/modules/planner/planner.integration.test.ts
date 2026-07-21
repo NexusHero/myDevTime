@@ -236,4 +236,144 @@ describe.skipIf(!databaseUrl)('planner (integration)', () => {
       }),
     ).rejects.toThrow(/no block/)
   })
+
+  // ─── Batch kinds for the daily loop (ADR-0072) ──────────────────────────────────────────
+
+  it('ApplyRelayout_WritesANewAcceptedVersionWithProvenance_AndReLaysTheBlocks', async () => {
+    const created = await svc.generatePlan(db, wsA, idA, input)
+    const focusIndex = created.blocks.findIndex(b => b.kind === 'focus')
+    const next = await svc.applyRelayout(
+      db,
+      wsA,
+      idA,
+      created.id,
+      [{ blockId: String(focusIndex), startMin: 14 * 60, lenMin: 60 }],
+      'planner-reflow',
+    )
+    expect(next.version).toBe(created.version + 1)
+    expect(next.status).toBe('accepted')
+    expect(next.source).toBe('planner-reflow')
+    const relaid = next.blocks.find(b => b.kind === 'focus' && b.startMin === 14 * 60)
+    expect(relaid).toMatchObject({ startMin: 14 * 60, lenMin: 60 })
+    // Untouched blocks keep their place across the repair.
+    expect(next.blocks.filter(b => b.kind === 'meeting')).toEqual(
+      created.blocks.filter(b => b.kind === 'meeting'),
+    )
+    // The repair changes planned focus; the persisted figure is recomputed from the blocks.
+    expect(next.plannedFocusMin).toBe(
+      next.blocks.filter(b => b.kind === 'focus').reduce((s, b) => s + b.lenMin, 0),
+    )
+    // The pre-repair version stays intact in the history — and carries no source.
+    const original = await svc.getPlanById(db, wsA, created.id)
+    expect(original.blocks).toEqual(created.blocks)
+    expect(original.source).toBeNull()
+  })
+
+  it('ApplyRelayout_UnknownBlockId_IsAnHonest400', async () => {
+    const created = await svc.generatePlan(db, wsA, idA, input)
+    await expect(
+      svc.applyRelayout(
+        db,
+        wsA,
+        idA,
+        created.id,
+        [{ blockId: '99', startMin: 720, lenMin: 60 }],
+        'planner-reflow',
+      ),
+    ).rejects.toThrow(/no block/)
+  })
+
+  it('ApplyRelayout_ForeignPlanId_ReadsAsNotFound', async () => {
+    const created = await svc.generatePlan(db, wsA, idA, input)
+    await expect(
+      svc.applyRelayout(
+        db,
+        wsB,
+        idB,
+        created.id,
+        [{ blockId: '0', startMin: 720, lenMin: 60 }],
+        'planner-reflow',
+      ),
+    ).rejects.toThrow(/not found/)
+  })
+
+  it('ApplyAddBlocks_OnAnEmptyDay_CreatesAnAcceptedVersionOne', async () => {
+    const plan = await svc.applyAddBlocks(
+      db,
+      wsA,
+      idA,
+      '2026-07-13',
+      [
+        { startMin: 540, lenMin: 90, kind: 'focus', label: 'Kickoff', taskId: 't9' },
+        { startMin: 480, lenMin: 30, kind: 'focus', label: 'Inbox' },
+      ],
+      'planner-firstrun',
+    )
+    expect(plan.version).toBe(1)
+    expect(plan.status).toBe('accepted')
+    expect(plan.source).toBe('planner-firstrun')
+    expect(plan.blocks.map(b => b.startMin)).toEqual([480, 540])
+    expect(plan.plannedFocusMin).toBe(120)
+    expect(plan.unplacedMin).toBe(0)
+    expect(plan.droppedAnchors).toEqual([])
+  })
+
+  it('ApplyAddBlocks_OnAnExistingDay_AppendsIntoTheNextVersion', async () => {
+    const created = await svc.generatePlan(db, wsA, idA, input)
+    const next = await svc.applyAddBlocks(
+      db,
+      wsA,
+      idA,
+      input.date,
+      [{ startMin: 6 * 60, lenMin: 45, kind: 'focus', label: 'Warm-up' }],
+      'planner-fill',
+    )
+    expect(next.version).toBe(created.version + 1)
+    expect(next.source).toBe('planner-fill')
+    expect(next.blocks).toHaveLength(created.blocks.length + 1)
+    expect(next.blocks[0]).toMatchObject({ startMin: 6 * 60, lenMin: 45, kind: 'focus' })
+  })
+
+  it('ApplyAddBlocks_BelowTheFloor_IsAnHonest400', async () => {
+    await expect(
+      svc.applyAddBlocks(
+        db,
+        wsA,
+        idA,
+        '2026-07-13',
+        [{ startMin: 540, lenMin: 10, kind: 'focus', label: 'sliver' }],
+        'planner-fill',
+      ),
+    ).rejects.toThrow(/15/)
+  })
+
+  it('ApplyAddBlocks_IsWorkspaceIsolated', async () => {
+    await svc.generatePlan(db, wsA, idA, input)
+    // Filling B's day never sees A's plan for the same date: B starts at version 1.
+    const planB = await svc.applyAddBlocks(
+      db,
+      wsB,
+      idB,
+      input.date,
+      [{ startMin: 540, lenMin: 60, kind: 'focus', label: 'B only' }],
+      'planner-fill',
+    )
+    expect(planB.version).toBe(1)
+    expect(planB.blocks).toHaveLength(1)
+    // And A's latest for the day is still its own, untouched by B's write.
+    const latestA = await svc.getLatestPlan(db, wsA, input.date)
+    expect(latestA?.source).toBeNull()
+  })
+
+  it('ApplyRoute_ZodRejectsEmptyPlacements', async () => {
+    const parsed = (await import('./planner.dto.js')).ApplyProposalDto.schema.safeParse({
+      proposal: {
+        kind: 'relayout-day',
+        planId: '3e9a3a3e-7b56-4b2c-9c39-3a2f9adcb111',
+        placements: [],
+        provenance: 'planner-reflow',
+      },
+    })
+    expect(parsed.success).toBe(false)
+  })
 })

@@ -185,6 +185,14 @@ export { buildDayPlan, reviewDayPlan } from './planner/plan.js'
 // applied to the stored blocks purely; the service persists the result as a new plan version.
 export type { PlanBlockMutation } from './planner/applyProposal.js'
 export { applyProposal, blockIdOf, MIN_SHRUNK_BLOCK_MIN } from './planner/applyProposal.js'
+// Daily-loop batch mutations (ADR-0072) — one-tap repair re-layout + fill-week/first-run
+// additions, applied to the stored blocks purely; persisted as a new accepted plan version.
+export type { RelayoutPlacement, BlockAddition } from './planner/applyProposal.js'
+export { relayoutDay, addBlocks } from './planner/applyProposal.js'
+// Shared minute-window math (ADR-0072) — the one gap computation the reflow (repair) and
+// packing (fill-week) cores build on: clip, merge, and invert obstacles into free windows.
+export type { MinuteWindow } from './planner/model.js'
+export { freeWindows } from './planner/model.js'
 
 // AI-credit ledger (REQ-027, ADR-0008) — append-only signed deltas; balance +
 // usage derived from the log; deterministic, LLM-free (ADR-0005).
@@ -598,3 +606,25 @@ export type {
   ImportOptions,
 } from './issueimport/index.js'
 export { toTaskProposals } from './issueimport/index.js'
+
+// One-tap day repair (ADR-0072 D1, REQ-072) — `reflowDay` re-lays the remainder of a broken
+// day as a ghost proposal: never past the ArbZG cap, never over fixed/kept blocks, never
+// re-ordered, idempotent on an unbroken day; a stretch past the personal capacity line is
+// priced up front and cap overflow moves visibly (`overflow`), never silently. Pure — the
+// plan-apply seam (and only a user tap) turns the proposal into a new plan version.
+export type {
+  ReflowBlock,
+  FixedObstacle,
+  ReflowInput,
+  ReflowOverflow,
+  ReflowProposal,
+} from './planner/reflow.js'
+export { reflowDay } from './planner/reflow.js'
+
+// Fill-week packing core (REQ-073, ADR-0072 D2) — "Fülle meine Woche" as pure logic: the
+// caller resolves windows (freeWindows over meetings/🛡/absences/plan), estimates (explicit
+// or the deterministic 60-min default) and priority; `packWeek` lays the backlog into the
+// week — windows only, never over a day's capacity line (no stretch here), priority order
+// with stable ties, whole-or-unplaced with ≥30-min split fragments, byte-equal reruns.
+export type { PackItem, PackInput, PackResult } from './planner/packing.js'
+export { packWeek, MIN_SPLIT_FRAGMENT_MIN } from './planner/packing.js'

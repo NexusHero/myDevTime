@@ -21,6 +21,13 @@ export const preferencesSchema = z.object({
   moodConsent: z.boolean().catch(false).default(false),
   quietStartMin: z.number().catch(1320).default(1320),
   quietEndMin: z.number().catch(420).default(420),
+  // Calm-canvas layer chips + Sevi first-run flag (ADR-0072 D3, REQ-074) — appended only.
+  // Ruhe als Default: every layer is OFF until its chip is tapped; the tap persists per user.
+  plannerLayerReality: z.boolean().catch(false).default(false),
+  plannerLayerGhosts: z.boolean().catch(false).default(false),
+  plannerLayerLife: z.boolean().catch(false).default(false),
+  plannerLayerCapacity: z.boolean().catch(false).default(false),
+  plannerFirstRunDone: z.boolean().catch(false).default(false),
 })
 export type Preferences = z.infer<typeof preferencesSchema>
 
@@ -37,6 +44,11 @@ export const DEFAULT_PREFERENCES: Preferences = {
   moodConsent: false,
   quietStartMin: 1320, // 22:00, mirroring the server default
   quietEndMin: 420, // 07:00
+  plannerLayerReality: false,
+  plannerLayerGhosts: false,
+  plannerLayerLife: false,
+  plannerLayerCapacity: false,
+  plannerFirstRunDone: false,
 }
 
 export type PreferenceKey = keyof Preferences

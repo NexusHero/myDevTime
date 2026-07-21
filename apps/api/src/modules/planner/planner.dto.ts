@@ -51,8 +51,41 @@ export type PlanProposal =
   | { kind: 'protect-time'; day: string; startMin: number; endMin: number }
   | { kind: 'move-block'; planId: string; blockId: string; toStartMin: number }
   | { kind: 'shrink-block'; planId: string; blockId: string; byMin: number }
+  | {
+      kind: 'relayout-day'
+      planId: string
+      placements: { blockId: string; startMin: number; lenMin: number }[]
+      provenance: 'planner-reflow'
+    }
+  | {
+      kind: 'add-blocks'
+      day: string
+      blocks: {
+        startMin: number
+        lenMin: number
+        kind: 'meeting' | 'focus' | 'break'
+        label: string
+        taskId?: string
+      }[]
+      provenance: 'planner-fill' | 'planner-firstrun'
+    }
 
 const minuteOfDay = z.number().int().min(0).max(1440)
+// Placed blocks never dip under the domain floor (MIN_SHRUNK_BLOCK_MIN) or exceed a day.
+const blockLenMin = z.number().int().min(15).max(1440)
+
+const relayoutPlacement = z.object({
+  blockId: z.string().min(1),
+  startMin: minuteOfDay,
+  lenMin: blockLenMin,
+})
+const blockAddition = z.object({
+  startMin: minuteOfDay,
+  lenMin: blockLenMin,
+  kind: z.enum(['meeting', 'focus', 'break']),
+  label: z.string().min(1),
+  taskId: z.string().min(1).optional(),
+})
 
 const planProposalSchema = z.discriminatedUnion('kind', [
   z
@@ -74,6 +107,20 @@ const planProposalSchema = z.discriminatedUnion('kind', [
     planId: z.uuid(),
     blockId: z.string().min(1),
     byMin: z.number().int().positive(),
+  }),
+  // Batch kinds of the daily loop (ADR-0072): the one-tap repair re-layout and the
+  // fill-week / first-run additions — same confirm-only contract, provenance recorded.
+  z.object({
+    kind: z.literal('relayout-day'),
+    planId: z.uuid(),
+    placements: z.array(relayoutPlacement).min(1),
+    provenance: z.literal('planner-reflow'),
+  }),
+  z.object({
+    kind: z.literal('add-blocks'),
+    day: calendarDate,
+    blocks: z.array(blockAddition).min(1),
+    provenance: z.enum(['planner-fill', 'planner-firstrun']),
   }),
 ])
 

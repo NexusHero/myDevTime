@@ -178,9 +178,9 @@ maps 1:1 to the coverage state in the [requirements-traceability matrix](testing
 | REQ-069 | Sevi notification port (buddy P2): a narrow **`NotificationPort`** (ports-and-adapters, skill §2.2) confines any push/OS-notification SDK to one adapter, with a **`NullNotification`** default (deployment without the vendor degrades to in-app-only, never crashes). First adapter = **local/scheduled** notifications (Expo, on-device, offline). Delivery is gated by a pure `wellbeing/nudgePolicy`: **suppressed** during a 🛡 protected block and during quiet hours, **rate-limited** to ≤1–2 voices/day, **opt-in** (off until turned on); a suppressed `speak-up` folds into **one** later digest (REQ-057), never a queue | ADR-0071/0005/0066 | Verified — `NotificationPort` + `NullNotification` ship with a feature-detected web adapter (never throws; native Expo adapter honestly deferred behind the port, one-file swap); the pure `decideNudge` gate (opt-in · midnight-wrapping quiet hours · 🛡 · shared ≤2/day budget · digest fold, REQ-057) decides every delivery, and `useSeviWatch` awaits the protected-windows answer so a ping can never race into an active 🛡 block. Server-push (APNs/FCM/Expo push) stays deferred to its own ADR |
 | REQ-070 | Sevi Scrum-Master at planning time (buddy, moment 1): while a plan is built, Sevi voices **over-commitment** against true plannable capacity (`capacity/plannable`, "the week has only 24 h plannable, you have 31 h in — what do we move?"), and its suggestion becomes a real change through a **plan-apply seam** — but only as a **proposal the user confirms**; nothing is auto-booked (ADR-0005). Closes today's gap where the Evening Companion's forward suggestion has no wiring back into the plan | ADR-0071/0005/0011 | Verified — `commitmentAdvisory` ships (100 % lines: within/tight/over day+week, life/protected reduce plannable, relief never offers a meeting/🛡 block) and the **one plan-apply seam** is real: `POST /api/planner/apply` mutates only on the explicit confirmed call (new accepted plan version, prior untouched; idempotent `protected_times`; foreign workspace 404), the Planner advisory voices the overage with confirmable relief, and the Evening Companion's protect-morning posts through the same seam — browser-verified (seed → advisory → confirm → persisted change) |
 | REQ-071 | Sevi life care (buddy, moment 4): Sevi carries **life as well as work** — it actively **protects `--life`/🛡 blocks** (nudges suppressed inside them), notices when you **never keep an evening free**, and gently encourages **rest days** when the baseline shows consecutive heavy days. Builds on the `--life` token + person shades (ADR-0066 §F6); proposal-only, never books, never paywalled (REQ-056) | ADR-0071/0005/0066 | Verified — `lifeCareSuggestions`/`freeEveningsIn` ship (100 % lines: encroachment-first, no-free-evening window minimum, rest-day threshold; life/breaks never consume an evening) and the Planner `LifeCareCard` voices them through the shared `decideNudge` gate + daily budget, one confirm = one protect-time via the seam, never paywalled — browser-verified (all-evenings-booked speaks, free week is silent, active 🛡 suppresses; the rest-day positive path is unit/render-tested with the boundary documented in the spec) |
-| REQ-072 | One-tap day repair: a pure `planner/reflow` core re-lays the remainder of a broken day (missed/overrun blocks; meetings + 🛡 fixed) **as a ghost proposal**; one tap applies via the plan-apply seam (new accepted version, provenance `planner-reflow`) — the plan never moves without a tap. Stretching past the personal capacity line is an **informed deal**: the proposal shows its price before the tap (over-line minutes + projected Feierabend), a conscious accept quiets the own-baseline watch for that day only (new signals still speak), and the ArbZG hard caps are never planned past — overflow moves visibly to tomorrow/backlog. The existing drift chip becomes the action on Today + the planner day view | ADR-0072/0005/0071 | Planned |
-| REQ-073 | Backlog rail + "Fülle meine Woche": a dockable rail beside the week lists imported issues (ADR-0070) and own tasks at estimate height; drag one onto the canvas, or one shot packs the rail into the week as ghosts via a pure `planner/packing` core (priority · estimate · remaining capacity · meetings/🛡/absences honoured) with one confirm through the plan-apply seam (provenance `planner-fill`). Unestimated tickets pack at a deterministic 60-min default; AI estimation (REQ-041) refines as a visibly violet proposal — packing reproducible without a provider, credits only on a real LLM call | ADR-0072/0005/0070 | Planned |
-| REQ-074 | Calm canvas + Sevi first run: the week defaults to the accepted plan + now-line only — reality, ghosts, life shades and capacity trace live behind layer chips, never all loud at once; blocks are redrawn (type hierarchy, project colour as edge, states planned/live/done/missed); empty edge hours compress. An empty planner is Sevi's stage: 2–3 questions produce the first ghost week via the plan-apply seam (no demo data). The redesign lands only after a before/after artifact is approved | ADR-0072/0071 | Planned |
+| REQ-072 | One-tap day repair: a pure `planner/reflow` core re-lays the remainder of a broken day (missed/overrun blocks; meetings + 🛡 fixed) **as a ghost proposal**; one tap applies via the plan-apply seam (new accepted version, provenance `planner-reflow`) — the plan never moves without a tap. Stretching past the personal capacity line is an **informed deal**: the proposal shows its price before the tap (over-line minutes + projected Feierabend), a conscious accept quiets the own-baseline watch for that day only (new signals still speak), and the ArbZG hard caps are never planned past — overflow moves visibly to tomorrow/backlog. The existing drift chip becomes the action on Today + the planner day view | ADR-0072/0005/0071 | Done — `reflowDay` ships (100 % lines; the five contract invariants — never before now / past the cap / over fixed or kept blocks, visible full-length `moved` overflow, `stretch` priced iff past the line under the cap, unbroken-day idempotence, stable order — property-tested over seeded randomized days) and the drift chip IS the action on Today (adherence chip + ` · Reparieren`) and the planner Day view (`DayRepairSheet` chip): ghost preview, one tap posts `relayout-day` (provenance `planner-reflow`, new accepted version) through the one seam, dismiss is a strict no-op, and a conscious stretch accept records the day-scoped acknowledgment `decideNudge` honours (own-baseline quiet for the day, hard caps stay loud). Browser journeys authored and CI-gated (`e2e/tests/planner-repair.spec.ts`: repair → reload-stable, dismiss → byte-identical, priced stretch → quiet own-baseline voice) — Verified once the stack run confirms them |
+| REQ-073 | Backlog rail + "Fülle meine Woche": a dockable rail beside the week lists imported issues (ADR-0070) and own tasks at estimate height; drag one onto the canvas, or one shot packs the rail into the week as ghosts via a pure `planner/packing` core (priority · estimate · remaining capacity · meetings/🛡/absences honoured) with one confirm through the plan-apply seam (provenance `planner-fill`). Unestimated tickets pack at a deterministic 60-min default; AI estimation (REQ-041) refines as a visibly violet proposal — packing reproducible without a provider, credits only on a real LLM call | ADR-0072/0005/0070 | Done (#340) — the pure `planner/packing.packWeek` ships (windows-only, per-day capacity line never exceeded — **no stretch** here, priority order with stable input-order ties, whole-or-unplaced with ≥30-min split fragments, byte-equal determinism; all property-tested over seeded random weeks, 100 % lines); `useBacklogRail` assembles the rail from the real feeds (open tasks in stable catalog order, then connected issues connectors' previews — a refusing connector contributes nothing) with the deterministic 60-min default and the REQ-041 refinement strictly as a reviewable proposal (violet ONLY on `ai-proposal`; the free deterministic degrade stays neutral; accept persists via the ordinary estimate PATCH and re-packs); the rail is a **closed-by-default layer** (ux-vision §2.7), mounted behind the calm canvas's reserved **Backlog** layer chip, with search + estimate-height rows, "Fülle meine Woche" renders `packWeek`'s ghosts + the honest unplaced count and ONE confirm books one `add-blocks` per affected day through the plan-apply seam (provenance `planner-fill`), Dismiss writes nothing; drag-one ships as the documented tap-to-place ("Einplanen") fallback through the same core + seam (canvas drag-in stays deferred per #341's scope). Browser journey `planner-fill-week.spec.ts` (3 seeded tickets incl. one unestimated + a meeting-heavy day → rail → fill → ghosts incl. the 60-min block → one confirm → persisted + reload-stable + honest unplaced; negative: dismiss writes no plan row) lands in the same PR, gated by the CI acceptance job |
+| REQ-074 | Calm canvas + Sevi first run: the week defaults to the accepted plan + now-line only — reality, ghosts, life shades and capacity trace live behind layer chips, never all loud at once; blocks are redrawn (type hierarchy, project colour as edge, states planned/live/done/missed); empty edge hours compress. An empty planner is Sevi's stage: 2–3 questions produce the first ghost week via the plan-apply seam (no demo data). The redesign lands only after a before/after artifact is approved | ADR-0072/0071 | Done — the package ships and is fully tested (pure `compressWindow` ≥90 % with the boundary cases; the four block states AA-held across light+dark × three accents; RN + web FullCalendar restyled to colour-as-edge; per-user layer chips on the preferences contract, incl. the **Backlog** slot that mounts #340's rail; Sevi's deterministic first-run ghost week through the seam, provenance `planner-firstrun`). The before/after artifact (`docs/design/artifacts/planner-calm-canvas-before-after.html`) is **owner-approved — the design gate is passed**. Browser journeys authored and CI-gated (`e2e/tests/planner-canvas.spec.ts`) — Verified once the stack run confirms them |
 
 The full milestone plan (M0–M5), dependency graph, and the Definition of 1.0 live in
 [`docs/roadmap.md`](roadmap.md).
@@ -719,6 +719,107 @@ sequenceDiagram
         API->>DB: INSERT plans (new ACCEPTED version, prior version untouched)
     end
     API-->>U: { applied } — dismissing the proposal instead mutates nothing
+```
+
+</details>
+
+## A broken day repairs itself only on a tap, and stretching is an informed deal (REQ-072, ADR-0072/0005/0071)
+
+When the day drifts, the drift chip becomes the action. The pure `reflowDay` core re-lays the
+remainder of the day around fixed obstacles (meetings, 🛡) as a **ghost proposal**; nothing moves
+until the user's confirm posts the `relayout-day` kind through the one plan-apply seam, writing a
+NEW accepted plan version (provenance `planner-reflow`). A layout that overruns the personal
+capacity line names its price **before** the tap; a conscious accept records a day-scoped stretch
+acknowledgment that quiets the own-baseline Sevi voice for that day only — the universal ArbZG
+hard caps are never planned past, and a hard-cap speak-up is never silenced.
+
+![A broken day repairs itself only on a tap, and stretching is an informed deal (REQ-072, ADR-0072/0005/0071) — diagram](diagrams/architecture-13.svg)
+
+<details>
+<summary>Mermaid source</summary>
+
+```mermaid
+sequenceDiagram
+    participant U as Today / Planner (drift chip → DayRepairSheet)
+    participant R as reflowDay (domain, pure)
+    participant API as planner module (POST /api/planner/apply)
+    participant DB as Postgres
+    participant S as Sevi live-load watch (decideNudge)
+    U->>R: nowMin, capacity line, ArbZG day cap, blocks, fixed, missed ids
+    R-->>U: ghost proposal {placements, overflow} — fits / stretch (price) / moved
+    U->>U: preview the re-laid day (+ the stretch price, if any) — nothing written yet
+    U->>API: confirm {relayout-day, provenance planner-reflow} — the ONLY mutating call
+    API->>API: AuthGuard → workspace scope (foreign plan ⇒ 404) · relayoutDay ⇒ 400 on a bad block
+    API->>DB: INSERT plans (new ACCEPTED version, source=planner-reflow, prior untouched)
+    API-->>U: { applied } — dismissing instead mutates nothing
+    opt stretch accepted
+        U->>S: day-scoped stretchAckActive — own-baseline voice stays quiet today (hard caps still speak)
+    end
+```
+
+</details>
+
+## The week fills from the backlog in one deterministic pass (REQ-073, ADR-0072/0005/0070)
+
+The backlog rail lists imported issues (ADR-0070, proposal-only) and own tasks at estimate height.
+The pure `packWeek` core distributes them into the week's free windows honouring each day's
+capacity line — it never stretches (that is the repair's informed deal, not the fill's) — and
+reports an honest `unplaced` remainder rather than hiding overflow. An unestimated ticket packs at
+a deterministic 60-minute default; the AI estimate refines it only as a marked violet proposal, so
+the pass is reproducible with the provider down. One confirm books the ghost week through the seam
+(provenance `planner-fill`), creating a day's first plan version where none existed.
+
+![The week fills from the backlog in one deterministic pass (REQ-073, ADR-0072/0005/0070) — diagram](diagrams/architecture-14.svg)
+
+<details>
+<summary>Mermaid source</summary>
+
+```mermaid
+sequenceDiagram
+    participant U as Planner (backlog rail → FillWeekPreview)
+    participant P as packWeek (domain, pure)
+    participant API as planner module (POST /api/planner/apply)
+    participant DB as Postgres
+    U->>P: per-day free windows + capacity lines, items (estimate | 60-min default, priority)
+    P-->>U: ghost week {placements, unplaced} — capacity honoured, never stretched
+    U->>U: preview ghosts + honest "n passen diese Woche nicht" — nothing written yet
+    U->>API: confirm {add-blocks per affected day, provenance planner-fill}
+    API->>API: AuthGuard → workspace scope · addBlocks ⇒ 400 below the 15-min floor
+    API->>DB: INSERT plans (new ACCEPTED version per day · version 1 where the day had none)
+    API-->>U: { applied } — dismissing instead mutates nothing
+```
+
+</details>
+
+## The empty planner is Sevi's stage, and the first week is still just a proposal (REQ-074, ADR-0072/0071)
+
+A first-time planner shows no dead wall. Sevi asks two or three questions and lays a first ghost
+week from the answers with pure, deterministic client logic — no LLM call, no demo data. The user
+accepts (or skips) it; only an accept posts `add-blocks` through the seam (provenance
+`planner-firstrun`), writing the day's first accepted plan version. Once a first plan is accepted
+the stage never returns.
+
+![The empty planner is Sevi's stage, and the first week is still just a proposal (REQ-074, ADR-0072/0071) — diagram](diagrams/architecture-15.svg)
+
+<details>
+<summary>Mermaid source</summary>
+
+```mermaid
+sequenceDiagram
+    participant U as Planner first run (Sevi stage)
+    participant F as first-week layout (client, pure — no LLM)
+    participant API as planner module (POST /api/planner/apply)
+    participant DB as Postgres
+    U->>U: empty week (0 blocks, no plan) ⇒ Sevi asks 2–3 questions
+    U->>F: answers (start time, today's focus)
+    F-->>U: first ghost week — deterministic, no demo data
+    alt accept
+        U->>API: confirm {add-blocks, provenance planner-firstrun}
+        API->>DB: INSERT plans (ACCEPTED version 1) — the stage never returns after a first plan
+        API-->>U: { applied }
+    else skip
+        U->>U: stage dismissed — nothing written, the empty week stands
+    end
 ```
 
 </details>

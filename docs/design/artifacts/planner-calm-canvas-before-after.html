@@ -1,0 +1,1051 @@
+<title>Calm Canvas — Before / After (REQ-074)</title>
+<style>
+  /* Real design tokens from packages/design (Sovereign accent, ADR-0022/0061),
+     lifted 1:1 from palette.ts so this reference shows the shipping colours. */
+  :root {
+    --bg: #f6f7fb;
+    --surface: #ffffff;
+    --raised: #ffffff;
+    --sunk: #f1f5f9;
+    --border: #e5e9ef;
+    --border-strong: #cbd2dc;
+    --ink: #101828;
+    --ink2: #475467;
+    --ink3: #98a2b3;
+    --accent: #3654e0;
+    --accent-text: #3654e0;
+    --accent-soft: #ebedfb;
+    --live: #ff5320;
+    --live-strong: #e33e0f;
+    --good: #166534;
+    --crit: #c2372f;
+    --warn: #92400e;
+    --life: #4f7a52;
+    --life-soft: #e9f0e8;
+    --p-teal: #00937c;
+    --p-violet: #6d5ae0;
+    --p-rose: #c23a62;
+    --p-blue: #2374bd;
+    --p-olive: #6e8523;
+    --p-amber: #bd7122;
+    --ink-on-fill: #0b0e14;
+    --page-tint: #eef0f7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0a0c11;
+      --surface: #10131a;
+      --raised: #171c27;
+      --sunk: #1b2130;
+      --border: rgba(255, 255, 255, 0.09);
+      --border-strong: rgba(255, 255, 255, 0.16);
+      --ink: #eef1f6;
+      --ink2: #9aa6b4;
+      --ink3: #66707d;
+      --accent: #3654e0;
+      --accent-text: #90a0ff;
+      --accent-soft: #242a3f;
+      --live: #ff6b3d;
+      --live-strong: #ff5320;
+      --good: #4ade80;
+      --crit: #e5655e;
+      --warn: #d9903f;
+      --life: #8faa8b;
+      --life-soft: #1c2620;
+      --p-teal: #1fa894;
+      --p-violet: #8b7bf5;
+      --p-rose: #d8577c;
+      --p-blue: #3e97dd;
+      --p-olive: #7e9433;
+      --p-amber: #d48a39;
+      --ink-on-fill: #0b0e14;
+      --page-tint: #0e1119;
+    }
+  }
+  :root[data-theme='light'] {
+    --bg: #f6f7fb;
+    --surface: #ffffff;
+    --raised: #ffffff;
+    --sunk: #f1f5f9;
+    --border: #e5e9ef;
+    --border-strong: #cbd2dc;
+    --ink: #101828;
+    --ink2: #475467;
+    --ink3: #98a2b3;
+    --accent: #3654e0;
+    --accent-text: #3654e0;
+    --accent-soft: #ebedfb;
+    --live: #ff5320;
+    --live-strong: #e33e0f;
+    --good: #166534;
+    --crit: #c2372f;
+    --warn: #92400e;
+    --life: #4f7a52;
+    --life-soft: #e9f0e8;
+    --p-teal: #00937c;
+    --p-violet: #6d5ae0;
+    --p-rose: #c23a62;
+    --p-blue: #2374bd;
+    --p-olive: #6e8523;
+    --p-amber: #bd7122;
+    --ink-on-fill: #0b0e14;
+    --page-tint: #eef0f7;
+  }
+  :root[data-theme='dark'] {
+    --bg: #0a0c11;
+    --surface: #10131a;
+    --raised: #171c27;
+    --sunk: #1b2130;
+    --border: rgba(255, 255, 255, 0.09);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --ink: #eef1f6;
+    --ink2: #9aa6b4;
+    --ink3: #66707d;
+    --accent: #3654e0;
+    --accent-text: #90a0ff;
+    --accent-soft: #242a3f;
+    --live: #ff6b3d;
+    --live-strong: #ff5320;
+    --good: #4ade80;
+    --crit: #e5655e;
+    --warn: #d9903f;
+    --life: #8faa8b;
+    --life-soft: #1c2620;
+    --p-teal: #1fa894;
+    --p-violet: #8b7bf5;
+    --p-rose: #d8577c;
+    --p-blue: #3e97dd;
+    --p-olive: #7e9433;
+    --p-amber: #d48a39;
+    --ink-on-fill: #0b0e14;
+    --page-tint: #0e1119;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family:
+      'Space Grotesk',
+      ui-rounded,
+      system-ui,
+      -apple-system,
+      'Segoe UI',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+  .wrap {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: clamp(20px, 4vw, 48px) clamp(16px, 4vw, 40px) 72px;
+  }
+
+  .eyebrow {
+    font:
+      700 12px/1 ui-monospace,
+      'JetBrains Mono',
+      monospace;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent-text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .eyebrow::before {
+    content: '';
+    width: 22px;
+    height: 2px;
+    background: var(--live-strong);
+    border-radius: 2px;
+  }
+  h1 {
+    font-size: clamp(28px, 5vw, 46px);
+    line-height: 1.04;
+    margin: 16px 0 10px;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    font-weight: 600;
+  }
+  .lede {
+    max-width: 64ch;
+    color: var(--ink2);
+    font-size: clamp(15px, 1.5vw, 17px);
+    margin: 0;
+  }
+  .meta {
+    margin-top: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font:
+      600 11.5px/1 ui-monospace,
+      monospace;
+    letter-spacing: 0.04em;
+  }
+  .tag {
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink2);
+  }
+  .tag.gate {
+    border-color: var(--warn);
+    color: var(--warn);
+    background: transparent;
+  }
+
+  .theme-toggle {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 20;
+    font:
+      600 12px/1 ui-monospace,
+      monospace;
+    letter-spacing: 0.04em;
+    padding: 9px 13px;
+    border-radius: 999px;
+    cursor: pointer;
+    background: var(--surface);
+    color: var(--ink2);
+    border: 1px solid var(--border);
+  }
+  .theme-toggle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 40px;
+  }
+  @media (max-width: 900px) {
+    .split {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .panel-head {
+    padding: 16px 18px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .panel-kind {
+    font:
+      700 11px/1 ui-monospace,
+      monospace;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel.before .panel-kind {
+    color: var(--crit);
+  }
+  .panel.after .panel-kind {
+    color: var(--good);
+  }
+  .panel-kind .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .panel h2 {
+    font-size: 18px;
+    margin: 9px 0 4px;
+    letter-spacing: -0.01em;
+    font-weight: 600;
+  }
+  .panel p.sub {
+    margin: 0;
+    color: var(--ink2);
+    font-size: 13px;
+  }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--page-tint);
+  }
+  .kw {
+    font:
+      700 12px/1 ui-monospace,
+      monospace;
+    color: var(--ink);
+    margin-right: 2px;
+  }
+  .chip,
+  .chip-loud {
+    font:
+      600 11px/1 system-ui,
+      sans-serif;
+    padding: 5px 9px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .chip {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink2);
+  }
+  .chip.on {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent-text);
+  }
+  .chip-loud {
+    border: none;
+    color: #fff;
+  }
+
+  /* Calendar grid */
+  .cal {
+    padding: 0 10px 14px;
+  }
+  .colhead {
+    display: grid;
+    grid-template-columns: 32px repeat(5, 1fr);
+    padding: 9px 0 5px;
+  }
+  .colhead .day {
+    text-align: center;
+    font: 700 11px/1.3 system-ui;
+    color: var(--ink2);
+  }
+  .colhead .day.today {
+    color: var(--accent-text);
+  }
+  .colhead .day small {
+    display: block;
+    font-weight: 500;
+    color: var(--ink3);
+    font-size: 9px;
+    margin-top: 2px;
+  }
+  .body {
+    position: relative;
+    display: grid;
+    grid-template-columns: 32px repeat(5, 1fr);
+    height: 460px;
+  }
+  .gutter {
+    position: relative;
+  }
+  .gutter .hr {
+    position: absolute;
+    right: 5px;
+    transform: translateY(-50%);
+    font:
+      500 8.5px/1 ui-monospace,
+      monospace;
+    color: var(--ink3);
+    font-variant-numeric: tabular-nums;
+  }
+  .col {
+    position: relative;
+    border-left: 1px solid var(--border);
+  }
+  .hline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1px solid var(--border);
+    opacity: 0.5;
+  }
+  .band {
+    position: absolute;
+    left: 0;
+    right: 0;
+    background: var(--sunk);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    opacity: 0.85;
+  }
+  .band span {
+    position: absolute;
+    left: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    font:
+      600 8px/1 ui-monospace,
+      monospace;
+    color: var(--ink3);
+  }
+
+  /* A block fills the full width of its day column (small inset). */
+  .blk {
+    position: absolute;
+    left: 3px;
+    right: 3px;
+    border-radius: 7px;
+    padding: 4px 7px;
+    overflow: hidden;
+  }
+  .blk .t {
+    font: 700 10.5px/1.2 system-ui;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .blk .tm {
+    font:
+      600 8.5px/1.2 ui-monospace,
+      monospace;
+    font-variant-numeric: tabular-nums;
+    margin-top: 2px;
+    opacity: 0.92;
+  }
+  .blk .mk {
+    font: 800 9px/1 system-ui;
+    margin-right: 3px;
+  }
+
+  /* Bold fills — colour knallt. Ink chosen for contrast (near-black on these light-panel fills). */
+  .fill .t,
+  .fill .tm,
+  .fill .mk {
+    color: var(--ink-on-fill);
+  }
+  .fill.teal {
+    background: var(--p-teal);
+  }
+  .fill.violet {
+    background: var(--p-violet);
+  }
+  .fill.rose {
+    background: var(--p-rose);
+  }
+  .fill.blue {
+    background: var(--p-blue);
+  }
+  .fill.olive {
+    background: var(--p-olive);
+  }
+  .fill.amber {
+    background: var(--p-amber);
+  }
+  .fill.life {
+    background: var(--life);
+  }
+  /* States (right panel): fill stays, state adds on top. */
+  .st-live {
+    box-shadow: inset 0 0 0 2px var(--live);
+  }
+  .st-live .mk {
+    color: var(--live-strong);
+  }
+  .st-done {
+    filter: saturate(0.6) brightness(1.04);
+    opacity: 0.9;
+  }
+  .st-missed {
+    border: 1.5px dashed var(--ink-on-fill);
+  }
+
+  /* Loud-only extras (left panel) */
+  .ghost-loud {
+    border: 1.5px dashed var(--p-violet);
+    background: transparent;
+  }
+  .ghost-loud .t,
+  .ghost-loud .tm {
+    color: var(--p-violet);
+    font-style: italic;
+  }
+  .reality-loud {
+    position: absolute;
+    right: 2px;
+    width: 4px;
+    border-radius: 2px;
+    background: var(--ink3);
+    opacity: 0.8;
+  }
+  .lifeshade {
+    position: absolute;
+    left: 0;
+    right: 0;
+    background: var(--life-soft);
+    opacity: 0.65;
+  }
+  .capbar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 5px;
+    display: flex;
+  }
+  .capbar i {
+    display: block;
+    height: 100%;
+  }
+
+  .now {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--live);
+    z-index: 6;
+  }
+  .now::before {
+    content: '';
+    position: absolute;
+    left: -3px;
+    top: -3px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--live);
+  }
+  .now b {
+    position: absolute;
+    right: 3px;
+    top: -8px;
+    background: var(--live);
+    color: #fff;
+    font:
+      700 8px/1 ui-monospace,
+      monospace;
+    padding: 2px 6px;
+    border-radius: 999px;
+  }
+
+  .section-label {
+    font:
+      700 11px/1 ui-monospace,
+      monospace;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink3);
+    margin: 48px 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .states {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  @media (max-width: 760px) {
+    .states {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  .statecard {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    background: var(--surface);
+  }
+  .statecard .swatch {
+    height: 36px;
+    border-radius: 7px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 9px;
+  }
+  .statecard h3 {
+    font-size: 13px;
+    margin: 0 0 3px;
+    font-weight: 600;
+  }
+  .statecard p {
+    font-size: 12px;
+    color: var(--ink2);
+    margin: 0;
+  }
+
+  .notes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 760px) {
+    .notes {
+      grid-template-columns: 1fr;
+    }
+  }
+  .note {
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: 14px 16px;
+    background: var(--surface);
+  }
+  .note h3 {
+    font-size: 13px;
+    margin: 0 0 6px;
+    font-weight: 600;
+  }
+  .note p {
+    font-size: 12.5px;
+    color: var(--ink2);
+    margin: 0;
+  }
+  .note code {
+    font:
+      600 11px ui-monospace,
+      monospace;
+    color: var(--accent-text);
+    background: var(--accent-soft);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  .foot {
+    margin-top: 44px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+    color: var(--ink3);
+    font-size: 12px;
+  }
+  .foot strong {
+    color: var(--ink2);
+    font-weight: 600;
+  }
+</style>
+
+<button class="theme-toggle" id="tt" type="button" aria-label="Toggle light or dark theme">
+  ◐ Theme
+</button>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">REQ-074 · ADR-0072 D3 · Design gate reference</div>
+    <h1>The calm canvas — the same week, before &amp; after</h1>
+    <p class="lede">
+      At real data volumes the planner week goes loud: meetings, tasks, ghosts, life and the reality
+      trace all paint at once, and you can no longer read a day at a glance. The redesign is one
+      package — <strong>Ruhe als Default</strong>, bold blocks that carry state as form, and
+      compressed edge hours. The colour stays punchy on both sides; the calm on the right comes from
+      the layer chips and compression, not from draining the colour. This page is the review
+      reference: shipping UI that contradicts it fails review (ux-vision §2.7).
+    </p>
+    <div class="meta">
+      <span class="tag">Colours: packages/design tokens (Sovereign)</span>
+      <span class="tag">Both themes — use the toggle</span>
+      <span class="tag gate">Awaits owner approval</span>
+    </div>
+  </header>
+
+  <div class="split">
+    <section class="panel before">
+      <div class="panel-head">
+        <span class="panel-kind"><span class="dot"></span>Before · this week</span>
+        <h2>Every layer, always on</h2>
+        <p class="sub">
+          Full-width, colourful blocks across the week — but ghosts, life shades, the reality trace
+          and the capacity bar all stack at once, and the day never breathes. Representative
+          recreation.
+        </p>
+      </div>
+      <div class="toolbar">
+        <span class="kw">KW 30</span>
+        <span class="chip-loud" style="background: var(--p-teal)">● Reality</span>
+        <span class="chip-loud" style="background: var(--p-violet)">◇ Ghosts</span>
+        <span class="chip-loud" style="background: var(--life)">Life</span>
+        <span class="chip-loud" style="background: var(--accent)">Capacity</span>
+        <span class="chip-loud" style="background: var(--warn)">2× overbooked</span>
+      </div>
+      <div class="cal">
+        <div class="colhead">
+          <span></span>
+          <span class="day">Mon<small>Jul 20</small></span>
+          <span class="day">Tue<small>21</small></span>
+          <span class="day today">Wed<small>22</small></span>
+          <span class="day">Thu<small>23</small></span>
+          <span class="day">Fri<small>24</small></span>
+        </div>
+        <div class="body" id="before">
+          <div class="gutter"></div>
+          <div class="col"></div>
+          <div class="col"></div>
+          <div class="col"></div>
+          <div class="col"></div>
+          <div class="col"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel after">
+      <div class="panel-head">
+        <span class="panel-kind"><span class="dot"></span>After · this week</span>
+        <h2>Bold plan, calm surface</h2>
+        <p class="sub">
+          The same colourful, full-width week — but only the accepted plan + now-line by default;
+          extra layers are one chip tap (Reality open here), and empty edge hours compress so blocks
+          stay tall and readable.
+        </p>
+      </div>
+      <div class="toolbar">
+        <span class="kw">KW 30</span>
+        <span class="chip on">● Reality</span>
+        <span class="chip">◇ Ghosts</span>
+        <span class="chip">Life</span>
+        <span class="chip">Capacity</span>
+        <span class="chip">Backlog</span>
+      </div>
+      <div class="cal">
+        <div class="colhead">
+          <span></span>
+          <span class="day">Mon<small>Jul 20</small></span>
+          <span class="day">Tue<small>21</small></span>
+          <span class="day today">Wed<small>22</small></span>
+          <span class="day">Thu<small>23</small></span>
+          <span class="day">Fri<small>24</small></span>
+        </div>
+        <div class="body" id="after">
+          <div class="gutter"></div>
+          <div class="col"></div>
+          <div class="col"></div>
+          <div class="col"></div>
+          <div class="col"></div>
+          <div class="col"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="section-label">The four block states</div>
+  <div class="states">
+    <div class="statecard">
+      <div class="swatch fill teal">
+        <span class="t" style="font-weight: 700">Sync-Engine</span>
+      </div>
+      <h3>Planned</h3>
+      <p>Full bold fill in the project colour. Not started yet.</p>
+    </div>
+    <div class="statecard">
+      <div class="swatch fill blue st-live">
+        <span class="mk">●</span><span class="t" style="font-weight: 700">Standup</span>
+      </div>
+      <h3>Live</h3>
+      <p>Same fill, plus the orange live ring + marker — the one thing happening now.</p>
+    </div>
+    <div class="statecard">
+      <div class="swatch fill teal st-done">
+        <span class="mk">✓</span><span class="t" style="font-weight: 700">Review</span>
+      </div>
+      <h3>Done</h3>
+      <p>Fill recedes — slightly desaturated, lower elevation — but stays clearly coloured.</p>
+    </div>
+    <div class="statecard">
+      <div class="swatch fill rose st-missed">
+        <span class="mk">!</span><span class="t" style="font-weight: 700">Deep work</span>
+      </div>
+      <h3>Missed</h3>
+      <p>Fill stays, plus a dashed tear edge — the handle the one-tap repair (#339) consumes.</p>
+    </div>
+  </div>
+
+  <div class="section-label">What the redesign decides</div>
+  <div class="notes">
+    <div class="note">
+      <h3>Ruhe als Default</h3>
+      <p>
+        The week shows only the accepted plan and the now-line. Reality, ghosts, life and capacity —
+        and the backlog rail — live behind <code>layer chips</code>, one tap each, persisted per
+        user. Never all loud at once.
+      </p>
+    </div>
+    <div class="note">
+      <h3>Farbe knallt, Ruhe kommt aus Layern</h3>
+      <p>
+        Project colour is the block's bold fill, punchy on both sides — calm comes from closing
+        layers and compressing edge hours, not from draining the colour. Text ink is picked by
+        luminance so contrast holds AA on every fill.
+      </p>
+    </div>
+    <div class="note">
+      <h3>Zeit-Kompression</h3>
+      <p>
+        Unplanned edge hours (≈0–7 and 20–24) collapse to a thin band via the pure
+        <code>compressWindow</code>; a block at 06:30 keeps its whole hour. Blocks gain height and
+        legibility — a 30–60 min block never squashes to a sliver.
+      </p>
+    </div>
+    <div class="note">
+      <h3>Sevi's empty stage</h3>
+      <p>
+        A truly empty planner is not a dead wall: three questions produce the first ghost week
+        through the plan-apply seam (<code>planner-firstrun</code>), one tap accepts. No demo data,
+        ever.
+      </p>
+    </div>
+  </div>
+
+  <div class="foot">
+    <strong>Reference note.</strong> Both canvases are a representative recreation of a real week at
+    density — drawings, not screenshots. Every colour is a live token from
+    <strong>packages/design</strong> (Sovereign accent, light &amp; dark). This artifact is the
+    binding review reference for the calm-canvas design gate and awaits owner approval before the
+    implementation lands.
+  </div>
+</div>
+
+<script>
+  ;(function () {
+    var tt = document.getElementById('tt')
+    tt.addEventListener('click', function () {
+      var root = document.documentElement
+      var now =
+        root.getAttribute('data-theme') ||
+        (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      root.setAttribute('data-theme', now === 'dark' ? 'light' : 'dark')
+    })
+  })()
+
+  var H = 460
+
+  // Map a minute-of-day to a y within a window, honouring a compressed band list.
+  function makeMap(bands, total) {
+    return function (min) {
+      var acc = 0
+      for (var i = 0; i < bands.length; i++) {
+        var b = bands[i],
+          w = b.compressed ? Math.min(24, b.end - b.start) : b.end - b.start
+        if (min < b.end || i === bands.length - 1) {
+          var within = (min - b.start) / (b.end - b.start)
+          return ((acc + Math.max(0, Math.min(1, within)) * w) / total) * H
+        }
+        acc += w
+      }
+      return H
+    }
+  }
+  function total(bands) {
+    return bands.reduce(function (s, b) {
+      return s + (b.compressed ? Math.min(24, b.end - b.start) : b.end - b.start)
+    }, 0)
+  }
+
+  function colLeft(day) {
+    return 'calc(32px + ' + day + ' * ((100% - 32px) / 5))'
+  }
+  function colWidth() {
+    return 'calc((100% - 32px) / 5)'
+  }
+
+  // Draw hour lines + gutter labels for the expanded (non-compressed) hours.
+  function drawHours(host, bands, map) {
+    var gutter = host.querySelector('.gutter')
+    bands.forEach(function (b) {
+      if (b.compressed) {
+        var band = document.createElement('div')
+        band.className = 'band'
+        band.style.top = map(b.start) + 'px'
+        band.style.height = map(b.end) - map(b.start) + 'px'
+        band.style.left = '32px'
+        band.innerHTML =
+          '<span>' + Math.floor(b.start / 60) + '–' + Math.ceil(b.end / 60) + '</span>'
+        host.appendChild(band)
+        return
+      }
+      for (var h = Math.ceil(b.start / 60); h <= Math.floor(b.end / 60); h++) {
+        var l = document.createElement('div')
+        l.className = 'hline'
+        l.style.top = map(h * 60) + 'px'
+        l.style.left = '32px'
+        host.appendChild(l)
+        var lab = document.createElement('div')
+        lab.className = 'hr'
+        lab.style.top = map(h * 60) + 'px'
+        lab.textContent = (h < 10 ? '0' + h : h) + ':00'
+        gutter.appendChild(lab)
+      }
+    })
+  }
+
+  // Place a full-width block in a day column.
+  function addBlock(host, map, day, start, len, cls, title, time, mark) {
+    var el = document.createElement('div')
+    el.className = 'blk ' + cls
+    el.style.left = 'calc(' + colLeft(day) + ' + 3px)'
+    el.style.width = 'calc(' + colWidth() + ' - 6px)'
+    var top = map(start),
+      h = Math.max(map(start + len) - top, 30) // readable min height
+    el.style.top = top + 'px'
+    el.style.height = h + 'px'
+    var mk = mark ? '<span class="mk">' + mark + '</span>' : ''
+    el.innerHTML =
+      '<div class="t">' +
+      mk +
+      title +
+      '</div>' +
+      (h >= 40 ? '<div class="tm">' + time + '</div>' : '')
+    host.appendChild(el)
+  }
+  function hhmm(m) {
+    var h = Math.floor(m / 60),
+      mm = m % 60
+    return (h < 10 ? '0' + h : h) + ':' + (mm < 10 ? '0' + mm : mm)
+  }
+  function addB(host, map, day, s, len, cls, title, mark) {
+    addBlock(host, map, day, s, len, cls, title, hhmm(s) + '–' + hhmm(s + len), mark)
+  }
+
+  // A realistic Mon–Fri week — a few blocks per day, spread out.
+  var WEEK = [
+    // day, startMin, len, colourClass, title
+    [0, 540, 90, 'teal', 'Sync-Engine'],
+    [0, 690, 60, 'blue', 'Standup'],
+    [0, 840, 120, 'amber', 'Finanzo'],
+    [1, 555, 120, 'violet', 'PR review'],
+    [1, 750, 60, 'olive', 'Lunch sync'],
+    [1, 870, 120, 'teal', 'Sync-Engine'],
+    [2, 540, 60, 'blue', 'Standup'],
+    [2, 615, 150, 'teal', 'Deep work'],
+    [2, 810, 90, 'rose', 'Reviews'],
+    [2, 930, 90, 'amber', 'Nordwind'],
+    [3, 600, 120, 'violet', 'Workshop'],
+    [3, 780, 90, 'blue', 'Client call'],
+    [3, 900, 120, 'olive', 'Nordwind'],
+    [4, 570, 120, 'teal', 'Sync-Engine'],
+    [4, 750, 90, 'rose', 'PR sweep'],
+    [4, 900, 60, 'amber', 'Wrap-up'],
+  ]
+
+  // ---- BEFORE: no compression (all hours), every layer on, colourful + crowded ----
+  ;(function () {
+    var host = document.getElementById('before')
+    var bands = [{ start: 360, end: 1260, compressed: false }]
+    var T = total(bands),
+      map = makeMap(bands, T)
+    drawHours(host, bands, map)
+    // life shade + reality strips + capacity bar (loud extras)
+    var shade = document.createElement('div')
+    shade.className = 'lifeshade'
+    shade.style.left = 'calc(' + colLeft(2) + ' + 3px)'
+    shade.style.width = 'calc(' + colWidth() + ' - 6px)'
+    shade.style.top = map(960) + 'px'
+    shade.style.height = map(1080) - map(960) + 'px'
+    host.appendChild(shade)
+    ;[
+      [2, 540, 240],
+      [2, 820, 160],
+      [3, 600, 300],
+      [0, 540, 200],
+    ].forEach(function (s) {
+      var v = document.createElement('div')
+      v.className = 'reality-loud'
+      v.style.left = 'calc(' + colLeft(s[0]) + ' + ' + 'calc(' + colWidth() + ' - 8px))'
+      v.style.top = map(s[1]) + 'px'
+      v.style.height = map(s[1] + s[2]) - map(s[1]) + 'px'
+      host.appendChild(v)
+    })
+    WEEK.forEach(function (b) {
+      addB(host, map, b[0], b[1], b[2], 'fill ' + b[3], b[4], null)
+    })
+    // extra ghosts piled on
+    ;[
+      [0, 1050, 60, 'Focus'],
+      [4, 990, 60, 'Sync'],
+      [1, 990, 60, 'Wrap'],
+    ].forEach(function (g) {
+      addB(host, map, g[0], g[1], g[2], 'ghost-loud', '◇ ' + g[3], null)
+    })
+    // capacity bar under each column
+    for (var d = 0; d < 5; d++) {
+      var bar = document.createElement('div')
+      bar.className = 'capbar'
+      bar.style.left = 'calc(' + colLeft(d) + ' + 3px)'
+      bar.style.width = 'calc(' + colWidth() + ' - 6px)'
+      bar.innerHTML =
+        '<i style="flex:3;background:var(--life)"></i><i style="flex:7;background:var(--accent)"></i>'
+      host.appendChild(bar)
+    }
+    var n = document.createElement('div')
+    n.className = 'now'
+    n.style.top = map(810) + 'px'
+    n.style.left = '32px'
+    n.innerHTML = '<b>13:30</b>'
+    host.appendChild(n)
+  })()
+
+  // ---- AFTER: compressed edges, bold plan blocks with states, one reality layer ----
+  ;(function () {
+    var host = document.getElementById('after')
+    // Empty edge hours (06–08, 18–21) compress to thin bands; working band expands.
+    var bands = [
+      { start: 360, end: 480, compressed: true },
+      { start: 480, end: 1080, compressed: false },
+      { start: 1080, end: 1260, compressed: true },
+    ]
+    var T = total(bands),
+      map = makeMap(bands, T)
+    drawHours(host, bands, map)
+    // States by day: Wed (today) is lived — done/live/missed; other days are planned.
+    var STATE = {
+      '2-540': 'st-done',
+      '2-615': 'st-done',
+      '2-810': 'st-missed',
+      '2-930': 'st-live',
+    }
+    var MARK = { 'st-done': '✓', 'st-live': '●', 'st-missed': '!' }
+    WEEK.forEach(function (b) {
+      var st = STATE[b[0] + '-' + b[1]] || ''
+      addB(
+        host,
+        map,
+        b[0],
+        b[1],
+        b[2],
+        'fill ' + b[3] + (st ? ' ' + st : ''),
+        b[4],
+        MARK[st] || null,
+      )
+    })
+    // the one open layer: reality trace on Wed
+    ;[
+      [2, 540, 220],
+      [2, 800, 240],
+    ].forEach(function (s) {
+      var v = document.createElement('div')
+      v.className = 'reality-loud'
+      v.style.left = 'calc(' + colLeft(s[0]) + ' + ' + 'calc(' + colWidth() + ' - 8px))'
+      v.style.top = map(s[1]) + 'px'
+      v.style.height = map(s[1] + s[2]) - map(s[1]) + 'px'
+      host.appendChild(v)
+    })
+    var n = document.createElement('div')
+    n.className = 'now'
+    n.style.top = map(1020) + 'px'
+    n.style.left = '32px'
+    n.innerHTML = '<b>17:00</b>'
+    host.appendChild(n)
+  })()
+</script>

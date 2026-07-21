@@ -357,3 +357,132 @@ export async function enableSevi(request: APIRequestContext): Promise<void> {
   })
   expect(res.ok(), `enableSevi failed (${String(res.status())}): ${await res.text()}`).toBeTruthy()
 }
+
+// ─── One-tap day repair seams (ADR-0072 D1, REQ-072) ───────────────────────────────────────
+
+/** One exact block of a seeded day plan (minutes from UTC midnight — the runner is UTC). */
+export interface SeedPlanBlock {
+  readonly startMin: number
+  readonly lenMin: number
+  readonly kind: 'meeting' | 'focus' | 'break'
+  readonly label: string
+}
+
+/**
+ * Seed today's plan with EXACT placements as one ACCEPTED version through the real plan-apply
+ * seam (`add-blocks` — the same wire the fill-week confirm uses), so the repair specs start
+ * from a deterministic layout instead of the generator's break rhythm. Call with the seeded
+ * user's STANDALONE `request` context (the cookie-jar rule at the top of this file).
+ */
+export async function seedAcceptedPlanToday(
+  request: APIRequestContext,
+  blocks: readonly SeedPlanBlock[],
+): Promise<void> {
+  const res = await request.post('/api/planner/apply', {
+    data: {
+      proposal: { kind: 'add-blocks', day: utcDayKey(), blocks, provenance: 'planner-fill' },
+    },
+  })
+  expect(res.ok(), `seed plan failed (${String(res.status())}): ${await res.text()}`).toBeTruthy()
+}
+
+/** The stored latest plan row for today, raw from `GET /api/planner/plans` (null when none). */
+export async function readPlanToday(request: APIRequestContext): Promise<{
+  id: string
+  version: number
+  status: string
+  blocks: { startMin: number; lenMin: number; kind: string; label: string }[]
+} | null> {
+  const res = await request.get(`/api/planner/plans?date=${utcDayKey()}`)
+  expect(res.ok(), `read plan failed (${String(res.status())}): ${await res.text()}`).toBeTruthy()
+  const text = await res.text()
+  if (text === '' || text === 'null') return null
+  return JSON.parse(text) as {
+    id: string
+    version: number
+    status: string
+    blocks: { startMin: number; lenMin: number; kind: string; label: string }[]
+  }
+}
+
+/** The current UTC minute of day (0..1439) — the axis the repair seeds are laid on. */
+export function utcMinuteNow(): number {
+  const now = new Date()
+  return now.getUTCHours() * 60 + now.getUTCMinutes()
+}
+
+// ─── Fill-week acceptance seams (ADR-0072 D2, REQ-073) ─────────────────────────────────────
+// Append-only (shared-suffix brace lesson): these helpers drive the REAL tracking/recurrence/
+// planner endpoints with the signed-up standalone `request` context — nothing is stubbed.
+
+/**
+ * Seed one backlog ticket (a real task, REQ-001) under `projectId`, optionally with an
+ * explicit effort estimate (REQ-041 `PATCH /api/tracking/tasks/:id`). An omitted estimate
+ * leaves the task unestimated — the rail then shows the deterministic 60-min default.
+ */
+export async function seedTicket(
+  request: APIRequestContext,
+  projectId: string,
+  name: string,
+  estimateMinutes?: number,
+): Promise<{ id: string }> {
+  const task = await postSeed(request, '/api/tracking/tasks', { name, projectId })
+  if (estimateMinutes !== undefined) {
+    const res = await request.patch(`/api/tracking/tasks/${task.id}`, {
+      data: { estimateMinutes },
+    })
+    expect(
+      res.ok(),
+      `estimate patch failed (${String(res.status())}): ${await res.text()}`,
+    ).toBeTruthy()
+  }
+  return task
+}
+
+/**
+ * Make `day` meeting-heavy: one real single-occurrence `meeting` series 08:00–17:00 via
+ * `POST /api/recurrence` — the same feed the Planner canvas and the fill-week window
+ * derivation read, leaving only 17:00–18:00 free in the planner's 08–18 frame.
+ */
+export async function seedMeetingHeavyDay(request: APIRequestContext, day: string): Promise<void> {
+  const res = await request.post('/api/recurrence', {
+    data: {
+      kind: 'meeting',
+      title: 'All-day workshops',
+      anchorDate: day,
+      startMin: 8 * 60,
+      lenMin: 9 * 60,
+      freq: 'daily',
+      endKind: 'count',
+      count: 1,
+    },
+  })
+  expect(
+    res.ok(),
+    `seedMeetingHeavyDay failed (${String(res.status())}): ${await res.text()}`,
+  ).toBeTruthy()
+}
+
+/** The day's latest stored plan row (`GET /api/planner/plans?date=`), or `null` when none. */
+export async function readLatestPlan(
+  request: APIRequestContext,
+  day: string,
+): Promise<{ blocks: { startMin: number; lenMin: number; label: string }[] } | null> {
+  const res = await request.get(`/api/planner/plans?date=${day}`)
+  expect(res.ok(), `read plan failed (${String(res.status())}): ${await res.text()}`).toBeTruthy()
+  const body = (await res.json()) as unknown
+  return body === null || body === undefined
+    ? null
+    : (body as { blocks: { startMin: number; lenMin: number; label: string }[] })
+}
+
+/** The five `YYYY-MM-DD` weekday keys (Mon–Fri) of the current local week, in column order. */
+export function currentWeekDays(): string[] {
+  const monday = currentWeekMonday()
+  const base = new Date(`${monday}T00:00:00Z`)
+  return Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(base)
+    d.setUTCDate(base.getUTCDate() + i)
+    return d.toISOString().slice(0, 10)
+  })
+}

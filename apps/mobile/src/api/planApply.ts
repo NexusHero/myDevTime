@@ -13,6 +13,24 @@ export type PlanProposal =
   | { kind: 'protect-time'; day: string; startMin: number; endMin: number }
   | { kind: 'move-block'; planId: string; blockId: string; toStartMin: number }
   | { kind: 'shrink-block'; planId: string; blockId: string; byMin: number }
+  | {
+      kind: 'relayout-day'
+      planId: string
+      placements: { blockId: string; startMin: number; lenMin: number }[]
+      provenance: 'planner-reflow'
+    }
+  | {
+      kind: 'add-blocks'
+      day: string
+      blocks: {
+        startMin: number
+        lenMin: number
+        kind: 'meeting' | 'focus' | 'break'
+        label: string
+        taskId?: string
+      }[]
+      provenance: 'planner-fill' | 'planner-firstrun'
+    }
 
 const planProposalSchema = z.discriminatedUnion('kind', [
   z.object({
@@ -32,6 +50,32 @@ const planProposalSchema = z.discriminatedUnion('kind', [
     planId: z.string(),
     blockId: z.string(),
     byMin: z.number(),
+  }),
+  // Batch kinds of the daily loop (ADR-0072): one-tap repair + fill-week/first-run ride the
+  // same POST; a batch is never empty (mirrors the server's nonempty rule).
+  z.object({
+    kind: z.literal('relayout-day'),
+    planId: z.string(),
+    placements: z
+      .array(z.object({ blockId: z.string(), startMin: z.number(), lenMin: z.number() }))
+      .min(1),
+    provenance: z.literal('planner-reflow'),
+  }),
+  z.object({
+    kind: z.literal('add-blocks'),
+    day: z.string(),
+    blocks: z
+      .array(
+        z.object({
+          startMin: z.number(),
+          lenMin: z.number(),
+          kind: z.enum(['meeting', 'focus', 'break']),
+          label: z.string(),
+          taskId: z.string().optional(),
+        }),
+      )
+      .min(1),
+    provenance: z.enum(['planner-fill', 'planner-firstrun']),
   }),
 ])
 

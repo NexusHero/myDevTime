@@ -24,6 +24,12 @@ const patchSchema = z
     moodConsent: z.boolean(),
     quietStartMin: minuteOfDay,
     quietEndMin: minuteOfDay,
+    // Calm-canvas layer chips + Sevi first-run flag (ADR-0072 D3, REQ-074) — appended only.
+    plannerLayerReality: z.boolean(),
+    plannerLayerGhosts: z.boolean(),
+    plannerLayerLife: z.boolean(),
+    plannerLayerCapacity: z.boolean(),
+    plannerFirstRunDone: z.boolean(),
   })
   .partial()
 

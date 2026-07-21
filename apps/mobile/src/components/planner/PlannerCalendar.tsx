@@ -1,4 +1,5 @@
 import { buildMonthDays, buildYearMonths } from '../../planner/calendarMonth'
+import type { PlannerBlockState } from '@mydevtime/design'
 import type { Occurrence } from '../../api/recurrence'
 import { PlannerMonth } from './PlannerMonth'
 import { PlannerYear } from './PlannerYear'
@@ -29,6 +30,21 @@ export interface TimegridBlock {
   readonly kind: string
 }
 
+/**
+ * An accepted-plan block for the **web** timegrid (ADR-0072 D3, issue #341) — the calm
+ * default layer, read-only: `startMin` is an absolute minute of day (the seam's shape),
+ * `state` the derived four-way block state, `edgeColor` the colour worn only as an edge.
+ */
+export interface TimegridPlanBlock {
+  readonly day: number
+  readonly startMin: number
+  readonly lenMin: number
+  readonly label: string
+  readonly state: PlannerBlockState
+  /** The project (or kind) colour — worn as the block's bold fill (issue #341). */
+  readonly fillColor: string
+}
+
 export interface PlannerCalendarProps {
   readonly view: 'month' | 'year' | 'week' | 'day'
   readonly year: number
@@ -56,6 +72,17 @@ export interface PlannerCalendarProps {
   readonly onBlockOpen?: (index: number) => void
   /** Web timegrid: an empty slot was selected → create a block at that day/time. */
   readonly onSlotCreate?: (day: number, startMin: number) => void
+  /**
+   * Zeit-Kompression (issue #341): the expanded band's bounds as minutes of day.
+   * The web timegrid consumes them as its `slotMinTime`/`slotMaxTime`, so both
+   * canvases derive their visible window from the same `compressWindow` result
+   * (ADR-0068 — the library lays out, the window is ours). Native ignores them
+   * (its `DayColumn` maps through the compressed bands directly).
+   */
+  readonly windowStartMin?: number
+  readonly windowEndMin?: number
+  /** Accepted-plan blocks (read-only) for the web timegrid — the calm default layer. */
+  readonly planBlocks?: readonly TimegridPlanBlock[]
 }
 
 export function PlannerCalendar({

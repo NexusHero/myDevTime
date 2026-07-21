@@ -28,6 +28,9 @@ export const plans = pgTable('plans', {
   // Anchors that overlapped a kept meeting or fell outside the window (M4): kept so
   // the client can warn an overbooked user instead of silently swallowing them.
   droppedAnchors: jsonb('dropped_anchors').$type<PlanAnchor[]>().notNull().default([]),
+  // Which seam wrote this version ('planner-reflow' | 'planner-fill' | 'planner-firstrun',
+  // ADR-0072); null for versions from the generator and the single-block mutations.
+  source: text('source'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 

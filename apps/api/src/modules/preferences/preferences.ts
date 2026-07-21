@@ -36,6 +36,21 @@ export interface Preferences {
   readonly quietStartMin: number
   /** Quiet-hours window end, minute of day 0..1439 (default 07:00). */
   readonly quietEndMin: number
+  // Calm-canvas layer chips (ADR-0072 D3, REQ-074) — appended only, never reordered.
+  // Ruhe als Default: every layer is OFF until the user taps its chip; the tap persists.
+  /** Planner layer chip: overlay the auto-tracker reality trace. */
+  readonly plannerLayerReality: boolean
+  /** Planner layer chip: show proposal ghosts on the week canvas. */
+  readonly plannerLayerGhosts: boolean
+  /** Planner layer chip: show life blocks/shades on the week canvas. */
+  readonly plannerLayerLife: boolean
+  /** Planner layer chip: show the capacity head-trace. */
+  readonly plannerLayerCapacity: boolean
+  /**
+   * Sevi first run completed (REQ-074): set when the user accepts the first ghost
+   * week or skips the stage — it never shows again. App state, not a Settings toggle.
+   */
+  readonly plannerFirstRunDone: boolean
 }
 
 /** The boolean toggles the merge accepts. */
@@ -50,6 +65,11 @@ export const PREFERENCE_KEYS = [
   'onboarded',
   'seviProactive',
   'moodConsent',
+  'plannerLayerReality',
+  'plannerLayerGhosts',
+  'plannerLayerLife',
+  'plannerLayerCapacity',
+  'plannerFirstRunDone',
 ] as const satisfies readonly (keyof Preferences)[]
 
 /** The minute-of-day numbers the merge accepts (clamped to integral 0..1439). */
@@ -74,6 +94,11 @@ export const DEFAULT_PREFERENCES: Preferences = {
   moodConsent: false,
   quietStartMin: 1320, // 22:00
   quietEndMin: 420, // 07:00
+  plannerLayerReality: false,
+  plannerLayerGhosts: false,
+  plannerLayerLife: false,
+  plannerLayerCapacity: false,
+  plannerFirstRunDone: false,
 }
 
 /**

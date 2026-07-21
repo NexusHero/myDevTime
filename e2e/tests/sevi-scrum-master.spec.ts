@@ -31,8 +31,10 @@ const ANY_ADVISORY = /h plannable, .* h planned — \+/
 async function gotoPlannerWeek(page: Page): Promise<void> {
   await page.goto('/planner')
   await page.getByRole('button', { name: 'Week', exact: true }).click()
-  // The capacity head-trace is the Week stage's ready signal.
-  await expect(page.getByText('Plannable this week')).toBeVisible()
+  // The layer-chip row is the Week stage's ready signal (calm default, REQ-074):
+  // the capacity head-trace now lives behind its chip, so it is no longer visible
+  // by default and can't be the probe.
+  await expect(page.getByRole('button', { name: 'Reality layer' })).toBeVisible()
 }
 
 /** Sign up a fresh user through the API, sign in through the real UI. */

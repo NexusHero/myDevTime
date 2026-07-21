@@ -1,12 +1,16 @@
 import { and, desc, eq, gte, isNotNull, isNull, lt } from 'drizzle-orm'
 import {
+  addBlocks,
   applyProposal,
   buildDayPlan,
+  relayoutDay,
   reviewDayPlan,
+  type BlockAddition,
   type DayPlan,
   type PlanBlockMutation,
   type PlanInput,
   type PlanReview,
+  type RelayoutPlacement,
 } from '@mydevtime/domain'
 import type { Db } from '../../db/client.js'
 import { plans, protectedTimes, timeEntries } from '../../db/schema.js'
@@ -231,6 +235,93 @@ export async function applyBlockMutation(
       plannedFocusMin,
       unplacedMin: row.unplacedMin,
       droppedAnchors: [...row.droppedAnchors],
+    })
+    .returning()
+  return first(rows)
+}
+
+// ─── Batch kinds for the daily loop (ADR-0072) ─────────────────────────────────────────────
+
+/**
+ * Apply a confirmed one-tap day repair: the pure `relayoutDay` (ADR-0005) re-lays the tapped
+ * placements at once, and the result is persisted as a **new accepted version** carrying its
+ * provenance in `source` — the applied repair stays distinguishable from a generated or
+ * hand-mutated version. Same honesty contract as `applyBlockMutation`: a foreign plan id
+ * reads as not-found, an invalid batch (unknown/duplicate block id, sub-floor length) is a
+ * 400 — never a silent partial apply.
+ */
+export async function applyRelayout(
+  db: Db,
+  workspaceId: string,
+  userId: string,
+  planId: string,
+  placements: readonly RelayoutPlacement[],
+  provenance: 'planner-reflow',
+): Promise<PlanRow> {
+  const row = await getPlanById(db, workspaceId, planId)
+  const blocks = relayoutDay(row.blocks, placements)
+  if (blocks === null) {
+    throw new ValidationError(
+      'the re-layout addresses no block of this plan, repeats a block, or shrinks below 15 minutes',
+    )
+  }
+  const plannedFocusMin = blocks
+    .filter(b => b.kind === 'focus')
+    .reduce((sum, b) => sum + b.lenMin, 0)
+  const previous = await getLatestPlan(db, workspaceId, row.planDate)
+  const version = (previous?.version ?? row.version) + 1
+  const rows = await db
+    .insert(plans)
+    .values({
+      workspaceId,
+      userId,
+      planDate: row.planDate,
+      version,
+      status: 'accepted', // the user tapped this exact repair
+      blocks,
+      plannedFocusMin,
+      unplacedMin: row.unplacedMin,
+      droppedAnchors: [...row.droppedAnchors],
+      source: provenance,
+    })
+    .returning()
+  return first(rows)
+}
+
+/**
+ * Apply confirmed block additions to a day — the fill-week confirm and Sevi's first-run ghost
+ * week (ADR-0072 D2/D3). Builds on the day's latest version when one exists; an empty day
+ * starts at version 1 (accepted, no carryovers) so the first run works against a dead wall.
+ * The additions themselves come from the pure `addBlocks`; the new version records its
+ * provenance in `source`. Workspace-scoped by construction.
+ */
+export async function applyAddBlocks(
+  db: Db,
+  workspaceId: string,
+  userId: string,
+  day: string,
+  additions: readonly BlockAddition[],
+  provenance: 'planner-fill' | 'planner-firstrun',
+): Promise<PlanRow> {
+  const previous = await getLatestPlan(db, workspaceId, day)
+  const blocks = addBlocks(previous?.blocks ?? [], additions)
+  if (blocks === null) throw new ValidationError('an added block is shorter than 15 minutes')
+  const plannedFocusMin = blocks
+    .filter(b => b.kind === 'focus')
+    .reduce((sum, b) => sum + b.lenMin, 0)
+  const rows = await db
+    .insert(plans)
+    .values({
+      workspaceId,
+      userId,
+      planDate: day,
+      version: (previous?.version ?? 0) + 1,
+      status: 'accepted', // the user confirmed these exact placements
+      blocks,
+      plannedFocusMin,
+      unplacedMin: previous?.unplacedMin ?? 0,
+      droppedAnchors: previous === null ? [] : [...previous.droppedAnchors],
+      source: provenance,
     })
     .returning()
   return first(rows)

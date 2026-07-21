@@ -5,15 +5,25 @@ import { useEffect, useMemo, useState } from 'react'
 import { Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import {
   assignLanes,
+  compressWindow,
+  compressedMinAt,
+  compressedRect,
+  compressedTotalWeight,
+  compressedY,
   dropTarget,
   findFreeSlot,
   cascadeFreeSlots,
   formatDuration,
+  intervalCoverage,
   maxConcurrency,
   plannerBlockRect,
+  plannerBlockState,
   projectColor,
+  readableInk,
   snapDurationMin,
+  type CompressBand,
   type LanePlacement,
+  type PlannerBlockState,
   type Theme,
 } from '@mydevtime/design'
 import {
@@ -42,6 +52,10 @@ import {
   type NewEntryDraft,
 } from '../components/planner/PlannerNewEntryDialog'
 import { useCatalog } from './useCatalog'
+import { PlannerLayerChips, type LayerChip } from '../components/planner/PlannerLayerChips'
+import { PlanBlockView } from '../components/planner/PlanBlockView'
+import { SeviFirstRun } from '../components/planner/SeviFirstRun'
+import { useWeekPlans } from '../hooks/useWeekPlans'
 import { Text } from '../components/core/Text'
 import {
   AICallout,
@@ -53,12 +67,14 @@ import {
   SegmentedControl,
 } from '../components/index'
 import { TaskInbox } from '../components/planner/TaskInbox'
+import { PlannerBacklogRail } from '../components/planner/BacklogRail'
 import { PlannerEntryDrawer, type DrawerEntry } from '../components/planner/PlannerEntryDrawer'
-import { PlannerViewMenu } from '../components/planner/PlannerViewMenu'
 import { PlannerStartPicker } from '../components/planner/PlannerStartPicker'
 import { PlannerDayTracker } from '../components/planner/PlannerDayTracker'
 import { PlannerDayList, type DayListItem } from '../components/planner/PlannerDayList'
 import { PlannerDayInstruments } from '../components/planner/PlannerDayInstruments'
+import { DayRepairSheet } from '../components/planner/DayRepairSheet'
+import { useDayRepair } from '../hooks/useDayRepair'
 import { useToast } from '../components/core/Toast'
 import { useAbsences } from '../hooks/useAbsences'
 import { useTheme } from '../theme/ThemeProvider'
@@ -89,6 +105,9 @@ const START_HOUR = 8
 const END_HOUR = 22
 const SPAN = (END_HOUR - START_HOUR) * 60
 const BODY_HEIGHT = 616 // ~44 px per hour × 14 h
+/** A readable floor for a plan block (issue #341): a short block never squashes to a
+ *  sliver — title + time still fit even when compression maps it small. */
+const MIN_PLAN_BLOCK_PX = 34
 /** Minutes-from-08:00 of the contracted day end (18:00) — the evening-zone / soll-end line. */
 const SOLL_END_MIN = (18 - START_HOUR) * 60
 const HEADER_HEIGHT = 46
@@ -98,6 +117,10 @@ const STACK_BREAKPOINT = 860
 /** "Now" — the real current time, in minutes from 08:00, clamped to the window. */
 const NOW = new Date()
 const NOW_MIN = Math.max(0, Math.min((NOW.getHours() - START_HOUR) * 60 + NOW.getMinutes(), SPAN))
+/** Minute-of-day offset of the canvas's stored block base (blocks store minutes from 08:00). */
+const BASE_MIN = START_HOUR * 60
+/** "Now" as an absolute minute of day — the compressed mapping works in day minutes. */
+const NOW_ABS = NOW.getHours() * 60 + NOW.getMinutes()
 
 type CanvasKind = 'actual' | 'meeting' | 'ghost' | 'break' | 'life' | 'travel'
 /** Calendar RSVP for a meeting: accepted (solid), tentative (hatched), fyi (dimmed, not counted). */
@@ -221,6 +244,27 @@ function clock(minFromStart: number): string {
   return `${p(Math.floor(m / 60))}:${p(m % 60)}`
 }
 
+/** Clock label for an absolute minute of day (plan blocks store day minutes). */
+function clockAbs(minOfDay: number): string {
+  const p = (n: number): string => String(n).padStart(2, '0')
+  return `${p(Math.floor(minOfDay / 60))}:${p(minOfDay % 60)}`
+}
+
+/**
+ * An accepted-plan block on the canvas (ADR-0072 D3): the calm default layer.
+ * Absolute day minutes (the seam's shape), a derived four-way state and the
+ * project/kind colour it wears as a bold fill (issue #341). Read-only — plan
+ * mutations flow through the plan-apply seam only (ADR-0071).
+ */
+interface PlanCanvasBlock {
+  readonly day: number
+  readonly startMin: number
+  readonly lenMin: number
+  readonly label: string
+  readonly state: PlannerBlockState
+  readonly fillColor: string
+}
+
 /** A tiny outlined glyph badge inside a block (↻ recurring, ⇄ OL, ? tentative, FYI). */
 function BlockBadge({
   label,
@@ -260,6 +304,7 @@ function CanvasBlockView({
   onMove,
   onOpen,
   colWidth,
+  bands,
 }: {
   readonly block: CanvasBlock
   readonly placement: LanePlacement
@@ -271,10 +316,15 @@ function CanvasBlockView({
   readonly onOpen?: (() => void) | undefined
   /** One day column's on-screen width, to map a horizontal drag to day steps. */
   readonly colWidth: number
+  /** The week's compressed bands (issue #341) — the shared minutes→pixels mapping. */
+  readonly bands: readonly CompressBand[]
 }): React.JSX.Element {
   const t = useTheme()
   const [hovered, setHovered] = useState(false)
-  const rect = plannerBlockRect(block.start, block.len, SPAN)
+  const rect = compressedRect(bands, BASE_MIN + block.start, block.len)
+  // Drag/resize map pixels↔minutes linearly — exact inside the expanded band, where
+  // every editable block lives (the compressed strips hold no editable content).
+  const minPerPx = compressedTotalWeight(bands) / BODY_HEIGHT
   const color = canvasBlockColor(t, block)
   const px = Math.max(rect.height * BODY_HEIGHT, 13)
   const isGhost = block.kind === 'ghost'
@@ -298,7 +348,7 @@ function CanvasBlockView({
       { day: block.day, startMin: block.start, lenMin: block.len },
       {
         colWidth,
-        minPerPx: SPAN / BODY_HEIGHT,
+        minPerPx,
         dayCount: 5, // Defaulting to 5 for now since weekDays is length 5
         spanMin: SPAN,
       },
@@ -309,7 +359,7 @@ function CanvasBlockView({
   }
 
   const handleResize = (dy: number) => {
-    const deltaMin = (dy * SPAN) / BODY_HEIGHT
+    const deltaMin = dy * minPerPx
     const next = snapDurationMin(block.len + deltaMin, 15, 15, SPAN - block.start)
     onResize?.(next)
   }
@@ -329,7 +379,7 @@ function CanvasBlockView({
           e.translationX,
           e.translationY,
           { day: block.day, startMin: block.start, lenMin: block.len },
-          { colWidth, minPerPx: SPAN / BODY_HEIGHT, dayCount: 5, spanMin: SPAN },
+          { colWidth, minPerPx, dayCount: 5, spanMin: SPAN },
         ),
       )
     })
@@ -384,8 +434,16 @@ function CanvasBlockView({
     elevation: 6,
   }
 
-  const labelColor = solidMeeting
-    ? '#ffffff'
+  // Block redesign (issue #341, owner-revised): the project colour is the block's
+  // BOLD FILL — "Farbe knallt, Ruhe kommt aus Layern" (calm comes from the layer
+  // chips + edge-hour compression, not from draining the colour). Strict type
+  // hierarchy (title > time > meta); text ink is the luminance-readable choice on
+  // the fill so contrast holds. Ghosts stay outline (a proposal), breaks/FYI sit on
+  // a quiet sunk fill.
+  const filled = block.kind === 'actual' || solidMeeting
+  const fillInk = readableInk(color)
+  const labelColor = filled
+    ? fillInk
     : fyi
       ? t.color.ink3
       : isGhost || tentative
@@ -393,16 +451,10 @@ function CanvasBlockView({
         : isBreak
           ? t.color.ink3
           : t.color.ink
-  const timeColor = solidMeeting ? 'rgba(255,255,255,0.85)' : isGhost ? color : t.color.ink2
-  const badgeColor = solidMeeting ? 'rgba(255,255,255,0.85)' : labelColor
+  const timeColor = filled ? fillInk : isGhost ? color : t.color.ink2
+  const badgeColor = labelColor
 
-  const baseBg = solidMeeting
-    ? color
-    : block.kind === 'actual'
-      ? `${color}22`
-      : isBreak || fyi
-        ? t.color.sunk
-        : 'transparent'
+  const baseBg = filled ? color : isBreak || fyi ? t.color.sunk : 'transparent'
   const backgroundColor = popped && baseBg === 'transparent' ? t.color.surface : baseBg
 
   const showTime = true
@@ -422,6 +474,8 @@ function CanvasBlockView({
           ...(popped ? { zIndex: 20, ...elevatedShadow } : null),
           borderRadius: t.radius.chip,
           overflow: 'hidden',
+          // The fill carries the colour; only non-filled kinds wear an outline —
+          // ghosts (dashed proposal), breaks (dashed), tentative/FYI meetings.
           borderWidth: isGhost ? 1.5 : isBreak ? 1 : tentative ? 1.5 : fyi ? 1 : 0,
           borderStyle: isGhost || isBreak ? 'dashed' : fyi ? 'dotted' : 'solid',
           borderColor: isGhost
@@ -433,15 +487,6 @@ function CanvasBlockView({
                 : fyi
                   ? t.color.borderStrong
                   : 'transparent',
-          borderLeftWidth: block.kind === 'actual' ? 3 : isGhost ? 1.5 : isBreak ? 1 : undefined,
-          borderLeftColor:
-            block.kind === 'actual'
-              ? color
-              : isGhost
-                ? color
-                : isBreak
-                  ? t.color.borderStrong
-                  : undefined,
           backgroundColor,
         },
         animStyle,
@@ -475,8 +520,10 @@ function CanvasBlockView({
                   numberOfLines={1}
                   style={{
                     flex: 1,
-                    fontSize: t.fontSize['2xs'],
-                    fontWeight: '600',
+                    // Type hierarchy (issue #341): the title leads — heavier and larger
+                    // than the time line, which in turn outranks the meta badges.
+                    fontSize: isBreak ? t.fontSize['2xs'] : t.fontSize.xs,
+                    fontWeight: isBreak ? '600' : '700',
                     color: labelColor,
                     fontStyle: isGhost ? 'italic' : 'normal',
                   }}
@@ -541,11 +588,28 @@ function CanvasBlockView({
   )
 }
 
-/** The left time gutter — hour labels aligned to the day-body grid. */
-function HourGutter(): React.JSX.Element {
-  const t = useTheme()
+/** Whole hours inside the expanded (non-compressed) bands — the visible hour grid. */
+function expandedHours(bands: readonly CompressBand[]): number[] {
   const hours: number[] = []
-  for (let h = START_HOUR + 1; h < END_HOUR; h++) hours.push(h)
+  for (const band of bands) {
+    if (band.compressed) continue
+    const from = Math.ceil(band.startMin / 60)
+    const to = Math.floor(band.endMin / 60)
+    for (let h = from; h <= to; h++) {
+      if (!hours.includes(h)) hours.push(h)
+    }
+  }
+  return hours
+}
+
+/**
+ * The left time gutter — hour labels aligned to the compressed day-body grid
+ * (issue #341): expanded hours read as labels; a collapsed edge band reads as a
+ * tiny `0–7` range, so the swallowed hours stay honest, just quiet.
+ */
+function HourGutter({ bands }: { readonly bands: readonly CompressBand[] }): React.JSX.Element {
+  const t = useTheme()
+  const hours = expandedHours(bands)
   return (
     <View style={{ width: GUTTER }}>
       <View
@@ -558,7 +622,7 @@ function HourGutter(): React.JSX.Element {
             style={{
               position: 'absolute',
               right: 8,
-              top: (((h - START_HOUR) * 60) / SPAN) * BODY_HEIGHT - 7,
+              top: compressedY(bands, h * 60) * BODY_HEIGHT - 7,
               fontFamily: t.fontFamily.numeric,
               fontSize: t.fontSize['2xs'],
               color: t.color.ink3,
@@ -567,6 +631,27 @@ function HourGutter(): React.JSX.Element {
             {String(h).padStart(2, '0')}:00
           </Text>
         ))}
+        {bands
+          .filter(b => b.compressed)
+          .map(b => (
+            <Text
+              key={`comp-${String(b.startMin)}`}
+              accessibilityLabel={`Collapsed hours ${String(Math.floor(b.startMin / 60))}–${String(Math.ceil(b.endMin / 60))}`}
+              style={{
+                position: 'absolute',
+                right: 8,
+                top:
+                  ((compressedY(bands, b.startMin) + compressedY(bands, b.endMin)) / 2) *
+                    BODY_HEIGHT -
+                  6,
+                fontFamily: t.fontFamily.numeric,
+                fontSize: 8,
+                color: t.color.ink3,
+              }}
+            >
+              {`${String(Math.floor(b.startMin / 60))}–${String(Math.ceil(b.endMin / 60))}`}
+            </Text>
+          ))}
       </View>
     </View>
   )
@@ -574,30 +659,30 @@ function HourGutter(): React.JSX.Element {
 
 /** How the auto-tracker's reality maps onto one day column (ADR-0064, K1). */
 interface DayRealityView {
-  /** Active spans as positioned trace rects (top/height as fractions of the window). */
-  readonly segments: readonly { readonly top: number; readonly height: number }[]
+  /** Active spans as absolute-minute day ranges — positioned via the compressed bands. */
+  readonly segments: readonly { readonly startMin: number; readonly endMin: number }[]
   /** Signed drift vs the day's booked time (tracked − booked), in ms. */
   readonly driftMs: number
 }
 
 /**
  * Build a day's reality overlay from its captured spans + booked (actual) blocks. Pure:
- * active spans (idle/away excluded) clipped to the 08:00–18:00 window become trace rects,
- * and the deterministic `realityDrift` gives the day-head chip's signed delta.
+ * active spans (idle/away excluded) become minute ranges of the day (the compressed
+ * band mapping places them), and the deterministic `realityDrift` gives the day-head
+ * chip's signed delta.
  */
 function dayRealityView(
   spans: readonly TimedSpan[],
   dayBlocks: readonly CanvasBlock[],
-  windowStartMs: number,
+  dayMidnightMs: number,
 ): DayRealityView {
-  const segments: { top: number; height: number }[] = []
+  const segments: { startMin: number; endMin: number }[] = []
   for (const s of spans) {
     if (s.source === 'Idle' || s.source === 'Away') continue
-    const startMin = Math.max(0, (s.startMs - windowStartMs) / 60_000)
-    const endMin = Math.min(SPAN, (s.endMs - windowStartMs) / 60_000)
+    const startMin = Math.max(0, (s.startMs - dayMidnightMs) / 60_000)
+    const endMin = Math.min(24 * 60, (s.endMs - dayMidnightMs) / 60_000)
     if (endMin <= startMin) continue
-    const rect = plannerBlockRect(startMin, endMin - startMin, SPAN)
-    segments.push({ top: rect.top, height: rect.height })
+    segments.push({ startMin, endMin })
   }
   const bookedMs = dayBlocks
     .filter(b => b.kind === 'actual')
@@ -636,7 +721,9 @@ function DayColumn({
   index,
   flex,
   blocks,
+  planBlocks,
   recurring,
+  bands,
   colWidth,
   onResizeBlock,
   onMoveBlock,
@@ -650,6 +737,10 @@ function DayColumn({
   readonly index: number
   readonly flex: boolean
   readonly blocks: readonly CanvasBlock[]
+  /** The accepted plan's blocks for the week (ADR-0072 D3) — the calm default layer. */
+  readonly planBlocks: readonly PlanCanvasBlock[]
+  /** The week's compressed bands (issue #341) — the shared minutes→pixels mapping. */
+  readonly bands: readonly CompressBand[]
   /** Recurring-series occurrences for the week (design v17 §F4) — read-only ↻ ghosts, not
    *  part of the editable block list, so they never touch the drag/index model. */
   readonly recurring: readonly RecurringBlock[]
@@ -672,13 +763,14 @@ function DayColumn({
   readonly nonWorking?: boolean
 }): React.JSX.Element {
   const t = useTheme()
-  const hours: number[] = []
-  for (let h = START_HOUR + 1; h < END_HOUR; h++) hours.push(h)
+  const hours = expandedHours(bands)
   // Keep each block's index in the shared list so a resize maps back to it.
   const dayEntries = blocks
     .map((b, globalIndex) => ({ b, globalIndex }))
     .filter(x => x.b.day === index)
   const dayBlocks = dayEntries.map(x => x.b)
+  // The accepted plan's blocks for this day (ADR-0072 D3) — the calm default layer.
+  const dayPlan = planBlocks.filter(pb => pb.day === index)
   // Recurring occurrences for this day (design v17 §F4) — read-only ↻ ghosts.
   const dayRecurring = recurring.filter(rb => rb.day === index)
   // Lanes split the column when blocks overlap; the badge counts real conflicts —
@@ -693,11 +785,7 @@ function DayColumn({
   // positioned on the window, plus the signed drift vs the day's booked time. Read
   // from the local per-day history; null (no overlay) when the toggle is off.
   const reality = showReality
-    ? dayRealityView(
-        loadDaySpans(localDayKey(day.dateMs)),
-        dayBlocks,
-        day.dateMs + START_HOUR * 3_600_000,
-      )
+    ? dayRealityView(loadDaySpans(localDayKey(day.dateMs)), dayBlocks, day.dateMs)
     : null
   const hasReality = reality !== null && reality.segments.length > 0
   return (
@@ -792,7 +880,10 @@ function DayColumn({
             accessibilityRole="button"
             accessibilityLabel="Add an entry at the tapped time"
             onPress={e => {
-              const raw = (e.nativeEvent.locationY / BODY_HEIGHT) * SPAN
+              // Invert the compressed mapping: touch fraction → absolute minute →
+              // the canvas's stored 08:00 base, snapped to the half hour.
+              const abs = compressedMinAt(bands, e.nativeEvent.locationY / BODY_HEIGHT)
+              const raw = abs - BASE_MIN
               const snapped = Math.max(0, Math.min(Math.round(raw / 30) * 30, SPAN - 30))
               onCreateAt(snapped)
             }}
@@ -806,7 +897,7 @@ function DayColumn({
               position: 'absolute',
               left: 0,
               right: 0,
-              top: (((h - START_HOUR) * 60) / SPAN) * BODY_HEIGHT,
+              top: compressedY(bands, h * 60) * BODY_HEIGHT,
               borderTopWidth: 1,
               borderTopColor: t.color.border,
               opacity: 0.55,
@@ -814,14 +905,14 @@ function DayColumn({
           />
         ))}
         {/* 30-min dotted hairlines — a finer grid for the 15-min snapping (design v6). */}
-        {Array.from({ length: END_HOUR - START_HOUR }, (_, i) => 30 + i * 60).map(min => (
+        {hours.map(h => (
           <View
-            key={`half-${String(min)}`}
+            key={`half-${String(h)}`}
             style={{
               position: 'absolute',
               left: 0,
               right: 0,
-              top: (min / SPAN) * BODY_HEIGHT,
+              top: compressedY(bands, h * 60 + 30) * BODY_HEIGHT,
               borderTopWidth: 1,
               borderTopColor: t.color.border,
               borderStyle: 'dotted',
@@ -829,6 +920,31 @@ function DayColumn({
             }}
           />
         ))}
+        {/* Zeit-Kompression (issue #341): each collapsed edge band reads as a thin
+            hatched strip — the swallowed hours stay visible as a band, never lied away. */}
+        {bands
+          .filter(b => b.compressed)
+          .map(b => (
+            <View
+              key={`strip-${String(b.startMin)}`}
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: compressedY(bands, b.startMin) * BODY_HEIGHT,
+                height: Math.max(
+                  (compressedY(bands, b.endMin) - compressedY(bands, b.startMin)) * BODY_HEIGHT,
+                  2,
+                ),
+                backgroundColor: t.color.sunk,
+                borderTopWidth: 1,
+                borderBottomWidth: 1,
+                borderColor: t.color.border,
+                opacity: 0.8,
+              }}
+            />
+          ))}
         {/* Evening zone (design v20): the hours past the contracted day end (18:00) read muted,
             with a dashed soll-end line at 18:00 — a glanceable "after hours" cue. Client-side,
             pointer-transparent so it never blocks taps or drags. */}
@@ -840,7 +956,7 @@ function DayColumn({
                 position: 'absolute',
                 left: 0,
                 right: 0,
-                top: (SOLL_END_MIN / SPAN) * BODY_HEIGHT,
+                top: compressedY(bands, BASE_MIN + SOLL_END_MIN) * BODY_HEIGHT,
                 bottom: 0,
                 backgroundColor: t.color.ink,
                 opacity: 0.05,
@@ -852,7 +968,7 @@ function DayColumn({
                 position: 'absolute',
                 left: 0,
                 right: 0,
-                top: (SOLL_END_MIN / SPAN) * BODY_HEIGHT,
+                top: compressedY(bands, BASE_MIN + SOLL_END_MIN) * BODY_HEIGHT,
                 borderTopWidth: 1.5,
                 borderTopColor: t.color.ink3,
                 borderStyle: 'dashed',
@@ -903,11 +1019,31 @@ function DayColumn({
               right: 2,
               width: 4,
               borderRadius: 2,
-              top: seg.top * BODY_HEIGHT + 1,
-              height: Math.max(seg.height * BODY_HEIGHT, 2),
+              top: compressedY(bands, seg.startMin) * BODY_HEIGHT + 1,
+              height: Math.max(
+                (compressedY(bands, seg.endMin) - compressedY(bands, seg.startMin)) * BODY_HEIGHT,
+                2,
+              ),
               backgroundColor: t.color.ink3,
               opacity: 0.7,
             }}
+          />
+        ))}
+        {/* The accepted plan (ADR-0072 D3): the calm default layer — redesigned blocks
+            with the four states, read-only; mutations only ever flow through the seam. */}
+        {dayPlan.map((pb, i) => (
+          <PlanBlockView
+            key={`plan-${String(pb.startMin)}-${String(i)}`}
+            label={pb.label}
+            timeLabel={`${clockAbs(pb.startMin)}–${clockAbs(pb.startMin + pb.lenMin)}`}
+            state={pb.state}
+            fillColor={pb.fillColor}
+            top={compressedY(bands, pb.startMin) * BODY_HEIGHT}
+            height={Math.max(
+              (compressedY(bands, pb.startMin + pb.lenMin) - compressedY(bands, pb.startMin)) *
+                BODY_HEIGHT,
+              MIN_PLAN_BLOCK_PX,
+            )}
           />
         ))}
         {dayEntries.map(({ b, globalIndex }, i) => (
@@ -916,6 +1052,7 @@ function DayColumn({
             block={b}
             placement={placements[i] ?? { lane: 0, lanes: 1 }}
             colWidth={colWidth}
+            bands={bands}
             onResize={len => onResizeBlock(globalIndex, len)}
             onMove={(day, start) => onMoveBlock(globalIndex, day, start)}
             onOpen={() => onOpenBlock(globalIndex)}
@@ -932,8 +1069,14 @@ function DayColumn({
               position: 'absolute',
               left: 2,
               right: 8,
-              top: (rb.start / SPAN) * BODY_HEIGHT + 1,
-              height: Math.max((rb.len / SPAN) * BODY_HEIGHT - 2, 12),
+              top: compressedY(bands, BASE_MIN + rb.start) * BODY_HEIGHT + 1,
+              height: Math.max(
+                (compressedY(bands, BASE_MIN + rb.start + rb.len) -
+                  compressedY(bands, BASE_MIN + rb.start)) *
+                  BODY_HEIGHT -
+                  2,
+                12,
+              ),
               borderRadius: t.radius.block,
               borderWidth: 1,
               borderStyle: 'dashed',
@@ -955,7 +1098,12 @@ function DayColumn({
         ))}
         {day.today && (
           <View
-            style={{ position: 'absolute', left: 0, right: 0, top: (NOW_MIN / SPAN) * BODY_HEIGHT }}
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: compressedY(bands, NOW_ABS) * BODY_HEIGHT,
+            }}
             pointerEvents="none"
           >
             <View
@@ -1029,25 +1177,34 @@ function Legend(): React.JSX.Element {
   )
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 16 }}>
+      {/* Block redesign (issue #341, owner-revised): the project colour FILLS the
+          block — the legend teaches exactly what the canvas renders. */}
       <Item
         label="Booked"
         swatch={
-          <View
-            style={{
-              width: 16,
-              height: 11,
-              borderRadius: 3,
-              backgroundColor: `${sample}22`,
-              borderLeftWidth: 3,
-              borderLeftColor: sample,
-            }}
-          />
+          <View style={{ width: 16, height: 11, borderRadius: 3, backgroundColor: sample }} />
         }
       />
       <Item
         label="Meeting"
         swatch={
           <View style={{ width: 16, height: 11, borderRadius: 3, backgroundColor: meeting }} />
+        }
+      />
+      <Item
+        label="Missed"
+        swatch={
+          <View
+            style={{
+              width: 16,
+              height: 11,
+              borderRadius: 3,
+              backgroundColor: sample,
+              borderWidth: 1.5,
+              borderStyle: 'dashed',
+              borderColor: readableInk(sample),
+            }}
+          />
         }
       />
       <Item
@@ -1385,18 +1542,21 @@ export function PlannerScreen(): React.JSX.Element {
   // Canvas ⇄ List (design v13 §K, REQ-040): the Day view can drop the geometry for a flat,
   // screen-reader-friendly list of the same entries. Canvas stays the default.
   const [dayMode, setDayMode] = useState<'canvas' | 'list'>('canvas')
-  // Work / Life / Both layer filter (design v17 §F6.5). One person, one timeline:
-  // work and life share the calendar, and this filter only changes what is *shown*,
-  // never what exists — capacity and price still read the full block set below.
-  const [layer, setLayer] = useState<PlannerLayer>('both')
   // The week canvas blocks are local, resizable state (design v6 A1) — dragging a
   // block's bottom edge commits a new 15-min-snapped duration. Demo data for now.
   const [blocks, setBlocks] = useState<readonly CanvasBlock[]>(DEMO_BLOCKS)
-  // Reality layer (ADR-0064, K1): the "● Reality" toggle overlays the auto-tracker's
-  // observed activity on the canvas. Gated on the `autoTracker` consent — with it off
-  // there is nothing to show, so the overlay stays dark and the toggle guides to Settings.
-  const { prefs } = usePreferences()
-  const [realityOn, setRealityOn] = useState(false)
+  // Ruhe als Default (ADR-0072 D3, REQ-074, ux-vision §2.7): the canvas shows only the
+  // accepted plan + the now-line. Every additional layer — reality trace, proposal
+  // ghosts, life shades, the capacity head-trace — sits behind a layer chip, one
+  // explicit tap away, and each chip's state persists per user via the preferences
+  // contract (append-only keys). The old Work/Life/Both filter collapses into the
+  // Life chip: life is shown only when its layer is open.
+  const { prefs, setPref } = usePreferences()
+  const layer: PlannerLayer = prefs.plannerLayerLife ? 'both' : 'work'
+  const ghostsOn = prefs.plannerLayerGhosts
+  // Reality layer (ADR-0064, K1): gated on the `autoTracker` consent — with it off
+  // there is nothing to show, so the chip guides to Settings instead of lying.
+  const realityOn = prefs.plannerLayerReality
   const showReality = realityOn && prefs.autoTracker
   // Yesterday-healing (ADR-0064, K3): on first open, if the auto-tracker saw a stretch
   // yesterday that was never booked, offer to book it (once per day, ≥15 min). "Yesterday"
@@ -1412,6 +1572,10 @@ export function PlannerScreen(): React.JSX.Element {
   // The Day view renders a single full-width column; its measured width drives the same
   // drag mapping the week uses (design v20 Day stage).
   const [dayColW, setDayColW] = useState(COL_WIDTH)
+  // One-tap day repair (ADR-0072 D1, REQ-072): the drift chip is the handle on the Day view —
+  // the sheet renders its own `Plan gerissen · Reparieren` chip when the pure core has a
+  // repair to offer, and nothing at all otherwise.
+  const dayRepair = useDayRepair(usePlanner())
   const toast = useToast()
   // Empty-slot tap-to-create (design v20): drop a 1 h actual block at the tapped, snapped time on
   // the given day; a transient toast confirms it. Clamped inside the 08–18 window.
@@ -1705,13 +1869,10 @@ export function PlannerScreen(): React.JSX.Element {
     )
   }
 
-  // Work / Life / Both filter (design v17 §F6.5) now lives in the v20 "View" popover
-  // (`PlannerViewMenu`) alongside the Reality toggle — the Reduktions-Pass keeps the header quiet.
-  // Default "Both"; a solo user who never adds a life entry sees the same canvas either way.
-
-  // Only the *shown* blocks are filtered by the layer; the full `blocks` set still
-  // feeds capacity and price so the numbers never lie about what exists.
-  const shownBlocks = blocks.filter(b => inLayer(b.kind, layer))
+  // Only the *shown* blocks are filtered by the layers; the full `blocks` set still
+  // feeds capacity and price so the numbers never lie about what exists. Proposal
+  // ghosts are a chip layer (calm default, issue #341) — hidden until opened.
+  const shownBlocks = blocks.filter(b => inLayer(b.kind, layer) && (ghostsOn || b.kind !== 'ghost'))
 
   // Recurring-series occurrences for the shown week (design v17 §F4): fetched from the API and
   // placed on the canvas as read-only ↻ ghosts. Empty without an API — the canvas then shows
@@ -1724,6 +1885,118 @@ export function PlannerScreen(): React.JSX.Element {
     weekDates,
     START_HOUR,
   ).filter(rb => inLayer(rb.kind, layer))
+
+  // The accepted plan of the shown week (ADR-0072 D3): the calm canvas's default
+  // layer. Each block derives its four-way state deterministically from the clock
+  // and — when the auto-tracker may observe — the reality coverage; `missed` is
+  // exactly what the one-tap repair (#339) consumes. Read-only on the canvas.
+  const weekPlans = useWeekPlans(weekDates)
+  const todayMidnightKey = localDayKey(NOW.getTime())
+  const planCanvasBlocks: readonly PlanCanvasBlock[] = (weekPlans.data ?? []).flatMap(
+    (plan, dayIndex) => {
+      if (plan === null) return []
+      const dayKey = weekDates[dayIndex] ?? ''
+      // The clock relative to this column: fully past days read 1440, future days −1.
+      const dayNowMin =
+        dayKey === todayMidnightKey ? NOW_ABS : dayKey < todayMidnightKey ? 1440 : -1
+      const observed = prefs.autoTracker
+        ? loadDaySpans(dayKey)
+            .filter(s => s.source !== 'Idle' && s.source !== 'Away')
+            .map(s => {
+              const dayMs = weekDays[dayIndex]?.dateMs ?? 0
+              const startMin = Math.max(0, (s.startMs - dayMs) / 60_000)
+              const endMin = Math.min(1440, (s.endMs - dayMs) / 60_000)
+              return { startMin, lenMin: Math.max(0, endMin - startMin) }
+            })
+        : null
+      return plan.blocks.map(b => ({
+        day: dayIndex,
+        startMin: b.startMin,
+        lenMin: b.lenMin,
+        label: b.kind === 'break' ? 'Pause' : b.label,
+        state: plannerBlockState(
+          b.startMin,
+          b.lenMin,
+          dayNowMin,
+          observed === null ? null : intervalCoverage(b.startMin, b.lenMin, observed),
+        ),
+        fillColor:
+          b.kind === 'meeting'
+            ? t.color.accent
+            : b.kind === 'break'
+              ? t.color.sunk
+              : projectColor(b.taskId ?? b.label, t.mode),
+      }))
+    },
+  )
+
+  // Zeit-Kompression (issue #341): ONE deterministic band partition for the whole
+  // visible week, from everything the canvas may show — so all seven columns (and
+  // the web timegrid) share the same minutes→pixels mapping. Empty edge hours
+  // (≈0–7 / 20–24) collapse to thin strips; any block keeps its whole hour visible.
+  const bands = compressWindow(
+    [
+      ...shownBlocks.map(b => ({ startMin: BASE_MIN + b.start, lenMin: b.len })),
+      ...recurringBlocks.map(rb => ({ startMin: BASE_MIN + rb.start, lenMin: rb.len })),
+      ...planCanvasBlocks.map(pb => ({ startMin: pb.startMin, lenMin: pb.lenMin })),
+    ],
+    0,
+    24 * 60,
+  )
+  // The expanded (lived) band — the web timegrid's visible window (ADR-0068).
+  const expandedBand = bands.find(b => !b.compressed)
+
+  // The layer chips (issue #341): one tap opens a layer, the tap persists per user.
+  // The backlog rail (#340) claims the reserved Backlog slot as its own self-contained
+  // closed-by-default pill rendered just below this row (see `PlannerBacklogRail`), not as
+  // an entry here — it owns its feeds, packWeek run and read-back, so it stays one control.
+  const layerChips: readonly LayerChip[] = [
+    {
+      key: 'reality',
+      label: 'Reality',
+      glyph: '●',
+      active: realityOn,
+      onToggle: () => {
+        if (!realityOn && !prefs.autoTracker) {
+          setInboxNote('Turn on Auto-Tracker in Settings to overlay your reality.')
+          return
+        }
+        setPref('plannerLayerReality', !realityOn)
+      },
+    },
+    {
+      key: 'ghosts',
+      label: 'Ghosts',
+      glyph: '◇',
+      active: ghostsOn,
+      onToggle: () => setPref('plannerLayerGhosts', !ghostsOn),
+    },
+    {
+      key: 'life',
+      label: 'Life',
+      active: prefs.plannerLayerLife,
+      onToggle: () => setPref('plannerLayerLife', !prefs.plannerLayerLife),
+    },
+    {
+      key: 'capacity',
+      label: 'Capacity',
+      active: prefs.plannerLayerCapacity,
+      onToggle: () => setPref('plannerLayerCapacity', !prefs.plannerLayerCapacity),
+    },
+  ]
+
+  // Sevi first run (REQ-074): a truly empty planner — no local blocks, no
+  // occurrences, no accepted plan in the visible week, everything loaded — is
+  // Sevi's stage, exactly once. Zero demo data; the flag persists like any pref.
+  const hasAcceptedPlan = (weekPlans.data ?? []).some(p => p !== null && p.blocks.length > 0)
+  const showFirstRun =
+    apiBaseUrl !== null &&
+    !prefs.plannerFirstRunDone &&
+    blocks.length === 0 &&
+    occurrences.length === 0 &&
+    !hasAcceptedPlan &&
+    !weekOccResource.loading &&
+    !weekPlans.loading
 
   // Web timegrid (design v20 §Cal, ADR-0068): on web the Week/Day grid is FullCalendar's editable
   // timegrid; native keeps the RN `DayColumn` canvas. The same local blocks feed both — mapped here
@@ -1973,20 +2246,6 @@ export function PlannerScreen(): React.JSX.Element {
               ✦ Fill week
             </Button>
           )}
-          {view === 'Week' && (
-            <PlannerViewMenu
-              layer={layer}
-              onLayer={setLayer}
-              realityOn={realityOn}
-              onReality={next => {
-                if (next && !prefs.autoTracker) {
-                  setInboxNote('Turn on Auto-Tracker in Settings to overlay your reality.')
-                  return
-                }
-                setRealityOn(next)
-              }}
-            />
-          )}
           <Button size="sm">
             {view === 'Year'
               ? 'Plan year'
@@ -1998,6 +2257,33 @@ export function PlannerScreen(): React.JSX.Element {
           </Button>
         </View>
 
+        {/* Layer chips (ADR-0072 D3, ux-vision §2.7): Ruhe als Default — the canvas
+            shows the accepted plan + now-line; every extra layer is one explicit tap,
+            persisted per user. Replaces the old "View" popover on the canvas views. */}
+        {(view === 'Week' || view === 'Day') && <PlannerLayerChips chips={layerChips} />}
+
+        {/* Backlog rail + "Fülle meine Woche" (REQ-073, ADR-0072 D2, #340): the rail
+            claims the calm canvas's reserved Backlog layer slot — its own self-contained
+            closed-by-default pill sits in the layer-controls region, a peer of the
+            reality/ghosts/life/capacity chips (ux-vision §2.7). Every feed, the packWeek
+            run, the plan-apply confirm and the persisted read-back live inside it. */}
+        {view === 'Week' && <PlannerBacklogRail weekDates={weekDates} />}
+
+        {/* Sevi first run (REQ-074): the empty planner is Sevi's stage, not a dead
+            wall — three answers → the first ghost week → one tap through the seam
+            (provenance `planner-firstrun`). Skippable; never returns once done. */}
+        {(view === 'Week' || view === 'Day') && showFirstRun && (
+          <SeviFirstRun
+            weekDates={weekDates}
+            todayKey={todayMidnightKey}
+            onAccepted={() => {
+              setPref('plannerFirstRunDone', true)
+              weekPlans.reload()
+            }}
+            onSkip={() => setPref('plannerFirstRunDone', true)}
+          />
+        )}
+
         {/* In-bar start-picker (design v20 day-tracker row): pick a project + optional task and
             start the shared live timer straight from the Planner — real catalog, real timer,
             start/stop toasts. Additive: the week canvas, ghosts and reality overlay are untouched. */}
@@ -2006,8 +2292,10 @@ export function PlannerScreen(): React.JSX.Element {
         {/* Capacity head-trace (design v14 §F Stufe 2): the week's TRUE plannable capacity —
             the contracted target minus your own life/protected commitments ("KW32 nur 24h"),
             from the deterministic `weekCapacity` core (ADR-0005). Honest by construction: with
-            no life blocks it reads the full target, and the sage segment grows as life does. */}
+            no life blocks it reads the full target, and the sage segment grows as life does.
+            A chip layer since the calm default (issue #341) — open Capacity to see it. */}
         {view === 'Week' &&
+          prefs.plannerLayerCapacity &&
           (() => {
             const cap = weekCapacityFromBlocks(blocks)
             if (cap.targetMs <= 0) return null
@@ -2105,6 +2393,8 @@ export function PlannerScreen(): React.JSX.Element {
                   </View>
                 )}
                 <PlannerDayTracker clients={catalog.data ?? []} />
+                {/* One-tap day repair (ADR-0072 D1): drift chip → ghost preview → one tap. */}
+                <DayRepairSheet repair={dayRepair} />
                 {/* Canvas ⇄ List toggle (REQ-040): the same day, geometry or flat list. */}
                 <View style={{ maxWidth: 220 }}>
                   <SegmentedControl<'canvas' | 'list'>
@@ -2171,7 +2461,14 @@ export function PlannerScreen(): React.JSX.Element {
                           occurrences={occurrences.filter(o => inLayer(o.kind, layer))}
                           targetHours={DAILY_TARGET_HOURS}
                           editableBlocks={timegridBlocks}
+                          planBlocks={planCanvasBlocks}
                           weekStartMs={weekStartMs}
+                          {...(expandedBand !== undefined
+                            ? {
+                                windowStartMin: expandedBand.startMin,
+                                windowEndMin: expandedBand.endMin,
+                              }
+                            : {})}
                           onBlockMove={moveBlock}
                           onBlockResize={resizeBlock}
                           onBlockOpen={setOpenIndex}
@@ -2179,7 +2476,7 @@ export function PlannerScreen(): React.JSX.Element {
                         />
                       ) : (
                         <View style={{ flexDirection: 'row' }}>
-                          <HourGutter />
+                          <HourGutter bands={bands} />
                           <View
                             style={{ flex: 1 }}
                             onLayout={e => {
@@ -2192,7 +2489,9 @@ export function PlannerScreen(): React.JSX.Element {
                               index={dayI}
                               flex
                               blocks={shownBlocks}
+                              planBlocks={planCanvasBlocks}
                               recurring={recurringBlocks}
+                              bands={bands}
                               colWidth={dayColW}
                               onResizeBlock={resizeBlock}
                               onMoveBlock={moveBlock}
@@ -2367,7 +2666,14 @@ export function PlannerScreen(): React.JSX.Element {
                     occurrences={occurrences.filter(o => inLayer(o.kind, layer))}
                     targetHours={DAILY_TARGET_HOURS}
                     editableBlocks={timegridBlocks}
+                    planBlocks={planCanvasBlocks}
                     weekStartMs={weekStartMs}
+                    {...(expandedBand !== undefined
+                      ? {
+                          windowStartMin: expandedBand.startMin,
+                          windowEndMin: expandedBand.endMin,
+                        }
+                      : {})}
                     onBlockMove={moveBlock}
                     onBlockResize={resizeBlock}
                     onBlockOpen={setOpenIndex}
@@ -2375,7 +2681,7 @@ export function PlannerScreen(): React.JSX.Element {
                   />
                 ) : (
                   <View style={{ flexDirection: 'row' }}>
-                    <HourGutter />
+                    <HourGutter bands={bands} />
                     <View
                       style={{ flex: 1, flexDirection: 'row' }}
                       onLayout={e => {
@@ -2391,7 +2697,15 @@ export function PlannerScreen(): React.JSX.Element {
                         showsHorizontalScrollIndicator={false}
                         estimatedItemSize={stacked ? COL_WIDTH : colWidth}
                         keyExtractor={(day: (typeof weekDays)[0]) => day.name}
-                        extraData={{ shownBlocks, recurringBlocks, colWidth, stacked, showReality }}
+                        extraData={{
+                          shownBlocks,
+                          planCanvasBlocks,
+                          recurringBlocks,
+                          bands,
+                          colWidth,
+                          stacked,
+                          showReality,
+                        }}
                         renderItem={({
                           item: day,
                           index: di,
@@ -2405,7 +2719,9 @@ export function PlannerScreen(): React.JSX.Element {
                               index={di}
                               flex={false}
                               blocks={shownBlocks}
+                              planBlocks={planCanvasBlocks}
                               recurring={recurringBlocks}
+                              bands={bands}
                               colWidth={stacked ? COL_WIDTH : colWidth}
                               onResizeBlock={resizeBlock}
                               onMoveBlock={moveBlock}

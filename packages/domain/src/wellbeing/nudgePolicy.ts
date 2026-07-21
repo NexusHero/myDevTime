@@ -33,13 +33,21 @@ export interface NudgeContext {
   readonly nudgesSentToday: number
   /** The daily voice budget (1..2 — ADR-0071 P2 rate limit). */
   readonly dailyCap: number
+  /**
+   * Day-scoped acknowledgment of a consciously accepted stretch (ADR-0072 D1): the user
+   * tapped a repair whose price over their own capacity line was stated up front, so the
+   * own-baseline tier stays quiet about that overrun for the rest of the day. Never a
+   * global mute — a hard-cap speak-up still gets through.
+   */
+  readonly stretchAckActive?: boolean
 }
 
 export type NudgeDecision =
   | { readonly deliver: true }
   | {
       readonly deliver: false
-      readonly reason: 'calm' | 'opt-out' | 'quiet-hours' | 'protected' | 'cap-reached'
+      readonly reason:
+        'calm' | 'stretch-acknowledged' | 'opt-out' | 'quiet-hours' | 'protected' | 'cap-reached'
       /** True only when a real speak-up was held (quiet hours / protected) — fold into ONE digest. */
       readonly digest: boolean
     }
@@ -58,11 +66,17 @@ export function inQuietWindow(minuteOfDay: number, startMin: number, endMin: num
 /**
  * Decide whether to deliver a proactive nudge right now. Delivery requires every gate; a
  * suppression reports the *first* applicable reason in the fixed precedence
- * `calm > opt-out > protected > quiet-hours > cap-reached`, so callers see the most fundamental
- * suppressor (there is nothing to digest when the load was calm or the user opted out).
+ * `calm > stretch-acknowledged > opt-out > protected > quiet-hours > cap-reached`, so callers
+ * see the most fundamental suppressor (there is nothing to digest when the load was calm, the
+ * stretch was chosen, or the user opted out).
  */
 export function decideNudge(ctx: NudgeContext): NudgeDecision {
   if (ctx.load.level !== 'speak-up') return { deliver: false, reason: 'calm', digest: false }
+  // An acknowledged stretch was chosen, not drifted into (ADR-0072 D1) — but the ArbZG hard
+  // caps stay inviolable: a hard-cap speak-up is NEVER silenced by the acknowledgment.
+  if (ctx.stretchAckActive === true && !ctx.load.hardCapHit) {
+    return { deliver: false, reason: 'stretch-acknowledged', digest: false }
+  }
   if (!ctx.proactiveOptIn) return { deliver: false, reason: 'opt-out', digest: false }
   if (ctx.inProtectedBlock) return { deliver: false, reason: 'protected', digest: true }
   if (inQuietWindow(ctx.minuteOfDay, ctx.quietStartMin, ctx.quietEndMin)) {
