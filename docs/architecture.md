@@ -723,6 +723,107 @@ sequenceDiagram
 
 </details>
 
+## A broken day repairs itself only on a tap, and stretching is an informed deal (REQ-072, ADR-0072/0005/0071)
+
+When the day drifts, the drift chip becomes the action. The pure `reflowDay` core re-lays the
+remainder of the day around fixed obstacles (meetings, 🛡) as a **ghost proposal**; nothing moves
+until the user's confirm posts the `relayout-day` kind through the one plan-apply seam, writing a
+NEW accepted plan version (provenance `planner-reflow`). A layout that overruns the personal
+capacity line names its price **before** the tap; a conscious accept records a day-scoped stretch
+acknowledgment that quiets the own-baseline Sevi voice for that day only — the universal ArbZG
+hard caps are never planned past, and a hard-cap speak-up is never silenced.
+
+![A broken day repairs itself only on a tap, and stretching is an informed deal (REQ-072, ADR-0072/0005/0071) — diagram](diagrams/architecture-13.svg)
+
+<details>
+<summary>Mermaid source</summary>
+
+```mermaid
+sequenceDiagram
+    participant U as Today / Planner (drift chip → DayRepairSheet)
+    participant R as reflowDay (domain, pure)
+    participant API as planner module (POST /api/planner/apply)
+    participant DB as Postgres
+    participant S as Sevi live-load watch (decideNudge)
+    U->>R: nowMin, capacity line, ArbZG day cap, blocks, fixed, missed ids
+    R-->>U: ghost proposal {placements, overflow} — fits / stretch (price) / moved
+    U->>U: preview the re-laid day (+ the stretch price, if any) — nothing written yet
+    U->>API: confirm {relayout-day, provenance planner-reflow} — the ONLY mutating call
+    API->>API: AuthGuard → workspace scope (foreign plan ⇒ 404) · relayoutDay ⇒ 400 on a bad block
+    API->>DB: INSERT plans (new ACCEPTED version, source=planner-reflow, prior untouched)
+    API-->>U: { applied } — dismissing instead mutates nothing
+    opt stretch accepted
+        U->>S: day-scoped stretchAckActive — own-baseline voice stays quiet today (hard caps still speak)
+    end
+```
+
+</details>
+
+## The week fills from the backlog in one deterministic pass (REQ-073, ADR-0072/0005/0070)
+
+The backlog rail lists imported issues (ADR-0070, proposal-only) and own tasks at estimate height.
+The pure `packWeek` core distributes them into the week's free windows honouring each day's
+capacity line — it never stretches (that is the repair's informed deal, not the fill's) — and
+reports an honest `unplaced` remainder rather than hiding overflow. An unestimated ticket packs at
+a deterministic 60-minute default; the AI estimate refines it only as a marked violet proposal, so
+the pass is reproducible with the provider down. One confirm books the ghost week through the seam
+(provenance `planner-fill`), creating a day's first plan version where none existed.
+
+![The week fills from the backlog in one deterministic pass (REQ-073, ADR-0072/0005/0070) — diagram](diagrams/architecture-14.svg)
+
+<details>
+<summary>Mermaid source</summary>
+
+```mermaid
+sequenceDiagram
+    participant U as Planner (backlog rail → FillWeekPreview)
+    participant P as packWeek (domain, pure)
+    participant API as planner module (POST /api/planner/apply)
+    participant DB as Postgres
+    U->>P: per-day free windows + capacity lines, items (estimate | 60-min default, priority)
+    P-->>U: ghost week {placements, unplaced} — capacity honoured, never stretched
+    U->>U: preview ghosts + honest "n passen diese Woche nicht" — nothing written yet
+    U->>API: confirm {add-blocks per affected day, provenance planner-fill}
+    API->>API: AuthGuard → workspace scope · addBlocks ⇒ 400 below the 15-min floor
+    API->>DB: INSERT plans (new ACCEPTED version per day · version 1 where the day had none)
+    API-->>U: { applied } — dismissing instead mutates nothing
+```
+
+</details>
+
+## The empty planner is Sevi's stage, and the first week is still just a proposal (REQ-074, ADR-0072/0071)
+
+A first-time planner shows no dead wall. Sevi asks two or three questions and lays a first ghost
+week from the answers with pure, deterministic client logic — no LLM call, no demo data. The user
+accepts (or skips) it; only an accept posts `add-blocks` through the seam (provenance
+`planner-firstrun`), writing the day's first accepted plan version. Once a first plan is accepted
+the stage never returns.
+
+![The empty planner is Sevi's stage, and the first week is still just a proposal (REQ-074, ADR-0072/0071) — diagram](diagrams/architecture-15.svg)
+
+<details>
+<summary>Mermaid source</summary>
+
+```mermaid
+sequenceDiagram
+    participant U as Planner first run (Sevi stage)
+    participant F as first-week layout (client, pure — no LLM)
+    participant API as planner module (POST /api/planner/apply)
+    participant DB as Postgres
+    U->>U: empty week (0 blocks, no plan) ⇒ Sevi asks 2–3 questions
+    U->>F: answers (start time, today's focus)
+    F-->>U: first ghost week — deterministic, no demo data
+    alt accept
+        U->>API: confirm {add-blocks, provenance planner-firstrun}
+        API->>DB: INSERT plans (ACCEPTED version 1) — the stage never returns after a first plan
+        API-->>U: { applied }
+    else skip
+        U->>U: stage dismissed — nothing written, the empty week stands
+    end
+```
+
+</details>
+
 ---
 
 # Cross-cutting Concepts {#section-concepts}
