@@ -147,7 +147,7 @@ export function useDayRepair(planner: PlannerResource): DayRepairResource {
     missedIds.length > 0
 
   let proposal: ReflowProposal | null = null
-  if (repairable && plan !== null) {
+  if (repairable) {
     const firstStart = plan.blocks.reduce((min, b) => Math.min(min, b.startMin), 1440)
     const lastEnd = plan.blocks.reduce((max, b) => Math.max(max, b.startMin + b.lenMin), 0)
     const fixed: FixedObstacle[] = protectedTimes

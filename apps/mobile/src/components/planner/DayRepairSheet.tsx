@@ -143,7 +143,9 @@ export function DayRepairSheet({
                 opacity: repair.applying ? 0.5 : 1,
               }}
             >
-              <Text style={{ fontSize: t.fontSize.sm, fontWeight: '700', color: '#ffffff' }}>
+              <Text
+                style={{ fontSize: t.fontSize.sm, fontWeight: '700', color: t.color.accentInk }}
+              >
                 {repair.applying ? 'Applying…' : 'Confirm repair'}
               </Text>
             </Pressable>
