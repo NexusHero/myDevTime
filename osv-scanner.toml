@@ -11,53 +11,6 @@
 # on each Expo / drizzle-kit / better-auth upgrade and drop any GHSA that no longer
 # resolves — keep this list as short as the toolchain allows.
 
-# --- tar: the archive extractor the Expo build CLI uses (expo > @expo/cli > tar).
-# `@expo/cli` pins `tar@^6`; the patched line is `tar@>=7`, so it can't be bumped
-# via override without breaking the CLI.
-[[IgnoredVulns]]
-id = "GHSA-34x7-hfp2-rc4v"
-reason = "tar via expo > @expo/cli — build CLI only, never shipped (docs/security/audit-exceptions.md)"
-
-[[IgnoredVulns]]
-id = "GHSA-8qq5-rm4j-mr97"
-reason = "tar via expo > @expo/cli — build CLI only, never shipped (docs/security/audit-exceptions.md)"
-
-[[IgnoredVulns]]
-id = "GHSA-83g3-92jg-28cx"
-reason = "tar via expo > @expo/cli — build CLI only, never shipped (docs/security/audit-exceptions.md)"
-
-[[IgnoredVulns]]
-id = "GHSA-qffp-2rhf-9h96"
-reason = "tar via expo > @expo/cli — build CLI only, never shipped (docs/security/audit-exceptions.md)"
-
-[[IgnoredVulns]]
-id = "GHSA-9ppj-qmqm-q256"
-reason = "tar via expo > @expo/cli — build CLI only, never shipped (docs/security/audit-exceptions.md)"
-
-[[IgnoredVulns]]
-id = "GHSA-r6q2-hw4h-h46w"
-reason = "tar via expo > @expo/cli — build CLI only, never shipped (docs/security/audit-exceptions.md)"
-
-[[IgnoredVulns]]
-id = "GHSA-vmf3-w455-68vh"
-reason = "tar 6.2.1 via expo > @expo/cli — same build-CLI extractor, tar@^6 pin (docs/security/audit-exceptions.md)"
-
-[[IgnoredVulns]]
-id = "GHSA-23hp-3jrh-7fpw"
-reason = "tar 6.2.1 via expo > @expo/cli — same build-CLI extractor, tar@^6 pin, fix is tar>=7.5 (docs/security/audit-exceptions.md)"
-
-[[IgnoredVulns]]
-id = "GHSA-8x88-c5mf-7j5w"
-reason = "tar 6.2.1 via expo > @expo/cli — same build-CLI extractor, tar@^6 pin, fix is tar>=7.5 (docs/security/audit-exceptions.md)"
-
-[[IgnoredVulns]]
-id = "GHSA-gvwx-54wh-qm9j"
-reason = "tar 6.2.1 via expo > @expo/cli — same build-CLI extractor, tar@^6 pin, fix is tar>=7.5 (docs/security/audit-exceptions.md)"
-
-[[IgnoredVulns]]
-id = "GHSA-w8wr-v893-vjvp"
-reason = "tar 6.2.1 via expo > @expo/cli — same build-CLI extractor, tar@^6 pin, fix is tar>=7.5 (docs/security/audit-exceptions.md)"
-
 # --- esbuild: the build-time bundler pulled in by drizzle-kit (better-auth's
 # migration CLI) and by tsx/vite in the dev/test toolchain. Never in the runtime
 # request path.

@@ -21,6 +21,7 @@ kept in sync for anyone running `pnpm audit` locally, but CI reads
 | Package | Override | Why |
 |---------|----------|-----|
 | `@xmldom/xmldom` | `>=0.8.13` | Pulled in only by `expo > @expo/cli > @expo/plist` (iOS plist parsing in the Expo **build CLI**). A patch-level bump clears 5 high advisories with no runtime effect. |
+| `tar` | `^7.5.19` | Pulled in only by `expo > @expo/cli` (archive extraction in the Expo **build CLI**), which pins `tar@^6` — an unpatched line that kept accumulating advisories (11 GHSAs at the point of the switch, incl. one critical). Forcing the patched `tar@7` major cleared the whole set; the CLI's tar usage survives the major bump (verified by the web export in CI's docker build). Previously these were accepted below — an exception list that only ever grew, which is exactly what this file says to avoid. |
 
 ## Accepted (ignored) — build/CLI tooling only, never shipped
 
@@ -31,31 +32,19 @@ and `drizzle-kit` are runtime dependency *entries* — but the vulnerable
 sub-packages are their build machinery (archive extraction, bundling, CSS
 processing, native-project scaffolding, telemetry). This code **never ships in
 the app bundle** and **never runs on a user device or in the server request
-path**. Where the fix is a patch-level bump with no runtime effect we take the
-override (see above); where the CLI pins the old major (e.g. `@expo/cli` pins
-`tar@^6`, patched line `tar@>=7`), bumping it destabilises the toolchain, so we
+path**. Where a fixed line exists that the toolchain tolerates we take the
+override (see above — that is how the entire `tar@6` advisory set, once 11
+entries in this table, was resolved); only where no such line exists do we
 accept the advisory instead.
 
-The first six `tar` rows were carried over from the retired `pnpm audit --prod`
-allowlist. The remaining rows are advisories **OSV-Scanner** surfaces that the
-old gate never did: OSV scans the whole lockfile at every severity, whereas
-`pnpm audit --prod --audit-level high` only checked production deps at high+
-severity (so it skipped the medium `esbuild`/`postcss`/`tar@6.2.1` findings, and
-its npm-backed DB did not carry the `uuid` advisory).
+These are advisories **OSV-Scanner** surfaces that the old gate never did: OSV
+scans the whole lockfile at every severity, whereas `pnpm audit --prod
+--audit-level high` only checked production deps at high+ severity (so it
+skipped the medium `esbuild`/`postcss` findings, and its npm-backed DB did not
+carry the `uuid` advisory).
 
 | GHSA | Package | Severity | Path (build/CLI only) |
 |------|---------|----------|------------------------|
-| GHSA-34x7-hfp2-rc4v | tar | — | expo > @expo/cli > tar |
-| GHSA-8qq5-rm4j-mr97 | tar | — | expo > @expo/cli > tar |
-| GHSA-83g3-92jg-28cx | tar | — | expo > @expo/cli > tar |
-| GHSA-qffp-2rhf-9h96 | tar | — | expo > @expo/cli > tar |
-| GHSA-9ppj-qmqm-q256 | tar | — | expo > @expo/cli > tar |
-| GHSA-r6q2-hw4h-h46w | tar | — | expo > @expo/cli > tar |
-| GHSA-vmf3-w455-68vh | tar 6.2.1 | 6.9 Med | expo > @expo/cli > tar |
-| GHSA-23hp-3jrh-7fpw | tar 6.2.1 | 9.2 Crit | expo > @expo/cli > tar (fix first lands in tar 7.5.19) |
-| GHSA-8x88-c5mf-7j5w | tar 6.2.1 | 8.7 High | expo > @expo/cli > tar (fix first lands in tar 7.5.18) |
-| GHSA-gvwx-54wh-qm9j | tar 6.2.1 | 5.3 Med | expo > @expo/cli > tar (fix first lands in tar 7.5.17) |
-| GHSA-w8wr-v893-vjvp | tar 6.2.1 | 5.3 Med | expo > @expo/cli > tar (fix first lands in tar 7.5.18) |
 | GHSA-67mh-4wv8-2f99 | esbuild | 5.3 Med | better-auth > drizzle-kit (+ tsx/vite dev toolchain) |
 | GHSA-qx2v-qp2m-jg93 | postcss | 6.1 Med | expo > @expo/cli > @expo/metro-config > postcss |
 | GHSA-w5hq-g745-h8pq | uuid (7.0.3 & 8.3.2) | 7.5 High | expo > @expo/cli (xcode > @expo/config-plugins; @expo/bunyan > @expo/rudder-sdk-node) |
