@@ -53,6 +53,7 @@ import {
   SegmentedControl,
 } from '../components/index'
 import { TaskInbox } from '../components/planner/TaskInbox'
+import { PlannerBacklogRail } from '../components/planner/BacklogRail'
 import { PlannerEntryDrawer, type DrawerEntry } from '../components/planner/PlannerEntryDrawer'
 import { PlannerViewMenu } from '../components/planner/PlannerViewMenu'
 import { PlannerStartPicker } from '../components/planner/PlannerStartPicker'
@@ -2421,6 +2422,11 @@ export function PlannerScreen(): React.JSX.Element {
               </Card>
               {inboxOpen && <TaskInbox tasks={tasks} onPlan={planTask} onDone={doneTask} />}
             </View>
+
+            {/* ── Backlog rail + "Fülle meine Woche" (REQ-073, ADR-0072 D2, #340) ──
+                Self-contained layer, closed by default (ux-vision §2.7); every feed, the
+                packWeek run and the plan-apply confirm live inside PlannerBacklogRail. */}
+            <PlannerBacklogRail weekDates={weekDates} />
 
             <Legend />
 
