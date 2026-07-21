@@ -181,6 +181,10 @@ export type {
   PlanReview,
 } from './planner/plan.js'
 export { buildDayPlan, reviewDayPlan } from './planner/plan.js'
+// Plan-apply seam (ADR-0071 P4, REQ-070) — a *confirmed* Sevi block proposal (move/shrink)
+// applied to the stored blocks purely; the service persists the result as a new plan version.
+export type { PlanBlockMutation } from './planner/applyProposal.js'
+export { applyProposal, blockIdOf, MIN_SHRUNK_BLOCK_MIN } from './planner/applyProposal.js'
 
 // AI-credit ledger (REQ-027, ADR-0008) — append-only signed deltas; balance +
 // usage derived from the log; deterministic, LLM-free (ADR-0005).
@@ -246,6 +250,17 @@ export type {
   WeekCapacity,
 } from './capacity/plannable.js'
 export { committedMinutes, dayCapacity, weekCapacity, overbookedMs } from './capacity/plannable.js'
+
+// Scrum-Master advisory (REQ-070, ADR-0071): planned load vs. the honest plannable week,
+// with signed overages, severity levels and confirmable relief candidates — Sevi phrases
+// the finding, this core owns every figure (ADR-0005).
+export type {
+  CommitmentLevel,
+  AdvisoryBlock,
+  ReliefCandidate,
+  CommitmentAdvisory,
+} from './capacity/overcommit.js'
+export { commitmentAdvisory, DEFAULT_OVERCOMMIT_TOLERANCE_MS } from './capacity/overcommit.js'
 
 // Travel entry type (REQ-051, ADR-0065 · design v13 G4) — deterministic travel pricing
 // (reduced-fraction time + per-km allowance, train = full worktime) plus the G4b
@@ -509,6 +524,66 @@ export {
   MIN_WEEKDAY_SAMPLES,
   WEEKDAY_OVERBOOK_DELTA,
   TREND_DELTA,
+} from './wellbeing/index.js'
+
+// Sevi live-load + nudge policy (ADR-0071, REQ-067/069) — the deterministic care buddy core:
+// `evaluateLiveLoad` bands the *running* day (universal ArbZG-grounded hard caps + the person's
+// own baseline band) into calm/watch/speak-up with typed reasons, and `decideNudge` gates whether
+// a speak-up may be voiced right now (opt-in, quiet hours incl. midnight wrap, 🛡 protected block,
+// daily cap) — a held speak-up folds into ONE later digest (REQ-057). Whether Sevi speaks is
+// 100 % these cores; the LLM only phrases (ADR-0005). The intraday `LoadLevel` is exported as
+// `LiveLoadLevel` here — `insights/balance` already owns the plain name at this boundary.
+export type {
+  LoadLevel as LiveLoadLevel,
+  LiveLoadReason,
+  LiveLoadInput,
+  LiveLoad,
+  NudgeContext,
+  NudgeDecision,
+} from './wellbeing/index.js'
+export {
+  evaluateLiveLoad,
+  liveLoadScore,
+  NO_BREAK_CAP_MS,
+  LONG_DAY_CAP_MS,
+  WATCH_FOCUS_MS,
+  WATCH_WORKED_MS,
+  WATCH_BACK_TO_BACK,
+  decideNudge,
+  inQuietWindow,
+} from './wellbeing/index.js'
+
+// Consented mood memory (ADR-0071 P3, REQ-068) — the closed punch-out vocabulary
+// (good/tense/stressed) and its fixed mapping onto `reviewDay`'s 1..5 `moodScore`, finally
+// feeding the `low-mood` signal path. Stored only under explicit opt-in; never a diagnosis.
+export type { Mood } from './wellbeing/index.js'
+export { moodScoreOf, MOOD_WORDS } from './wellbeing/index.js'
+
+// Weekday mood-pattern awareness (ADR-0071, REQ-068) — Sevi's calm observation over the
+// consented mood memory: the weekdays that *repeatedly* run low (≥ the sample minimum AND a
+// median mood at/below the low-mood line). One bad day is never a pattern; too little data is
+// an honest `enoughData: false`, never an early verdict. Pure; the weekday convention is the
+// server's `weekdayOf` (UTC, Sunday 0), pinned by `moodEntryOf` so both ends always agree.
+export type { MoodPatternEntry, LowMoodWeekday, MoodPatterns } from './wellbeing/index.js'
+export { moodPatterns, moodEntryOf, MIN_WEEKDAY_MOOD_SAMPLES } from './wellbeing/index.js'
+// Sevi life care (ADR-0071 P5, REQ-071) — the deterministic core behind the calm life-care
+// voices: `freeEveningsIn` counts evenings kept free of work (life/breaks never consume one),
+// and `lifeCareSuggestions` derives no-free-evening / life-encroachment / rest-day, most urgent
+// first. Whether a voice may actually be *delivered* stays `decideNudge`'s call (shared cap,
+// quiet hours, 🛡) — this core only states what is true (ADR-0005).
+export type {
+  LifeCareSuggestion,
+  LifeCareSuggestionKind,
+  LifeCareInput,
+  EveningBlock,
+} from './wellbeing/index.js'
+export {
+  lifeCareSuggestions,
+  freeEveningsIn,
+  MIN_EVENING_WINDOW_DAYS,
+  REST_DAY_THRESHOLD_DEFAULT,
+  EVENING_START_MIN,
+  EVENING_END_MIN,
 } from './wellbeing/index.js'
 
 // Issue/ticket import core (GitHub Issues + Azure DevOps Work Items → candidate tasks, ADR-0005) —

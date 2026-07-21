@@ -18,8 +18,9 @@ const modulesDir = fileURLToPath(new URL('.', import.meta.url))
 // Boundary policing covers every business module — including those that expose no
 // public `/status` route and are therefore omitted from MODULE_NAMES (which drives
 // the status/OpenAPI convention). Without these, a cross-module reach into
-// `connectors`' secret vault or `preferences`' internals would go unpoliced.
-const POLICED = [...MODULE_NAMES, 'preferences', 'connectors'] as const
+// `connectors`' secret vault, `preferences`' internals or `wellbeing`'s mood store
+// would go unpoliced.
+const POLICED = [...MODULE_NAMES, 'preferences', 'connectors', 'wellbeing'] as const
 const others = new Set<string>(POLICED)
 
 function tsFiles(dir: string): string[] {

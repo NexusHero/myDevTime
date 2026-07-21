@@ -1,12 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import { Body, Controller, Get, Inject, Post, UseGuards } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
-import { zonedTimeToInstant } from '@mydevtime/domain'
+import { moodScoreOf, zonedTimeToInstant } from '@mydevtime/domain'
 import { AuthGuard, CurrentUser, type AuthenticatedUser } from '../auth/contract.js'
 import { balanceFor, debit } from '../billing/contract.js'
 import type { Db } from '../../db/client.js'
 import { listShifts, worktimeSummary } from '../worktime/contract.js'
-import { WellbeingService } from '../wellbeing/service.js'
+import { getPreferences } from '../preferences/contract.js'
+import { WellbeingService } from '../wellbeing/contract.js'
 import { NlEntryService } from './nl-entry.service.js'
 import { SmartAddService } from './smart-add.service.js'
 import { AiContext } from './ai.context.js'
@@ -50,6 +51,12 @@ const MEETING_INSIGHTS_CREDIT_COST = 1
 const COMPANION_CREDIT_COST = 1
 /** How many of the person's most-recent persisted days the wellbeing baseline is calibrated over. */
 const COMPANION_HISTORY_DAYS = 90
+/**
+ * How many most-recent stored mood rows the companion scans for the reviewed day's word. Mood
+ * rows come back newest-first, so the reviewed day sits at/near the head — a month of rows is
+ * ample headroom without reading the whole history for a single-day lookup.
+ */
+const COMPANION_MOOD_LOOKBACK_DAYS = 31
 
 /** Absolute `[from, to)` instants of the local calendar day `date` in `tz` (DST-safe via the core). */
 function localDayWindow(date: string, tz: string): { from: Date; to: Date } {
@@ -343,7 +350,10 @@ export class AiController {
    * credit is debited once only when that AI narration is produced. A down provider, no credits, an
    * absence day, or an unusable reply degrade to a still-caring deterministic template built from the
    * same signals and cost nothing. Nothing is booked or planned — the suggestion is a proposal the
-   * client confirms (ADR-0005). Mood stays honestly omitted (no consented mood store exists yet).
+   * client confirms (ADR-0005). The reviewed day's stored punch-out mood is woven in **only** under
+   * the explicit `moodConsent` preference (REQ-068, ADR-0071), mapped through the fixed
+   * `moodScoreOf`; without consent or a stored word, `moodScore` stays honestly absent — and the
+   * mood value itself is never logged on this path.
    */
   @Post('evening-companion')
   @UseGuards(AuthGuard)
@@ -357,7 +367,7 @@ export class AiController {
     // (a) Source the day's real overtime/break from the worktime feed; keep the request's own values
     //     only as a fallback when the day holds no completed shift.
     const feed = await this.sourceDaySignals(db, workspaceId, body.date, tz)
-    const day: CompanionDayInput =
+    const fedDay: CompanionDayInput =
       feed === null
         ? body.day
         : {
@@ -365,6 +375,23 @@ export class AiController {
             overtimeMinutes: feed.overtimeMinutes,
             breakShortfallMinutes: feed.breakShortfallMinutes,
           }
+    // (a2) Weave the reviewed day's stored punch-out mood in (REQ-068, ADR-0071): only under the
+    //     explicit moodConsent opt-in and only when that day actually holds a stored word — the
+    //     stored word (via the fixed moodScoreOf) then wins over any client-supplied score;
+    //     otherwise moodScore stays exactly as the request sent it (usually absent). The word is
+    //     read through the existing consented store and never logged.
+    const prefs = await getPreferences(db, workspaceId, userId)
+    const storedMood = prefs.moodConsent
+      ? (
+          await this.wellbeing.moodHistory(
+            db,
+            { workspaceId, userId },
+            COMPANION_MOOD_LOOKBACK_DAYS,
+          )
+        ).find(m => m.day === body.date)
+      : undefined
+    const day: CompanionDayInput =
+      storedMood === undefined ? fedDay : { ...fedDay, moodScore: moodScoreOf(storedMood.mood) }
     // (b) Record today's deterministic load (upsert) so the baseline runs over a real per-day history.
     await this.wellbeing.recordDayLoad(db, {
       workspaceId,

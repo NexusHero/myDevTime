@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { loadConfig } from '../../config.js'
 import { createDb } from '../../db/client.js'
 import { session, user } from '../../db/auth-schema.js'
-import { clients, projects, workspaces } from '../../db/schema.js'
+import { clients, projects, protectedTimes, wellbeingMoods, workspaces } from '../../db/schema.js'
 import { buildApp } from '../../app.js'
 import { resolveWorkspaceId } from '../../core/workspace.js'
 import * as tracking from '../tracking/service.js'
@@ -53,6 +53,17 @@ describe.skipIf(!databaseUrl)('privacy (integration)', () => {
   it('Export_OwnWorkspace_ContainsOwnButNeverOtherWorkspacesData', async () => {
     await tracking.createProject(db, wsA, { name: 'A-Export-Proj' })
     await tracking.createProject(db, wsB, { name: 'B-Secret-Proj' })
+    // The branch's most sensitive datum (consented moods) and the 🛡 windows are personal
+    // data too — data portability (Art. 20) must carry them like every other store.
+    await db
+      .insert(wellbeingMoods)
+      .values({ workspaceId: wsA, userId: idA, day: '2026-07-20', mood: 'tense' })
+    await db
+      .insert(wellbeingMoods)
+      .values({ workspaceId: wsB, userId: idB, day: '2026-07-20', mood: 'good' })
+    await db
+      .insert(protectedTimes)
+      .values({ workspaceId: wsA, userId: idA, day: '2026-07-21', startMin: 1080, endMin: 1320 })
 
     const exported = await svc.exportWorkspaceData(db, wsA, idA)
 
@@ -60,6 +71,11 @@ describe.skipIf(!databaseUrl)('privacy (integration)', () => {
     expect(exported.user).toMatchObject({ id: idA, email: 'privacy-a@itest.local' })
     expect(exported.workspace.id).toBe(wsA)
     expect(exported.data.projects.some(p => p.name === 'A-Export-Proj')).toBe(true)
+    // The caller's own mood rows travel (day + word only) — and never workspace B's.
+    expect(exported.data.wellbeingMoods).toEqual([{ day: '2026-07-20', mood: 'tense' }])
+    expect(
+      exported.data.protectedTimes.some(p => p.day === '2026-07-21' && p.startMin === 1080),
+    ).toBe(true)
     // Negative isolation: nothing of workspace B may appear anywhere in A's export.
     expect(exported.data.projects.some(p => p.name === 'B-Secret-Proj')).toBe(false)
     for (const rows of Object.values(exported.data)) {

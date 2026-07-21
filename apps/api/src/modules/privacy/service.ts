@@ -16,6 +16,7 @@ import {
   partnerShares,
   plans,
   projects,
+  protectedTimes,
   rates,
   recurringEntries,
   rules,
@@ -27,6 +28,7 @@ import {
   user,
   userPreferences,
   verification,
+  wellbeingMoods,
   workSchedules,
   workspaceMembers,
   workspaces,
@@ -169,6 +171,20 @@ export async function exportWorkspaceData(db: Db, workspaceId: string, userId: s
       .from(partnerShares)
       .where(eq(partnerShares.workspaceId, workspaceId)),
     rules: await db.select().from(rules).where(eq(rules.workspaceId, workspaceId)),
+    // Confirmed 🛡 protect-time windows (REQ-070) — planner data like `plans`, so the
+    // "every workspace-scoped table" contract covers them the same way.
+    protectedTimes: await db
+      .select()
+      .from(protectedTimes)
+      .where(eq(protectedTimes.workspaceId, workspaceId)),
+    // The consented mood memory (REQ-068) — the most sensitive datum here, so only the
+    // CALLER's own rows travel, reduced to the personal data itself (day + word). Consent
+    // gates capture and API reads; a portability export of one's own stored data is the
+    // one read that must work regardless (GDPR Art. 20).
+    wellbeingMoods: await db
+      .select({ day: wellbeingMoods.day, mood: wellbeingMoods.mood })
+      .from(wellbeingMoods)
+      .where(and(eq(wellbeingMoods.workspaceId, workspaceId), eq(wellbeingMoods.userId, userId))),
   }
 
   return {
@@ -197,8 +213,9 @@ export async function eraseAccount(db: Db, workspaceId: string, userId: string):
     // Cascades: workspace_members, clients, projects, tasks, tags, time_entries,
     // sync_operations, sync_conflicts, rates, budgets (→ budget_alerts), invoices,
     // entitlement_events, billing_customers, attendance_shifts, work_schedules,
-    // absences, absence_policies, plans, credit_entries, user_preferences,
-    // connector_tokens, connector_grants, recurring_entries, partner_shares, rules.
+    // absences, absence_policies, plans, protected_times, credit_entries,
+    // user_preferences, connector_tokens, connector_grants, recurring_entries,
+    // partner_shares, rules, wellbeing_days, wellbeing_moods.
     await tx.delete(workspaces).where(eq(workspaces.id, workspaceId))
     // No FK from `verification` to `user` — remove pending verification/reset rows by email.
     await tx.delete(verification).where(eq(verification.identifier, caller.email))

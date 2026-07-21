@@ -30,6 +30,7 @@ import { useRevenueBudget } from '../hooks/useRevenueBudget'
 import { useOvertimeTrend } from '../hooks/useOvertimeTrend'
 import { useBalance } from '../hooks/useBalance'
 import { useCheckin } from '../hooks/useCheckin'
+import { moodPatternNote, useMoodPattern } from '../hooks/useMoodPattern'
 import { useTrackingHeatmap } from '../hooks/useTrackingHeatmap'
 import { useBudgetBurndown } from '../hooks/useBudgetBurndown'
 import { rangeLabel, type ReportRange } from '../reports/window'
@@ -361,6 +362,9 @@ export function ReportsScreen(): React.JSX.Element {
   const rb = useRevenueBudget(range)
   const balance = useBalance()
   const checkin = useCheckin()
+  // Sevi's weekday mood-pattern note (REQ-068, ADR-0071): ONE calm line, only when the pure
+  // domain core flagged a repeatedly-low weekday over the consented mood memory — never filler.
+  const moodNote = moodPatternNote(useMoodPattern().pattern)
   const heatmap = useTrackingHeatmap()
   const label = rangeLabel(range)
   // The burn-down follows the most-committed budget — the one closest to exhausting.
@@ -985,6 +989,19 @@ export function ReportsScreen(): React.JSX.Element {
           </View>
         )}
       </Card>
+      {/* Sevi's mood-pattern note (REQ-068, ADR-0071): one calm observation about days —
+          "Tuesdays often tense" — only when the deterministic core flagged a weekday from
+          enough of the person's own consented moods. Absent otherwise; never an empty state. */}
+      {moodNote !== null && (
+        <Text
+          testID="mood-pattern-note"
+          accessible
+          accessibilityLabel={moodNote}
+          style={{ fontSize: t.fontSize.xs, color: t.color.ink3 }}
+        >
+          {moodNote}
+        </Text>
+      )}
       {/* Overtime compound (G3): the running balance over 8 weeks + a straight-line forecast. */}
       <Card title="Overtime compound" subtitle="Last 8 weeks · balance & forecast">
         {otrend.loading && otrend.data === null ? (

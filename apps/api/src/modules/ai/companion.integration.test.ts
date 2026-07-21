@@ -9,7 +9,9 @@ import {
   workSchedules,
   workspaces,
 } from '../../db/schema.js'
-import { wellbeingDays } from '../../db/wellbeing-schema.js'
+import { wellbeingDays, wellbeingMoods } from '../../db/wellbeing-schema.js'
+import { userPreferences } from '../../db/schema.js'
+import { setPreferences } from '../preferences/service.js'
 import { resolveWorkspaceId } from '../../core/workspace.js'
 import type { AuthenticatedUser } from '../auth/contract.js'
 import { createShift, setSchedule } from '../worktime/service.js'
@@ -100,6 +102,8 @@ describe.skipIf(!databaseUrl)('Evening Companion wellbeing vertical (integration
 
   afterEach(async () => {
     await db.delete(wellbeingDays).where(inArray(wellbeingDays.workspaceId, [wsA, wsB]))
+    await db.delete(wellbeingMoods).where(inArray(wellbeingMoods.workspaceId, [wsA, wsB]))
+    await db.delete(userPreferences).where(inArray(userPreferences.workspaceId, [wsA, wsB]))
     await db.delete(attendanceShifts).where(inArray(attendanceShifts.workspaceId, [wsA, wsB]))
     await db.delete(workSchedules).where(inArray(workSchedules.workspaceId, [wsA, wsB]))
     await db.delete(creditEntries).where(inArray(creditEntries.workspaceId, [wsA, wsB]))
@@ -212,5 +216,33 @@ describe.skipIf(!databaseUrl)('Evening Companion wellbeing vertical (integration
     const bRows = await db.select().from(wellbeingDays).where(eq(wellbeingDays.workspaceId, wsB))
     expect(aRows).toHaveLength(1)
     expect(bRows).toHaveLength(6)
+  })
+
+  it('StoredConsentedMood_FeedsTheLowMoodSignal_AndStaysAbsentWithoutOne', async () => {
+    // The mood-pattern weave (REQ-068, ADR-0071): with the explicit opt-in stored and a
+    // 'stressed' word recorded for the reviewed day, the companion's review must carry the
+    // low-mood signal at the fixed moodScoreOf mapping (stressed → 1)…
+    await setPreferences(db, wsA, idA, { moodConsent: true })
+    await wellbeing.recordMood(db, {
+      workspaceId: wsA,
+      userId: idA,
+      day: '2026-07-17',
+      mood: 'stressed',
+    })
+
+    const withMood = await controller().eveningCompanion(userA, {
+      date: '2026-07-17',
+      day: heavyDay,
+    })
+    const low = withMood.review.signals.find(s => s.kind === 'low-mood')
+    expect(low?.kind === 'low-mood' ? low.detail.moodScore : 0).toBe(1)
+
+    // …and a day with NO stored word leaves moodScore honestly absent, exactly as before the
+    // weave — the companion never guesses a mood the person didn't log.
+    const withoutMood = await controller().eveningCompanion(userA, {
+      date: '2026-07-18',
+      day: heavyDay,
+    })
+    expect(withoutMood.review.signals.some(s => s.kind === 'low-mood')).toBe(false)
   })
 })

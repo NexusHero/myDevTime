@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { and, asc, desc, eq } from 'drizzle-orm'
+import type { Mood } from '@mydevtime/domain'
 import type { Db } from '../../db/client.js'
-import { wellbeingDays } from '../../db/wellbeing-schema.js'
+import { wellbeingDays, wellbeingMoods } from '../../db/wellbeing-schema.js'
 
 /**
  * Wellbeing persistence (REQ-065, ADR-0010/0015): the per-day load history the Evening Companion's
@@ -87,9 +88,81 @@ export async function recentLoadHistory(
   return rows.map(r => ({ loadScore: r.loadScore, weekday: weekdayOf(r.day) })).reverse()
 }
 
+// ─── Consented mood memory (ADR-0071 P3, REQ-068) ─────────────────────────────────────────
+
+export interface RecordMoodInput extends DayLoadKey {
+  /** The punch-out mood word (the closed domain `Mood` vocabulary). */
+  readonly mood: Mood
+}
+
+/** One stored mood day, as the client reads it back. */
+export interface MoodDay {
+  readonly day: string
+  readonly mood: Mood
+}
+
 /**
- * The injectable wellbeing service the `ai` module provides to the Evening Companion endpoint. It is a
- * thin, stateless port over the workspace-scoped functions above; the per-request `Db` handle is
+ * Record (upsert) the day's punch-out mood. The unique (workspace, user, day) index makes a
+ * second punch-out on the same day overwrite the word — the last mood of the day wins, a day
+ * counts once. Consent is the **controller's** gate (the preference is checked before this is
+ * ever called); the service itself stays a thin workspace-scoped write. The mood value is never
+ * logged anywhere on this path.
+ */
+export async function recordMood(db: Db, input: RecordMoodInput): Promise<void> {
+  await db
+    .insert(wellbeingMoods)
+    .values({
+      workspaceId: input.workspaceId,
+      userId: input.userId,
+      day: input.day,
+      mood: input.mood,
+    })
+    .onConflictDoUpdate({
+      target: [wellbeingMoods.workspaceId, wellbeingMoods.userId, wellbeingMoods.day],
+      set: { mood: input.mood },
+    })
+}
+
+/**
+ * The person's recent mood history (up to `days` most-recent days), newest-first. Scoped to the
+ * caller's workspace **and** user — mood is the most sensitive datum here, so a teammate's or
+ * another workspace's rows are structurally out of reach.
+ */
+export async function moodHistory(db: Db, scope: DayLoadScope, days: number): Promise<MoodDay[]> {
+  const rows = await db
+    .select({ day: wellbeingMoods.day, mood: wellbeingMoods.mood })
+    .from(wellbeingMoods)
+    .where(
+      and(
+        eq(wellbeingMoods.workspaceId, scope.workspaceId),
+        eq(wellbeingMoods.userId, scope.userId),
+      ),
+    )
+    .orderBy(desc(wellbeingMoods.day), asc(wellbeingMoods.id))
+    .limit(days)
+  return rows.map(r => ({ day: r.day, mood: r.mood as Mood }))
+}
+
+/**
+ * Erase the person's **entire** mood history in one action (ADR-0071 P3: consented, deletable
+ * memory — one tap wipes everything, no partial keep). Honest limit: a day's mood may already
+ * have flowed into that day's recorded composite `wellbeing_days.loadScore`; the erase removes
+ * every raw mood row but does not retroactively unmix that influence from the day-load history.
+ */
+export async function deleteAllMoods(db: Db, scope: DayLoadScope): Promise<void> {
+  await db
+    .delete(wellbeingMoods)
+    .where(
+      and(
+        eq(wellbeingMoods.workspaceId, scope.workspaceId),
+        eq(wellbeingMoods.userId, scope.userId),
+      ),
+    )
+}
+
+/**
+ * The injectable wellbeing service the `ai` and `wellbeing` modules provide. It is a thin,
+ * stateless port over the workspace-scoped functions above; the per-request `Db` handle is
  * passed in (resolved from the authenticated caller, never a client-supplied id).
  */
 @Injectable()
@@ -100,5 +173,17 @@ export class WellbeingService {
 
   recentLoadHistory(db: Db, scope: DayLoadScope, days: number): Promise<LoadHistoryDay[]> {
     return recentLoadHistory(db, scope, days)
+  }
+
+  recordMood(db: Db, input: RecordMoodInput): Promise<void> {
+    return recordMood(db, input)
+  }
+
+  moodHistory(db: Db, scope: DayLoadScope, days: number): Promise<MoodDay[]> {
+    return moodHistory(db, scope, days)
+  }
+
+  deleteAllMoods(db: Db, scope: DayLoadScope): Promise<void> {
+    return deleteAllMoods(db, scope)
   }
 }

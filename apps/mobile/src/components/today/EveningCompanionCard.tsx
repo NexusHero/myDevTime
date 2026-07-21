@@ -9,6 +9,7 @@ import {
   type CompanionTrend,
   type EveningCompanion,
 } from '../../api/companion.js'
+import { applyPlanProposal } from '../../api/planApply.js'
 import { Text } from '../core/Text'
 import { Badge, Button, Card } from '../index'
 import { useTheme } from '../../theme/ThemeProvider'
@@ -20,9 +21,10 @@ import { useTheme } from '../../theme/ThemeProvider'
  * the LLM only weaves them into one warm voice — and only if the user can afford it. The card is
  * honest about provenance: an `ai-proposal` message owns up to the credit it spent; a `deterministic`
  * message is shown as a free, still-caring reflection (the provider was down or credits were out) —
- * never dressed up as AI. The one forward suggestion is a PROPOSAL: confirming it hands the suggestion
- * to `onConfirmSuggestion` (there is no protected-time/planner apply endpoint reachable from here, so
- * the parent makes it an honest nudge — never a silent booking). Nothing is mutated here (ADR-0005).
+ * never dressed up as AI. The one forward suggestion is a PROPOSAL: a `protect-morning` confirm
+ * routes ONE protect-time proposal through the plan-apply seam (REQ-070) — a deterministic default
+ * window, booked only on this explicit tap — and every confirm still hands the suggestion to
+ * `onConfirmSuggestion` for the parent's acknowledgement. No other kind mutates anything (ADR-0005).
  */
 export interface EveningCompanionCardProps {
   /** The backend base URL, or `null` on demo data (the reflect button is then disabled). */
@@ -85,6 +87,22 @@ function signalLine(sig: CompanionSignal): string {
   }
 }
 
+/** The `YYYY-MM-DD` after `date` — UTC math so no local-tz midnight can shift the day. */
+function nextDayIso(date: string): string {
+  const parsed = new Date(`${date}T00:00:00Z`)
+  parsed.setUTCDate(parsed.getUTCDate() + 1)
+  return parsed.toISOString().slice(0, 10)
+}
+
+/**
+ * The deterministic default 🛡 window a `protect-morning` confirm books: tomorrow
+ * 08:00–12:00. Fixed by design — the suggestion says "protect the morning", and code (not
+ * the LLM) decides what a morning is (ADR-0005); the Planner shows the window afterwards
+ * and the user can reshape it there.
+ */
+const PROTECT_MORNING_START_MIN = 8 * 60
+const PROTECT_MORNING_END_MIN = 12 * 60
+
 /** A short confirm label for the forward suggestion, by its kind. */
 function confirmLabel(kind: string): string {
   switch (kind) {
@@ -136,6 +154,26 @@ export function EveningCompanionCard({
   const band = result !== null ? bandChip(result.review.loadLevel, t) : null
   const topSignals = result?.review.signals.slice(0, 3) ?? []
   const suggestion = result?.suggestion
+
+  // The one confirm-gated mutation (REQ-070): a `protect-morning` confirm books tomorrow's
+  // default 🛡 window through the plan-apply seam — exactly one proposal, only on this tap.
+  // Every kind (including a failed apply — surfaced via the card's error line, never
+  // swallowed into a fake success) still hands the suggestion up for the parent's ack.
+  const confirmSuggestion = async (s: CompanionSuggestion): Promise<void> => {
+    if (s.kind === 'protect-morning' && baseUrl !== null) {
+      try {
+        await applyPlanProposal(baseUrl, {
+          kind: 'protect-time',
+          day: nextDayIso(date),
+          startMin: PROTECT_MORNING_START_MIN,
+          endMin: PROTECT_MORNING_END_MIN,
+        })
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Unknown error')
+      }
+    }
+    onConfirmSuggestion?.(s)
+  }
 
   return (
     <Card title="Evening Companion" subtitle="Your day, in one voice">
@@ -220,7 +258,7 @@ export function EveningCompanionCard({
                   <Button
                     size="sm"
                     variant="secondary"
-                    onPress={() => onConfirmSuggestion?.(suggestion)}
+                    onPress={() => void confirmSuggestion(suggestion)}
                   >
                     {confirmLabel(suggestion.kind)}
                   </Button>

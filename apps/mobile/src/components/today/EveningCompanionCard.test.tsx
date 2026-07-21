@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import TestRenderer, { act } from 'react-test-renderer'
 import { ThemeProvider } from '../../theme/ThemeProvider.js'
 import { Button } from '../index.js'
@@ -14,10 +14,13 @@ import type { CompanionDayInput } from '../../api/companion.js'
  * `deterministic` response is shown as a FREE, still-caring reflection — never as AI, never claiming a
  * charge (ADR-0005).
  */
-const { requestEveningCompanion } = vi.hoisted(() => ({
+const { requestEveningCompanion, applyPlanProposal } = vi.hoisted(() => ({
   requestEveningCompanion: vi.fn(),
+  applyPlanProposal: vi.fn(),
 }))
 vi.mock('../../api/companion.js', () => ({ requestEveningCompanion }))
+// The plan-apply seam (REQ-070): mocked so the tests pin exactly what a confirm posts.
+vi.mock('../../api/planApply.js', () => ({ applyPlanProposal }))
 
 const { EveningCompanionCard } = await import('./EveningCompanionCard.js')
 
@@ -81,6 +84,11 @@ async function press(b: TestRenderer.ReactTestInstance): Promise<void> {
 }
 
 describe('EveningCompanionCard', () => {
+  beforeEach(() => {
+    // Call counts must not leak between tests — the seam assertions below pin exact counts.
+    applyPlanProposal.mockReset()
+  })
+
   it('Initial_ShowsTheReflectButton_AndNoReflection', () => {
     const r = render(
       <EveningCompanionCard baseUrl="https://api.test" date={DATE} tz={TZ} day={DAY} />,
@@ -117,9 +125,51 @@ describe('EveningCompanionCard', () => {
     expect(out).toContain('1 credit used')
     expect(out).toContain('Guard your first hour tomorrow.')
 
-    // the suggestion confirm hands the proposal up — it never books here
+    // the suggestion confirm still hands the proposal up for the parent's ack
     await press(button(r, 'Protect tomorrow morning'))
     expect(onConfirmSuggestion).toHaveBeenCalledWith(AI_RESPONSE.suggestion)
+  })
+
+  it('ProtectMorningConfirm_PostsExactlyTomorrowsDefaultProtectWindow', async () => {
+    requestEveningCompanion.mockResolvedValueOnce(AI_RESPONSE)
+    applyPlanProposal.mockResolvedValueOnce({ proposal: { kind: 'protect-time' } })
+    const r = render(
+      <EveningCompanionCard baseUrl="https://api.test" date={DATE} tz={TZ} day={DAY} />,
+    )
+    await press(button(r, 'Reflect on today'))
+    expect(applyPlanProposal).not.toHaveBeenCalled() // reflecting alone never books
+
+    await press(button(r, 'Protect tomorrow morning'))
+    // Exactly ONE proposal through the seam: tomorrow (day under review + 1), the
+    // deterministic default morning window 08:00–12:00 (REQ-070).
+    expect(applyPlanProposal).toHaveBeenCalledTimes(1)
+    expect(applyPlanProposal).toHaveBeenCalledWith('https://api.test', {
+      kind: 'protect-time',
+      day: '2026-07-20',
+      startMin: 8 * 60,
+      endMin: 12 * 60,
+    })
+  })
+
+  it('OtherSuggestionKinds_NeverTouchThePlanApplySeam', async () => {
+    requestEveningCompanion.mockResolvedValueOnce({
+      ...AI_RESPONSE,
+      suggestion: { kind: 'take-breaks', text: 'Plan two real breaks.', provenance: 'ai-proposal' },
+    })
+    const onConfirmSuggestion = vi.fn()
+    const r = render(
+      <EveningCompanionCard
+        baseUrl="https://api.test"
+        date={DATE}
+        tz={TZ}
+        day={DAY}
+        onConfirmSuggestion={onConfirmSuggestion}
+      />,
+    )
+    await press(button(r, 'Reflect on today'))
+    await press(button(r, 'Plan real breaks'))
+    expect(applyPlanProposal).not.toHaveBeenCalled()
+    expect(onConfirmSuggestion).toHaveBeenCalledTimes(1)
   })
 
   it('Deterministic_RendersAsFreeReflection_WithNoChargedClaim', async () => {
