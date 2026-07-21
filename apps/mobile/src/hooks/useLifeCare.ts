@@ -1,8 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import {
   EVENING_END_MIN,
   EVENING_START_MIN,
-  computeBaseline,
   decideNudge,
   freeEveningsIn,
   lifeCareSuggestions,
@@ -14,8 +13,9 @@ import { getLoadHistory } from '../api/loadHistory.js'
 import { getProtectedTimes, type PlanProposal } from '../api/planApply.js'
 import { localDayKey } from '../autotracker/dayActivityStore.js'
 import { pick } from '../i18n/strings.js'
-import { SEVI_DAILY_CAP, nudgesSentToday, recordNudge } from '../sevi/nudgeBudget.js'
+import { SEVI_DAILY_CAP, nudgesSentToday, tryClaimNudge } from '../sevi/nudgeBudget.js'
 import { useAsync } from './useAsync.js'
+import { trailingHeavyRun } from './useLiveLoad.js'
 import { usePreferences } from './usePreferences.js'
 import { useWeekOccurrences } from './useWeekOccurrences.js'
 
@@ -93,12 +93,17 @@ export function useLifeCare(weekDates: readonly string[]): LifeCareState {
   )
   const { prefs } = usePreferences()
 
-  // Once this mount has spoken, it stays spoken: the voice already drew its budget slot, so a
-  // re-render must neither re-charge the budget nor withdraw the card mid-view (the -1 below
-  // discounts our own recorded voice from the cap check).
-  const deliveredRef = useRef(false)
+  // The mount's budget-claim state. 'unclaimed': the delivering effect has not spoken yet.
+  // 'claimed': this mount atomically won ONE slot of the shared budget — the card renders and
+  // stays up (the -1 below discounts our own slot from the cap check, so a re-render neither
+  // re-charges the budget nor withdraws the card mid-view). 'lost': another surface won the
+  // last slot between our policy check and our claim — this round stays silent, exactly like
+  // a cap-reached decision.
+  const [claim, setClaim] = useState<'unclaimed' | 'claimed' | 'lost'>('unclaimed')
 
   let state = EMPTY
+  // The policy said "deliver" and there are voices — the delivering effect below may claim.
+  let wantsDelivery = false
 
   // Without an API there is no real week/history — honest silence, never a demo voice. The 🛡
   // feed must also have actually answered: gating on unknown protection would be a guess.
@@ -158,10 +163,11 @@ export function useLifeCare(weekDates: readonly string[]): LifeCareState {
     }
 
     // ── Rest-day fact from the person's own history (absent feed → no signal) ─────────────
-    const flags = computeBaseline(history.data ?? []).patternFlags
-    const heavyFlag = flags.find(f => f.kind === 'consecutive-heavy-days')
-    const consecutiveHeavyDays =
-      heavyFlag?.kind === 'consecutive-heavy-days' ? heavyFlag.detail.runLength : 0
+    // The CURRENT run only — the run ending at the history's tail (`trailingHeavyRun`, shared
+    // with the live-load watch). `computeBaseline`'s consecutive-heavy flag reports the LONGEST
+    // run anywhere in the 90-day window, which would let a streak from six weeks ago — long
+    // recovered from — fire the rest-day voice today.
+    const consecutiveHeavyDays = trailingHeavyRun(history.data ?? [])
 
     const suggestions = lifeCareSuggestions({
       eveningsFreeInWindow: eveningsFree,
@@ -188,11 +194,21 @@ export function useLifeCare(weekDates: readonly string[]): LifeCareState {
         inProtectedBlock: protectedTimes.some(
           p => p.day === todayKey && p.startMin <= minuteOfDay && minuteOfDay < p.endMin,
         ),
-        nudgesSentToday: nudgesSentToday(now) - (deliveredRef.current ? 1 : 0),
+        // The pre-claim count: the policy gates on today's budget as it stands, but the FINAL
+        // delivery is the atomic claim below — this check alone can never spend a slot.
+        nudgesSentToday: nudgesSentToday(now) - (claim === 'claimed' ? 1 : 0),
         dailyCap: SEVI_DAILY_CAP,
       })
 
-      if (decision.deliver) {
+      if (!decision.deliver) {
+        state = { suggestions: [], digestPending: decision.digest }
+      } else if (claim === 'lost') {
+        // Another surface won the last slot mid-commit: silent, exactly like cap-reached.
+        state = EMPTY
+      } else if (claim === 'unclaimed') {
+        // The atomic claim below runs after this commit; the card appears once it wins.
+        wantsDelivery = true
+      } else {
         // The deterministic evening pick: among the not-yet-past days of the shown week (all of
         // them when today is off-week), the evening with the LEAST work on it — the cheapest one
         // to rescue — ties resolved to the earliest day. Same inputs, same evening, always.
@@ -262,21 +278,19 @@ export function useLifeCare(weekDates: readonly string[]): LifeCareState {
           }
         })
         state = { suggestions: voices, digestPending: false }
-      } else {
-        state = { suggestions: [], digestPending: decision.digest }
       }
     }
   }
 
   // One surfacing of the card = ONE voice against the shared daily budget, however many calm
-  // lines it carries — recorded once per mount, so a re-render can never double-draw.
-  const delivered = state.suggestions.length > 0
+  // lines it carries. The claim is ATOMIC (check+increment in one step): with Today and the
+  // Planner both mounted, a render-time check plus a later record could pass on both surfaces
+  // at cap−1 and deliver past the cap — `tryClaimNudge` guarantees exactly one winner.
   useEffect(() => {
-    if (delivered && !deliveredRef.current) {
-      deliveredRef.current = true
-      recordNudge(Date.now())
+    if (wantsDelivery && claim === 'unclaimed') {
+      setClaim(tryClaimNudge(Date.now(), SEVI_DAILY_CAP) ? 'claimed' : 'lost')
     }
-  }, [delivered])
+  }, [wantsDelivery, claim])
 
   return state
 }

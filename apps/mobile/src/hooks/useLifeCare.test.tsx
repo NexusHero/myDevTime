@@ -171,7 +171,7 @@ describe('useLifeCare', () => {
     expect(result.state?.suggestions[0]?.message).toContain('Yoga')
   })
 
-  it('LifeCare_HeavyRunInTheLoadHistory_ProposesARestDayForTomorrowEvening', async () => {
+  it('LifeCare_TrailingHeavyRunInTheLoadHistory_ProposesARestDayForTomorrowEvening', async () => {
     listOccurrences.mockResolvedValue([])
     getLoadHistory.mockResolvedValue(HEAVY_HISTORY)
     await renderProbe()
@@ -182,6 +182,20 @@ describe('useLifeCare', () => {
       startMin: 18 * 60,
       endMin: 22 * 60,
     })
+  })
+
+  it('LifeCare_OldHeavyStreakThatAlreadyEnded_NeverProposesARestDay', async () => {
+    listOccurrences.mockResolvedValue([])
+    // A heavy streak deep in the window, followed by calm days up to the history tail: the
+    // person already recovered — "current run" means ending NOW, not the longest run ever.
+    getLoadHistory.mockResolvedValue([
+      ...HEAVY_HISTORY,
+      { loadScore: 1, weekday: 0 },
+      { loadScore: 1, weekday: 1 },
+    ])
+    await renderProbe()
+    expect(result.state?.suggestions).toEqual([])
+    expect(nudgesSentToday(Date.now())).toBe(0)
   })
 
   it('LifeCare_OptedOut_DeliversNothingAndHoldsNoDigest', async () => {

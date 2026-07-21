@@ -26,6 +26,21 @@ export function recordNudge(now: number): void {
   sentByDay.set(key, (sentByDay.get(key) ?? 0) + 1)
 }
 
+/**
+ * Atomically claim one voice slot for today: check and increment in ONE synchronous step,
+ * `false` (and no increment) at/over `cap`. This is the delivery gate the hooks must use —
+ * a render-time `nudgesSentToday` check plus a later `recordNudge` is a check-then-act race:
+ * with two surfaces mounted, one commit can pass both checks at cap−1 and deliver past the
+ * cap. JS is single-threaded, so synchronous check+increment IS the atomicity needed here.
+ */
+export function tryClaimNudge(now: number, cap: number): boolean {
+  const key = dayKeyOf(now)
+  const sent = sentByDay.get(key) ?? 0
+  if (sent >= cap) return false
+  sentByDay.set(key, sent + 1)
+  return true
+}
+
 /** Test seam: forget every recorded voice. */
 export function resetNudgeBudget(): void {
   sentByDay.clear()

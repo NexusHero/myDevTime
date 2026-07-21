@@ -54,8 +54,10 @@ function netShiftMs(startedAt: string, endedAt: string, breakMs: number): number
  * anywhere in the window; `LiveLoadInput` asks for the run *ending yesterday*, so
  * this walks back from the newest entry instead — and mirrors the baseline's
  * honesty rule: below `MIN_BASELINE_DAYS` of history there is no verdict at all.
+ * Exported: `useLifeCare`'s rest-day voice needs the same "run ending NOW" notion
+ * (an old streak the person already recovered from must not fire a rest day today).
  */
-function trailingHeavyRun(history: readonly LoadHistoryDay[]): number {
+export function trailingHeavyRun(history: readonly LoadHistoryDay[]): number {
   if (history.length < MIN_BASELINE_DAYS) return 0
   let run = 0
   for (let i = history.length - 1; i >= 0; i -= 1) {

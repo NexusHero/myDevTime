@@ -3,7 +3,7 @@ import { decideNudge, type LiveLoad, type NudgeDecision } from '@mydevtime/domai
 import { apiBaseUrl } from '../config.js'
 import { getProtectedTimes, type ProtectedTime } from '../api/planApply.js'
 import { createNotificationPort } from '../notifications/port.js'
-import { nudgesSentToday, recordNudge, SEVI_DAILY_CAP } from '../sevi/nudgeBudget.js'
+import { nudgesSentToday, SEVI_DAILY_CAP, tryClaimNudge } from '../sevi/nudgeBudget.js'
 import { pick } from '../i18n/strings.js'
 import { useLiveLoad } from './useLiveLoad.js'
 import { usePreferences } from './usePreferences.js'
@@ -16,7 +16,8 @@ import { usePreferences } from './usePreferences.js'
  * speaks is 100 % the domain core's call (ADR-0005) — this hook only wires real
  * state into it and carries the two side effects a delivery has: ONE local
  * notification per escalation (guarded against re-fires across ticks) and one
- * `recordNudge` against the shared budget. A speak-up held by quiet hours or a
+ * ATOMIC `tryClaimNudge` against the shared budget — the claim, not a render-time
+ * check, is what finally lets a voice out. A speak-up held by quiet hours or a
  * protected block surfaces as `digestPending` and later resolves into a single
  * calm line (REQ-057 "hold nudges, one digest after") — inline only, no ping.
  * All copy is bilingual via the `pick(en, de)` seam.
@@ -97,15 +98,23 @@ export function useSeviWatch(): SeviWatchResource {
   const { load, loading } = useLiveLoad()
   const { prefs } = usePreferences()
   const [nowMs, setNowMs] = useState(() => Date.now())
-  const [protectedTimes, setProtectedTimes] = useState<readonly ProtectedTime[]>([])
-  // Delivery waits until the protection answer is in: firing a ping during the fetch
-  // window could break straight into a 🛡 block — the exact thing REQ-070 forbids.
-  const [protectionPending, setProtectionPending] = useState(apiBaseUrl !== null)
+  // The last 🛡 answer and the tick instant it answered FOR. Delivery only ever claims on an
+  // answer fetched for the CURRENT tick (see the claim effect): firing a ping off a stale
+  // snapshot could break straight into a window confirmed a moment ago — the exact thing
+  // REQ-070 forbids. Rendering still uses the last known windows, so an already-delivered
+  // line never flickers while a tick's refetch is in flight.
+  const [protection, setProtection] = useState<{
+    readonly asOf: number
+    readonly windows: readonly ProtectedTime[]
+  } | null>(null)
   const [heldDigest, setHeldDigest] = useState(false)
   const [digestLine, setDigestLine] = useState<string | null>(null)
-  // The escalation already notified (day + level + reasons): one ping per escalation,
-  // never one per tick.
-  const notifiedRef = useRef<string | null>(null)
+  // The escalation (day + level + reasons) whose atomic budget claim SUCCEEDED — only a
+  // claimed escalation renders and stays rendered across ticks.
+  const [claimedSig, setClaimedSig] = useState<string | null>(null)
+  // The escalation that already attempted its claim: one claim (and at most one ping) per
+  // escalation, never one per tick — and a LOST claim is not retried for the same escalation.
+  const attemptedRef = useRef<string | null>(null)
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -116,25 +125,31 @@ export function useSeviWatch(): SeviWatchResource {
     }
   }, [])
 
-  // Today's 🛡 protected windows (REQ-070). Unreachable ⇒ treated as none — the
-  // opt-in, quiet-hours and cap gates still stand, and the app never invents a shield.
+  // Today's 🛡 protected windows (REQ-070), refetched on the SAME periodic tick the live-load
+  // evaluation runs on — a mount-time snapshot would miss a window the user confirms later in
+  // the session and deliver a ping straight into it. The queried day is derived from the
+  // tick's own instant, so crossing midnight asks for the NEW day instead of filtering
+  // yesterday's rows down to nothing (which would silently un-protect the night).
   useEffect(() => {
     let alive = true
     if (apiBaseUrl === null) return
-    getProtectedTimes(apiBaseUrl, localDateISO(Date.now()))
+    getProtectedTimes(apiBaseUrl, localDateISO(nowMs))
       .then(windows => {
-        if (alive) setProtectedTimes(windows)
+        if (alive) setProtection({ asOf: nowMs, windows })
       })
       .catch(() => {
-        /* honest degradation: no windows */
-      })
-      .finally(() => {
-        if (alive) setProtectionPending(false)
+        // Honest degradation: keep the previous windows (never invent OR drop a shield on a
+        // network blip) but mark the tick answered — the opt-in/quiet-hours/cap gates still run.
+        if (alive) setProtection(p => ({ asOf: nowMs, windows: p?.windows ?? [] }))
       })
     return () => {
       alive = false
     }
-  }, [])
+  }, [nowMs])
+
+  const protectedTimes = protection?.windows ?? []
+  // Whether the protection answer is for THIS tick — the claim effect's freshness gate.
+  const protectionFresh = apiBaseUrl === null || protection?.asOf === nowMs
 
   const minute = localMinuteOfDay(nowMs)
   const today = localDateISO(nowMs)
@@ -142,38 +157,50 @@ export function useSeviWatch(): SeviWatchResource {
     w => w.day === today && minute >= w.startMin && minute < w.endMin,
   )
 
+  // The escalation's identity — day + level + reasons — independent of delivery, so an
+  // already-claimed escalation can be recognized (and its own slot discounted) on re-renders.
+  const signature = `${localDayKey(nowMs)}|${load.level}|${load.reasons.join('+')}`
+  const alreadyClaimedThis = claimedSig === signature
+
   // While the worktime feed or the baseline history is still loading the watch never
-  // fires — a missing signal is silence, not a verdict (H3 honesty).
-  const decision: NudgeDecision | null =
-    loading || protectionPending
-      ? null
-      : decideNudge({
-          now: nowMs,
-          minuteOfDay: minute,
-          load,
-          proactiveOptIn: prefs.seviProactive,
-          quietStartMin: prefs.quietStartMin,
-          quietEndMin: prefs.quietEndMin,
-          inProtectedBlock,
-          nudgesSentToday: nudgesSentToday(nowMs),
-          dailyCap: SEVI_DAILY_CAP,
-        })
+  // fires — a missing signal is silence, not a verdict (H3 honesty). The decision itself
+  // uses the last-known windows; NEW deliveries additionally wait for `protectionFresh`.
+  const decision: NudgeDecision | null = loading
+    ? null
+    : decideNudge({
+        now: nowMs,
+        minuteOfDay: minute,
+        load,
+        proactiveOptIn: prefs.seviProactive,
+        quietStartMin: prefs.quietStartMin,
+        quietEndMin: prefs.quietEndMin,
+        inProtectedBlock,
+        // The pre-claim count, discounting only the slot THIS escalation already claimed
+        // (so a delivered line survives re-renders without re-charging). The policy gates;
+        // the atomic claim below is the one and only spend.
+        nudgesSentToday: nudgesSentToday(nowMs) - (alreadyClaimedThis ? 1 : 0),
+        dailyCap: SEVI_DAILY_CAP,
+      })
 
   const deliver = decision?.deliver === true
-  const signature = deliver ? `${localDayKey(nowMs)}|${load.level}|${load.reasons.join('+')}` : null
   const message = deliver ? liveMessage(load) : null
 
-  // Side effects of a delivery, once per escalation: count the voice against the
-  // shared budget and fire ONE local notification (the port degrades to a no-op
-  // without a channel — the inline line above is always the primary surface).
+  // Delivery, once per escalation and gated on the ATOMIC budget claim: with the life-care
+  // voice mounted alongside, a render-time budget check plus a later record could pass on
+  // both surfaces at cap−1 and speak past the cap. Only a WON claim renders the line, fires
+  // the ONE local notification, and clears a held digest; a lost claim means another surface
+  // took the last slot mid-commit — this escalation stays silent, exactly like cap-reached.
+  // A stale protection answer defers the claim (without burning the escalation's one attempt)
+  // until this tick's 🛡 refetch has answered — never a ping into a just-confirmed window.
   useEffect(() => {
-    if (signature === null || message === null) return
-    if (notifiedRef.current === signature) return
-    notifiedRef.current = signature
-    recordNudge(Date.now())
+    if (!deliver || message === null || !protectionFresh) return
+    if (attemptedRef.current === signature) return
+    attemptedRef.current = signature
+    if (!tryClaimNudge(Date.now(), SEVI_DAILY_CAP)) return
+    setClaimedSig(signature)
     setHeldDigest(false)
     void createNotificationPort().notify({ title: 'Sevi', body: message })
-  }, [signature, message])
+  }, [deliver, signature, message, protectionFresh])
 
   // Hold a suppressed-but-real speak-up (digest: quiet hours / protection); when the
   // suppressor is gone it folds into ONE calm inline line — no notification, no queue.
@@ -191,7 +218,9 @@ export function useSeviWatch(): SeviWatchResource {
     }
   }, [holdNow, releasable, heldDigest])
 
-  if (deliver && message !== null) return { visible: true, message, digestPending: false }
+  if (deliver && message !== null && alreadyClaimedThis) {
+    return { visible: true, message, digestPending: false }
+  }
   if (digestLine !== null) return { visible: true, message: digestLine, digestPending: false }
   return { visible: false, message: null, digestPending: heldDigest }
 }

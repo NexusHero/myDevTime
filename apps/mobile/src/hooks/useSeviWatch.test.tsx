@@ -37,6 +37,9 @@ const seams = vi.hoisted(() => {
       endMin: number
       source: string
     }[],
+    // When true the mock answers EVERY queried day with a full-day 🛡 window — the shape a
+    // server that protects "around midnight" serves; lets the tests pin the day-keyed refetch.
+    protectAllDay: false,
     notify,
   }
 })
@@ -56,7 +59,12 @@ vi.mock('./usePreferences.js', () => ({
 }))
 vi.mock('../config.js', () => ({ apiBaseUrl: 'https://api.test' }))
 vi.mock('../api/planApply.js', () => ({
-  getProtectedTimes: () => Promise.resolve(seams.protectedTimes),
+  getProtectedTimes: (_base: string, day: string) =>
+    Promise.resolve(
+      seams.protectAllDay
+        ? [{ id: 'shield', day, startMin: 0, endMin: 1440, source: 'sevi' }]
+        : seams.protectedTimes,
+    ),
 }))
 vi.mock('../notifications/port.js', () => ({
   createNotificationPort: () => ({
@@ -120,6 +128,7 @@ beforeEach(() => {
   seams.loading = false
   seams.prefs = { seviProactive: true, moodConsent: false, quietStartMin: 0, quietEndMin: 0 }
   seams.protectedTimes = []
+  seams.protectAllDay = false
   seams.notify.mockClear()
 })
 
@@ -219,6 +228,47 @@ describe('useSeviWatch', () => {
     const r = await renderProbe()
     expect(latest.visible).toBe(false)
     expect(latest.digestPending).toBe(false)
+    expect(seams.notify).not.toHaveBeenCalled()
+    r.unmount()
+  })
+
+  it('ProtectedWindowConfirmedMidSession_SuppressesTheNextEvaluation', async () => {
+    const r = await renderProbe()
+    expect(latest.visible).toBe(false)
+    // The user confirms a 🛡 window AFTER mount; the load escalates on the next tick. The
+    // watch must have refetched the windows by then — a mount-time snapshot would deliver
+    // a ping straight into the freshly protected block.
+    seams.protectedTimes = [
+      {
+        id: 'pt-live',
+        day: todayISO(),
+        startMin: Math.max(0, minuteNow() - 30),
+        endMin: Math.min(1440, minuteNow() + 30),
+        source: 'sevi',
+      },
+    ]
+    seams.load = { ...SPEAK_UP }
+    await tick()
+    expect(latest.visible).toBe(false)
+    expect(latest.digestPending).toBe(true)
+    expect(seams.notify).not.toHaveBeenCalled()
+    r.unmount()
+  })
+
+  it('CrossingMidnight_KeepsTheNewDaysProtection', async () => {
+    // 23:59:45 — every queried day is fully protected server-side (`protectAllDay`).
+    vi.setSystemTime(new Date(2026, 6, 20, 23, 59, 45))
+    seams.protectAllDay = true
+    seams.load = { ...SPEAK_UP }
+    const r = await renderProbe()
+    expect(latest.visible).toBe(false)
+    expect(latest.digestPending).toBe(true)
+
+    // One tick later it is past midnight. The watch must query the NEW day's windows —
+    // keeping only the mount-day rows would filter them all out and silently un-protect.
+    await tick()
+    expect(latest.visible).toBe(false)
+    expect(latest.digestPending).toBe(true)
     expect(seams.notify).not.toHaveBeenCalled()
     r.unmount()
   })
