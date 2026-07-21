@@ -24,7 +24,7 @@
     "@nestjs/platform-fastify": "^11.1.28",
     "@nestjs/swagger": "^11.4.5",
     "@nestjs/throttler": "^6.5.0",
-    "ai": "^7.0.20",
+    "ai": "^7.0.34",
     "better-auth": "^1.6.23",
     "drizzle-orm": "^0.45.2",
     "exceljs": "^4.4.0",
