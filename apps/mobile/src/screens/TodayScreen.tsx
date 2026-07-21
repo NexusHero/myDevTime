@@ -14,6 +14,7 @@ import { Text } from '../components/core/Text'
 import { useToast } from '../components/core/Toast'
 import { EveningCompanionCard } from '../components/today/EveningCompanionCard'
 import { SeviWatch } from '../components/today/SeviWatch'
+import { postMood } from '../api/mood'
 import type { CompanionDayInput, CompanionSuggestion } from '../api/companion'
 import { useTheme } from '../theme/ThemeProvider'
 import {
@@ -1387,7 +1388,25 @@ export function TodayScreen(): React.JSX.Element {
           </View>
         )}
 
-        {askMood && <MoodCheck onDone={() => setAskMood(false)} />}
+        {askMood && (
+          <MoodCheck
+            onDone={() => setAskMood(false)}
+            onChange={mood => {
+              // Consent-first mood memory (REQ-068): without the stored moodConsent
+              // opt-in the word never leaves the device — no API call at all (the
+              // server's 409 stays the backstop, not the primary gate). A failed
+              // save surfaces honestly via the screen's usual transient toast.
+              if (!prefs.moodConsent || apiBaseUrl === null) return
+              postMood(apiBaseUrl, mood).catch((e: unknown) => {
+                toast.show(
+                  e instanceof Error && e.message
+                    ? `Mood not saved — ${e.message}`
+                    : 'Mood not saved.',
+                )
+              })
+            }}
+          />
+        )}
 
         <SmartAdd />
         <TravelEntry />
