@@ -6,7 +6,7 @@ import { AuthGuard, CurrentUser, type AuthenticatedUser } from '../auth/contract
 import { balanceFor, debit } from '../billing/contract.js'
 import type { Db } from '../../db/client.js'
 import { listShifts, worktimeSummary } from '../worktime/contract.js'
-import { getPreferences } from '../preferences/service.js'
+import { getPreferences } from '../preferences/contract.js'
 import { WellbeingService } from '../wellbeing/service.js'
 import { NlEntryService } from './nl-entry.service.js'
 import { SmartAddService } from './smart-add.service.js'
