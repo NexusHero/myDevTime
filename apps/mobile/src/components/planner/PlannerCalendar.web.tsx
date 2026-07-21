@@ -13,7 +13,7 @@ import type {
   EventInput,
 } from '@fullcalendar/core'
 import type { EventResizeDoneArg } from '@fullcalendar/interaction'
-import { projectColor } from '@mydevtime/design'
+import { blockStateStyle, projectColor, type PlannerBlockState } from '@mydevtime/design'
 import { Text } from '../core/Text'
 import { useTheme } from '../../theme/ThemeProvider'
 import type { PlannerCalendarProps } from './PlannerCalendar'
@@ -68,6 +68,9 @@ export function PlannerCalendar({
   onBlockResize,
   onBlockOpen,
   onSlotCreate,
+  windowStartMin,
+  windowEndMin,
+  planBlocks,
 }: PlannerCalendarProps): React.JSX.Element {
   const t = useTheme()
 
@@ -128,14 +131,77 @@ export function PlannerCalendar({
               blockIndex: b.index,
             },
           }))
-    return [...occEvents, ...blockEvents]
-  }, [occurrences, editableBlocks, weekStartMs, t.color.life, t.color.accent, t.mode])
+    // Accepted-plan blocks (ADR-0072 D3): the calm default layer, read-only, in
+    // absolute day minutes — rendered through the same custom renderer with their
+    // derived four-way state (never the library theme, ADR-0068).
+    const planEvents: EventInput[] =
+      weekStartMs == null
+        ? []
+        : (planBlocks ?? []).map((pb, i) => ({
+            id: `plan-${String(pb.day)}-${String(pb.startMin)}-${String(i)}`,
+            title: pb.label,
+            start: new Date(weekStartMs + pb.day * DAY_MS + pb.startMin * 60_000),
+            end: new Date(weekStartMs + pb.day * DAY_MS + (pb.startMin + pb.lenMin) * 60_000),
+            editable: false,
+            extendedProps: {
+              color: pb.edgeColor,
+              isLife: false,
+              priority: null,
+              blockIndex: null,
+              planState: pb.state,
+            },
+          }))
+    return [...occEvents, ...blockEvents, ...planEvents]
+  }, [occurrences, editableBlocks, planBlocks, weekStartMs, t.color.life, t.color.accent, t.mode])
 
+  // Custom event renderer (ADR-0068 — never the library theme), redesigned per
+  // issue #341: neutral fills, the project colour only as an edge, and the four
+  // block states (planned/live/done/missed) styled by the shared, AA-checked
+  // `blockStateStyle` — the identical language the RN canvas wears.
+  const STATE_GLYPH: Record<PlannerBlockState, string | null> = {
+    planned: null,
+    live: '●',
+    done: '✓',
+    missed: '!',
+  }
   const renderEvent = (arg: EventContentArg): React.JSX.Element => {
     const ext = arg.event.extendedProps as {
       color: string
       isLife: boolean
       priority: number | null
+      planState?: PlannerBlockState
+    }
+    if (ext.planState !== undefined) {
+      const s = blockStateStyle(ext.planState, t.color)
+      const glyph = STATE_GLYPH[ext.planState]
+      return (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            paddingHorizontal: 5,
+            paddingVertical: 2,
+            borderRadius: 4,
+            backgroundColor: s.fill,
+            borderWidth: 1,
+            borderStyle: s.dashed ? 'dashed' : 'solid',
+            borderColor: s.dashed && s.marker !== null ? s.marker : t.color.border,
+            borderLeftWidth: 2.5,
+            borderLeftColor: ext.color,
+            opacity: s.dimmed ? 0.8 : 1,
+          }}
+        >
+          {glyph !== null && (
+            <Text style={{ fontSize: 8, fontWeight: '800', color: s.marker ?? s.title }}>
+              {glyph}
+            </Text>
+          )}
+          <Text numberOfLines={1} style={{ fontSize: 9, fontWeight: '700', color: s.title }}>
+            {arg.event.title}
+          </Text>
+        </View>
+      )
     }
     const prioColor =
       ext.priority === 1 ? t.color.crit : ext.priority === 2 ? t.color.warn : t.color.ink3
@@ -148,7 +214,8 @@ export function PlannerCalendar({
           paddingHorizontal: 5,
           paddingVertical: 2,
           borderRadius: 4,
-          backgroundColor: ext.isLife ? t.color.lifeSoft : t.color.sunk,
+          // Neutral fill; the colour lives on the edge (issue #341).
+          backgroundColor: ext.isLife ? t.color.lifeSoft : t.color.surface,
           borderLeftWidth: 2.5,
           borderLeftColor: ext.color,
         }}
@@ -158,7 +225,7 @@ export function PlannerCalendar({
         )}
         <Text
           numberOfLines={1}
-          style={{ fontSize: 9, color: ext.isLife ? t.color.life : t.color.ink }}
+          style={{ fontSize: 9, fontWeight: '700', color: ext.isLife ? t.color.life : t.color.ink }}
         >
           {arg.event.title}
         </Text>
@@ -205,8 +272,11 @@ export function PlannerCalendar({
         headerToolbar={false}
         height="auto"
         nowIndicator
-        slotMinTime="08:00:00"
-        slotMaxTime="22:00:00"
+        // Zeit-Kompression (issue #341): the visible window is the expanded band of the
+        // same `compressWindow` result the RN canvas maps through — collapsed edge hours
+        // simply fall outside the timegrid (ADR-0068: the library lays out, we decide).
+        slotMinTime={windowStartMin != null ? `${hhmm(windowStartMin)}:00` : '08:00:00'}
+        slotMaxTime={windowEndMin != null ? `${hhmm(windowEndMin)}:00` : '22:00:00'}
         snapDuration="00:15:00"
         editable={editable}
         eventStartEditable={editable}
