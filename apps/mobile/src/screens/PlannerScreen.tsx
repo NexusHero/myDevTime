@@ -59,6 +59,8 @@ import { PlannerStartPicker } from '../components/planner/PlannerStartPicker'
 import { PlannerDayTracker } from '../components/planner/PlannerDayTracker'
 import { PlannerDayList, type DayListItem } from '../components/planner/PlannerDayList'
 import { PlannerDayInstruments } from '../components/planner/PlannerDayInstruments'
+import { DayRepairSheet } from '../components/planner/DayRepairSheet'
+import { useDayRepair } from '../hooks/useDayRepair'
 import { useToast } from '../components/core/Toast'
 import { useAbsences } from '../hooks/useAbsences'
 import { useTheme } from '../theme/ThemeProvider'
@@ -1412,6 +1414,10 @@ export function PlannerScreen(): React.JSX.Element {
   // The Day view renders a single full-width column; its measured width drives the same
   // drag mapping the week uses (design v20 Day stage).
   const [dayColW, setDayColW] = useState(COL_WIDTH)
+  // One-tap day repair (ADR-0072 D1, REQ-072): the drift chip is the handle on the Day view —
+  // the sheet renders its own `Plan gerissen · Reparieren` chip when the pure core has a
+  // repair to offer, and nothing at all otherwise.
+  const dayRepair = useDayRepair(usePlanner())
   const toast = useToast()
   // Empty-slot tap-to-create (design v20): drop a 1 h actual block at the tapped, snapped time on
   // the given day; a transient toast confirms it. Clamped inside the 08–18 window.
@@ -2105,6 +2111,8 @@ export function PlannerScreen(): React.JSX.Element {
                   </View>
                 )}
                 <PlannerDayTracker clients={catalog.data ?? []} />
+                {/* One-tap day repair (ADR-0072 D1): drift chip → ghost preview → one tap. */}
+                <DayRepairSheet repair={dayRepair} />
                 {/* Canvas ⇄ List toggle (REQ-040): the same day, geometry or flat list. */}
                 <View style={{ maxWidth: 220 }}>
                   <SegmentedControl<'canvas' | 'list'>
