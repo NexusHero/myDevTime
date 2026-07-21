@@ -260,18 +260,19 @@ across work **and** life and speaks up **only when it looks hard** (own baseline
 universal ArbZG caps), gated by 🛡 + quiet hours + a 1–2/day cap. Sequenced, one vertical slice per
 PR:
 
-- ⬜ **Slice 1** ([#326](https://github.com/NexusHero/myDevTime/issues/326)) — live-load trigger
+- ✅ **Slice 1** ([#326](https://github.com/NexusHero/myDevTime/issues/326)) — live-load trigger
   core (REQ-067) + consented, deletable mood store (REQ-068) + `NotificationPort` (REQ-069, local
   first, Null default) + the **real-time overwork watch** as the first Sevi moment. *The shared
   backbone all four moments reuse.*
-- ⬜ **Slice 2** ([#327](https://github.com/NexusHero/myDevTime/issues/327)) — the Scrum-Master at
+- ✅ **Slice 2** ([#327](https://github.com/NexusHero/myDevTime/issues/327)) — the Scrum-Master at
   planning time (REQ-070): the over-commitment voice + a **plan-apply seam** (closes today's gap
-  where a suggestion has no wiring back into the plan). *Blocked by Slice 1.*
-- ⬜ **Slice 3** ([#328](https://github.com/NexusHero/myDevTime/issues/328)) — mood-pattern
-  awareness (rides REQ-068): weekday patterns + low-mood softens the proposed plan. *Blocked by
-  Slice 1's mood store.*
-- ⬜ **Slice 4** ([#329](https://github.com/NexusHero/myDevTime/issues/329)) — life care (REQ-071):
-  protect `--life`/🛡 blocks, notice no free evenings, encourage rest days. *Blocked by Slice 1.*
+  where a suggestion has no wiring back into the plan). *Built in parallel with Slice 1 — the
+  seam itself shipped with the foundation, so the slices never blocked each other.*
+- ✅ **Slice 3** ([#328](https://github.com/NexusHero/myDevTime/issues/328)) — mood-pattern
+  awareness (rides REQ-068): weekday patterns + low-mood softens the proposed plan. *Rides Slice 1's
+  mood store.*
+- ✅ **Slice 4** ([#329](https://github.com/NexusHero/myDevTime/issues/329)) — life care (REQ-071):
+  protect `--life`/🛡 blocks, notice no free evenings, encourage rest days. *Rides Slice 1's policy + baseline feeds.*
 
 Every slice is proposal-only, degrades to a free deterministic template when the LLM/notification
 vendor is down, holds ≥90 % coverage on the deterministic cores (ADR-0005), and never paywalls the

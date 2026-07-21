@@ -71,6 +71,13 @@ describe('loadConfig', () => {
     expect(loadConfig({}).AUTH_RATE_LIMIT_ENABLED).toBe(true)
   })
 
+  it('LoadConfig_ThrottleLimit_DefaultsTo100AndCoercesAnOverride', () => {
+    expect(loadConfig({}).THROTTLE_LIMIT).toBe(100)
+    // The E2E stack raises the ceiling via env (one nginx client IP for the whole
+    // suite, ADR-0053); the value arrives as a string and must coerce to a number.
+    expect(loadConfig({ THROTTLE_LIMIT: '100000' }).THROTTLE_LIMIT).toBe(100000)
+  })
+
   it('LoadConfig_RateLimitOffInDev_Ok', () => {
     const config = loadConfig({
       NODE_ENV: 'development',

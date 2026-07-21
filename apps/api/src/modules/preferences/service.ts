@@ -31,7 +31,7 @@ export async function setPreferences(
 ): Promise<Preferences> {
   const current = await getPreferences(db, workspaceId, userId)
   const next = mergePreferences(current, patch)
-  const blob: Record<string, boolean> = { ...next } // the jsonb column shape
+  const blob: Record<string, boolean | number> = { ...next } // the jsonb column shape
   await db
     .insert(userPreferences)
     .values({ workspaceId, userId, prefs: blob, updatedAt: new Date() })

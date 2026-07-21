@@ -13,6 +13,9 @@ import {
 import { Text } from '../components/core/Text'
 import { useToast } from '../components/core/Toast'
 import { EveningCompanionCard } from '../components/today/EveningCompanionCard'
+import { MoodEaseCard } from '../components/today/MoodEaseCard'
+import { SeviWatch } from '../components/today/SeviWatch'
+import { postMood } from '../api/mood'
 import type { CompanionDayInput, CompanionSuggestion } from '../api/companion'
 import { useTheme } from '../theme/ThemeProvider'
 import {
@@ -1309,6 +1312,10 @@ export function TodayScreen(): React.JSX.Element {
 
         {heroBar}
 
+        {/* Sevi's real-time overwork watch (ADR-0071, REQ-067/069) — a calm inline
+            status line near the top of the day; renders nothing at all while calm. */}
+        <SeviWatch />
+
         {pomodoroCard}
 
         {reminder.show && (
@@ -1382,7 +1389,25 @@ export function TodayScreen(): React.JSX.Element {
           </View>
         )}
 
-        {askMood && <MoodCheck onDone={() => setAskMood(false)} />}
+        {askMood && (
+          <MoodCheck
+            onDone={() => setAskMood(false)}
+            onChange={mood => {
+              // Consent-first mood memory (REQ-068): without the stored moodConsent
+              // opt-in the word never leaves the device — no API call at all (the
+              // server's 409 stays the backstop, not the primary gate). A failed
+              // save surfaces honestly via the screen's usual transient toast.
+              if (!prefs.moodConsent || apiBaseUrl === null) return
+              postMood(apiBaseUrl, mood).catch((e: unknown) => {
+                toast.show(
+                  e instanceof Error && e.message
+                    ? `Mood not saved — ${e.message}`
+                    : 'Mood not saved.',
+                )
+              })
+            }}
+          />
+        )}
 
         <SmartAdd />
         <TravelEntry />
@@ -1407,6 +1432,9 @@ export function TodayScreen(): React.JSX.Element {
         {categoryCard}
         {reviewCard}
         {shutdownCard}
+        {/* Sevi's lighter-day proposal (REQ-068 pattern awareness) sits directly above the
+            evening review — a low-mood day offers one confirmable ease before the day closes. */}
+        <MoodEaseCard baseUrl={apiBaseUrl} date={companionDate} />
         {eveningCompanionCard}
       </ScrollView>
     </View>

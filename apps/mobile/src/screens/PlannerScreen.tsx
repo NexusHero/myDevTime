@@ -25,6 +25,8 @@ import {
   type TimedSpan,
 } from '@mydevtime/domain'
 import { ContextBanner, type ContextBannerProps } from '../components/planner/ContextBanner'
+import { SeviAdvisory } from '../components/planner/SeviAdvisory'
+import { LifeCareCard } from '../components/planner/LifeCareCard'
 import { priceWeekFromBlocks } from '../planner/weekPrice'
 import { weekCapacityFromBlocks } from '../planner/capacityTrace'
 import { inLayer, type PlannerLayer } from '../planner/layer'
@@ -2053,6 +2055,13 @@ export function PlannerScreen(): React.JSX.Element {
             )
           })()}
 
+        {/* Sevi Scrum-Master at planning time (REQ-070, ADR-0071): ONE calm banner when the
+            week's planned load exceeds the honest plannable capacity, with confirm-gated
+            relief routed through the plan-apply seam. Renders nothing when the plan fits. */}
+        {view === 'Week' && (
+          <SeviAdvisory blocks={blocks} weekDates={weekDates} occurrences={occurrences} />
+        )}
+
         {view === 'Day' &&
           (() => {
             // "Today" is the day stage of the Planner (design v20): the tracker row starts the
@@ -2265,6 +2274,9 @@ export function PlannerScreen(): React.JSX.Element {
               const active = pickBanner(candidates)
               return active === null ? null : <ContextBanner {...active} />
             })()}
+
+            {/* Sevi life-care voices (ADR-0071 P5, REQ-071) — renders only when delivered. */}
+            <LifeCareCard weekDates={weekDates} />
 
             {/* Price of the week (G1): after Fill-week, what this planned week costs across
               intensities — deterministic `priceWeek` over the planned blocks (ADR-0005). */}

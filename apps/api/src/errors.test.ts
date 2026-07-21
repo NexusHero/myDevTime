@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { AppError, NotFoundError, ValidationError, UnauthorizedError } from './errors.js'
+import {
+  AppError,
+  ConflictError,
+  NotFoundError,
+  ValidationError,
+  UnauthorizedError,
+} from './errors.js'
 
 describe('AppError.toProblem', () => {
   it('ToProblem_WithDetail_IncludesDetail', () => {
@@ -41,5 +47,13 @@ describe('AppError.toProblem', () => {
 
   it('UnauthorizedError_Defaults_To401', () => {
     expect(new UnauthorizedError().status).toBe(401)
+  })
+
+  it('ConflictError_Defaults_To409', () => {
+    expect(new ConflictError('state missing').toProblem()).toMatchObject({
+      status: 409,
+      title: 'Conflict',
+      detail: 'state missing',
+    })
   })
 })
