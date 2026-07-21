@@ -52,8 +52,9 @@ async function openBalanceView(page: Page): Promise<void> {
 test.describe('acceptance · sevi mood patterns', () => {
   test('REQ-068 · three tense Tuesdays with consent surface the calm weekday note', async ({
     page,
+    request,
   }) => {
-    await signIn(page, page.request)
+    await signIn(page, request)
     await enableMoodConsent(page.request)
     // Three past Tuesdays (UTC weekday 2) all 'tense' → median 2 ≤ the low-mood line.
     const seeds: MoodSeed[] = pastDaysOnWeekday(2, 3).map(day => ({ day, mood: 'tense' }))
@@ -67,8 +68,9 @@ test.describe('acceptance · sevi mood patterns', () => {
 
   test('REQ-068 · one bad day is never a pattern — no note from a single tense day', async ({
     page,
+    request,
   }) => {
-    await signIn(page, page.request)
+    await signIn(page, request)
     await enableMoodConsent(page.request)
     await seedMoodSeries(page.request, [
       { day: pastDaysOnWeekday(2, 1)[0]!, mood: 'tense' },
@@ -80,8 +82,9 @@ test.describe('acceptance · sevi mood patterns', () => {
 
   test('REQ-068 · without consent the mood store is impossible and no note exists', async ({
     page,
+    request,
   }) => {
-    await signIn(page, page.request)
+    await signIn(page, request)
 
     // The write path is consent-gated server-side: an honest conflict, not a silent drop.
     const denied = await page.request.post('/api/wellbeing/mood', { data: { mood: 'tense' } })
