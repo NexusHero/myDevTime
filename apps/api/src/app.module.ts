@@ -41,7 +41,7 @@ export class AppModule {
         ThrottlerModule.forRootAsync({
           inject: [CONFIG],
           useFactory: (config: Config) => ({
-            throttlers: [{ ttl: 60000, limit: 100 }],
+            throttlers: [{ ttl: 60000, limit: config.THROTTLE_LIMIT }],
             ...(config.REDIS_URL
               ? {
                   storage: new ThrottlerStorageRedisService(config.REDIS_URL),

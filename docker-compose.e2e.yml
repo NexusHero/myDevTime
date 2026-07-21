@@ -13,6 +13,10 @@ services:
       # Acceptance tests fire many sign-ups/sign-ins from one runner IP; relax the
       # abuse limiter for E2E only (the config refine keeps it forced on in prod).
       AUTH_RATE_LIMIT_ENABLED: 'false'
+      # The whole suite shares nginx's one client IP, so the global 100/min
+      # throttler is a false ceiling here — 34 journeys + the clients' periodic
+      # polls tripped it into 429s on /api/worktime/*. E2E only; prod keeps 100.
+      THROTTLE_LIMIT: '100000'
       # A throwaway secret (>=32 chars) — E2E only, never a real deployment.
       AUTH_SECRET: 'e2e-insecure-secret-not-for-production-0123456789'
       # The web origin (nginx) the browser and its API calls come from.
