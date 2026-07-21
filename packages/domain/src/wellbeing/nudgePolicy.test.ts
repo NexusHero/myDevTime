@@ -143,6 +143,63 @@ describe('inQuietWindow — half-open [start, end), wrap-aware', () => {
   })
 })
 
+describe('decideNudge — day-scoped stretch acknowledgment (ADR-0072 D1)', () => {
+  const baselineOnly: LiveLoad = { level: 'speak-up', reasons: ['long-day'], hardCapHit: false }
+
+  it('AckSuppressesABaselineOnlySpeakUp', () => {
+    // The user consciously accepted the stretch when tapping the repair — the own-baseline
+    // tier treats the overrun as chosen, not drifted into, and stays quiet for the day.
+    expect(decideNudge(ctx({ load: baselineOnly, stretchAckActive: true }))).toEqual({
+      deliver: false,
+      reason: 'stretch-acknowledged',
+      digest: false,
+    })
+  })
+
+  it('AckNeverSilencesAHardCapSpeakUp', () => {
+    // `speakUp` carries hardCapHit: true — the ArbZG caps stay inviolable, ack or not.
+    expect(decideNudge(ctx({ stretchAckActive: true }))).toEqual({ deliver: true })
+  })
+
+  it('AckDoesNotOverrideTheMoreFundamentalSuppressors', () => {
+    // Calm still wins the precedence; the ack never turns a calm day into a named stretch.
+    expect(decideNudge(ctx({ load: calm, stretchAckActive: true }))).toEqual({
+      deliver: false,
+      reason: 'calm',
+      digest: false,
+    })
+    // And an acknowledged baseline speak-up is already silenced before opt-out is consulted.
+    expect(
+      decideNudge(ctx({ load: baselineOnly, stretchAckActive: true, proactiveOptIn: false })),
+    ).toMatchObject({ reason: 'stretch-acknowledged' })
+  })
+
+  it('OmittedOrFalseAck_KeepsEveryExistingDecisionIdentical', () => {
+    // Regression over the full existing decision table: the new optional input changes
+    // nothing unless it is explicitly true.
+    const table: Partial<NudgeContext>[] = [
+      {},
+      { nudgesSentToday: 1, dailyCap: 2 },
+      { load: calm },
+      { load: watch },
+      { proactiveOptIn: false },
+      { inProtectedBlock: true },
+      { minuteOfDay: 23 * 60 },
+      { nudgesSentToday: 2, dailyCap: 2 },
+      { load: calm, proactiveOptIn: false },
+      { proactiveOptIn: false, inProtectedBlock: true },
+      { inProtectedBlock: true, minuteOfDay: 23 * 60 },
+      { minuteOfDay: 23 * 60, nudgesSentToday: 2 },
+      { load: baselineOnly },
+    ]
+    for (const overrides of table) {
+      const before = decideNudge(ctx(overrides))
+      expect(decideNudge(ctx({ ...overrides, stretchAckActive: false }))).toEqual(before)
+      expect(decideNudge(ctx(overrides))).toEqual(before)
+    }
+  })
+})
+
 describe('decideNudge — wrap-around quiet hours end to end', () => {
   it('EarlyMorningInsideAWrappedWindow_IsQuietSuppressed', () => {
     expect(decideNudge(ctx({ minuteOfDay: 6 * 60 }))).toEqual({
