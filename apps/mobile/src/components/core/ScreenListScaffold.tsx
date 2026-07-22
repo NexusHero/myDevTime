@@ -9,8 +9,6 @@ interface ScreenListScaffoldProps<T> {
   readonly data: readonly T[]
   readonly renderItem: ListRenderItem<T>
   readonly keyExtractor: (item: T, index: number) => string
-  /** Mean row height (px) FlashList uses to schedule off-screen rows. */
-  readonly estimatedItemSize: number
   /** Non-list content that scrolls *above* the rows (cards, section labels). */
   readonly listHeader?: React.ReactNode
   /** Non-list content that scrolls *below* the rows (footnotes). */
@@ -33,7 +31,6 @@ export function ScreenListScaffold<T>({
   data,
   renderItem,
   keyExtractor,
-  estimatedItemSize,
   listHeader,
   listFooter,
   listEmpty,
@@ -54,7 +51,6 @@ export function ScreenListScaffold<T>({
         data={data as T[]}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
-        estimatedItemSize={estimatedItemSize}
         ListHeaderComponent={listHeader ? () => <>{listHeader}</> : undefined}
         ListFooterComponent={listFooter ? () => <>{listFooter}</> : undefined}
         ListEmptyComponent={listEmpty ? () => <>{listEmpty}</> : undefined}
