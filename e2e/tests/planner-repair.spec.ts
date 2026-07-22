@@ -5,6 +5,7 @@ import {
   freshUser,
   readPlanToday,
   seedAcceptedPlanToday,
+  todayUtc,
   uiSignIn,
   utcMinuteNow,
 } from './support/fixtures.js'
@@ -57,6 +58,9 @@ test.describe('acceptance · one-tap day repair (REQ-072)', () => {
     const now = utcMinuteNow()
     await seedBrokenDay(request, now)
     await uiSignIn(page, user)
+    // The repair is asserted on the Today Co-Planner card (its HH:MM–HH:MM block labels); the
+    // app's home route is the Planner canvas, so land on Today explicitly.
+    await page.goto('/today')
 
     await test.step('the drift chip is the action: Reparieren on the adherence chip', async () => {
       await expect(repairChip(page)).toBeVisible()
@@ -139,7 +143,11 @@ test.describe('acceptance · one-tap day repair (REQ-072)', () => {
     await apiSignUp(request, user)
     // Proactive Sevi ON with no quiet window — a nudge COULD speak if the policy allowed it.
     await enableSevi(request)
-    const now = utcMinuteNow()
+    // Noon, pinned below so the scenario is deterministic regardless of the CI wall-clock: the
+    // missed hour lands past the plan's own end (a stretch) but well before midnight. Left on the
+    // real clock, a run after ~20:30 UTC pushes the projected end past midnight, where the ArbZG
+    // day cap turns the stretch into an overflow-to-tomorrow and no price is shown.
+    const now = 12 * 60
     // The remainder only fits past the plan's own end (the capacity line): the missed hour
     // finds no gap — an in-progress 2 h block occupies now..+90 and Wrap-up follows at +90.
     await seedAcceptedPlanToday(request, [
@@ -147,11 +155,17 @@ test.describe('acceptance · one-tap day repair (REQ-072)', () => {
       { startMin: now - 30, lenMin: 120, kind: 'focus', label: 'Current block' },
       { startMin: now + 90, lenMin: 60, kind: 'focus', label: 'Wrap-up' },
     ])
-    // Deterministic price, independent of the click minute: the missed hour lands after
-    // Wrap-up → +60 min over the line, projected end = planned end + 60.
+    // The missed hour lands after Wrap-up → +60 min over the line, projected end = planned + 60.
     const plannedEnd = now + 150
     const price = `+60 min über deiner Linie · Feierabend ~${hhmm(plannedEnd + 60)}`
     await uiSignIn(page, user)
+    // Freeze the browser clock at today's noon (matching the seed's minute-of-day) so the missed
+    // block is detected and re-laid identically on every run. `setFixedTime` freezes Date but
+    // keeps timers running, so the app loads normally. The stretch price + repaired plan are
+    // asserted on the Today Co-Planner card; the app's home route is the Planner canvas, so land
+    // on Today explicitly after pinning the clock.
+    await page.clock.setFixedTime(new Date(`${todayUtc()}T12:00:00.000Z`))
+    await page.goto('/today')
 
     await test.step('the ghost preview states the deal before any tap', async () => {
       await repairChip(page).click()
