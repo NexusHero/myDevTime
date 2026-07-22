@@ -248,7 +248,6 @@ export function TaskScreen({
       }
       data={visibleRows}
       keyExtractor={entry => entry.id}
-      estimatedItemSize={64}
       listHeader={listHeader}
       listEmpty={emptyNode}
       renderItem={({ item: entry }) => (

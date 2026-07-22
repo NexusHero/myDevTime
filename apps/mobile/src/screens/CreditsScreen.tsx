@@ -142,7 +142,6 @@ export function CreditsScreen({ onBack }: { onBack: () => void }): React.JSX.Ele
       header={header}
       data={ledger}
       keyExtractor={entry => entry.id}
-      estimatedItemSize={64}
       listHeader={listHeader}
       listFooter={listFooter}
       listEmpty={

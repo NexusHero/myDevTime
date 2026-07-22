@@ -2695,7 +2695,6 @@ export function PlannerScreen(): React.JSX.Element {
                         data={weekDays}
                         horizontal
                         showsHorizontalScrollIndicator={false}
-                        estimatedItemSize={stacked ? COL_WIDTH : colWidth}
                         keyExtractor={(day: (typeof weekDays)[0]) => day.name}
                         extraData={{
                           shownBlocks,
