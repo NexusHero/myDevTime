@@ -20,7 +20,7 @@ jobs:
   # docs/security/audit-exceptions.md.
   audit:
     name: OSV vulnerability scan (dependencies)
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.2.2
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.3.8
     permissions:
       actions: read
       contents: read
