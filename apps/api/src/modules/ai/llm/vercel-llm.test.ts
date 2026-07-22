@@ -100,6 +100,23 @@ describe('VercelLlm', () => {
       ).available(),
     ).toBe(true)
   })
+
+  it('Complete_CarriesTheOpenRouterProviderThroughTheResult', async () => {
+    // OpenRouter is a key-authenticated, OpenAI-compatible gateway; the port must
+    // report it verbatim so the credit ledger (REQ-027) attributes usage to it.
+    const fake = (): Promise<GenerateReply> =>
+      Promise.resolve({ text: 'ok', inputTokens: 3, outputTokens: 2 })
+    const llm = new VercelLlm(
+      { provider: 'openrouter', model: 'anthropic/claude-3.5-sonnet', apiKey: 'k' },
+      fake,
+    )
+
+    const result = await llm.complete({ messages: [{ role: 'user', content: 'x' }] })
+
+    expect(result.provider).toBe('openrouter')
+    expect(result.model).toBe('anthropic/claude-3.5-sonnet')
+    expect(await llm.available()).toBe(true)
+  })
 })
 
 describe('readLlmConfig', () => {
@@ -133,5 +150,34 @@ describe('readLlmConfig', () => {
       LLM_MODEL: 'gemini-1.5-pro',
     })
     expect(cfg?.model).toBe('gemini-1.5-pro')
+  })
+
+  it('OpenRouterNeedsAKeyAndDefaultsItsBaseUrl', () => {
+    // OpenRouter is key-authenticated like the hosted providers, but points at its
+    // own OpenAI-compatible gateway; the base URL is defaulted so only the key is
+    // required to switch the whole app onto it.
+    expect(readLlmConfig({ LLM_PROVIDER: 'openrouter' })).toBeNull()
+    expect(readLlmConfig({ LLM_PROVIDER: 'openrouter', LLM_API_KEY: 'k' })).toEqual({
+      provider: 'openrouter',
+      model: 'openai/gpt-4o-mini',
+      apiKey: 'k',
+      baseUrl: 'https://openrouter.ai/api/v1',
+    })
+  })
+
+  it('OpenRouterHonorsAnExplicitModelAndBaseUrl', () => {
+    expect(
+      readLlmConfig({
+        LLM_PROVIDER: 'openrouter',
+        LLM_API_KEY: 'k',
+        LLM_MODEL: 'anthropic/claude-3.5-sonnet',
+        LLM_BASE_URL: 'https://gateway.internal/v1',
+      }),
+    ).toEqual({
+      provider: 'openrouter',
+      model: 'anthropic/claude-3.5-sonnet',
+      apiKey: 'k',
+      baseUrl: 'https://gateway.internal/v1',
+    })
   })
 })

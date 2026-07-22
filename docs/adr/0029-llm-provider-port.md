@@ -111,3 +111,33 @@ one file: swapping the library (LiteLLM, a raw-SDK adapter, a self-hosted gatewa
 provider it doesn't cover is a change to `vercel-llm.ts` alone, invisible to every feature. Streaming,
 tool/function calling and embeddings/RAG remain out of scope (own follow-ups) and would widen the port
 deliberately, never leak a library type.
+
+## Amendment (2026-07-22): OpenRouter as a fifth provider (no new dependency)
+
+OpenRouter is added to the launch provider set. It is an **OpenAI-compatible gateway** — one key,
+many upstream models (`openai/…`, `anthropic/…`, `meta-llama/…`, …) — so it needs **no new SDK and no
+new adapter**: the existing `@ai-sdk/openai` factory is pointed at OpenRouter's base URL, exactly the
+mechanism Ollama already uses.
+
+**What changes:**
+
+- `LlmProvider` gains `'openrouter'` (`ai/llm/port.ts`); `ConfiguredProvider` follows automatically.
+- `buildModel` gains an `openrouter` case: `createOpenAI({ baseURL, apiKey }).chat(model)` with the
+  base URL defaulting to `https://openrouter.ai/api/v1`. This is the *only* new vendor-touching line,
+  and it lives in `vercel-llm.ts` as the seam requires.
+- `readLlmConfig` treats OpenRouter as a **key-authenticated** provider (like the hosted ones) that
+  **defaults its base URL** (like Ollama): `LLM_PROVIDER=openrouter` + `LLM_API_KEY=…` is enough;
+  `LLM_MODEL` (namespaced, e.g. `anthropic/claude-3.5-sonnet`) and `LLM_BASE_URL` are optional. Missing
+  key → `NullLlm`, unchanged.
+
+**What does *not* change:** the port, vendor confinement, graceful degradation, uniform token `usage`
+(so the credit ledger, REQ-027, prices OpenRouter like any other provider), and the "LLM only
+proposes" rule (ADR-0005) all hold verbatim. No orchestration, agents, chains or RAG enter the app;
+that boundary is deliberate and unchanged.
+
+**Why not a framework here.** A "route to many models" need is real, but it does **not** justify
+introducing an orchestration framework (e.g. LangChain): multi-provider access, structured output and
+uniform usage already exist behind the port, and adopting a framework would pull orchestration out of
+the deterministic core — the opposite of ADR-0005. OpenRouter satisfies the actual need with five
+lines behind the existing seam. Should provider routing/fallbacks ever warrant more, the reversible-
+by-one-file property still holds: it stays a change to `vercel-llm.ts`, invisible to every feature.

@@ -1,8 +1,9 @@
 /**
  * The one narrow LLM interface the app sees (ADR-0029, skill §2.2). Every provider
- * — OpenAI, Anthropic (Claude), Google Gemini, Ollama — is reached through a single
- * library-backed adapter (`./vercel-llm.ts`, ADR-0029 amended) that confines the SDK
- * types and auth to that file and translates to/from these provider-agnostic types.
+ * — OpenAI, Anthropic (Claude), Google Gemini, Ollama, OpenRouter — is reached
+ * through a single library-backed adapter (`./vercel-llm.ts`, ADR-0029 amended) that
+ * confines the SDK types and auth to that file and translates to/from these
+ * provider-agnostic types.
  * **Nothing upstream imports a vendor type.** The LLM only *proposes* (ADR-0005): an
  * `LlmResult` is a
  * proposal/parse/explanation the deterministic core validates, never a value the
@@ -11,7 +12,7 @@
  */
 
 /** Launch providers (ADR-0029). `null` is the graceful-degradation default. */
-export type LlmProvider = 'openai' | 'anthropic' | 'gemini' | 'ollama' | 'null'
+export type LlmProvider = 'openai' | 'anthropic' | 'gemini' | 'ollama' | 'openrouter' | 'null'
 
 export interface LlmMessage {
   readonly role: 'system' | 'user' | 'assistant'
