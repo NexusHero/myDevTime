@@ -14,9 +14,9 @@ import {
  * The single, library-backed `LlmPort` adapter (ADR-0029, amended). Instead of one
  * hand-written SDK adapter per vendor, the provider-agnostic **Vercel AI SDK** does
  * the multi-provider dispatch; this file is the *only* place its types are touched
- * (skill §2.2). OpenAI, Anthropic (Claude), Google Gemini and Ollama (via its
- * OpenAI-compatible endpoint) are all reached through one `generateText` call, the
- * provider chosen by config. Nothing upstream imports a vendor type; the port stays
+ * (skill §2.2). OpenAI, Anthropic (Claude), Google Gemini, Ollama and OpenRouter
+ * (the last two via an OpenAI-compatible endpoint) are all reached through one
+ * `generateText` call, the provider chosen by config. Nothing upstream imports a vendor type; the port stays
  * the contract. The LLM only *proposes* — the deterministic core validates every
  * result (ADR-0005).
  */
@@ -77,6 +77,14 @@ function buildModel(config: VercelLlmConfig): LanguageModel {
       return createOpenAI({
         baseURL: config.baseUrl ?? 'http://localhost:11434/v1',
         apiKey: config.apiKey ?? 'ollama',
+      }).chat(config.model)
+    case 'openrouter':
+      // OpenRouter is an OpenAI-compatible gateway; the key authenticates and the
+      // base URL points at its endpoint. Model ids are namespaced (e.g.
+      // `anthropic/claude-3.5-sonnet`) and selected by config like any other.
+      return createOpenAI({
+        baseURL: config.baseUrl ?? 'https://openrouter.ai/api/v1',
+        ...key,
       }).chat(config.model)
   }
 }

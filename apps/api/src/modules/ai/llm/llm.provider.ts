@@ -18,16 +18,25 @@ const DEFAULT_MODEL: Record<ConfiguredProvider, string> = {
   anthropic: 'claude-3-5-haiku-latest',
   gemini: 'gemini-1.5-flash',
   ollama: 'llama3.1',
+  // OpenRouter model ids are namespaced by upstream vendor; a cheap default.
+  openrouter: 'openai/gpt-4o-mini',
 }
 
 function isConfiguredProvider(value: string): value is ConfiguredProvider {
-  return value === 'openai' || value === 'anthropic' || value === 'gemini' || value === 'ollama'
+  return (
+    value === 'openai' ||
+    value === 'anthropic' ||
+    value === 'gemini' ||
+    value === 'ollama' ||
+    value === 'openrouter'
+  )
 }
 
 /**
  * Resolve the LLM config from the environment. Returns `null` — meaning "use the
  * `NullLlm`" — when no provider is set, it is explicitly `null`, it is unknown, or a
- * hosted provider is missing its key. Ollama needs no key and defaults its base URL.
+ * hosted provider is missing its key. Ollama needs no key and defaults its base URL;
+ * OpenRouter needs a key and defaults its OpenAI-compatible gateway base URL.
  */
 export function readLlmConfig(env: NodeJS.ProcessEnv = process.env): VercelLlmConfig | null {
   const provider = env.LLM_PROVIDER
@@ -49,6 +58,16 @@ export function readLlmConfig(env: NodeJS.ProcessEnv = process.env): VercelLlmCo
   }
 
   if (apiKey === undefined || apiKey === '') return null
+
+  if (provider === 'openrouter') {
+    return {
+      provider,
+      model,
+      apiKey,
+      baseUrl: baseUrl !== undefined && baseUrl !== '' ? baseUrl : 'https://openrouter.ai/api/v1',
+    }
+  }
+
   return {
     provider,
     model,
