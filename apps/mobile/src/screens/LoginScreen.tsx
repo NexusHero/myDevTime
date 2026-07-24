@@ -49,7 +49,7 @@ export function LoginScreen({
     trigger,
     formState: { errors },
   } = useForm<z.infer<typeof loginSchema>>({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(loginSchema as any),
     defaultValues: { email: '', password: '' },
   })
 

@@ -17,17 +17,17 @@ function punchButton(page: Page, state: 'Start' | 'Stop') {
   return page.getByRole('button', { name: state, exact: true }).first()
 }
 
-/** Sign in and land on the Today surface. */
+/** Sign in and land on the Planner Day view (the unified home, ADR-0075). */
 async function signInToToday(page: Page, request: Parameters<typeof apiSignUp>[0]): Promise<void> {
   const user = freshUser('golden')
   await apiSignUp(request, user)
   await uiSignIn(page, user)
-  await page.goto('/today')
+  await page.goto('/planner')
   await expect(punchButton(page, 'Start')).toBeVisible()
 }
 
 test.describe('acceptance · golden paths', () => {
-  test('REQ-022 · auth golden path: register via the UI and reach the Today surface', async ({
+  test('REQ-022 · auth golden path: register via the UI and reach the Planner Day view', async ({
     page,
   }) => {
     const user = freshUser('golden-auth')
@@ -45,20 +45,20 @@ test.describe('acceptance · golden paths', () => {
       // session is established. Wait on the register form's unique email input rather than the
       // "Create free account" text (which the screen renders twice — heading + submit button — so a
       // getByText() hits two nodes) or the submit button alone (which can hide transiently mid-submit,
-      // before auth actually completes, racing the /today navigation). The email input unmounts only
+      // before auth actually completes, racing the /planner navigation). The email input unmounts only
       // when the authenticated shell replaces the auth screen — a reliable "auth done" signal.
       await expect(page.getByPlaceholder('you@company.com')).toBeHidden()
     })
 
-    await test.step('the app shell is up and Today renders', async () => {
-      await page.goto('/today')
+    await test.step('the app shell is up and the Planner Day view renders', async () => {
+      await page.goto('/planner')
       // The Day Canvas home: the hero tracker's punch control and the Co-Planner card.
       await expect(punchButton(page, 'Start')).toBeVisible()
       await expect(page.getByText('Co-Planner').first()).toBeVisible()
     })
   })
 
-  test('REQ-022 · tracking golden path: start the timer on Today, then stop without an error', async ({
+  test('REQ-022 · tracking golden path: start the timer on the Planner Day view, then stop without an error', async ({
     page,
     request,
   }) => {
@@ -118,13 +118,13 @@ test.describe('acceptance · golden paths', () => {
     })
   })
 
-  test('REQ-043 · keyboard focus is visible on Today (accent focus ring)', async ({
+  test('REQ-043 · keyboard focus is visible on the Planner Day view (accent focus ring)', async ({
     page,
     request,
   }) => {
     await signInToToday(page, request)
 
-    await test.step('tab through Today until a visibly focused element appears', async () => {
+    await test.step('tab through the Planner Day view until a visibly focused element appears', async () => {
       let visible = false
       for (let i = 0; i < 15 && !visible; i += 1) {
         await page.keyboard.press('Tab')

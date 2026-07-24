@@ -29,7 +29,7 @@ function punchButton(page: Page, state: 'Start' | 'Stop') {
  * gate, forced click past the LiveButton breathing).
  */
 async function punchOutAndPickMood(page: Page, mood: 'Good' | 'Tense' | 'Stressed'): Promise<void> {
-  await page.goto('/today')
+  await page.goto('/planner')
   await punchButton(page, 'Start').click()
   const clock = page.getByRole('timer')
   await expect(clock).toBeVisible()

@@ -63,19 +63,24 @@ export const ROUTES: readonly RouteDef[] = [
 
 const BY_SCREEN: ReadonlyMap<Screen, RouteDef> = new Map(ROUTES.map(r => [r.screen, r]))
 
-/** Bottom tabs on phone (ux-vision §3): Today · Planner · Projects · Reports · Profile. */
-export const PHONE_TABS: readonly Screen[] = ['today', 'planner', 'projects', 'reports', 'profile']
+/**
+ * Bottom tabs on phone (ADR-0075): Planner · Projects · Reports · Profile. The Today
+ * tab is retired — its content merged into the Planner Day view (the single home). The
+ * `/today` route stays as a redirect so deep links keep working.
+ */
+export const PHONE_TABS: readonly Screen[] = ['planner', 'projects', 'reports', 'profile']
 
 /**
- * Sidebar rail items on tablet/desktop — the **four places** of the calendar-centric
- * IA (ux-vision §3, ADR-0063): Today · Planner · Projects · Reports. Profile is *not*
- * a rail item here; the shell pins it as an avatar in the sidebar footer ("me", not a
- * peer place). The former sidebar promotions — Meetings, Absence, Assistant — are no
- * longer nav destinations: their content moves into the Planner entry drawer (Meeting,
- * Absence) and an Assistant overlay (ADR-0063), and they stay reachable meanwhile via
- * the Profile hub, the command bar, and their deep-link routes.
+ * Sidebar rail items on tablet/desktop — the **three places** of the unified IA
+ * (ADR-0075 supersedes ADR-0063 pt 1): Planner · Projects · Reports. Today is retired
+ * (merged into the Planner Day view); Profile is *not* a rail item here — the shell
+ * pins it as an avatar in the sidebar footer ("me", not a peer place). The former
+ * sidebar promotions — Meetings, Absence, Assistant — are no longer nav destinations:
+ * their content moves into the Planner entry drawer (Meeting, Absence) and an Assistant
+ * overlay (ADR-0063), and they stay reachable via the Profile hub, the command bar, and
+ * their deep-link routes.
  */
-export const SIDEBAR_ITEMS: readonly Screen[] = ['today', 'planner', 'projects', 'reports']
+export const SIDEBAR_ITEMS: readonly Screen[] = ['planner', 'projects', 'reports']
 
 /**
  * Surfaces the Profile hub links into so every platform can still reach them while the

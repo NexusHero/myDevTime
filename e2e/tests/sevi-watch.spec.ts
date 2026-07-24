@@ -33,7 +33,7 @@ async function signIn(page: Page, request: APIRequestContext): Promise<void> {
 
 /** Open Today and wait for the Day Canvas to be up. */
 async function openToday(page: Page): Promise<void> {
-  await page.goto('/today')
+  await page.goto('/planner')
   await expect(page.getByRole('button', { name: 'Start', exact: true }).first()).toBeVisible()
 }
 

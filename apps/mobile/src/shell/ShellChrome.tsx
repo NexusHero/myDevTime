@@ -69,10 +69,20 @@ export function ShellChrome(): React.JSX.Element {
   const items: readonly Screen[] = chrome.navMode === 'tabs' ? PHONE_TABS : SIDEBAR_ITEMS
   // The calendar is the stage (design v20): an unresolvable path falls back to the
   // Planner, matching `main.jsx`'s `effScreen` default — never a blank chrome.
-  const active: Screen = parsePath(pathname)?.screen ?? 'planner'
+  const parsed = parsePath(pathname)?.screen ?? 'planner'
+  // Unified Day Canvas (ADR-0075): the Today tab is retired — `/today` redirects to
+  // `/planner` so deep links, OS quick actions (REQ-039), and the command bar keep
+  // working. The Screen type keeps 'today' for deep-link compatibility; it is just no
+  // longer a tab or sidebar item.
+  const active: Screen = parsed === 'today' ? 'planner' : parsed
   const go = (screen: Screen): void => {
     router.push(buildPath(screen))
   }
+  useEffect(() => {
+    if (parsed === 'today') {
+      router.replace(buildPath('planner'))
+    }
+  }, [parsed, router])
 
   // Profile is "me", not a peer place (calendar-centric IA, ADR-0063): the sidebar
   // pins it as an avatar in the footer rather than as a rail item. Initials + name
@@ -257,22 +267,21 @@ export function ShellChrome(): React.JSX.Element {
       }
     : null
 
-  const islandFor = (posture: 'floating' | 'docked'): React.JSX.Element | null =>
-    active === 'today' ? null : (
-      <Island
-        posture={posture}
-        running={timer.running !== null}
-        elapsed={timer.elapsed}
-        {...(timer.running ? { startedAt: timer.running.startedAt } : {})}
-        accumulatedMs={timer.accumulatedMs}
-        pausedSinceMs={timer.pausedSinceMs}
-        punched={timerActive}
-        focus={focusBadge}
-        expanded={islandExpanded}
-        onToggle={() => setIslandExpanded(e => !e)}
-        actions={islandActions}
-      />
-    )
+  const islandFor = (posture: 'floating' | 'docked'): React.JSX.Element | null => (
+    <Island
+      posture={posture}
+      running={timer.running !== null}
+      elapsed={timer.elapsed}
+      {...(timer.running ? { startedAt: timer.running.startedAt } : {})}
+      accumulatedMs={timer.accumulatedMs}
+      pausedSinceMs={timer.pausedSinceMs}
+      punched={timerActive}
+      focus={focusBadge}
+      expanded={islandExpanded}
+      onToggle={() => setIslandExpanded(e => !e)}
+      actions={islandActions}
+    />
+  )
 
   const nav = items.map(screen => {
     const on = screen === active

@@ -21,4 +21,4 @@ services:
       AUTH_SECRET: 'e2e-insecure-secret-not-for-production-0123456789'
       # The web origin (nginx) the browser and its API calls come from.
       AUTH_BASE_URL: 'http://localhost:8080'
-      TRUSTED_ORIGINS: 'http://localhost:8080'
+      TRUSTED_ORIGINS: 'http://localhost:8080,http://localhost:8081,http://192.168.1.121:8081'

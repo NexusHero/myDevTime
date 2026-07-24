@@ -52,7 +52,7 @@ async function main(): Promise<void> {
   try {
     const adminEmail = 'admin@test.de'
     const adminName = 'Admin User'
-    const adminPassword = 'Password123!'
+    const adminPassword = 'admin123'
 
     // 1. Ensure admin user exists
     let adminUser = await db

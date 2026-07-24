@@ -16,6 +16,9 @@ coverage/
 !.env.example
 *.local
 
+# GitHub MCP config (contains a personal access token — never commit)
+.mcp.json
+
 # Editor / OS
 .DS_Store
 .idea/

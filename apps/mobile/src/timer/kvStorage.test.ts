@@ -1,5 +1,34 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest'
+
+// Node 22 has a global `localStorage` property that warns and returns undefined
+// unless configured with native localStorage options. Replace it with a mock if it is undefined/broken.
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+if (typeof localStorage === 'undefined' || !localStorage) {
+  const store = new Map<string, string>()
+  const localStorageMock: Storage = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      store.set(key, value)
+    },
+    removeItem: (key: string) => {
+      store.delete(key)
+    },
+    clear: () => {
+      store.clear()
+    },
+    key: (index: number) => Array.from(store.keys())[index] ?? null,
+    get length() {
+      return store.size
+    },
+  }
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: localStorageMock,
+    writable: true,
+    configurable: true,
+  })
+}
+
 import {
   asyncKvStorage,
   memoryKvStorage,

@@ -6,9 +6,11 @@ import { ThemeProvider } from '../../theme/ThemeProvider.js'
 import type { MonthDay } from '../../planner/calendarMonth'
 
 /**
- * Render tests (ADR-0027) for the Planner Month view (design v18 PlannerViews): tasks show with
- * their label, events surface as their own banner, "+N more" collapses overflow, and an empty
- * month renders the grid without any task/event text.
+ * Render tests (ADR-0027) for the redesigned Planner Month heatmap (issue #366, ADR-0075):
+ * borderless rounded cells with a 5-step accent heat fill (the fill IS the load signal),
+ * quiet day numbers, an accent ring on today (not an orange pill), an ink3 booking-gap
+ * marker (not warn), and the inline load number hidden by default. Tasks stay legible
+ * above the heat fill; every cell keeps an accessibilityLabel with day + load (REQ-043).
  */
 function render(node: React.ReactElement): TestRenderer.ReactTestRenderer {
   let r!: TestRenderer.ReactTestRenderer
@@ -24,6 +26,12 @@ function texts(r: TestRenderer.ReactTestRenderer): string {
     .flatMap(n => n.children)
     .filter((c): c is string => typeof c === 'string')
     .join(' ')
+}
+
+function labels(r: TestRenderer.ReactTestRenderer): string[] {
+  return r.root
+    .findAll(n => typeof n.props.accessibilityLabel === 'string')
+    .map(n => n.props.accessibilityLabel as string)
 }
 
 const days = new Map<number, MonthDay>([
@@ -51,7 +59,7 @@ const days = new Map<number, MonthDay>([
   ],
 ])
 
-describe('PlannerMonth', () => {
+describe('PlannerMonth heatmap (issue #366)', () => {
   it('RendersTasksAndEvents', () => {
     const out = texts(
       render(<PlannerMonth year={2026} month0={6} today={13} days={days} targetHours={8.33} />),
@@ -74,5 +82,33 @@ describe('PlannerMonth', () => {
     )
     expect(out).not.toContain('Sync engine')
     expect(out).toContain('MO') // weekday header still renders
+  })
+
+  it('CellAccessibilityLabel_CarriesDayAndLoad', () => {
+    // REQ-043: the color is decorative; the a11y label carries the day + load meaning.
+    const r = render(
+      <PlannerMonth year={2026} month0={6} today={13} days={days} targetHours={8.33} />,
+    )
+    const lbls = labels(r)
+    // Day 13 has load 4.5 → the label includes the day number and the load figure.
+    expect(lbls.some(l => l.startsWith('13') && l.includes('4.5'))).toBe(true)
+  })
+
+  it('GapDayAccessibilityLabel_SaysNothingBooked', () => {
+    // A past weekday with no entry is an honest "nothing booked here" — the label says so.
+    const r = render(
+      <PlannerMonth year={2026} month0={6} today={13} days={days} targetHours={8.33} />,
+    )
+    const lbls = labels(r)
+    expect(lbls.some(l => l.includes('nothing booked'))).toBe(true)
+  })
+
+  it('InlineLoadNumber_HiddenByDefault', () => {
+    // The heat fill IS the load signal; the inline fmtLoad number is hidden by default.
+    const out = texts(
+      render(<PlannerMonth year={2026} month0={6} today={13} days={days} targetHours={8.33} />),
+    )
+    // The load figure (4.5) appears only in the a11y label, not as visible cell text.
+    expect(out).not.toContain('4.5')
   })
 })

@@ -76,6 +76,8 @@ export {
   priorityWeight,
   dayLoad,
   loadTone,
+  loadHeat,
+  type HeatLevel,
   weekIntensity,
   type WeekIntensity,
   assignLanes,

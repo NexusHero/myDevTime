@@ -54,18 +54,32 @@ describe('navigation route map', () => {
     const screens = new Set<Screen>(ROUTES.map(r => r.screen))
     for (const s of [...PHONE_TABS, ...SIDEBAR_ITEMS, ...PROFILE_HUB_LINKS])
       expect(screens.has(s)).toBe(true)
-    expect(PHONE_TABS).toHaveLength(5) // ux-vision §3: five bottom tabs
+    // Unified Day Canvas (ADR-0075): the Today tab is retired — the Planner Day view is
+    // the single home. Four bottom tabs: Planner · Projects · Reports · Profile.
+    expect(PHONE_TABS).toHaveLength(4)
+    expect(PHONE_TABS).not.toContain('today')
     expect(PHONE_TABS).not.toContain('meetings')
   })
 
-  it('Sidebar_IsExactlyTheFourPlaces', () => {
-    // Calendar-centric IA (ADR-0063): the desktop rail is the four places only —
-    // Today · Planner · Projects · Reports. Profile is the avatar footer, not a rail
-    // item; Meetings/Assistant/Absence are no longer nav destinations at all.
-    expect(SIDEBAR_ITEMS).toEqual(['today', 'planner', 'projects', 'reports'])
+  it('Sidebar_IsExactlyTheThreePlaces', () => {
+    // Unified Day Canvas (ADR-0075 supersedes ADR-0063 pt 1): the desktop rail is the
+    // three places only — Planner · Projects · Reports. Today is retired (its content
+    // merged into the Planner Day view); Profile is the avatar footer, not a rail item.
+    expect(SIDEBAR_ITEMS).toEqual(['planner', 'projects', 'reports'])
+    expect(SIDEBAR_ITEMS).not.toContain('today')
     expect(SIDEBAR_ITEMS).not.toContain('profile')
     for (const s of ['meetings', 'assistant', 'absences'] as const)
       expect(SIDEBAR_ITEMS).not.toContain(s)
+  })
+
+  it('TodayRoute_StaysAsDeepLinkRedirect', () => {
+    // ADR-0075: the `/today` route is preserved as a redirect to `/planner` so deep
+    // links, OS quick actions (REQ-039), and the command bar keep working. The Screen
+    // type keeps 'today'; it is just no longer a tab or sidebar item.
+    expect(parsePath('/today')).toEqual({ screen: 'today', params: {} })
+    expect(buildPath('today')).toBe('/today')
+    expect(PHONE_TABS).not.toContain('today')
+    expect(SIDEBAR_ITEMS).not.toContain('today')
   })
 
   it('SecondarySurfaces_ReachableFromSomeNav', () => {

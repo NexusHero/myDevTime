@@ -50,6 +50,10 @@ export async function buildApp(deps: AppDeps): Promise<NestFastifyApplication> {
   registerSecurityHeaders(adapter.getInstance(), deps.config)
   app.useGlobalFilters(new ProblemDetailsFilter())
   app.useGlobalPipes(new ZodValidationPipe())
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  })
   SwaggerModule.setup('docs', app, () => createOpenApiDocument(app))
 
   await app.init()

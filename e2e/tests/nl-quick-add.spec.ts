@@ -29,7 +29,7 @@ test.describe('acceptance · natural-language quick add', () => {
     await uiSignIn(page, user)
 
     await test.step('Today shows the NL capture field', async () => {
-      await page.goto('/today')
+      await page.goto('/planner')
       await expect(page.getByText('Add anything')).toBeVisible()
     })
 

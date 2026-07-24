@@ -60,7 +60,7 @@ test.describe('acceptance · one-tap day repair (REQ-072)', () => {
     await uiSignIn(page, user)
     // The repair is asserted on the Today Co-Planner card (its HH:MM–HH:MM block labels); the
     // app's home route is the Planner canvas, so land on Today explicitly.
-    await page.goto('/today')
+    await page.goto('/planner')
 
     await test.step('the drift chip is the action: Reparieren on the adherence chip', async () => {
       await expect(repairChip(page)).toBeVisible()
@@ -165,7 +165,7 @@ test.describe('acceptance · one-tap day repair (REQ-072)', () => {
     // asserted on the Today Co-Planner card; the app's home route is the Planner canvas, so land
     // on Today explicitly after pinning the clock.
     await page.clock.setFixedTime(new Date(`${todayUtc()}T12:00:00.000Z`))
-    await page.goto('/today')
+    await page.goto('/planner')
 
     await test.step('the ghost preview states the deal before any tap', async () => {
       await repairChip(page).click()
