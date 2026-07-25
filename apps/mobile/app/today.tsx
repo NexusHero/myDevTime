@@ -1,5 +1,5 @@
-import { TodayScreen } from '../src/screens/TodayScreen'
+import { Redirect } from 'expo-router'
 
 export default function TodayRoute(): React.JSX.Element {
-  return <TodayScreen />
+  return <Redirect href="/planner" />
 }

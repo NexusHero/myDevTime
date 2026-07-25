@@ -51,7 +51,7 @@ test.describe('acceptance · Feierabend / close the day', () => {
       await page.goto('/planner')
       await expect(page.getByText('Close the day')).toBeVisible()
       await expect(page.getByText('Feierabend', { exact: true })).toBeVisible()
-      await expect(page.getByText('Booked', { exact: true })).toBeVisible()
+      await expect(page.getByText('Booked', { exact: true }).first()).toBeVisible()
       await expect(page.getByText('1:30 h', { exact: true }).first()).toBeVisible()
     })
 

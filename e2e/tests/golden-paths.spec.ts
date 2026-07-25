@@ -52,9 +52,9 @@ test.describe('acceptance · golden paths', () => {
 
     await test.step('the app shell is up and the Planner Day view renders', async () => {
       await page.goto('/planner')
-      // The Day Canvas home: the hero tracker's punch control and the Co-Planner card.
+      // The Day Canvas home: the hero tracker's punch control and the What are you working on input.
       await expect(punchButton(page, 'Start')).toBeVisible()
-      await expect(page.getByText('Co-Planner').first()).toBeVisible()
+      await expect(page.getByPlaceholder('What are you working on?')).toBeVisible()
     })
   })
 
@@ -76,7 +76,7 @@ test.describe('acceptance · golden paths', () => {
       // value proves at least one second was actually tracked, and — because the clock
       // only ticks once the running segment is established — also confirms the async
       // punch-in has fully settled before we try to stop.
-      const clock = page.getByRole('timer')
+      const clock = page.getByRole('timer').first()
       await expect(clock).toBeVisible()
       await expect(clock).not.toHaveText('00:00:00')
     })

@@ -31,3 +31,9 @@ reason = "postcss via expo > @expo/cli > @expo/metro-config — build CLI only, 
 [[IgnoredVulns]]
 id = "GHSA-w5hq-g745-h8pq"
 reason = "uuid via expo > @expo/cli (xcode / rudder-sdk) — build CLI only, never shipped (docs/security/audit-exceptions.md)"
+
+# --- @fastify/static: Upstream NestJS currently strictly requires v8 or v9, and upgrading to v10
+# breaks Swagger UI initialization.
+[[IgnoredVulns]]
+id = "GHSA-mh99-v99m-4gvg"
+reason = "@fastify/static — cannot upgrade to patched v10 until NestJS supports it. Low risk as we do not use wildcard paths in fastify-static."

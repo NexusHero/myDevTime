@@ -74,6 +74,7 @@ import { PlannerDayList, type DayListItem } from '../components/planner/PlannerD
 import { PlannerDayInstruments } from '../components/planner/PlannerDayInstruments'
 import { DayRepairSheet } from '../components/planner/DayRepairSheet'
 import { HeroTrackerBar } from '../components/canvas/HeroTrackerBar'
+import { SmartAdd } from './SmartAdd'
 import { ShutdownCard } from '../components/today/ShutdownCard'
 import { SeviWatch } from '../components/today/SeviWatch'
 import { EveningCompanionCard } from '../components/today/EveningCompanionCard'
@@ -2481,6 +2482,10 @@ export function PlannerScreen(): React.JSX.Element {
                     toast.show('Clocked out.')
                   }}
                 />
+
+                <SmartAdd />
+
+                {/* The actual canvas. */}
                 {/* One-tap day repair (ADR-0072 D1): drift chip → ghost preview → one tap. */}
                 <DayRepairSheet repair={dayRepair} />
                 {/* Feierabend ritual (issue #364): the ShutdownCard sits below the day

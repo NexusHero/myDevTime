@@ -31,7 +31,7 @@ function punchButton(page: Page, state: 'Start' | 'Stop') {
 async function punchOutAndPickMood(page: Page, mood: 'Good' | 'Tense' | 'Stressed'): Promise<void> {
   await page.goto('/planner')
   await punchButton(page, 'Start').click()
-  const clock = page.getByRole('timer')
+  const clock = page.getByRole('timer').first()
   await expect(clock).toBeVisible()
   await expect(clock).not.toHaveText('00:00:00')
   const stop = punchButton(page, 'Stop')
