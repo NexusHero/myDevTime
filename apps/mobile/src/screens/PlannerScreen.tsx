@@ -1376,7 +1376,9 @@ function CoPlannerProposal({ planner }: { planner: PlannerResource }): React.JSX
                     numberOfLines={1}
                     style={{ fontSize: t.fontSize['2xs'], color: isGhost ? color : t.color.ink2 }}
                   >
-                    {`${clockAbs(b.startMin)}–${clockAbs(b.startMin + b.lenMin)}`}
+                    {/* `% 1440` wraps a block that ends on the day-frame edge (minute 1440) to
+                        `00:00`, matching the seam/preview/spec convention (never `24:00`). */}
+                    {`${clockAbs(b.startMin % 1440)}–${clockAbs((b.startMin + b.lenMin) % 1440)}`}
                   </Text>
                   {isGhost && (
                     <View
@@ -2521,6 +2523,11 @@ export function PlannerScreen(): React.JSX.Element {
                 {/* The actual canvas. */}
                 {/* One-tap day repair (ADR-0072 D1): drift chip → ghost preview → one tap. */}
                 <DayRepairSheet repair={dayRepair} />
+                {/* Co-Planner card on the Day view (issue #369): "today's plan" is a Today
+                    capability the Day-canvas merge must carry — it re-reads the plan in place
+                    after a one-tap repair (REQ-072) and shows the re-laid block's time, mirroring
+                    the old Today card. It was previously only in the Week view. */}
+                <CoPlannerProposal planner={planner} />
                 {/* Feierabend ritual (issue #364): the ShutdownCard sits below the day
                     canvas — Booked / Tracked reality / Still open + the git commit gesture.
                     Renders nothing when the day is idle or already closed. */}

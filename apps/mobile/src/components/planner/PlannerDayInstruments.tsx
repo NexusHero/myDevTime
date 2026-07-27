@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { Pressable, View } from 'react-native'
+import { View } from 'react-native'
 import { formatDuration } from '@mydevtime/design'
 import { Text } from '../core/Text'
 import { useTheme } from '../../theme/ThemeProvider'
@@ -8,20 +7,15 @@ import { useWorktime } from '../../hooks/useWorktime'
 /**
  * The Planner Day **instruments rail** (design v20 `PlannerDay` rail): a slim column of glanceable
  * day signals beside the canvas. It shows only what is **real** (ADR-0005) — the live punch clock
- * (clocked state + overtime balance from `useWorktime`) and a standing mood check — and never
- * fabricates figures: with nothing clocked it says so rather than inventing a bar. Collapsible so
- * it never crowds the canvas. English copy (UI is English-only).
+ * (clocked state + overtime balance from `useWorktime`) — and never fabricates figures: with
+ * nothing clocked it says so rather than inventing a bar. Collapsible so it never crowds the
+ * canvas. English copy (UI is English-only).
  *
- * The auto-tracker "today" breakdown and the AI day-draft queue are wired in later slices from
- * their own real sources; this rail carries the signals that already have live data.
+ * Mood is **not** carried here: per REQ-068/ADR-0071 the mood signal is a transient one-tap row at
+ * the punch-out moment (the shared `MoodCheck`), never a standing widget. A standing mood card here
+ * duplicated it and collided with the punch-out row on the merged Day view (issue #369), so it was
+ * removed; the auto-tracker "today" breakdown and the AI day-draft queue are wired in later slices.
  */
-type Mood = 'good' | 'okay' | 'stressed'
-
-const MOODS: readonly { readonly id: Mood; readonly label: string }[] = [
-  { id: 'good', label: 'Good' },
-  { id: 'okay', label: 'Okay' },
-  { id: 'stressed', label: 'Stressed' },
-]
 
 /** ±HH:MM balance from a signed millisecond overtime figure. */
 function signedBalance(ms: number): string {
@@ -32,14 +26,8 @@ function signedBalance(ms: number): string {
 export function PlannerDayInstruments(): React.JSX.Element {
   const t = useTheme()
   const worktime = useWorktime()
-  const [mood, setMood] = useState<Mood | null>(null)
 
   const clockedIn = worktime.running !== null
-  const moodTone: Record<Mood, string> = {
-    good: t.color.good,
-    okay: t.color.warn,
-    stressed: t.color.crit,
-  }
 
   const card = {
     gap: t.spacing.s2,
@@ -91,49 +79,6 @@ export function PlannerDayInstruments(): React.JSX.Element {
         >
           {`Overtime balance ${signedBalance(worktime.overtimeMs)}`}
         </Text>
-      </View>
-
-      {/* Mood — a standing, one-tap strain signal (OLBI); the pick stays on the day. */}
-      <View style={card}>
-        <Text style={cardTitle}>How's it going?</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s2 }}>
-          {MOODS.map(o => {
-            const on = o.id === mood
-            return (
-              <Pressable
-                key={o.id}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-                accessibilityLabel={o.label}
-                onPress={() => setMood(on ? null : o.id)}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  paddingHorizontal: t.spacing.s3,
-                  paddingVertical: 6,
-                  borderRadius: t.radius.pill,
-                  backgroundColor: on ? t.color.accentSoft : t.color.sunk,
-                  borderWidth: 1,
-                  borderColor: on ? t.color.accent : t.color.border,
-                }}
-              >
-                <View
-                  style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: moodTone[o.id] }}
-                />
-                <Text
-                  style={{
-                    fontSize: t.fontSize['2xs'],
-                    fontWeight: '600',
-                    color: on ? t.color.accent : t.color.ink2,
-                  }}
-                >
-                  {o.label}
-                </Text>
-              </Pressable>
-            )
-          })}
-        </View>
       </View>
     </View>
   )
