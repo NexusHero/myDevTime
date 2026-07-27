@@ -16,7 +16,6 @@ import {
   formatDuration,
   intervalCoverage,
   maxConcurrency,
-  plannerBlockRect,
   plannerBlockState,
   projectColor,
   readableInk,
@@ -74,6 +73,8 @@ import { PlannerDayList, type DayListItem } from '../components/planner/PlannerD
 import { PlannerDayInstruments } from '../components/planner/PlannerDayInstruments'
 import { DayRepairSheet } from '../components/planner/DayRepairSheet'
 import { HeroTrackerBar } from '../components/canvas/HeroTrackerBar'
+import { MoodCheck } from '../components/instruments/MoodCheck'
+import { postMood } from '../api/mood'
 import { SmartAdd } from './SmartAdd'
 import { ShutdownCard } from '../components/today/ShutdownCard'
 import { SeviWatch } from '../components/today/SeviWatch'
@@ -83,7 +84,7 @@ import { useDayRepair } from '../hooks/useDayRepair'
 import { useToast } from '../components/core/Toast'
 import { useAbsences } from '../hooks/useAbsences'
 import { useTheme } from '../theme/ThemeProvider'
-import { usePlanner } from '../hooks/usePlanner'
+import { usePlanner, type PlannerResource } from '../hooks/usePlanner'
 import { usePreferences } from '../hooks/usePreferences'
 import { useTimerContext } from '../timer/TimerContext'
 import { useWorktime } from '../hooks/useWorktime'
@@ -1286,11 +1287,9 @@ function ReviewMetric({
 }
 
 /** Today's Co-Planner proposal (REQ-031): the deterministic core's ghost blocks. */
-function CoPlannerProposal(): React.JSX.Element {
+function CoPlannerProposal({ planner }: { planner: PlannerResource }): React.JSX.Element {
   const t = useTheme()
-  const planner = usePlanner()
   const plan = planner.plan
-  const span = planner.dayEndMin - planner.dayStartMin
   const [accepted, setAccepted] = useState<ReadonlySet<number>>(new Set())
   const [dismissed, setDismissed] = useState<ReadonlySet<number>>(new Set())
 
@@ -1336,23 +1335,23 @@ function CoPlannerProposal(): React.JSX.Element {
         <Text style={{ color: t.color.ink2 }}>No proposal yet.</Text>
       ) : (
         <>
-          <View style={{ height: 320, position: 'relative' }}>
+          {/* A vertical list of the plan's blocks with their HH:MM–HH:MM time labels
+              (issue #369): the old fixed 08–18 mini-canvas clipped any block that landed
+              in the evening — e.g. a one-tap day repair (REQ-072) that re-lays a missed
+              block into the present — so the repaired time never showed. A flow list keeps
+              every block, and its time, visible. Mirrors Today's Co-Planner card. */}
+          <View style={{ gap: t.spacing.s2 }}>
             {plan.blocks.map((b, i) => {
               if (dismissed.has(i)) return null
-              const rect = plannerBlockRect(b.startMin - planner.dayStartMin, b.lenMin, span)
               const color = blockColor(b)
               const isGhost = b.kind !== 'meeting' && !accepted.has(i)
               return (
                 <View
                   key={`${b.label}-${String(i)}`}
                   style={{
-                    position: 'absolute',
-                    left: 0,
-                    right: 0,
-                    top: rect.top * 320,
-                    height: Math.max(rect.height * 320, 16),
                     borderRadius: t.radius.chip,
                     paddingHorizontal: t.spacing.s2,
+                    paddingVertical: t.spacing.s2,
                     justifyContent: 'center',
                     borderLeftWidth: isGhost ? 0 : 3,
                     borderLeftColor: color,
@@ -1372,6 +1371,12 @@ function CoPlannerProposal(): React.JSX.Element {
                     }}
                   >
                     {b.kind === 'break' ? 'Pause' : isGhost ? `◇ ${b.label}` : b.label}
+                  </Text>
+                  <Text
+                    numberOfLines={1}
+                    style={{ fontSize: t.fontSize['2xs'], color: isGhost ? color : t.color.ink2 }}
+                  >
+                    {`${clockAbs(b.startMin)}–${clockAbs(b.startMin + b.lenMin)}`}
                   </Text>
                   {isGhost && (
                     <View
@@ -1601,6 +1606,10 @@ export function PlannerScreen(): React.JSX.Element {
   const worktime = useWorktime()
   const [heroTask, setHeroTask] = useState('')
   const [dayClosed, setDayClosed] = useState(false)
+  // Punch-out MoodCheck (REQ-068): the transient one-tap mood row appears in the moment of
+  // stopping the timer, never as a standing widget — the Today ritual, now on the unified
+  // Day view (issue #369). Consent-gated on write; the row itself is always offered.
+  const [askMood, setAskMood] = useState(false)
   const todayEntries = useTodayEntries()
   const heroRunningProject =
     timer.running?.projectId != null
@@ -2469,8 +2478,12 @@ export function PlannerScreen(): React.JSX.Element {
                     const note = heroTask.trim()
                     startTracking(note ? { note } : undefined)
                     setHeroTask('')
+                    setAskMood(false)
                   }}
-                  onStop={stopTracking}
+                  onStop={() => {
+                    stopTracking()
+                    setAskMood(true)
+                  }}
                   punchedIn={worktime.running !== null}
                   punchBusy={worktime.busy}
                   onClockIn={() => {
@@ -2482,6 +2495,26 @@ export function PlannerScreen(): React.JSX.Element {
                     toast.show('Clocked out.')
                   }}
                 />
+
+                {/* Punch-out mood (REQ-068): the transient one-tap row after stopping the
+                    timer. Consent-first — without the stored `moodConsent` opt-in the word
+                    never leaves the device (no API call at all; the server's 409 stays the
+                    backstop). A failed save surfaces via the screen's usual transient toast. */}
+                {askMood && (
+                  <MoodCheck
+                    onDone={() => setAskMood(false)}
+                    onChange={mood => {
+                      if (!prefs.moodConsent || apiBaseUrl === null) return
+                      postMood(apiBaseUrl, mood).catch((e: unknown) => {
+                        toast.show(
+                          e instanceof Error && e.message
+                            ? `Mood not saved — ${e.message}`
+                            : 'Mood not saved.',
+                        )
+                      })
+                    }}
+                  />
+                )}
 
                 <SmartAdd />
 
@@ -2871,7 +2904,7 @@ export function PlannerScreen(): React.JSX.Element {
 
             <Legend />
 
-            <CoPlannerProposal />
+            <CoPlannerProposal planner={planner} />
 
             <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, lineHeight: 18 }}>
               Drag blocks (across days &amp; times) or change their duration at the bottom edge —
