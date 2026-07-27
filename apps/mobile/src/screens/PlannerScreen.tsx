@@ -2681,7 +2681,9 @@ export function PlannerScreen(): React.JSX.Element {
                   {/* Instruments rail — glanceable day signals from real data (design v20). */}
                   <PlannerDayInstruments />
                 </View>
-                <Legend />
+                {/* No block-type Legend on the Day view: it duplicates the Week view's legend
+                    and its static "Meeting" swatch label collided (strict-mode) with the NL
+                    quick-add draft's "Meeting" kind badge on this merged screen (issue #369). */}
               </>
             )
           })()}
