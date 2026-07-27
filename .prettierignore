@@ -3,6 +3,7 @@ dist/
 coverage/
 pnpm-lock.yaml
 spikes/
+.scratch/
 
 # The Playwright acceptance suite (ADR-0053) is its own package outside the pnpm
 # workspace (like spikes/); it is type-checked and linted by its own tsc/Playwright

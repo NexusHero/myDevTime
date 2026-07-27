@@ -47,6 +47,8 @@ export function createAuth({ db, config, email }: CreateAuthDeps) {
     .map(o => o.trim())
     .filter(o => o.length > 0)
 
+  console.log('Better-Auth trustedOrigins:', trustedOrigins)
+
   return betterAuth({
     secret: config.AUTH_SECRET ?? DEV_ONLY_SECRET,
     ...(config.AUTH_BASE_URL ? { baseURL: config.AUTH_BASE_URL } : {}),

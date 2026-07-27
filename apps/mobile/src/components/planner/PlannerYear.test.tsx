@@ -59,4 +59,16 @@ describe('PlannerYear', () => {
     )
     expect(texts(render(<PlannerYear months={months} />))).toContain('5h')
   })
+
+  it('CurrentMonth_WearsAccentRingNotLiveOrange (issue #367)', () => {
+    // ADR-0075: the current month wears an accent ring, not a live-orange "NOW" border.
+    // `live` orange is reserved for "happening now" (running timer, now-line).
+    const months = buildYearMonths([], [], { year: 2026, nowMonth0: 6 })
+    const r = render(<PlannerYear months={months} />)
+    // The NOW label is accent-colored (not live).
+    const tree = JSON.stringify(r.toJSON())
+    expect(tree).toContain('NOW')
+    // No live-orange border color on the current month card — the border is accent.
+    expect(tree).not.toContain('"#ff6b3d"')
+  })
 })

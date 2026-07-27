@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Platform, Pressable, ScrollView, TextInput, View, useWindowDimensions } from 'react-native'
+import { Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import { formatDuration, projectColor } from '@mydevtime/design'
 import type { LoadLevel, TimesheetDraft } from '@mydevtime/domain'
 import { apiBaseUrl } from '../config'
@@ -12,6 +12,7 @@ import {
 } from '../api/categorize'
 import { Text } from '../components/core/Text'
 import { useToast } from '../components/core/Toast'
+import { ShutdownCard } from '../components/today/ShutdownCard'
 import { EveningCompanionCard } from '../components/today/EveningCompanionCard'
 import { MoodEaseCard } from '../components/today/MoodEaseCard'
 import { SeviWatch } from '../components/today/SeviWatch'
@@ -26,13 +27,11 @@ import {
   DayBlock,
   EmptyState,
   Icon,
-  LiveButton,
   MoodCheck,
   OverflowShelf,
-  PauseCounter,
-  ReanimatedTimer,
   type OverflowItem,
 } from '../components/index'
+import { HeroTrackerBar } from '../components/canvas/HeroTrackerBar'
 import { DayRepairSheet } from '../components/planner/DayRepairSheet'
 import { useTimerContext } from '../timer/TimerContext'
 import { useDayRepair } from '../hooks/useDayRepair'
@@ -47,6 +46,7 @@ import { usePomodoro } from '../focus/PomodoroContext'
 import { useAutoTracker } from '../autotracker/useAutoTracker'
 import { loadDaySpans, localDayKey } from '../autotracker/dayActivityStore'
 import { useTodayEntries } from '../hooks/useTodayEntries'
+import { stopSummaryToast } from '../today/stopSummaryToast'
 import { todayShutdown } from '../today/shutdown'
 import { SmartAdd } from './SmartAdd'
 import { TravelEntry } from './TravelEntry'
@@ -141,9 +141,10 @@ export function TodayScreen(): React.JSX.Element {
     toast.show('Timer running.')
   }
   const stopTracking = (): void => {
-    const tracked = timer.elapsed // snapshot before the optimistic clear
-    timer.punchOut()
-    toast.show(`Timer stopped — ${tracked} tracked.`)
+    // The stop toast is now a shared helper (issue #363) so the Planner fires the same
+    // "Timer stopped — X tracked." feedback. It snapshots elapsed before punchOut (the
+    // optimistic clear) — the invariant the grilling called out.
+    stopSummaryToast(toast, { elapsed: timer.elapsed, punchOut: () => timer.punchOut() })
   }
   // The running entry's real project (resolved from the live catalog by its id) —
   // the hero chip binds to it and renders nothing when there is no running project.
@@ -253,237 +254,37 @@ export function TodayScreen(): React.JSX.Element {
       ]
     : []
 
+  // The hero tracker bar is now a shared, controlled component (issue #361) so the
+  // Planner Day view can consume the exact same hero unit without duplicating it.
+  // It owns no state — every value and callback is passed down from this screen.
   const heroBar = (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: t.spacing.s4,
-        paddingVertical: t.spacing.s4,
-        paddingHorizontal: t.spacing.s5,
-        backgroundColor: t.color.surface,
-        borderWidth: 1,
-        borderColor: active ? (isRunning ? t.color.live : t.color.warn) : t.color.border,
-        borderRadius: t.radius.xl,
+    <HeroTrackerBar
+      task={task}
+      setTask={setTask}
+      runningProject={runningProject}
+      billable={timer.billable}
+      busy={timer.busy}
+      running={timer.running}
+      accumulatedMs={timer.accumulatedMs}
+      elapsed={timer.elapsed}
+      paused={paused}
+      pausedSinceMs={timer.pausedSinceMs}
+      active={active}
+      isRunning={isRunning}
+      setBillable={timer.setBillable}
+      onPause={timer.pause}
+      onResume={timer.resume}
+      onStart={() => {
+        const note = task.trim()
+        startTracking(note ? { note } : undefined)
+        setTask('')
+        setAskMood(false)
       }}
-    >
-      <TextInput
-        value={task}
-        onChangeText={setTask}
-        placeholder="What are you working on?"
-        placeholderTextColor={t.color.ink3}
-        style={{
-          flexGrow: 1,
-          flexShrink: 1,
-          flexBasis: 200,
-          minWidth: 40,
-          fontFamily: t.fontFamily.ui,
-          fontSize: t.fontSize.lg,
-          fontWeight: '500',
-          color: t.color.ink,
-        }}
-      />
-      {runningProject && (
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: t.spacing.s2,
-            paddingVertical: 7,
-            paddingHorizontal: 14,
-            borderRadius: t.radius.pill,
-            backgroundColor: t.color.sunk,
-            borderWidth: 1,
-            borderColor: t.color.border,
-          }}
-        >
-          <View
-            style={{
-              width: 9,
-              height: 9,
-              borderRadius: 5,
-              backgroundColor: projectColor(runningProject.id, t.mode),
-            }}
-          />
-          <Text style={{ fontSize: t.fontSize.xs, fontWeight: '600', color: t.color.ink2 }}>
-            {runningProject.name}
-          </Text>
-        </View>
-      )}
-      {/* B5: billable € toggle — flips the running entry's billable flag live
-          (server-authoritative money, ADR-0005) or the next-start default. */}
-      <Pressable
-        onPress={() => timer.setBillable(!timer.billable)}
-        disabled={timer.busy}
-        // `button`, not `switch`: react-native-web doesn't emit aria-checked from
-        // accessibilityState, so a switch role fails axe (REQ-043); the on/off state
-        // rides the accessible name instead.
-        accessibilityRole="button"
-        accessibilityState={{ checked: timer.billable }}
-        accessibilityLabel={`Billable, ${timer.billable ? 'on' : 'off'}`}
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: 17,
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderWidth: 1.5,
-          borderColor: timer.billable ? t.color.accent : t.color.borderStrong,
-          backgroundColor: timer.billable ? t.color.accentSoft : t.color.surface,
-        }}
-      >
-        <Text
-          style={{
-            fontFamily: t.fontFamily.display,
-            fontWeight: '700',
-            fontSize: 15,
-            color: timer.billable ? t.color.accent : t.color.ink3,
-          }}
-        >
-          €
-        </Text>
-      </Pressable>
-      {/* Worked time is live-orange while a segment runs and frozen ink-3 while paused
-          or idle; the pause counter stacks under it in warn, so the paused total holds
-          and the pause visibly climbs instead (design v10). */}
-      <View style={{ alignItems: 'flex-end', gap: 2 }}>
-        {isRunning && timer.running ? (
-          <ReanimatedTimer
-            startedAt={timer.running.startedAt}
-            accumulatedMs={timer.accumulatedMs}
-            style={{
-              fontFamily: t.fontFamily.numeric,
-              fontSize: t.fontSize.xl,
-              fontWeight: '600',
-              color: t.color.live,
-              textAlign: 'right',
-            }}
-          />
-        ) : (
-          <Text
-            style={{
-              fontFamily: t.fontFamily.numeric,
-              fontSize: t.fontSize.xl,
-              fontWeight: '600',
-              color: t.color.ink3,
-              textAlign: 'right',
-            }}
-          >
-            {timer.elapsed}
-          </Text>
-        )}
-        {paused && (
-          <PauseCounter
-            pausedSinceMs={timer.pausedSinceMs}
-            style={{
-              fontFamily: t.fontFamily.numeric,
-              fontSize: t.fontSize.xs,
-              fontWeight: '600',
-              color: t.color.warn,
-              textAlign: 'right',
-            }}
-          />
-        )}
-      </View>
-      <Pressable
-        onPress={() => (paused ? timer.resume() : timer.pause())}
-        disabled={!active || timer.busy}
-        accessibilityRole="button"
-        accessibilityLabel={paused ? 'Resume' : 'Pause'}
-        style={{
-          width: 48,
-          height: 48,
-          borderRadius: 24,
-          borderWidth: 1.5,
-          borderColor: !active ? t.color.border : paused ? t.color.warn : t.color.borderStrong,
-          backgroundColor: !active ? 'transparent' : paused ? t.color.warnSoft : t.color.surface,
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexDirection: 'row',
-          gap: 4,
-          opacity: !active ? 0.3 : 1,
-        }}
-      >
-        {paused ? (
-          <View
-            style={{
-              marginLeft: 3,
-              width: 0,
-              height: 0,
-              borderTopWidth: 8,
-              borderBottomWidth: 8,
-              borderLeftWidth: 13,
-              borderTopColor: 'transparent',
-              borderBottomColor: 'transparent',
-              borderLeftColor: t.color.warn,
-            }}
-          />
-        ) : (
-          <>
-            <View
-              style={{ width: 5, height: 16, borderRadius: 2, backgroundColor: t.color.ink2 }}
-            />
-            <View
-              style={{ width: 5, height: 16, borderRadius: 2, backgroundColor: t.color.ink2 }}
-            />
-          </>
-        )}
-      </Pressable>
-      {/* The primary punch button breathes + emits pulse waves while active
-          (design v4 motion pass); LiveButton is a no-op when idle or reduced-motion. */}
-      <LiveButton active={active} color={active ? t.color.live : t.color.accent} size={64}>
-        <Pressable
-          onPress={() => {
-            if (active) {
-              stopTracking()
-              setAskMood(true)
-            } else {
-              const note = task.trim()
-              startTracking(note ? { note } : undefined)
-              setTask('')
-              setAskMood(false)
-            }
-          }}
-          disabled={timer.busy}
-          accessibilityRole="button"
-          accessibilityLabel={active ? 'Stop' : 'Start'}
-          style={{
-            width: 64,
-            height: 64,
-            borderRadius: 32,
-            backgroundColor: active ? t.color.live : t.color.accent,
-            alignItems: 'center',
-            justifyContent: 'center',
-            // Coloured glow under the punch button, matching the design
-            // (box-shadow 0 10px 28px -8px, tinted live/accent).
-            shadowColor: active ? t.color.live : t.color.accent,
-            shadowOffset: { width: 0, height: 10 },
-            shadowOpacity: 0.5,
-            shadowRadius: 14,
-            elevation: 8,
-          }}
-        >
-          {active ? (
-            <View style={{ width: 20, height: 20, borderRadius: 5, backgroundColor: '#fff' }} />
-          ) : (
-            <View
-              style={{
-                marginLeft: 5,
-                width: 0,
-                height: 0,
-                borderTopWidth: 13,
-                borderBottomWidth: 13,
-                borderLeftWidth: 22,
-                borderTopColor: 'transparent',
-                borderBottomColor: 'transparent',
-                borderLeftColor: '#fff',
-              }}
-            />
-          )}
-        </Pressable>
-      </LiveButton>
-    </View>
+      onStop={() => {
+        stopTracking()
+        setAskMood(true)
+      }}
+    />
   )
 
   const coPlanner = (
@@ -935,80 +736,12 @@ export function TodayScreen(): React.JSX.Element {
         </View>
       </Card>
     )
-  const shutdownCard =
-    dayClosed || shutdown.state === 'idle' ? null : (
-      <Card title="Close the day" subtitle="Feierabend">
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.s5 }}>
-          <View>
-            <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>Booked</Text>
-            <Text
-              style={{
-                fontFamily: t.fontFamily.numeric,
-                fontSize: t.fontSize.lg,
-                fontWeight: '600',
-                color: t.color.ink,
-              }}
-            >
-              {`${formatDuration(shutdown.summary.bookedMs)} h`}
-            </Text>
-          </View>
-          <View>
-            <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
-              Tracked reality
-            </Text>
-            <Text
-              style={{
-                fontFamily: t.fontFamily.numeric,
-                fontSize: t.fontSize.lg,
-                fontWeight: '600',
-                color: t.color.ink,
-              }}
-            >
-              {`${formatDuration(shutdown.summary.trackedMs)} h`}
-            </Text>
-          </View>
-          {shutdown.summary.unbookedMs > 0 && (
-            <View>
-              <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>Still open</Text>
-              <Text
-                style={{
-                  fontFamily: t.fontFamily.numeric,
-                  fontSize: t.fontSize.lg,
-                  fontWeight: '600',
-                  color: t.color.live,
-                }}
-              >
-                {`${formatDuration(shutdown.summary.unbookedMs)} h`}
-              </Text>
-            </View>
-          )}
-        </View>
-        <Text
-          style={{
-            fontSize: t.fontSize.xs,
-            color: t.color.ink2,
-            lineHeight: 18,
-            marginTop: t.spacing.s3,
-          }}
-        >
-          {shutdown.state === 'clean'
-            ? 'Everything you tracked is booked — the day is fully accounted for. Feierabend.'
-            : shutdown.summary.openDraftCount > 0
-              ? `${String(shutdown.summary.openDraftCount)} draft${shutdown.summary.openDraftCount === 1 ? '' : 's'} to book (${formatDuration(shutdown.recoveredMs)} h of tracked reality). Open the Planner to review and book them — nothing is booked for you.`
-              : 'Some tracked reality is still unbooked. Open the Planner to book it before you close the day.'}
-        </Text>
-        {shutdown.summary.tomorrowFirst !== null && (
-          <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, marginTop: t.spacing.s2 }}>
-            {`Tomorrow starts with ${shutdown.summary.tomorrowFirst}.`}
-          </Text>
-        )}
-        <View style={{ flexDirection: 'row', marginTop: t.spacing.s4 }}>
-          <Button size="sm" onPress={() => setDayClosed(true)}>
-            {'git commit -m "Feierabend"'}
-          </Button>
-        </View>
-      </Card>
-    )
+  // The Feierabend card is now a shared, controlled component (issue #362) so the
+  // Planner Day view can consume the same day-close ritual. It renders null when the
+  // day is idle or already closed; closing is local to this session (no backend state).
+  const shutdownCard = (
+    <ShutdownCard shutdown={shutdown} closed={dayClosed} onClose={() => setDayClosed(true)} />
+  )
 
   // Forgotten-tracking proposal card (REQ-033): evidence is the running timer's own
   // runtime; the user confirms Stop / Trim / Keep — nothing auto-corrects. Bound to

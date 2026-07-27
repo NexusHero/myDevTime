@@ -78,6 +78,26 @@ export function loadTone(load: number, soll: number): LoadTone {
 }
 
 /**
+ * The shared 5-step accent heat scale for the calendar (issues #366/#367, ADR-0075).
+ * Mirrors the `loadTone` bands but with finer granularity, bucketing a day's
+ * prio-weighted load against its daily target into five levels — `0` idle · `1` sunk
+ * (≤50%) · `2` soft (≤85%) · `3` text (≤100%) · `4` accent (over). Pure so the
+ * calendar's heat is deterministic (ADR-0005); the color is decorative, the a11y label
+ * carries the meaning (REQ-043). Consumed by both the month and year views so the
+ * intensity scale is unified (one function, not two).
+ */
+export type HeatLevel = 0 | 1 | 2 | 3 | 4
+
+export function loadHeat(load: number, soll: number): HeatLevel {
+  if (!(load > 0)) return 0
+  if (!(soll > 0)) return 4
+  if (load <= soll * 0.5) return 1
+  if (load <= soll * 0.85) return 2
+  if (load <= soll) return 3
+  return 4
+}
+
+/**
  * Week-load intensity for the Planner **Year** heat strip (design v18 §Year, REQ-046): the same
  * prio-weighted load a week carries, bucketed against the weekly target into four levels —
  * `0` idle · `1` light (≤40 %) · `2` steady (≤80 %) · `3` heavy (over 80 %). Pure so the year's

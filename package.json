@@ -47,22 +47,16 @@
     "unplugin-swc": "^1.5.9",
     "vitest": "^4.1.10"
   },
-  "pnpm": {
-    "overrides": {
-      "vite": ">=6.4.3",
-      "@xmldom/xmldom": ">=0.8.13",
-      "@expo/plist>@xmldom/xmldom": "0.8.13",
-      "react": "18.3.1",
-      "react-dom": "18.3.1",
-      "tar": "^7.5.19",
-      "fast-uri": "^3.1.4"
-    },
-    "auditConfig": {
-      "ignoreGhsas": [
-        "GHSA-67mh-4wv8-2f99",
-        "GHSA-qx2v-qp2m-jg93",
-        "GHSA-w5hq-g745-h8pq"
-      ]
-    }
+  "resolutions": {
+    "vite": ">=6.4.3",
+    "@xmldom/xmldom": ">=0.8.13",
+    "@expo/plist>@xmldom/xmldom": "0.8.13",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tar": ">=7.5.21",
+    "fast-uri": "^3.1.4",
+    "brace-expansion": ">=5.0.8",
+    "find-my-way": ">=9.7.0",
+    "postcss": ">=8.5.18"
   }
 }

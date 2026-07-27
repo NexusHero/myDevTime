@@ -22,6 +22,8 @@ kept in sync for anyone running `pnpm audit` locally, but CI reads
 |---------|----------|-----|
 | `@xmldom/xmldom` | `>=0.8.13` | Pulled in only by `expo > @expo/cli > @expo/plist` (iOS plist parsing in the Expo **build CLI**). A patch-level bump clears 5 high advisories with no runtime effect. |
 | `tar` | `^7.5.19` | Pulled in only by `expo > @expo/cli` (archive extraction in the Expo **build CLI**), which pins `tar@^6` — an unpatched line that kept accumulating advisories (11 GHSAs at the point of the switch, incl. one critical). Forcing the patched `tar@7` major cleared the whole set; the CLI's tar usage survives the major bump (verified by the web export in CI's docker build). Previously these were accepted below — an exception list that only ever grew, which is exactly what this file says to avoid. |
+| `find-my-way` | `>=9.7.0` | Fastify 5's core HTTP router — **shipped, in the server request path**, so this is fixed, not accepted. `find-my-way@9.6.0` carried GHSA-c96f-x56v-gq3h (7.5); the `^9.7.0` patch line clears it and stays within Fastify 5's `find-my-way@^9` peer range (API build + boot + integration tests green). |
+| `postcss` | `>=8.5.18` | CSS processor inside the Expo build CLI (`expo > @expo/cli > @expo/metro-config`). `postcss@8.4.49` carried GHSA-6g55-p6wh-862q and GHSA-r28c-9q8g-f849 (both 7.5) plus the older GHSA-qx2v-qp2m-jg93 (6.1, previously accepted below). The `8.5.x` line is API-compatible with `8.4.x`, so a single minor bump clears all three — taking the override over the accept, per the discipline above. |
 
 ## Accepted (ignored) — build/CLI tooling only, never shipped
 
@@ -46,8 +48,8 @@ carry the `uuid` advisory).
 | GHSA | Package | Severity | Path (build/CLI only) |
 |------|---------|----------|------------------------|
 | GHSA-67mh-4wv8-2f99 | esbuild | 5.3 Med | better-auth > drizzle-kit (+ tsx/vite dev toolchain) |
-| GHSA-qx2v-qp2m-jg93 | postcss | 6.1 Med | expo > @expo/cli > @expo/metro-config > postcss |
 | GHSA-w5hq-g745-h8pq | uuid (7.0.3 & 8.3.2) | 7.5 High | expo > @expo/cli (xcode > @expo/config-plugins; @expo/bunyan > @expo/rudder-sdk-node) |
+| GHSA-83w8-p2f5-377r · GHSA-8pvw-jcv7-9cmj | @fastify/static (9.3.0) | 7.5 High · 5.3 Med | optionalDependency of `fastify` and `@nestjs/swagger` (Swagger UI static assets) — **not** a build tool. Accepted, not fixed, because the patched line is v10 and `@nestjs/swagger`'s peer range is strictly `v8 \|\| v9`; adopting v10 breaks Swagger UI init. Low risk: no wildcard/user-controlled static paths are served through it. Revisit when `@nestjs/swagger` supports `@fastify/static@10`. (Replaces the now-resolved GHSA-mh99-v99m-4gvg.) |
 
 **Revisit when:** the Expo SDK, `drizzle-kit`, or `better-auth` is upgraded (each
 tends to move the pinned sub-package onto a patched line). At that point, re-run

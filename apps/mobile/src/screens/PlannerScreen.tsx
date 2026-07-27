@@ -16,7 +16,6 @@ import {
   formatDuration,
   intervalCoverage,
   maxConcurrency,
-  plannerBlockRect,
   plannerBlockState,
   projectColor,
   readableInk,
@@ -70,16 +69,29 @@ import { TaskInbox } from '../components/planner/TaskInbox'
 import { PlannerBacklogRail } from '../components/planner/BacklogRail'
 import { PlannerEntryDrawer, type DrawerEntry } from '../components/planner/PlannerEntryDrawer'
 import { PlannerStartPicker } from '../components/planner/PlannerStartPicker'
-import { PlannerDayTracker } from '../components/planner/PlannerDayTracker'
 import { PlannerDayList, type DayListItem } from '../components/planner/PlannerDayList'
 import { PlannerDayInstruments } from '../components/planner/PlannerDayInstruments'
 import { DayRepairSheet } from '../components/planner/DayRepairSheet'
+import { HeroTrackerBar } from '../components/canvas/HeroTrackerBar'
+import { MoodCheck } from '../components/instruments/MoodCheck'
+import { postMood } from '../api/mood'
+import { SmartAdd } from './SmartAdd'
+import { ShutdownCard } from '../components/today/ShutdownCard'
+import { SeviWatch } from '../components/today/SeviWatch'
+import { EveningCompanionCard } from '../components/today/EveningCompanionCard'
+import { MoodEaseCard } from '../components/today/MoodEaseCard'
 import { useDayRepair } from '../hooks/useDayRepair'
 import { useToast } from '../components/core/Toast'
 import { useAbsences } from '../hooks/useAbsences'
 import { useTheme } from '../theme/ThemeProvider'
-import { usePlanner } from '../hooks/usePlanner'
+import { usePlanner, type PlannerResource } from '../hooks/usePlanner'
 import { usePreferences } from '../hooks/usePreferences'
+import { useTimerContext } from '../timer/TimerContext'
+import { useWorktime } from '../hooks/useWorktime'
+import { useTodayEntries } from '../hooks/useTodayEntries'
+import { todayShutdown } from '../today/shutdown'
+import { stopSummaryToast } from '../today/stopSummaryToast'
+import { findProject } from './projectsData'
 import { loadDaySpans, localDayKey } from '../autotracker/dayActivityStore'
 import type { PlanBlock } from '../api/planner'
 import { INBOX_PROJECTS, INBOX_TASKS, type InboxTask } from './plannerInboxData'
@@ -1275,11 +1287,9 @@ function ReviewMetric({
 }
 
 /** Today's Co-Planner proposal (REQ-031): the deterministic core's ghost blocks. */
-function CoPlannerProposal(): React.JSX.Element {
+function CoPlannerProposal({ planner }: { planner: PlannerResource }): React.JSX.Element {
   const t = useTheme()
-  const planner = usePlanner()
   const plan = planner.plan
-  const span = planner.dayEndMin - planner.dayStartMin
   const [accepted, setAccepted] = useState<ReadonlySet<number>>(new Set())
   const [dismissed, setDismissed] = useState<ReadonlySet<number>>(new Set())
 
@@ -1325,23 +1335,23 @@ function CoPlannerProposal(): React.JSX.Element {
         <Text style={{ color: t.color.ink2 }}>No proposal yet.</Text>
       ) : (
         <>
-          <View style={{ height: 320, position: 'relative' }}>
+          {/* A vertical list of the plan's blocks with their HH:MM–HH:MM time labels
+              (issue #369): the old fixed 08–18 mini-canvas clipped any block that landed
+              in the evening — e.g. a one-tap day repair (REQ-072) that re-lays a missed
+              block into the present — so the repaired time never showed. A flow list keeps
+              every block, and its time, visible. Mirrors Today's Co-Planner card. */}
+          <View style={{ gap: t.spacing.s2 }}>
             {plan.blocks.map((b, i) => {
               if (dismissed.has(i)) return null
-              const rect = plannerBlockRect(b.startMin - planner.dayStartMin, b.lenMin, span)
               const color = blockColor(b)
               const isGhost = b.kind !== 'meeting' && !accepted.has(i)
               return (
                 <View
                   key={`${b.label}-${String(i)}`}
                   style={{
-                    position: 'absolute',
-                    left: 0,
-                    right: 0,
-                    top: rect.top * 320,
-                    height: Math.max(rect.height * 320, 16),
                     borderRadius: t.radius.chip,
                     paddingHorizontal: t.spacing.s2,
+                    paddingVertical: t.spacing.s2,
                     justifyContent: 'center',
                     borderLeftWidth: isGhost ? 0 : 3,
                     borderLeftColor: color,
@@ -1361,6 +1371,14 @@ function CoPlannerProposal(): React.JSX.Element {
                     }}
                   >
                     {b.kind === 'break' ? 'Pause' : isGhost ? `◇ ${b.label}` : b.label}
+                  </Text>
+                  <Text
+                    numberOfLines={1}
+                    style={{ fontSize: t.fontSize['2xs'], color: isGhost ? color : t.color.ink2 }}
+                  >
+                    {/* `% 1440` wraps a block that ends on the day-frame edge (minute 1440) to
+                        `00:00`, matching the seam/preview/spec convention (never `24:00`). */}
+                    {`${clockAbs(b.startMin % 1440)}–${clockAbs((b.startMin + b.lenMin) % 1440)}`}
                   </Text>
                   {isGhost && (
                     <View
@@ -1575,8 +1593,54 @@ export function PlannerScreen(): React.JSX.Element {
   // One-tap day repair (ADR-0072 D1, REQ-072): the drift chip is the handle on the Day view —
   // the sheet renders its own `Plan gerissen · Reparieren` chip when the pure core has a
   // repair to offer, and nothing at all otherwise.
-  const dayRepair = useDayRepair(usePlanner())
+  const planner = usePlanner()
+  const dayRepair = useDayRepair(planner)
   const toast = useToast()
+  // The live tracking catalog (clients → projects → tasks) — hoisted up so the unified
+  // Day Canvas hero bar (issue #364) can resolve the running entry's project.
+  const catalog = useCatalog()
+  // Unified Day Canvas (issue #364): the Planner Day view now owns the hero tracker
+  // (the big orange LiveButton + PauseCounter + worked time + billable + clock-in/out)
+  // and the Feierabend ShutdownCard — the same shared components Today used, so there is
+  // one home, not two. The shared timer is the single source of truth (ux-vision §2.3);
+  // the hero bar is a controlled view, never a second clock.
+  const timer = useTimerContext()
+  const worktime = useWorktime()
+  const [heroTask, setHeroTask] = useState('')
+  const [dayClosed, setDayClosed] = useState(false)
+  // Punch-out MoodCheck (REQ-068): the transient one-tap mood row appears in the moment of
+  // stopping the timer, never as a standing widget — the Today ritual, now on the unified
+  // Day view (issue #369). Consent-gated on write; the row itself is always offered.
+  const [askMood, setAskMood] = useState(false)
+  const todayEntries = useTodayEntries()
+  const heroRunningProject =
+    timer.running?.projectId != null
+      ? (findProject(catalog.data ?? [], timer.running.projectId)?.project ?? null)
+      : null
+  const heroIsRunning = timer.running !== null
+  const heroPaused = timer.paused
+  const heroActive = heroIsRunning || heroPaused
+  const startTracking = (input?: Parameters<typeof timer.punchIn>[0]): void => {
+    timer.punchIn(input)
+    toast.show('Timer running.')
+  }
+  const stopTracking = (): void => {
+    stopSummaryToast(toast, { elapsed: timer.elapsed, punchOut: () => timer.punchOut() })
+  }
+  // The Feierabend view-model reads the same real state Today used: the auto-tracker's
+  // local reality spans + today's booked entries. The deterministic `todayShutdown` core
+  // owns every figure (ADR-0005); the card only renders its output.
+  const plannerShutdown = todayShutdown({
+    spans: loadDaySpans(localDayKey(Date.now())),
+    booked: todayEntries.booked,
+    bookedMs: todayEntries.bookedMs,
+    tomorrowFirst: null,
+  })
+  useEffect(() => {
+    if (timer.lastSync > 0) {
+      todayEntries.reload()
+    }
+  }, [timer.lastSync, todayEntries])
   // Empty-slot tap-to-create (design v20): drop a 1 h actual block at the tapped, snapped time on
   // the given day; a transient toast confirms it. Clamped inside the 08–18 window.
   const createBlockAt = (day: number, startMin: number): void => {
@@ -2042,10 +2106,10 @@ export function PlannerScreen(): React.JSX.Element {
   const DAILY_TARGET_HOURS = 8.33
 
   // New-Entry dialog (design v19): create a real Task or Life entry by hand. Projects come live
-  // from the workspace catalog; a new entry persists as a recurring series (a single occurrence)
-  // placed at the next free slot, then the week + calendar reload. Nothing is invented (ADR-0005);
-  // without an API the create is a no-op and the dialog says so, rather than faking a row.
-  const catalog = useCatalog()
+  // from the workspace catalog (hoisted above for the hero bar); a new entry persists as a
+  // recurring series (a single occurrence) placed at the next free slot, then the week + calendar
+  // reload. Nothing is invented (ADR-0005); without an API the create is a no-op and the dialog
+  // says so, rather than faking a row.
   const absences = useAbsences()
   const dialogProjects = (catalog.data ?? [])
     .flatMap(c => c.projects)
@@ -2392,9 +2456,117 @@ export function PlannerScreen(): React.JSX.Element {
                     </Text>
                   </View>
                 )}
-                <PlannerDayTracker clients={catalog.data ?? []} />
+                {/* Unified Day Canvas (issue #364): the hero tracker bar — the big orange
+                    LiveButton + PauseCounter + worked time + billable + clock-in/out —
+                    replaces the old PlannerDayTracker. Controlled view over the shared
+                    timer; never a second clock (ux-vision §2.3). */}
+                <HeroTrackerBar
+                  task={heroTask}
+                  setTask={setHeroTask}
+                  runningProject={heroRunningProject}
+                  billable={timer.billable}
+                  busy={timer.busy}
+                  running={timer.running}
+                  accumulatedMs={timer.accumulatedMs}
+                  elapsed={timer.elapsed}
+                  paused={heroPaused}
+                  pausedSinceMs={timer.pausedSinceMs}
+                  active={heroActive}
+                  isRunning={heroIsRunning}
+                  setBillable={timer.setBillable}
+                  onPause={timer.pause}
+                  onResume={timer.resume}
+                  onStart={() => {
+                    const note = heroTask.trim()
+                    startTracking(note ? { note } : undefined)
+                    setHeroTask('')
+                    setAskMood(false)
+                  }}
+                  onStop={() => {
+                    stopTracking()
+                    setAskMood(true)
+                  }}
+                  punchedIn={worktime.running !== null}
+                  punchBusy={worktime.busy}
+                  onClockIn={() => {
+                    worktime.clockIn()
+                    toast.show('Clocked in.')
+                  }}
+                  onClockOut={() => {
+                    worktime.clockOut()
+                    toast.show('Clocked out.')
+                  }}
+                />
+
+                {/* Punch-out mood (REQ-068): the transient one-tap row after stopping the
+                    timer. Consent-first — without the stored `moodConsent` opt-in the word
+                    never leaves the device (no API call at all; the server's 409 stays the
+                    backstop). A failed save surfaces via the screen's usual transient toast. */}
+                {askMood && (
+                  <MoodCheck
+                    onDone={() => setAskMood(false)}
+                    onChange={mood => {
+                      if (!prefs.moodConsent || apiBaseUrl === null) return
+                      postMood(apiBaseUrl, mood).catch((e: unknown) => {
+                        toast.show(
+                          e instanceof Error && e.message
+                            ? `Mood not saved — ${e.message}`
+                            : 'Mood not saved.',
+                        )
+                      })
+                    }}
+                  />
+                )}
+
+                <SmartAdd />
+
+                {/* The actual canvas. */}
                 {/* One-tap day repair (ADR-0072 D1): drift chip → ghost preview → one tap. */}
                 <DayRepairSheet repair={dayRepair} />
+                {/* Co-Planner card on the Day view (issue #369): "today's plan" is a Today
+                    capability the Day-canvas merge must carry — it re-reads the plan in place
+                    after a one-tap repair (REQ-072) and shows the re-laid block's time, mirroring
+                    the old Today card. It was previously only in the Week view. */}
+                <CoPlannerProposal planner={planner} />
+                {/* Feierabend ritual (issue #364): the ShutdownCard sits below the day
+                    canvas — Booked / Tracked reality / Still open + the git commit gesture.
+                    Renders nothing when the day is idle or already closed. */}
+                <ShutdownCard
+                  shutdown={plannerShutdown}
+                  closed={dayClosed}
+                  onClose={() => setDayClosed(true)}
+                />
+                {/* Today-only companions moved to the Planner Day view (ADR-0075, issue
+                    #365): SeviWatch, MoodEaseCard, and EveningCompanionCard sit below the
+                    Feierabend card — the whole day-close ritual in one place. */}
+                <SeviWatch />
+                <MoodEaseCard baseUrl={apiBaseUrl} date={localDayKey(NOW.getTime())} />
+                <EveningCompanionCard
+                  baseUrl={apiBaseUrl}
+                  date={localDayKey(NOW.getTime())}
+                  tz={Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'}
+                  day={{
+                    plannedMinutes: Math.max(0, Math.round(planner.review?.plannedFocusMin ?? 0)),
+                    actualMinutes: Math.max(
+                      0,
+                      Math.round(
+                        planner.review?.trackedFocusMin ??
+                          plannerShutdown.summary.trackedMs / 60_000,
+                      ),
+                    ),
+                    overtimeMinutes: 0,
+                    breakShortfallMinutes: 0,
+                    meetingCount: 0,
+                    backToBackMeetingCount: 0,
+                    planDriftMinutes: Math.round(planner.review?.driftMin ?? 0),
+                    isAbsenceDay: false,
+                  }}
+                  onConfirmSuggestion={() =>
+                    toast.show(
+                      'Noted — set it up in the Planner when you plan tomorrow. Nothing was booked.',
+                    )
+                  }
+                />
                 {/* Canvas ⇄ List toggle (REQ-040): the same day, geometry or flat list. */}
                 <View style={{ maxWidth: 220 }}>
                   <SegmentedControl<'canvas' | 'list'>
@@ -2509,7 +2681,9 @@ export function PlannerScreen(): React.JSX.Element {
                   {/* Instruments rail — glanceable day signals from real data (design v20). */}
                   <PlannerDayInstruments />
                 </View>
-                <Legend />
+                {/* No block-type Legend on the Day view: it duplicates the Week view's legend
+                    and its static "Meeting" swatch label collided (strict-mode) with the NL
+                    quick-add draft's "Meeting" kind badge on this merged screen (issue #369). */}
               </>
             )
           })()}
@@ -2739,7 +2913,7 @@ export function PlannerScreen(): React.JSX.Element {
 
             <Legend />
 
-            <CoPlannerProposal />
+            <CoPlannerProposal planner={planner} />
 
             <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, lineHeight: 18 }}>
               Drag blocks (across days &amp; times) or change their duration at the bottom edge —

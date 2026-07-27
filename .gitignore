@@ -16,6 +16,9 @@ coverage/
 !.env.example
 *.local
 
+# GitHub MCP config (contains a personal access token — never commit)
+.mcp.json
+
 # Editor / OS
 .DS_Store
 .idea/
@@ -27,6 +30,7 @@ apps/api/openapi.json
 
 # Claude Code harness working dir (worktrees, scratch, session state)
 .claude/
+.scratch/
 
 # Filled-in Kubernetes Secret manifests — only the *.example.yaml templates are
 # tracked; real credentials are applied out-of-band (see k8s/README.md).

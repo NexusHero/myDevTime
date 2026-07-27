@@ -2,25 +2,33 @@ import { Pressable, View } from 'react-native'
 import {
   bookingGapDays,
   dayLoad,
-  loadTone,
+  loadHeat,
   monthGrid,
   projectColor,
   weekdayHeaders,
+  type HeatLevel,
 } from '@mydevtime/design'
-import type { LoadTone } from '@mydevtime/design'
 import { Text } from '../core/Text'
 import { useTheme } from '../../theme/ThemeProvider'
 import type { Theme } from '@mydevtime/design'
 import type { MonthDay } from '../../planner/calendarMonth'
 
 /**
- * Planner **Month** view (design v18 PlannerViews). The ground law: **tasks** (planned work) count
- * toward the day's load and wear a project color + priority dot; **events** (holiday, company event,
- * absence) never count and never block — they surface as a hollow dashed banner. Each cell shows the
- * day number (today in a live-orange pill), up to three tasks + "+N more", any events, and a
- * priority-weighted load bar (`dayLoad`/`loadTone` from `@mydevtime/design`). All data is real
- * (`buildMonthDays`); an empty month renders an honest empty grid. The month layer never books —
- * tapping a day drills into it. (Events are neutral, never violet — violet is the AI signature.)
+ * Planner **Month** view — redesigned as a calm, blue-accented heatmap (issue #366,
+ * ADR-0075). The ground law is unchanged: **tasks** (planned work) count toward the
+ * day's load and wear a project color + priority dot; **events** (holiday, company
+ * event, absence) never count and never block — they surface as a hollow dashed banner.
+ *
+ * What changed: the dated yellow-and-numbers grid is gone. Each day is now a borderless
+ * rounded cell whose **fill intensity** is the primary load signal — a 5-step accent-blue
+ * scale (idle `bg` → `sunk` → `accentSoft` → `accentText` → `accent`) driven by the pure
+ * [`loadHeat`](../../planner) helper. Day numbers shrink to a quiet `ink3` secondary role;
+ * today wears a subtle accent ring (border), not a loud orange pill. The 3px amber load
+ * bar and the inline load number are gone — the heat *is* the signal (numbers available on
+ * tap via the a11y label). The booking-gap marker switches from `warn` to `ink3` (it's
+ * information, not a warning). `live` orange is reserved strictly for "happening now"
+ * (palette rule, ADR-0075). Every cell keeps an `accessibilityLabel` with day + load
+ * (REQ-043) — the color is decorative, the label carries the meaning.
  */
 export interface PlannerMonthProps {
   readonly year: number
@@ -30,7 +38,7 @@ export interface PlannerMonthProps {
   readonly today: number
   /** Per-day contents, keyed by day-of-month (from `buildMonthDays`). */
   readonly days: ReadonlyMap<number, MonthDay>
-  /** The daily target hours the load bar/tone compares against. */
+  /** The daily target hours the heat scale compares against. */
   readonly targetHours: number
   readonly onDrill?: (day: number) => void
 }
@@ -38,15 +46,13 @@ export interface PlannerMonthProps {
 const PRIO_DOT = (t: Theme, prio: number): string =>
   prio === 1 ? t.color.crit : prio === 2 ? t.color.warn : t.color.ink3
 
-const LOAD_COLOR: Record<LoadTone, (t: Theme) => string> = {
-  idle: t => t.color.border,
-  good: t => t.color.good,
-  warn: t => t.color.warn,
-  crit: t => t.color.crit,
-}
-
-function fmtLoad(load: number): string {
-  return load.toFixed(1)
+/** The 5-step accent heat fill for a cell, driven by the pure `loadHeat` level. */
+const HEAT_FILL: Record<HeatLevel, (t: Theme) => string> = {
+  0: () => 'transparent',
+  1: t => t.color.sunk,
+  2: t => t.color.accentSoft,
+  3: t => t.color.accentText,
+  4: t => t.color.accent,
 }
 
 export function PlannerMonth({
@@ -60,24 +66,22 @@ export function PlannerMonth({
   const t = useTheme()
   const weeks = monthGrid(year, month0)
   const headers = weekdayHeaders(true)
-  // Booking-gap markers (design v13 §K / competitor parity, REQ-037): the past weekdays with no
-  // entry — an honest "nothing booked here". Deterministic (`bookingGapDays`, ADR-0005): only the
-  // current month has a "today" cutoff, so nothing in the future is ever flagged as missed.
+  // Booking-gap markers (REQ-037): the past weekdays with no entry — an honest "nothing
+  // booked here". Deterministic (`bookingGapDays`, ADR-0005): only the current month has
+  // a "today" cutoff, so nothing in the future is ever flagged as missed.
   const bookedDays = new Set(
     [...days].filter(([, d]) => d.tasks.length > 0 || d.events.length > 0).map(([day]) => day),
   )
   const gapDays = new Set(bookingGapDays(year, month0, bookedDays, today > 0 ? today - 1 : 0))
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, gap: t.spacing.s1 }}>
       {/* Weekday header row */}
-      <View
-        style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: t.color.border }}
-      >
+      <View style={{ flexDirection: 'row', gap: t.spacing.s1 }}>
         {headers.map(w => (
           <View
             key={w}
-            style={{ flex: 1, paddingVertical: t.spacing.s2, paddingHorizontal: t.spacing.s2 }}
+            style={{ flex: 1, paddingVertical: t.spacing.s1, paddingHorizontal: t.spacing.s2 }}
           >
             <Text
               style={{
@@ -93,9 +97,9 @@ export function PlannerMonth({
         ))}
       </View>
 
-      {/* Week rows */}
+      {/* Week rows — borderless rounded cells with gap spacing (no hairline borders). */}
       {weeks.map((week, wi) => (
-        <View key={wi} style={{ flexDirection: 'row' }}>
+        <View key={wi} style={{ flexDirection: 'row', gap: t.spacing.s1 }}>
           {week.map((cell, ci) => {
             const weekend = ci >= 5
             if (!cell.inMonth) {
@@ -105,10 +109,7 @@ export function PlannerMonth({
                   style={{
                     flex: 1,
                     minHeight: 92,
-                    borderBottomWidth: 1,
-                    borderBottomColor: t.color.border,
-                    borderLeftWidth: ci === 0 ? 0 : 1,
-                    borderLeftColor: t.color.border,
+                    borderRadius: t.radius.block,
                     backgroundColor: t.color.sunk,
                     opacity: 0.4,
                   }}
@@ -121,7 +122,7 @@ export function PlannerMonth({
             const load = data?.load ?? dayLoad([])
             const isToday = cell.date === today
             const shown = tasks.slice(0, 3)
-            const tone = loadTone(load, targetHours)
+            const heat = loadHeat(load, targetHours)
             const hasActivity = tasks.length > 0 || events.length > 0
             const isGap = gapDays.has(cell.date)
 
@@ -132,7 +133,7 @@ export function PlannerMonth({
                 accessibilityLabel={
                   isGap
                     ? `${String(cell.date)} — nothing booked`
-                    : `${String(cell.date)} — ${String(tasks.length)} tasks`
+                    : `${String(cell.date)} — ${load > 0 ? `${String(load)} hours` : 'no load'}`
                 }
                 onPress={() => onDrill?.(cell.date)}
                 style={{
@@ -142,30 +143,22 @@ export function PlannerMonth({
                   paddingTop: 5,
                   paddingBottom: 7,
                   gap: 3,
-                  borderBottomWidth: 1,
-                  borderBottomColor: t.color.border,
-                  borderLeftWidth: ci === 0 ? 0 : 1,
-                  borderLeftColor: t.color.border,
-                  backgroundColor: isToday
-                    ? t.color.accentSoft
-                    : weekend
-                      ? t.color.sunk
-                      : 'transparent',
+                  borderRadius: t.radius.block,
+                  // The heat fill IS the load signal — a 5-step accent-blue scale.
+                  backgroundColor: HEAT_FILL[heat](t),
+                  // Today wears a subtle accent ring (border), not a loud orange pill.
+                  borderWidth: isToday ? 1.5 : 0,
+                  borderColor: isToday ? t.color.accent : 'transparent',
                 }}
               >
-                {/* Day number + load figure */}
+                {/* Day number — quiet ink3, small; today is bolder via the ring, not a pill. */}
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Text
                     style={{
                       fontFamily: t.fontFamily.numeric,
                       fontSize: t.fontSize['2xs'],
-                      fontWeight: isToday ? '700' : '600',
-                      color: isToday ? t.color.accentInk : weekend ? t.color.ink3 : t.color.ink2,
-                      backgroundColor: isToday ? t.color.live : 'transparent',
-                      borderRadius: t.radius.pill,
-                      paddingHorizontal: isToday ? 6 : 0,
-                      paddingVertical: isToday ? 1 : 0,
-                      overflow: 'hidden',
+                      fontWeight: isToday ? '700' : '500',
+                      color: isToday ? t.color.accentText : weekend ? t.color.ink3 : t.color.ink3,
                     }}
                   >
                     {cell.date}
@@ -182,8 +175,8 @@ export function PlannerMonth({
                       }}
                     />
                   )}
-                  {/* Booking-gap marker (REQ-037): a hollow warn ring on a past weekday with no
-                      entry — an honest "nothing booked here", never on a future day or weekend. */}
+                  {/* Booking-gap marker (REQ-037): a hollow ink3 ring on a past weekday with no
+                      entry — information, not a warning (ADR-0075 corrects the old warn amber). */}
                   {isGap && (
                     <View
                       accessibilityLabel="Nothing booked"
@@ -193,21 +186,9 @@ export function PlannerMonth({
                         borderRadius: 3,
                         marginLeft: 4,
                         borderWidth: 1,
-                        borderColor: t.color.warn,
+                        borderColor: t.color.ink3,
                       }}
                     />
-                  )}
-                  {load > 0 && (
-                    <Text
-                      style={{
-                        marginLeft: 'auto',
-                        fontFamily: t.fontFamily.numeric,
-                        fontSize: 9,
-                        color: t.color.ink3,
-                      }}
-                    >
-                      {fmtLoad(load)}
-                    </Text>
                   )}
                 </View>
 
@@ -222,6 +203,7 @@ export function PlannerMonth({
                       borderWidth: 1,
                       borderStyle: 'dashed',
                       borderColor: t.color.ink3,
+                      backgroundColor: t.color.surface,
                     }}
                   >
                     <Text
@@ -233,7 +215,8 @@ export function PlannerMonth({
                   </View>
                 ))}
 
-                {/* Tasks — filled chip: project-color left border + priority dot. Life is
+                {/* Tasks — filled chip: project-color left border + priority dot. Lifted above
+                    the heat fill with a subtle surface background so they stay legible. Life is
                     personal (design v19 §F): sage left-border, no priority dot, never counted. */}
                 {shown.map((task, ti) => (
                   <View
@@ -245,7 +228,7 @@ export function PlannerMonth({
                       paddingHorizontal: 5,
                       paddingVertical: 2,
                       borderRadius: 4,
-                      backgroundColor: task.isLife ? t.color.lifeSoft : t.color.sunk,
+                      backgroundColor: task.isLife ? t.color.lifeSoft : t.color.surface,
                       borderLeftWidth: 2.5,
                       borderLeftColor: task.isLife
                         ? t.color.life
@@ -281,26 +264,6 @@ export function PlannerMonth({
                     {`+${String(tasks.length - 3)} more`}
                   </Text>
                 )}
-
-                {/* Load bar — priority-weighted hours vs the daily target */}
-                <View
-                  style={{
-                    marginTop: 'auto',
-                    height: 3,
-                    borderRadius: 2,
-                    backgroundColor: t.color.sunk,
-                    overflow: 'hidden',
-                  }}
-                >
-                  <View
-                    style={{
-                      width: `${Math.min(targetHours > 0 ? load / targetHours : 0, 1) * 100}%`,
-                      height: '100%',
-                      borderRadius: 2,
-                      backgroundColor: LOAD_COLOR[tone](t),
-                    }}
-                  />
-                </View>
               </Pressable>
             )
           })}

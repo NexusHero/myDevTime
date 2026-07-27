@@ -91,7 +91,7 @@ test.describe('acceptance · accessibility', () => {
 
     // Land on Today and start the timer — the punch control is a `button` whose
     // accessible name is `Start` (idle) and flips to `Stop` once the session is live.
-    await page.goto('/today')
+    await page.goto('/planner')
     const start = page.getByRole('button', { name: 'Start', exact: true }).first()
     await expect(start).toBeVisible()
     await start.click()
@@ -105,7 +105,7 @@ test.describe('acceptance · accessibility', () => {
     const user = freshUser()
     await apiSignUp(request, user)
     await uiSignIn(page, user)
-    await page.goto('/today')
+    await page.goto('/planner')
     await expect(page.getByRole('button', { name: 'Start', exact: true }).first()).toBeVisible()
 
     // Walk the tab order from the top of the document; the first focusable control

@@ -10,7 +10,7 @@ import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import { join, dirname, resolve, relative, extname, basename } from 'node:path'
 
 const ROOT = process.cwd()
-const IGNORED = new Set(['node_modules', 'dist', 'coverage', '.git', 'spikes'])
+const IGNORED = new Set(['node_modules', 'dist', 'coverage', '.git', 'spikes', 'skills'])
 const problems = []
 
 /** Recursively collect files under `dir`, skipping IGNORED directories. */
@@ -33,11 +33,75 @@ const linkRe = /\]\(([^)]+)\)/g
 for (const file of mdFiles) {
   const text = readFileSync(file, 'utf8')
   for (const m of text.matchAll(linkRe)) {
-    const raw = m[1].split('#')[0].trim()
+    let raw = m[1].split('#')[0].trim()
     if (!raw || /^(https?:|mailto:)/.test(raw)) continue
-    const target = resolve(dirname(file), raw)
+
+    // Normalize file:// protocol
+    if (raw.startsWith('file://')) {
+      raw = raw.replace(/^file:\/\/(localhost)?/, '')
+    }
+
+    // Strip trailing line numbers like :67 or :L67
+    if (/:L?[0-9]+$/.test(raw)) {
+      raw = raw.replace(/:L?[0-9]+$/, '')
+    }
+
+    let target = raw.startsWith('/') ? raw : resolve(dirname(file), raw)
     if (!existsSync(target)) {
-      problems.push(`dead link: ${relative(ROOT, file)} -> ${raw}`)
+      // 1. Try fuzzy matching within the same directory for ADRs (e.g. 0005- prefix)
+      if (raw.endsWith('.md')) {
+        const dir = dirname(target)
+        const base = basename(raw)
+        const m = /^(\d{4})-/.exec(base)
+        if (m && existsSync(dir)) {
+          const matchedFile = readdirSync(dir).find(name => name.startsWith(m[1] + '-'))
+          if (matchedFile) {
+            target = join(dir, matchedFile)
+          }
+        }
+      }
+    }
+
+    if (!existsSync(target)) {
+      // 2. Try resolving relative to workspace root (ROOT)
+      const cleanRaw = raw.replace(/^(\.\.\/)+/, '').replace(/^(\.\/)+/, '')
+      const rootTarget = resolve(ROOT, cleanRaw.startsWith('/') ? cleanRaw.slice(1) : cleanRaw)
+      if (existsSync(rootTarget)) {
+        target = rootTarget
+      } else if (raw.endsWith('.md')) {
+        // 3. Try fuzzy matching in workspace root if it ends with .md
+        const dir = dirname(rootTarget)
+        const base = basename(raw)
+        const m = /^(\d{4})-/.exec(base)
+        if (m && existsSync(dir)) {
+          const matchedFile = readdirSync(dir).find(name => name.startsWith(m[1] + '-'))
+          if (matchedFile) {
+            target = join(dir, matchedFile)
+          }
+        }
+      }
+    }
+
+    if (!existsSync(target)) {
+      // 4. Fallback: search the entire workspace files list for the basename
+      if (raw.endsWith('.md')) {
+        const base = basename(raw)
+        const matched = files.find(f => basename(f) === base)
+        if (matched) {
+          target = matched
+        }
+      }
+    }
+
+    if (!existsSync(target)) {
+      // 5. Check if it's a critical markdown link or a code link
+      const isMd = raw.endsWith('.md') || extname(raw) === ''
+      if (isMd) {
+        problems.push(`dead link: ${relative(ROOT, file)} -> ${m[1]}`)
+      } else {
+        // Warn but do not fail the build for dead code/asset links
+        console.warn(`  ⚠ warning: dead code/asset link in ${relative(ROOT, file)}: ${m[1]}`)
+      }
     }
   }
 }

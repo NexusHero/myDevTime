@@ -52,7 +52,7 @@ export function RegisterScreen({
     handleSubmit,
     formState: { errors },
   } = useForm<z.infer<typeof registerSchema>>({
-    resolver: zodResolver(registerSchema),
+    resolver: zodResolver(registerSchema as any),
     defaultValues: { name: '', email: '', password: '' },
   })
 

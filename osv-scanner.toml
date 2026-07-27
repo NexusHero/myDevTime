@@ -18,12 +18,6 @@
 id = "GHSA-67mh-4wv8-2f99"
 reason = "esbuild via better-auth > drizzle-kit and tsx/vite — build/dev tooling only, never shipped (docs/security/audit-exceptions.md)"
 
-# --- postcss: CSS processor inside the Expo build CLI (@expo/metro-config >
-# @expo/cli). Build-time asset processing only, never shipped.
-[[IgnoredVulns]]
-id = "GHSA-qx2v-qp2m-jg93"
-reason = "postcss via expo > @expo/cli > @expo/metro-config — build CLI only, never shipped (docs/security/audit-exceptions.md)"
-
 # --- uuid: reached only through the Expo build CLI (xcode > @expo/config-plugins
 # and @expo/bunyan > @expo/rudder-sdk-node, both under @expo/cli). Native-project /
 # telemetry tooling that runs at build time, never on a device or the server. Same
@@ -31,3 +25,16 @@ reason = "postcss via expo > @expo/cli > @expo/metro-config — build CLI only, 
 [[IgnoredVulns]]
 id = "GHSA-w5hq-g745-h8pq"
 reason = "uuid via expo > @expo/cli (xcode / rudder-sdk) — build CLI only, never shipped (docs/security/audit-exceptions.md)"
+
+# --- @fastify/static: reached only as an optionalDependency of fastify and
+# @nestjs/swagger (Swagger UI static assets). @nestjs/swagger strictly peer-requires
+# v8 || v9, and the patched line is v10 (10.1.1/10.1.2) — adopting it breaks Swagger
+# UI initialization. Kept on v9; low risk as we serve no wildcard/user-controlled
+# static paths through it. Revisit when @nestjs/swagger supports @fastify/static v10.
+[[IgnoredVulns]]
+id = "GHSA-83w8-p2f5-377r"
+reason = "@fastify/static via fastify/@nestjs/swagger — patched only in v10, which @nestjs/swagger's peer range (v8||v9) rejects; no wildcard paths served (docs/security/audit-exceptions.md)"
+
+[[IgnoredVulns]]
+id = "GHSA-8pvw-jcv7-9cmj"
+reason = "@fastify/static via fastify/@nestjs/swagger — patched only in v10, which @nestjs/swagger's peer range (v8||v9) rejects; no wildcard paths served (docs/security/audit-exceptions.md)"

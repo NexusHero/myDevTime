@@ -30,27 +30,22 @@ function texts(r: TestRenderer.ReactTestRenderer): string {
 }
 
 describe('PlannerDayInstruments', () => {
-  it('ShowsTheTodayAndMoodCardsWithHonestNotClockedState', () => {
+  it('ShowsTheTodayCardWithHonestNotClockedState', () => {
     const out = texts(mount())
     expect(out).toContain('Today')
     expect(out).toContain('Not clocked in') // no fabricated worked/soll figure
     expect(out).toContain('Overtime balance')
-    expect(out).toContain("How's it going?")
-    expect(out).toContain('Good')
   })
 
-  it('SelectingAMoodMarksItSelected', () => {
-    const r = mount()
-    const good = r.root
-      .findAll(n => n.props.accessibilityRole === 'button')
-      .find(n => n.props.accessibilityLabel === 'Good')
-    expect(good).toBeDefined()
-    act(() => {
-      good?.props.onPress()
-    })
-    const again = r.root
-      .findAll(n => n.props.accessibilityRole === 'button')
-      .find(n => n.props.accessibilityLabel === 'Good')
-    expect(again?.props.accessibilityState).toEqual({ selected: true })
+  it('CarriesNoStandingMoodWidget', () => {
+    // REQ-068/ADR-0071: mood is a transient punch-out row (the shared MoodCheck), never a standing
+    // widget. The rail must not render a competing mood picker (issue #369) — it duplicated the
+    // punch-out row and collided with it on the merged Day view.
+    const out = texts(mount())
+    expect(out).not.toContain("How's it going?")
+    const moodButtons = mount().root.findAll(
+      n => n.props.accessibilityRole === 'button' && n.props.accessibilityLabel === 'Stressed',
+    )
+    expect(moodButtons).toHaveLength(0)
   })
 })
