@@ -46,6 +46,7 @@ function task(
     kind: 'focus',
     startMin: 540,
     lenMin: 60,
+    note: null,
     ...over,
   }
 }

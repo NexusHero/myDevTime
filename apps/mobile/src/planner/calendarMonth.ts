@@ -26,6 +26,8 @@ export interface DayTask {
   readonly startMin: number
   /** Length in minutes, verbatim from the occurrence (issue #370). */
   readonly lenMin: number
+  /** The entry's own description, verbatim from the occurrence (issue #372); null when empty. */
+  readonly note: string | null
 }
 
 /** A non-counting event in a calendar cell (holiday / company event / absence). */
@@ -86,6 +88,7 @@ export function buildMonthDays(
       kind: occ.kind,
       startMin: occ.startMin,
       lenMin: occ.lenMin,
+      note: occ.note !== null && occ.note.trim() !== '' ? occ.note : null,
     })
     tasksByDay.set(day, list)
   }

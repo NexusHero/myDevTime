@@ -47,6 +47,22 @@ describe('buildMonthDays', () => {
     expect(task?.lenMin).toBe(30)
   })
 
+  it('CarriesTheOccurrenceNote_soAMonthChipShowsItsDescription', () => {
+    // Issue #372: the description is the entry's own text — it must survive into the month
+    // bucket, or a month-opened detail has nothing but a title and a time.
+    const withNote: Occurrence = { ...occ('2026-07-13', 60, 'Sync engine'), note: 'Ports first.' }
+    const days = buildMonthDays([withNote], [], { year: 2026, month0: 6 })
+    expect(days.get(13)?.tasks[0]?.note).toBe('Ports first.')
+  })
+
+  it('LeavesTheNoteNullWhenTheOccurrenceHasNone', () => {
+    const days = buildMonthDays([occ('2026-07-13', 60, 'Sync engine')], [], {
+      year: 2026,
+      month0: 6,
+    })
+    expect(days.get(13)?.tasks[0]?.note).toBeNull()
+  })
+
   it('EventsNeverCountTowardLoad', () => {
     const events: CalendarEvent[] = [{ date: '2026-07-17', label: 'Vacation' }]
     const days = buildMonthDays([], events, { year: 2026, month0: 6 })

@@ -44,6 +44,18 @@ export interface DrawerEntry {
   readonly routeTo?: string
   /** Travel: the user-entered one-way distance in km (never inferred — ADR-0005). */
   readonly distanceKm?: number | null
+  /**
+   * The entry's own description (issue #372) — the occurrence's note, verbatim. Absent when the
+   * entry has none: an honest detail says nothing rather than showing a "no description" label.
+   */
+  readonly note?: string
+  /** Planned length in minutes — the entry's effort. Absent when the source carries no length. */
+  readonly plannedMin?: number
+}
+
+/** Minutes → `H:MM h`, the app's duration convention. */
+function effortLabel(min: number): string {
+  return `${String(Math.floor(min / 60))}:${String(min % 60).padStart(2, '0')} h`
 }
 
 const KIND_LABEL: Record<EntryKind, string> = {
@@ -179,7 +191,25 @@ export function PlannerEntryDrawer({
               {entry.rec === true && <Badge tone="neutral">↻ Recurring</Badge>}
               {entry.ext !== undefined && <Badge tone="neutral">{`⇄ ${entry.ext}`}</Badge>}
             </View>
+            {/* Effort — the entry's own planned length, read out as a duration rather than left
+                implicit in the span. Absent when the source carries no length (issue #372). */}
+            {entry.plannedMin !== undefined && (
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: t.spacing.s2 }}>
+                <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>Effort</Text>
+                <Text style={{ fontFamily: t.fontFamily.numeric, color: t.color.ink2 }}>
+                  {effortLabel(entry.plannedMin)}
+                </Text>
+              </View>
+            )}
           </View>
+
+          {/* The description, verbatim. No heading and no placeholder when there is none —
+              silence is the honest empty state (issue #372). */}
+          {entry.note !== undefined && entry.note.trim() !== '' && (
+            <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, lineHeight: 20 }}>
+              {entry.note}
+            </Text>
+          )}
 
           {entry.kind === 'meeting' && (
             <View style={{ gap: t.spacing.s3 }}>
