@@ -98,6 +98,8 @@ import { loadDaySpans, localDayKey } from '../autotracker/dayActivityStore'
 import type { PlanBlock } from '../api/planner'
 import { INBOX_PROJECTS, INBOX_TASKS, type InboxTask } from './plannerInboxData'
 import { buildMonthDays } from '../planner/calendarMonth'
+import { BlockBadge } from '../components/planner/BlockBadge'
+import { dayHeading } from '../planner/dayHeading'
 
 /**
  * Planner — the week view of day canvases (ux-vision §2.1/§3, issue #11), ported
@@ -283,37 +285,6 @@ interface PlanCanvasBlock {
 }
 
 /** A tiny outlined glyph badge inside a block (↻ recurring, ⇄ OL, ? tentative, FYI). */
-function BlockBadge({
-  label,
-  color,
-  dotted = false,
-}: {
-  readonly label: string
-  readonly color: string
-  readonly dotted?: boolean
-}): React.JSX.Element {
-  return (
-    <View
-      style={{
-        borderWidth: 1,
-        borderStyle: dotted ? 'dotted' : 'solid',
-        borderColor: color,
-        borderRadius: 3,
-        paddingHorizontal: 3,
-        marginRight: 4,
-      }}
-    >
-      <Text style={{ fontSize: 8, fontWeight: '800', color }}>{label}</Text>
-    </View>
-  )
-}
-
-/**
- * One absolutely-positioned block on a day column (canvas geometry, ADR-0005).
- * `placement` splits the column into lanes when blocks overlap (design v6
- * "overbooking"); meetings carry their RSVP state — tentative reads hollow, FYI
- * dims out and never counts — plus recurring (↻) and Outlook (⇄ OL) markers.
- */
 function CanvasBlockView({
   block,
   placement,
@@ -529,10 +500,16 @@ function CanvasBlockView({
           >
             {px >= 24 && (
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {block.rec === true && <BlockBadge label="↻" color={badgeColor} />}
-                {block.ext !== undefined && <BlockBadge label="⇄ OL" color={badgeColor} />}
-                {tentative && <BlockBadge label="?" color={badgeColor} />}
-                {fyi && <BlockBadge label="FYI" color={badgeColor} dotted />}
+                {block.rec === true && (
+                  <BlockBadge icon="repeat" meaning="Recurring" color={badgeColor} />
+                )}
+                {block.ext !== undefined && (
+                  <BlockBadge icon="sync" meaning={`Synced from ${block.ext}`} color={badgeColor} />
+                )}
+                {tentative && <BlockBadge text="?" meaning="Tentative" color={badgeColor} />}
+                {fyi && (
+                  <BlockBadge text="FYI" meaning="For information only" color={badgeColor} dotted />
+                )}
                 <Text
                   numberOfLines={1}
                   style={{
@@ -1078,41 +1055,70 @@ function DayColumn({
         {/* Recurring occurrences (design v17 §F4): projected from a stored series, so they are
             read-only ↻ ghosts (dashed, muted) — never editable canvas blocks. Positioned on the
             window like reality; `pointerEvents="none"` keeps them off the drag/index model. */}
-        {dayRecurring.map((rb, i) => (
-          <View
-            key={`rec-${String(rb.start)}-${String(i)}`}
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              left: 2,
-              right: 8,
-              top: compressedY(bands, BASE_MIN + rb.start) * BODY_HEIGHT + 1,
-              height: Math.max(
-                (compressedY(bands, BASE_MIN + rb.start + rb.len) -
-                  compressedY(bands, BASE_MIN + rb.start)) *
-                  BODY_HEIGHT -
-                  2,
-                12,
-              ),
-              borderRadius: t.radius.block,
-              borderWidth: 1,
-              borderStyle: 'dashed',
-              borderColor: t.color.border,
-              backgroundColor: t.color.surface,
-              opacity: 0.85,
-              paddingHorizontal: 6,
-              paddingVertical: 2,
-              overflow: 'hidden',
-            }}
-          >
-            <Text
-              numberOfLines={1}
-              style={{ fontSize: t.fontSize['2xs'], fontWeight: '600', color: t.color.ink2 }}
+        {dayRecurring.map((rb, i) => {
+          const recHeight = Math.max(
+            (compressedY(bands, BASE_MIN + rb.start + rb.len) -
+              compressedY(bands, BASE_MIN + rb.start)) *
+              BODY_HEIGHT -
+              2,
+            12,
+          )
+          return (
+            <View
+              key={`rec-${String(rb.start)}-${String(i)}`}
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                left: 2,
+                right: 8,
+                top: compressedY(bands, BASE_MIN + rb.start) * BODY_HEIGHT + 1,
+                height: recHeight,
+                borderRadius: t.radius.block,
+                borderWidth: 1,
+                borderStyle: 'dashed',
+                borderColor: t.color.border,
+                backgroundColor: t.color.surface,
+                opacity: 0.85,
+                paddingHorizontal: 6,
+                paddingVertical: 2,
+                overflow: 'hidden',
+              }}
             >
-              {`↻ ${rb.label}`}
-            </Text>
-          </View>
-        ))}
+              <View
+                accessibilityRole="text"
+                accessibilityLabel={`Recurring: ${rb.label}`}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}
+              >
+                <Icon name="repeat" size={10} color={t.color.ink3} />
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    flex: 1,
+                    fontSize: t.fontSize['2xs'],
+                    fontWeight: '600',
+                    color: t.color.ink2,
+                  }}
+                >
+                  {rb.label}
+                </Text>
+              </View>
+              {/* Where it is, on the block itself (issue #381) — the occurrence has carried a
+                location since #375, but it only ever reached the drawer. Shown only when the
+                block is tall enough to hold a second line; never truncated to a stub. */}
+              {rb.location !== undefined && recHeight >= 30 && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  <Icon name="pin" size={9} color={t.color.ink3} />
+                  <Text
+                    numberOfLines={1}
+                    style={{ flex: 1, fontSize: t.fontSize['2xs'], color: t.color.ink3 }}
+                  >
+                    {rb.location}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )
+        })}
         {day.today && (
           <View
             style={{
@@ -2502,8 +2508,27 @@ export function PlannerScreen(): React.JSX.Element {
               const dayAbsence = (absences.data?.upcoming ?? []).find(
                 a => dayKey >= a.startDate && dayKey <= a.endDate,
               )
+              const heading = dayHeading(day.dateMs)
               return (
                 <>
+                  {/* The day, said plainly (issue #381). On the Day stage there is exactly one
+                      day, so it gets a real date header instead of the small column label the
+                      week grid needs — the day number carries the weight, the way a calendar
+                      does, and the weekday sits under it. */}
+                  <View accessibilityRole="header" style={{ gap: 2 }}>
+                    <Text
+                      style={{
+                        fontFamily: t.fontFamily.display,
+                        fontSize: t.fontSize.xl,
+                        color: t.color.ink,
+                      }}
+                    >
+                      {heading.date}
+                    </Text>
+                    <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink3 }}>
+                      {heading.weekday}
+                    </Text>
+                  </View>
                   {dayAbsence && (
                     <View
                       style={{
