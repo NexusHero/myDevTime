@@ -35,6 +35,18 @@ describe('buildMonthDays', () => {
     expect(day13?.tasks[0]?.projectId).toBe('p2')
   })
 
+  it('CarriesTheOccurrenceKindAndSpan_soAMonthChipCanOpenItsDetail', () => {
+    // Issue #370: tapping a month chip opens the entry detail, which needs the entry's own
+    // kind and `HH:MM–HH:MM` span — not just its label. Taken verbatim from the occurrence,
+    // never re-derived (ADR-0005).
+    const meeting: Occurrence = { ...occ('2026-07-13', 30, 'Standup'), kind: 'meeting' }
+    const days = buildMonthDays([meeting], [], { year: 2026, month0: 6 })
+    const task = days.get(13)?.tasks[0]
+    expect(task?.kind).toBe('meeting')
+    expect(task?.startMin).toBe(540)
+    expect(task?.lenMin).toBe(30)
+  })
+
   it('EventsNeverCountTowardLoad', () => {
     const events: CalendarEvent[] = [{ date: '2026-07-17', label: 'Vacation' }]
     const days = buildMonthDays([], events, { year: 2026, month0: 6 })

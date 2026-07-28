@@ -67,6 +67,7 @@ export function PlannerCalendar({
   occurrences,
   onDrillDay,
   onDrillMonth,
+  onOpenTask,
   editableBlocks,
   weekStartMs,
   onBlockMove,
@@ -102,7 +103,12 @@ export function PlannerCalendar({
   const events = useMemo<EventInput[]>(() => {
     // Read-only recurring occurrences (design v17 §F4): projected from a stored series, so they
     // never drag — like the RN canvas's ↻ ghosts.
+    // Per-day running index, matching `buildMonthDays`'s push order — so a clicked month
+    // occurrence resolves to the same `(day, taskIndex)` pair the RN month chip reports (#370).
+    const seenPerDate = new Map<string, number>()
     const occEvents: EventInput[] = occurrences.map((o, i) => {
+      const taskIndex = seenPerDate.get(o.date) ?? 0
+      seenPerDate.set(o.date, taskIndex + 1)
       const isLife = o.kind === 'life'
       const color = isLife
         ? t.color.life
@@ -115,7 +121,14 @@ export function PlannerCalendar({
         start: `${o.date}T${hhmm(o.startMin)}:00`,
         end: `${o.date}T${hhmm(Math.min(o.startMin + o.lenMin, 1439))}:00`,
         editable: false,
-        extendedProps: { color, isLife, priority: o.priority, blockIndex: null },
+        extendedProps: {
+          color,
+          isLife,
+          priority: o.priority,
+          blockIndex: null,
+          monthDay: Number.parseInt(o.date.slice(8, 10), 10),
+          taskIndex,
+        },
       }
     })
     // Editable local canvas blocks (design v20 §Cal): the ones FullCalendar can drag/resize; each
@@ -253,10 +266,17 @@ export function PlannerCalendar({
     if (idx == null || start === null || end === null || onBlockResize == null) return
     onBlockResize(idx, Math.round((end.getTime() - start.getTime()) / 60_000))
   }
-  // Timegrid click: an editable block opens its typed drawer; read-only occurrences don't.
+  // Click: an editable block opens its typed drawer. A read-only occurrence has no block index —
+  // it opens the same detail through `onOpenTask`, so a month entry is inspectable too (#370).
   const handleEventClick = (info: EventClickArg): void => {
     const idx = info.event.extendedProps.blockIndex as number | null
-    if (idx != null) onBlockOpen?.(idx)
+    if (idx != null) {
+      onBlockOpen?.(idx)
+      return
+    }
+    const day = info.event.extendedProps.monthDay as number | undefined
+    const taskIndex = info.event.extendedProps.taskIndex as number | undefined
+    if (day != null && taskIndex != null) onOpenTask?.(day, taskIndex)
   }
   // Timegrid select: dragging over empty time creates a block there (design v20 §Cal).
   const handleSelect = (info: DateSelectArg): void => {

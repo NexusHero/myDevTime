@@ -60,6 +60,11 @@ export interface PlannerCalendarProps {
   readonly targetHours: number
   readonly onDrillDay?: (day: number) => void
   readonly onDrillMonth?: (month0: number) => void
+  /**
+   * Open one month entry's detail from its chip (issue #370) — `(day-of-month, task index)` into
+   * the same `buildMonthDays` bucketing this component renders. Month view only.
+   */
+  readonly onOpenTask?: (day: number, taskIndex: number) => void
   /** Editable blocks for the web timegrid (design v20 §Cal); native ignores them. */
   readonly editableBlocks?: readonly TimegridBlock[]
   /** Local midnight (ms) of the shown week's Monday — the anchor for day+min ↔ datetime on web. */
@@ -94,6 +99,7 @@ export function PlannerCalendar({
   targetHours,
   onDrillDay,
   onDrillMonth,
+  onOpenTask,
 }: PlannerCalendarProps): React.JSX.Element {
   if (view === 'year') {
     return (
@@ -115,6 +121,7 @@ export function PlannerCalendar({
       days={buildMonthDays(occurrences, [], { year, month0 })}
       targetHours={targetHours}
       {...(onDrillDay ? { onDrill: onDrillDay } : {})}
+      {...(onOpenTask ? { onOpenTask } : {})}
     />
   )
 }

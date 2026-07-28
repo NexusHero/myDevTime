@@ -1,5 +1,5 @@
 import { dayLoad, weekIntensity, type Priority } from '@mydevtime/design'
-import type { Occurrence } from '../api/recurrence'
+import type { Occurrence, SeriesKind } from '../api/recurrence'
 
 /**
  * Pure month/year aggregation for the Planner calendar facet (design v18 PlannerViews). The
@@ -20,6 +20,12 @@ export interface DayTask {
   readonly projectId: string | null
   /** A `life` occurrence (design v19 §F): personal, shown but never counted as work. */
   readonly isLife: boolean
+  /** The occurrence's own kind — what the entry *is*, so a tapped chip opens the right detail. */
+  readonly kind: SeriesKind
+  /** Minutes from midnight, verbatim from the occurrence (issue #370). */
+  readonly startMin: number
+  /** Length in minutes, verbatim from the occurrence (issue #370). */
+  readonly lenMin: number
 }
 
 /** A non-counting event in a calendar cell (holiday / company event / absence). */
@@ -77,6 +83,9 @@ export function buildMonthDays(
       label: occ.title,
       projectId: occ.projectId ?? null,
       isLife: occ.kind === 'life',
+      kind: occ.kind,
+      startMin: occ.startMin,
+      lenMin: occ.lenMin,
     })
     tasksByDay.set(day, list)
   }

@@ -182,3 +182,75 @@ describe('PlannerEntryDrawer', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 })
+
+/**
+ * Presentation modes (issue #370). On a wide viewport the detail is a **docked column** beside the
+ * calendar: no scrim, not a modal, so the canvas next to it stays visible and clickable — the
+ * master–detail shape `chromeForWidth().splitView` already promises. Narrow viewports keep the
+ * overlay sheet, which must stay modal so focus and the backdrop-tap still behave.
+ */
+describe('PlannerEntryDrawer · presentation mode', () => {
+  const entry: DrawerEntry = {
+    kind: 'meeting',
+    title: 'Sprint planning',
+    timeLabel: '09:00–10:00',
+    color: '#8b7bf5',
+  }
+
+  function closers(r: TestRenderer.ReactTestRenderer): unknown[] {
+    return r.root.findAllByType(Pressable).filter(p => p.props.accessibilityLabel === 'Close entry')
+  }
+
+  it('Overlay_KeepsTheScrimAndStaysModal', () => {
+    const r = render(
+      <PlannerEntryDrawer
+        entry={entry}
+        panel={{ mode: 'overlay', width: 320 }}
+        onClose={() => undefined}
+      />,
+    )
+    // Two closers: the backdrop scrim and the header button.
+    expect(closers(r)).toHaveLength(2)
+    expect(r.root.findAll(n => n.props.accessibilityViewIsModal === true).length).toBeGreaterThan(0)
+  })
+
+  it('Docked_DropsTheScrimAndIsNotModal', () => {
+    const r = render(
+      <PlannerEntryDrawer
+        entry={entry}
+        panel={{ mode: 'docked', width: 340 }}
+        onClose={() => undefined}
+      />,
+    )
+    // Only the header button — no backdrop, because the calendar beside it must stay usable.
+    expect(closers(r)).toHaveLength(1)
+    expect(r.root.findAll(n => n.props.accessibilityViewIsModal === true)).toHaveLength(0)
+    expect(texts(r)).toContain('Sprint planning')
+  })
+
+  it('Docked_TakesTheGivenColumnWidthInFlow', () => {
+    const r = render(
+      <PlannerEntryDrawer
+        entry={entry}
+        panel={{ mode: 'docked', width: 340 }}
+        onClose={() => undefined}
+      />,
+    )
+    const panel = r.root.find(n => n.props.tabIndex === -1)
+    const style = panel.props.style as { width?: number; position?: string }
+    expect(style.width).toBe(340)
+    // In flow, not floating over the canvas — that is what makes it a real column.
+    expect(style.position).not.toBe('absolute')
+  })
+
+  it('ClosedRendersNothingInEitherMode', () => {
+    const r = render(
+      <PlannerEntryDrawer
+        entry={null}
+        panel={{ mode: 'docked', width: 340 }}
+        onClose={() => undefined}
+      />,
+    )
+    expect(r.toJSON()).toBeNull()
+  })
+})

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Pressable, View, useWindowDimensions } from 'react-native'
+import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
+import { detailPanelForWidth, type DetailPanel } from '@mydevtime/design'
 import type { RecurrenceRule } from '@mydevtime/domain'
 import { Text } from '../core/Text'
 import { Badge, Button, Icon, IconButton, Input, SegmentedControl, Switch } from '../index'
@@ -87,6 +88,11 @@ export interface PlannerEntryDrawerProps {
   readonly onProtect?: (next: boolean) => void
   /** Make this entry a recurring series (design v17 §F4). When set, the ↻ editor is shown. */
   readonly onRecurrence?: (rule: RecurrenceRule) => void
+  /**
+   * How to present the detail (issue #370). Omit to derive it from the viewport — the caller
+   * passes it when it also has to reserve the column, so both agree on one number.
+   */
+  readonly panel?: DetailPanel
 }
 
 export function PlannerEntryDrawer({
@@ -102,6 +108,7 @@ export function PlannerEntryDrawer({
   onDismiss,
   onProtect,
   onRecurrence,
+  panel,
 }: PlannerEntryDrawerProps): React.JSX.Element | null {
   const t = useTheme()
   const { width } = useWindowDimensions()
@@ -118,76 +125,42 @@ export function PlannerEntryDrawer({
   const panelRef = useModalFocus(entry !== null)
   if (entry === null) return null
 
-  const panelWidth = Math.min(380, width - 24)
+  // Docked = a real column beside the calendar (wide viewports): no scrim, not modal, so the
+  // canvas next to it stays visible AND clickable. Overlay = the full-height sheet with a
+  // backdrop, for viewports too narrow to carry both (issue #370).
+  const resolved = panel ?? detailPanelForWidth(width)
+  const docked = resolved.mode === 'docked'
 
-  return (
-    <View style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 200 }}>
-      <Pressable
-        onPress={onClose}
-        accessibilityRole="button"
-        accessibilityLabel="Close entry"
-        style={{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          bottom: 0,
-          left: 0,
-          backgroundColor: 'rgba(0,0,0,0.4)',
-        }}
-      />
+  const body = (
+    <>
       <View
-        ref={panelRef}
-        accessibilityViewIsModal
-        tabIndex={-1}
         style={{
-          position: 'absolute',
-          top: 12,
-          right: 12,
-          bottom: 12,
-          width: panelWidth,
-          backgroundColor: t.color.bg,
-          borderWidth: 1,
-          borderColor: t.color.border,
-          borderRadius: 16,
-          overflow: 'hidden',
-          elevation: 12,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: t.spacing.s3,
+          paddingHorizontal: t.spacing.s5,
+          paddingVertical: t.spacing.s4,
+          borderBottomWidth: 1,
+          borderBottomColor: t.color.border,
         }}
       >
-        <View
+        <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: entry.color }} />
+        <Text
           style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: t.spacing.s3,
-            paddingHorizontal: t.spacing.s5,
-            paddingVertical: t.spacing.s4,
-            borderBottomWidth: 1,
-            borderBottomColor: t.color.border,
+            flex: 1,
+            fontSize: t.fontSize['2xs'],
+            fontWeight: '700',
+            letterSpacing: t.fontSize['2xs'] * t.letterSpacing.wide,
+            textTransform: 'uppercase',
+            color: t.color.ink3,
           }}
         >
-          <View
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: 3,
-              backgroundColor: entry.color,
-            }}
-          />
-          <Text
-            style={{
-              flex: 1,
-              fontSize: t.fontSize['2xs'],
-              fontWeight: '700',
-              letterSpacing: t.fontSize['2xs'] * t.letterSpacing.wide,
-              textTransform: 'uppercase',
-              color: t.color.ink3,
-            }}
-          >
-            {KIND_LABEL[entry.kind]}
-          </Text>
-          <IconButton icon={<Icon name="x" size={18} />} label="Close entry" onPress={onClose} />
-        </View>
-
-        <View style={{ padding: t.spacing.s5, gap: t.spacing.s4 }}>
+          {KIND_LABEL[entry.kind]}
+        </Text>
+        <IconButton icon={<Icon name="x" size={18} />} label="Close entry" onPress={onClose} />
+      </View>
+      <ScrollView contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s4 }}>
+        <>
           <View style={{ gap: t.spacing.s2 }}>
             <Text
               style={{
@@ -387,7 +360,65 @@ export function PlannerEntryDrawer({
               </View>
             </View>
           )}
-        </View>
+        </>
+      </ScrollView>
+    </>
+  )
+
+  // Docked: an ordinary flex child, so the Planner's row reserves the space and the calendar
+  // simply gets narrower — nothing floats over it, nothing traps focus.
+  if (docked) {
+    return (
+      <View
+        ref={panelRef}
+        tabIndex={-1}
+        style={{
+          width: resolved.width,
+          alignSelf: 'stretch',
+          backgroundColor: t.color.bg,
+          borderLeftWidth: 1,
+          borderLeftColor: t.color.border,
+        }}
+      >
+        {body}
+      </View>
+    )
+  }
+
+  return (
+    <View style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 200 }}>
+      <Pressable
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Close entry"
+        style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+          backgroundColor: 'rgba(0,0,0,0.4)',
+        }}
+      />
+      <View
+        ref={panelRef}
+        accessibilityViewIsModal
+        tabIndex={-1}
+        style={{
+          position: 'absolute',
+          top: 12,
+          right: 12,
+          bottom: 12,
+          width: resolved.width,
+          backgroundColor: t.color.bg,
+          borderWidth: 1,
+          borderColor: t.color.border,
+          borderRadius: 16,
+          overflow: 'hidden',
+          elevation: 12,
+        }}
+      >
+        {body}
       </View>
     </View>
   )

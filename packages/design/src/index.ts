@@ -120,11 +120,15 @@ export {
 } from './nav.js'
 export {
   BREAKPOINTS,
+  DETAIL_PANEL,
   layoutForWidth,
   chromeForWidth,
+  detailPanelForWidth,
   type LayoutClass,
   type NavMode,
   type Chrome,
+  type DetailPanel,
+  type DetailPanelMode,
 } from './responsive.js'
 
 // Calm canvas (ADR-0072 D3, issue #341): time compression + the four block states.
