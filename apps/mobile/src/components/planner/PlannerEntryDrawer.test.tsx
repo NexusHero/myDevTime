@@ -388,3 +388,80 @@ describe('PlannerEntryDrawer · travel route', () => {
     expect(out).toContain('Office → Client site')
   })
 })
+
+/**
+ * Meeting detail (issue #375). A meeting's detail showed a title, a span and an RSVP control —
+ * none of the three things that make a meeting a meeting: where it is, who is in it, and how to
+ * join it. Each appears only when the entry actually carries it.
+ */
+describe('PlannerEntryDrawer · meeting detail', () => {
+  const base: DrawerEntry = {
+    kind: 'meeting',
+    title: 'Sprint planning',
+    timeLabel: '09:00–10:00',
+    color: '#3e97dd',
+  }
+
+  it('ShowsTheLocationWhenTheMeetingHasOne', () => {
+    const out = texts(
+      render(
+        <PlannerEntryDrawer entry={{ ...base, location: 'Room 3 · Berlin' }} onClose={() => {}} />,
+      ),
+    )
+    expect(out).toContain('Room 3 · Berlin')
+  })
+
+  it('ListsAttendeesWithTheirResponse', () => {
+    const out = texts(
+      render(
+        <PlannerEntryDrawer
+          entry={{
+            ...base,
+            attendees: [
+              { name: 'Ada', response: 'accepted' },
+              { name: 'Grace', response: 'declined' },
+              { name: 'Alan' },
+            ],
+          }}
+          onClose={() => {}}
+        />,
+      ),
+    )
+    expect(out).toContain('Ada')
+    expect(out).toContain('Grace')
+    expect(out).toContain('Alan')
+    // The response is stated in words — a screen reader must hear it, not infer it from a colour.
+    expect(out).toContain('Declined')
+  })
+
+  it('SaysNothingWhenThereAreNoAttendees', () => {
+    // An empty list is silence, not "0 attendees".
+    expect(texts(render(<PlannerEntryDrawer entry={base} onClose={() => {}} />))).not.toContain(
+      'Attendees',
+    )
+  })
+
+  it('OffersAJoinActionForAConferenceLink', () => {
+    const onJoin = vi.fn()
+    const r = render(
+      <PlannerEntryDrawer
+        entry={{
+          ...base,
+          conferenceUrl: 'https://meet.example.com/abc',
+          conferenceProvider: 'Meet',
+        }}
+        onClose={() => {}}
+        onJoin={onJoin}
+      />,
+    )
+    expect(texts(r)).toContain('Meet')
+    pressByLabel(r, 'Join Meet')
+    expect(onJoin).toHaveBeenCalledWith('https://meet.example.com/abc')
+  })
+
+  it('ShowsNoJoinActionWithoutALink', () => {
+    expect(
+      texts(render(<PlannerEntryDrawer entry={base} onClose={() => {}} onJoin={() => {}} />)),
+    ).not.toContain('Join')
+  })
+})

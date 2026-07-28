@@ -1,4 +1,4 @@
-import type { Occurrence, SeriesKind } from '../api/recurrence.js'
+import type { MeetingAttendee, Occurrence, SeriesKind } from '../api/recurrence.js'
 
 /**
  * Map recurring-series occurrences (design v17 §F4) onto the Planner week canvas. The server
@@ -27,6 +27,11 @@ export interface RecurringBlock {
   readonly seriesId: string
   /** The entry's own description, verbatim from the occurrence (issue #372). Absent when empty. */
   readonly note?: string
+  /** Meeting detail carried from the occurrence (issue #375): where, who, how to join. */
+  readonly location?: string
+  readonly attendees?: readonly MeetingAttendee[]
+  readonly conferenceUrl?: string
+  readonly conferenceProvider?: string
 }
 
 const KIND_MAP: Record<SeriesKind, RecurringBlockKind> = {
@@ -61,6 +66,16 @@ export function occurrencesToBlocks(
       rec: true,
       seriesId: occ.seriesId,
       ...(occ.note !== null && occ.note.trim() !== '' ? { note: occ.note } : {}),
+      ...(occ.location != null && occ.location.trim() !== '' ? { location: occ.location } : {}),
+      ...(occ.attendees !== undefined && occ.attendees.length > 0
+        ? { attendees: occ.attendees }
+        : {}),
+      ...(occ.conferenceUrl != null && occ.conferenceUrl !== ''
+        ? { conferenceUrl: occ.conferenceUrl }
+        : {}),
+      ...(occ.conferenceProvider != null && occ.conferenceProvider !== ''
+        ? { conferenceProvider: occ.conferenceProvider }
+        : {}),
     })
   }
   return out

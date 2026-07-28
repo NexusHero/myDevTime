@@ -34,6 +34,8 @@ const ICON_PATHS: Record<string, string> = {
   // Protection flag (design v17): the stroke-shield mandated by the icon rule — never the
   // 🛡 emoji, which renders in colour and breaks the monochrome icon language.
   shield: 'M12 3l7 3v5c0 4.6-2.9 8.1-7 10-4.1-1.9-7-5.4-7-10V6z',
+  // A meeting's place (issue #375): a map pin, so a location reads as a location.
+  pin: 'M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11zM12 7.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z',
 }
 
 export interface IconProps {

@@ -47,6 +47,10 @@ function task(
     startMin: 540,
     lenMin: 60,
     note: null,
+    location: null,
+    attendees: [],
+    conferenceUrl: null,
+    conferenceProvider: null,
     ...over,
   }
 }
