@@ -3,6 +3,7 @@ import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import { detailPanelForWidth, formatDuration, type DetailPanel } from '@mydevtime/design'
 import type { RecurrenceRule, TravelMode } from '@mydevtime/domain'
 import { previewLeg } from '../../travel/travelForm'
+import type { MeetingAttendee } from '../../api/recurrence'
 import { Text } from '../core/Text'
 import { Badge, Button, Icon, IconButton, Input, SegmentedControl, Switch } from '../index'
 import { RecurrenceEditor } from './RecurrenceEditor'
@@ -47,6 +48,13 @@ export interface DrawerEntry {
   readonly distanceKm?: number | null
   /** Travel: how the trip was made. Drives the worktime fraction; defaults to `car` (issue #374). */
   readonly travelMode?: TravelMode
+  /** Meeting: where it is, verbatim from the series. Absent when the meeting has no place. */
+  readonly location?: string
+  /** Meeting: who is in it (issue #375). Third-party personal data — never in a Free/Busy view. */
+  readonly attendees?: readonly MeetingAttendee[] | undefined
+  /** Meeting: how to join it, plus the provider label shown beside the action. */
+  readonly conferenceUrl?: string
+  readonly conferenceProvider?: string
   /**
    * The entry's own description (issue #372) — the occurrence's note, verbatim. Absent when the
    * entry has none: an honest detail says nothing rather than showing a "no description" label.
@@ -59,6 +67,15 @@ export interface DrawerEntry {
 /** Minutes → `H:MM h`, the app's duration convention. */
 function effortLabel(min: number): string {
   return `${String(Math.floor(min / 60))}:${String(min % 60).padStart(2, '0')} h`
+}
+
+/** An attendee's reply, in words — never colour alone (REQ-043). `needsAction` reads as nothing:
+ *  "no reply yet" is the absence of an answer, not an answer. */
+const RESPONSE_LABEL: Record<NonNullable<MeetingAttendee['response']>, string> = {
+  accepted: 'Going',
+  tentative: 'Tentative',
+  declined: 'Declined',
+  needsAction: 'No reply',
 }
 
 const MODE_LABEL: Record<TravelMode, string> = {
@@ -114,6 +131,8 @@ export interface PlannerEntryDrawerProps {
     km: number | null
     mode: TravelMode
   }) => void
+  /** Meeting: open the conference link (issue #375). The drawer never opens a URL itself. */
+  readonly onJoin?: (url: string) => void
   /** Ghost: accept the Co-Planner proposal. */
   readonly onAccept?: () => void
   /** Ghost: dismiss the proposal. */
@@ -138,6 +157,7 @@ export function PlannerEntryDrawer({
   onNudge,
   onDuplicate,
   onTravelDetail,
+  onJoin,
   onAccept,
   onDismiss,
   onProtect,
@@ -233,6 +253,55 @@ export function PlannerEntryDrawer({
             <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2, lineHeight: 20 }}>
               {entry.note}
             </Text>
+          )}
+
+          {/* What makes a meeting a meeting (issue #375): where it is, who is in it, how to join.
+              Each block appears only when the entry actually carries it — an absent location or an
+              empty attendee list renders nothing at all, never a "0 attendees" placeholder. */}
+          {entry.kind === 'meeting' && entry.location !== undefined && entry.location !== '' && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
+              <Icon name="pin" size={14} color={t.color.ink3} />
+              <Text style={{ flex: 1, fontSize: t.fontSize.sm, color: t.color.ink2 }}>
+                {entry.location}
+              </Text>
+            </View>
+          )}
+
+          {entry.kind === 'meeting' &&
+            entry.conferenceUrl !== undefined &&
+            entry.conferenceUrl !== '' &&
+            onJoin !== undefined && (
+              <View style={{ flexDirection: 'row' }}>
+                <Button
+                  size="sm"
+                  onPress={() => {
+                    onJoin(entry.conferenceUrl ?? '')
+                  }}
+                >
+                  {`Join ${entry.conferenceProvider ?? 'call'}`}
+                </Button>
+              </View>
+            )}
+
+          {entry.kind === 'meeting' && (entry.attendees?.length ?? 0) > 0 && (
+            <View style={{ gap: t.spacing.s2 }}>
+              <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>Attendees</Text>
+              {(entry.attendees ?? []).map(a => (
+                <View
+                  key={a.email ?? a.name}
+                  style={{ flexDirection: 'row', alignItems: 'baseline', gap: t.spacing.s2 }}
+                >
+                  <Text style={{ flex: 1, fontSize: t.fontSize.sm, color: t.color.ink2 }}>
+                    {a.name}
+                  </Text>
+                  {a.response !== undefined && a.response !== 'needsAction' && (
+                    <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
+                      {RESPONSE_LABEL[a.response]}
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
           )}
 
           {entry.kind === 'meeting' && (

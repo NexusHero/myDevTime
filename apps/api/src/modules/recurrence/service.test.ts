@@ -23,6 +23,10 @@ function row(over: Partial<SeriesRow>): SeriesRow {
     projectId: null,
     priority: null,
     note: null,
+    location: null,
+    attendees: null,
+    conferenceUrl: null,
+    conferenceProvider: null,
     createdAt: new Date(0),
     ...over,
   }
@@ -87,6 +91,44 @@ describe('seriesToOccurrences', () => {
       '2026-07-06',
     )
     expect(occ[0]).toMatchObject({ priority: 1, note: 'ship the SEPA export' })
+  })
+
+  it('CarriesMeetingDetailFromTheSeries', () => {
+    // Issue #375: where it is, who is in it, how to join it — the three things that make a
+    // meeting a meeting. Carried verbatim from the series, never derived (ADR-0005).
+    const occ = seriesToOccurrences(
+      [
+        row({
+          kind: 'meeting',
+          location: 'Room 3 · Berlin',
+          attendees: [
+            { name: 'Ada', email: 'ada@example.com', response: 'accepted' },
+            { name: 'Grace' },
+          ],
+          conferenceUrl: 'https://meet.example.com/abc',
+          conferenceProvider: 'Meet',
+        }),
+      ],
+      '2026-07-06',
+      '2026-07-06',
+    )
+    expect(occ[0]).toMatchObject({
+      location: 'Room 3 · Berlin',
+      conferenceUrl: 'https://meet.example.com/abc',
+      conferenceProvider: 'Meet',
+    })
+    expect(occ[0]?.attendees).toEqual([
+      { name: 'Ada', email: 'ada@example.com', response: 'accepted' },
+      { name: 'Grace' },
+    ])
+  })
+
+  it('LeavesMeetingDetailEmptyWhenTheSeriesCarriesNone', () => {
+    // An entry without attendees has an empty list, not a null the client has to special-case.
+    const occ = seriesToOccurrences([row({})], '2026-07-06', '2026-07-06')
+    expect(occ[0]?.location).toBeNull()
+    expect(occ[0]?.attendees).toEqual([])
+    expect(occ[0]?.conferenceUrl).toBeNull()
   })
 
   it('EmptyWhenTheWindowPredatesTheSeries', () => {

@@ -197,6 +197,13 @@
       "when": 1784628773579,
       "tag": "0027_sloppy_wolf_cub",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1785219785220,
+      "tag": "0028_serious_zarda",
+      "breakpoints": true
     }
   ]
 }

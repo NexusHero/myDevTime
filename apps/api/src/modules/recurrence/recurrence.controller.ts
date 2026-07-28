@@ -68,6 +68,10 @@ export class RecurrenceController {
       projectId: body.projectId,
       priority: body.priority,
       note: body.note,
+      location: body.location,
+      attendees: body.attendees,
+      conferenceUrl: body.conferenceUrl,
+      conferenceProvider: body.conferenceProvider,
     })
   }
 

@@ -2,7 +2,7 @@ import { FlashList } from '@shopify/flash-list'
 import Animated, { useSharedValue, useAnimatedStyle, runOnJS } from 'react-native-reanimated'
 import { GestureDetector, Gesture } from 'react-native-gesture-handler'
 import { useEffect, useMemo, useState } from 'react'
-import { Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
+import { Linking, Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import {
   assignLanes,
   compressWindow,
@@ -1699,6 +1699,13 @@ export function PlannerScreen(): React.JSX.Element {
     setOpenIndex(null)
     setRefEntry(null)
   }
+  // Open a meeting's conference link (issue #375). Joining is not a mutation, so it is offered for
+  // a read-only entry too; the platform decides how to open it.
+  const joinConference = (url: string): void => {
+    void Linking.openURL(url).catch(() => {
+      toast.show('Could not open the meeting link.')
+    })
+  }
   const setOpenRsvp = (rsvp: Rsvp): void =>
     setBlocks(bs => bs.map((b, i) => (i === openIndex ? { ...b, rsvp } : b)))
   // Toggle the 🛡 protection flag (design v14 D14) on the open block — communication only;
@@ -2153,6 +2160,11 @@ export function PlannerScreen(): React.JSX.Element {
       color: task.isLife ? t.color.life : projectColor(task.projectId ?? task.label, t.mode),
       // Description + effort come straight from the occurrence (issue #372).
       ...(task.note !== null ? { note: task.note } : {}),
+      // Meeting detail (issue #375) — where, who, how to join; each absent when the entry has none.
+      ...(task.location !== null ? { location: task.location } : {}),
+      ...(task.attendees.length > 0 ? { attendees: task.attendees } : {}),
+      ...(task.conferenceUrl !== null ? { conferenceUrl: task.conferenceUrl } : {}),
+      ...(task.conferenceProvider !== null ? { conferenceProvider: task.conferenceProvider } : {}),
       plannedMin: task.lenMin,
     })
   }
@@ -2684,6 +2696,16 @@ export function PlannerScreen(): React.JSX.Element {
                                     color: canvasBlockColor(t, rb),
                                     rec: true,
                                     ...(rb.note !== undefined ? { note: rb.note } : {}),
+                                    ...(rb.location !== undefined ? { location: rb.location } : {}),
+                                    ...(rb.attendees !== undefined
+                                      ? { attendees: rb.attendees }
+                                      : {}),
+                                    ...(rb.conferenceUrl !== undefined
+                                      ? { conferenceUrl: rb.conferenceUrl }
+                                      : {}),
+                                    ...(rb.conferenceProvider !== undefined
+                                      ? { conferenceProvider: rb.conferenceProvider }
+                                      : {}),
                                     plannedMin: rb.len,
                                   })
                                 },
@@ -3029,6 +3051,7 @@ export function PlannerScreen(): React.JSX.Element {
           panel={detailPanel}
           entry={drawerEntry}
           onClose={closeDrawer}
+          {...(drawerEntry?.conferenceUrl !== undefined ? { onJoin: joinConference } : {})}
           {...(!readOnly && drawerEntry?.kind === 'meeting' ? { onRsvp: setOpenRsvp } : {})}
           {...(!readOnly && drawerEntry?.kind === 'actual'
             ? { onDelete: removeOpen, onNudge: nudgeOpen, onDuplicate: duplicateOpen }

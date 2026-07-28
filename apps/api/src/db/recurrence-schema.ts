@@ -1,4 +1,4 @@
-import { date, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { date, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { workspaces } from './schema.js'
 import { user } from './auth-schema.js'
 
@@ -40,5 +40,21 @@ export const recurringEntries = pgTable('recurring_entries', {
   // show a real priority dot instead of a default (ADR-0005 — nothing is invented).
   priority: integer('priority'),
   note: text('note'),
+  // Meeting detail (REQ-075, issue #375): where it is, who is in it, how to join it — the three
+  // things that make a meeting a meeting. All nullable: a focus block or a break has none, and an
+  // absent value renders as absent, never as a placeholder. `attendees` is personal data belonging
+  // to third parties, so it is never exposed by the Free/Busy share path (REQ-064).
+  location: text('location'),
+  attendees: jsonb('attendees').$type<MeetingAttendee[]>(),
+  conferenceUrl: text('conference_url'),
+  // A human provider label, e.g. `Teams` / `Meet` — shown beside the join action.
+  conferenceProvider: text('conference_provider'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+/** One invited person. `email` and `response` are absent when the source did not supply them. */
+export interface MeetingAttendee {
+  readonly name: string
+  readonly email?: string | undefined
+  readonly response?: 'accepted' | 'tentative' | 'declined' | 'needsAction' | undefined
+}
