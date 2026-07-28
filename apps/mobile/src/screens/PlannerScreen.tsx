@@ -33,6 +33,7 @@ import {
   type RealityGap,
   type RecurrenceRule,
   type TimedSpan,
+  type TravelMode,
 } from '@mydevtime/domain'
 import { ContextBanner, type ContextBannerProps } from '../components/planner/ContextBanner'
 import { SeviAdvisory } from '../components/planner/SeviAdvisory'
@@ -162,6 +163,8 @@ interface CanvasBlock {
   readonly routeFrom?: string
   readonly routeTo?: string
   readonly distanceKm?: number | null
+  /** How the trip was made — drives the worktime fraction the detail reads out (issue #374). */
+  readonly travelMode?: TravelMode
 }
 
 interface DemoDay {
@@ -1683,6 +1686,7 @@ export function PlannerScreen(): React.JSX.Element {
           ...(openBlock.routeFrom !== undefined ? { routeFrom: openBlock.routeFrom } : {}),
           ...(openBlock.routeTo !== undefined ? { routeTo: openBlock.routeTo } : {}),
           ...(openBlock.distanceKm !== undefined ? { distanceKm: openBlock.distanceKm } : {}),
+          ...(openBlock.travelMode !== undefined ? { travelMode: openBlock.travelMode } : {}),
           // Effort = the block's own length, taken verbatim (issue #372) — never re-derived.
           plannedMin: openBlock.len,
           protected: openBlock.protectedFlag === true,
@@ -1732,7 +1736,12 @@ export function PlannerScreen(): React.JSX.Element {
   // Save the travel route (design v20 §G4): store From/To/km on the open block and, when both ends
   // are named, title it `From → To`. The km is exactly what the user typed — nothing is inferred
   // (ADR-0005). A toast confirms; the drawer stays open so the route reads back.
-  const saveTravelDetail = (detail: { from: string; to: string; km: number | null }): void => {
+  const saveTravelDetail = (detail: {
+    from: string
+    to: string
+    km: number | null
+    mode: TravelMode
+  }): void => {
     setBlocks(bs =>
       bs.map((b, i) =>
         i === openIndex
@@ -1741,6 +1750,7 @@ export function PlannerScreen(): React.JSX.Element {
               routeFrom: detail.from,
               routeTo: detail.to,
               distanceKm: detail.km,
+              travelMode: detail.mode,
               label:
                 detail.from.length > 0 && detail.to.length > 0
                   ? `${detail.from} → ${detail.to}`
