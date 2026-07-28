@@ -36,6 +36,11 @@ const ICON_PATHS: Record<string, string> = {
   shield: 'M12 3l7 3v5c0 4.6-2.9 8.1-7 10-4.1-1.9-7-5.4-7-10V6z',
   // A meeting's place (issue #375): a map pin, so a location reads as a location.
   pin: 'M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11zM12 7.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z',
+  // Block markers (issue #381) — these replace the typed codes `↻` and `⇄ OL`, which needed a
+  // legend to be understood. A loop for a recurring series; two crossing arrows for a synced
+  // entry that came from an external calendar.
+  repeat: 'M4 9V7a2 2 0 0 1 2-2h11M17 5l-3-3M17 5l-3 3M20 15v2a2 2 0 0 1-2 2H7M7 19l3 3M7 19l3-3',
+  sync: 'M3 8h13l-3-3M21 16H8l3 3',
 }
 
 export interface IconProps {
