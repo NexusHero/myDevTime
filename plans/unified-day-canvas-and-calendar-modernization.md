@@ -21,8 +21,8 @@ The app ships **two top-level tabs** ([`PHONE_TABS`](packages/design/src/nav.ts:
 
 | Capability | [`TodayScreen`](apps/mobile/src/screens/TodayScreen.tsx:122) | [`PlannerScreen`](apps/mobile/src/screens/PlannerScreen.tsx:2150) |
 |---|---|---|
-| Big breathing Start/Pause button | ✅ [`LiveButton`](apps/mobile/src/components/canvas/LiveButton.tsx:73) hero | ❌ only small [`PlannerDayTracker`](apps/mobile/src/components/planner/PlannerDayTracker.tsx:28) buttons (Day view) |
-| Clock-out (Ausstempeln) | via Island only | ✅ [`PlannerDayTracker`](apps/mobile/src/components/planner/PlannerDayTracker.tsx:81) Clock in/out (Day view) |
+| Big breathing Start/Pause button | ✅ [`LiveButton`](apps/mobile/src/components/canvas/LiveButton.tsx:73) hero | ❌ only small `PlannerDayTracker` buttons (Day view) |
+| Clock-out (Ausstempeln) | via Island only | ✅ `PlannerDayTracker` Clock in/out (Day view) |
 | Feierabend block (`git commit -m "Feierabend"`) | ✅ [`shutdownCard`](apps/mobile/src/screens/TodayScreen.tsx:938) | ❌ missing |
 | Booked-time-on-stop summary | ✅ toast + [`shutdownSummary`](apps/mobile/src/today/shutdown.ts:52) | ✅ toast only |
 | Week/Month/Year canvas | ❌ | ✅ [`PlannerCalendar`](apps/mobile/src/components/planner/PlannerCalendar.tsx:88) |
@@ -176,12 +176,12 @@ the hero bar and the Planner can fire it consistently. This is a thin wrapper ov
 
 In [`PlannerScreen`](apps/mobile/src/screens/PlannerScreen.tsx:2353) (the `view === 'Day'` branch):
 
-- Replace [`PlannerDayTracker`](apps/mobile/src/components/planner/PlannerDayTracker.tsx:28) with
+- Replace `PlannerDayTracker` with
   the new `HeroTrackerBar` (keeps the clock-in/out, gains the big LiveButton + PauseCounter).
 - Add `ShutdownCard` below the day canvas (reads the same
   [`useTodayEntries`](apps/mobile/src/hooks/useTodayEntries.ts) + auto-tracker spans Today used).
 - Make `Day` the default view (currently the screen opens on `Week`).
-- **Remove** [`PlannerDayTracker`](apps/mobile/src/components/planner/PlannerDayTracker.tsx:28)
+- **Remove** `PlannerDayTracker`
   immediately — the `HeroTrackerBar` fully replaces it; no dead code.
 
 ### Step 5 — Retire the Today tab; redirect `/today` → `/planner`
