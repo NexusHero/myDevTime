@@ -465,3 +465,73 @@ describe('PlannerEntryDrawer · meeting detail', () => {
     ).not.toContain('Join')
   })
 })
+
+/**
+ * Editing a meeting's detail (issue #375). The location and the join link were write-once through
+ * the create dialog — a meeting that moved rooms could never be corrected. Editing is offered only
+ * where it is real: the drawer hands a patch back, the Planner persists it.
+ */
+describe('PlannerEntryDrawer · editing the meeting detail', () => {
+  const base: DrawerEntry = {
+    kind: 'meeting',
+    title: 'Sprint planning',
+    timeLabel: '09:00–10:00',
+    color: '#3e97dd',
+    location: 'Room 3',
+  }
+
+  it('HandsBackTheEditedLocation', () => {
+    const onMeetingDetail = vi.fn()
+    const r = render(
+      <PlannerEntryDrawer entry={base} onClose={() => {}} onMeetingDetail={onMeetingDetail} />,
+    )
+    pressByLabel(r, 'Save meeting detail')
+    expect(onMeetingDetail).toHaveBeenCalledWith({
+      location: 'Room 3',
+      conferenceUrl: null,
+      conferenceProvider: null,
+    })
+  })
+
+  it('ClearsTheLocationWhenItIsEmptied', () => {
+    // A wrong place must be removable, not only overwritable — so an emptied field means null.
+    const onMeetingDetail = vi.fn()
+    const r = render(
+      <PlannerEntryDrawer
+        entry={{ ...base, location: '' }}
+        onClose={() => {}}
+        onMeetingDetail={onMeetingDetail}
+      />,
+    )
+    pressByLabel(r, 'Save meeting detail')
+    expect(onMeetingDetail).toHaveBeenCalledWith({
+      location: null,
+      conferenceUrl: null,
+      conferenceProvider: null,
+    })
+  })
+
+  it('OffersNoEditorWithoutAHandler', () => {
+    // Read-only entries (a Month chip, a series occurrence) get the read-out and nothing more.
+    const r = render(<PlannerEntryDrawer entry={base} onClose={() => {}} />)
+    const save = r.root
+      .findAllByType(Pressable)
+      .find(p => p.props.accessibilityLabel === 'Save meeting detail')
+    expect(save).toBeUndefined()
+  })
+
+  it('NeverOffersToEditTheAttendees', () => {
+    // Attendees are third-party people mirrored from a calendar, and there is no invite
+    // mechanism — an app-authored guest list would store names nobody is ever told about.
+    const out = texts(
+      render(
+        <PlannerEntryDrawer
+          entry={{ ...base, attendees: [{ name: 'Ada' }] }}
+          onClose={() => {}}
+          onMeetingDetail={() => {}}
+        />,
+      ),
+    )
+    expect(out).not.toContain('Add attendee')
+  })
+})

@@ -45,6 +45,7 @@ import { apiBaseUrl } from '../config'
 import { createSeries } from '../api/recurrence'
 import { createProject } from '../api/tracking'
 import { occurrencesToBlocks, type RecurringBlock } from '../planner/recurring'
+import { updateSeries } from '../api/recurrence'
 import { useWeekOccurrences } from '../hooks/useWeekOccurrences'
 import { useMonthOccurrences } from '../hooks/useMonthOccurrences'
 import { PlannerCalendar, type TimegridBlock } from '../components/planner/PlannerCalendar'
@@ -1706,6 +1707,29 @@ export function PlannerScreen(): React.JSX.Element {
       toast.show('Could not open the meeting link.')
     })
   }
+  // Correct a meeting's detail (issue #375). This patches the **series**, so it is offered exactly
+  // where a series exists — an occurrence-derived entry — and never for a canvas block, which is
+  // local state with nothing behind it. The calendar reloads so the change is visible, not assumed.
+  const saveMeetingDetail = (detail: {
+    location: string | null
+    conferenceUrl: string | null
+    conferenceProvider: string | null
+  }): void => {
+    const id = drawerEntry?.seriesId
+    if (id === undefined || apiBaseUrl === null || apiBaseUrl === undefined) {
+      toast.show('Connect the app to save meeting details.')
+      return
+    }
+    void updateSeries(apiBaseUrl, id, detail)
+      .then(() => {
+        monthOccResource.reload()
+        weekOccResource.reload()
+        toast.show('Meeting detail saved.')
+      })
+      .catch(() => {
+        toast.show('Could not save the meeting detail.')
+      })
+  }
   const setOpenRsvp = (rsvp: Rsvp): void =>
     setBlocks(bs => bs.map((b, i) => (i === openIndex ? { ...b, rsvp } : b)))
   // Toggle the 🛡 protection flag (design v14 D14) on the open block — communication only;
@@ -2706,6 +2730,7 @@ export function PlannerScreen(): React.JSX.Element {
                                     ...(rb.conferenceProvider !== undefined
                                       ? { conferenceProvider: rb.conferenceProvider }
                                       : {}),
+                                    seriesId: rb.seriesId,
                                     plannedMin: rb.len,
                                   })
                                 },
@@ -3052,6 +3077,9 @@ export function PlannerScreen(): React.JSX.Element {
           entry={drawerEntry}
           onClose={closeDrawer}
           {...(drawerEntry?.conferenceUrl !== undefined ? { onJoin: joinConference } : {})}
+          {...(drawerEntry?.kind === 'meeting' && drawerEntry.seriesId !== undefined
+            ? { onMeetingDetail: saveMeetingDetail }
+            : {})}
           {...(!readOnly && drawerEntry?.kind === 'meeting' ? { onRsvp: setOpenRsvp } : {})}
           {...(!readOnly && drawerEntry?.kind === 'actual'
             ? { onDelete: removeOpen, onNudge: nudgeOpen, onDuplicate: duplicateOpen }

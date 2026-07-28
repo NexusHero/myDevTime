@@ -147,6 +147,57 @@ export async function createSeries(
   return first(rows)
 }
 
+/**
+ * The meeting detail a series may have edited after the fact (issue #375). Deliberately narrow:
+ * only what the user authored. **Attendees are absent on purpose** — they are third-party people
+ * mirrored from a calendar, and we have no invite mechanism, so letting the app author a guest
+ * list would store names nobody is ever told about.
+ *
+ * A field left out is untouched; a field set to `null` is cleared, so a wrong location can
+ * actually be taken back rather than only overwritten.
+ */
+export interface UpdateSeriesInput {
+  title?: string | undefined
+  location?: string | null | undefined
+  conferenceUrl?: string | null | undefined
+  conferenceProvider?: string | null | undefined
+  note?: string | null | undefined
+}
+
+/** Patch a series in the caller's workspace. Workspace-scoped by construction (ADR-0015). */
+export async function updateSeries(
+  db: Db,
+  workspaceId: string,
+  id: string,
+  patch: UpdateSeriesInput,
+): Promise<SeriesRow> {
+  const set: Partial<typeof recurringEntries.$inferInsert> = {}
+  if (patch.title !== undefined) set.title = patch.title
+  if (patch.location !== undefined) set.location = patch.location
+  if (patch.conferenceUrl !== undefined) set.conferenceUrl = patch.conferenceUrl
+  if (patch.conferenceProvider !== undefined) set.conferenceProvider = patch.conferenceProvider
+  if (patch.note !== undefined) set.note = patch.note
+  if (Object.keys(set).length === 0) {
+    // An empty patch is not an error, but it must not issue a no-column UPDATE.
+    const rows = await db
+      .select()
+      .from(recurringEntries)
+      .where(and(eq(recurringEntries.workspaceId, workspaceId), eq(recurringEntries.id, id)))
+      .limit(1)
+    const row = rows[0]
+    if (!row) throw new NotFoundError('series not found')
+    return row
+  }
+  const rows = await db
+    .update(recurringEntries)
+    .set(set)
+    .where(and(eq(recurringEntries.workspaceId, workspaceId), eq(recurringEntries.id, id)))
+    .returning()
+  const row = rows[0]
+  if (!row) throw new NotFoundError('series not found')
+  return row
+}
+
 /** List the workspace's series, earliest anchor first. */
 export async function listSeries(db: Db, workspaceId: string): Promise<SeriesRow[]> {
   return db
