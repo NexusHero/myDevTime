@@ -57,3 +57,18 @@ export class CreateSeriesDto extends createZodDto(
 ) {}
 
 export class TruncateSeriesDto extends createZodDto(z.object({ at: calendarDate })) {}
+
+/**
+ * A patch to a series' authored detail (issue #375). Every field is optional; `null` clears.
+ * **Attendees are not patchable** — they are third-party people mirrored from a calendar, and
+ * with no invite mechanism an app-authored guest list would store names nobody is ever told about.
+ */
+export class UpdateSeriesDto extends createZodDto(
+  z.object({
+    title: z.string().trim().min(1).max(200).optional(),
+    location: z.string().trim().max(200).nullish(),
+    conferenceUrl: z.url().max(2000).nullish(),
+    conferenceProvider: z.string().trim().max(60).nullish(),
+    note: z.string().trim().max(500).nullish(),
+  }),
+) {}

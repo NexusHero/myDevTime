@@ -100,6 +100,65 @@ describe.skipIf(!databaseUrl)('recurrence (integration)', () => {
     expect(occ.map(o => o.date)).toEqual(['2026-07-06', '2026-07-13'])
   })
 
+  it('UpdatesAMeetingsDetail_andLeavesTheRestOfTheSeriesAlone', async () => {
+    // Issue #375: the detail was write-once through create. A patch touches only the fields it
+    // names — the schedule (anchor, start, length, rule) must survive an edit to the location.
+    const series = await svc.createSeries(db, wsA, idA, {
+      kind: 'meeting',
+      title: 'Sprint planning',
+      anchorDate: '2026-07-06',
+      startMin: 540,
+      lenMin: 60,
+      freq: 'weekly',
+      end: { kind: 'never' },
+      location: 'Room 3',
+    })
+    const updated = await svc.updateSeries(db, wsA, series.id, {
+      location: 'Room 5 · Berlin',
+      conferenceUrl: 'https://meet.example.com/abc',
+      conferenceProvider: 'Meet',
+    })
+    expect(updated.location).toBe('Room 5 · Berlin')
+    expect(updated.conferenceUrl).toBe('https://meet.example.com/abc')
+    // Untouched by the patch.
+    expect(updated.title).toBe('Sprint planning')
+    expect(updated.startMin).toBe(540)
+    expect(updated.lenMin).toBe(60)
+    expect(updated.anchorDate).toBe('2026-07-06')
+  })
+
+  it('ClearsADetailWhenThePatchSaysNull', async () => {
+    // Removing a location must be expressible — otherwise a wrong place can never be taken back.
+    const series = await svc.createSeries(db, wsA, idA, {
+      kind: 'meeting',
+      title: 'Standup',
+      anchorDate: '2026-07-06',
+      startMin: 540,
+      lenMin: 15,
+      freq: 'daily',
+      end: { kind: 'never' },
+      location: 'Room 3',
+    })
+    const updated = await svc.updateSeries(db, wsA, series.id, { location: null })
+    expect(updated.location).toBeNull()
+  })
+
+  it('RefusesToUpdateASeriesInAnotherWorkspace', async () => {
+    const series = await svc.createSeries(db, wsA, idA, {
+      kind: 'meeting',
+      title: 'A-only',
+      anchorDate: '2026-07-06',
+      startMin: 540,
+      lenMin: 30,
+      freq: 'weekly',
+      end: { kind: 'never' },
+    })
+    // Workspace isolation is by construction, not by a caller remembering to filter.
+    await expect(svc.updateSeries(db, wsB, series.id, { location: 'stolen' })).rejects.toThrow()
+    const untouched = await svc.listSeries(db, wsA)
+    expect(untouched[0]?.location).toBeNull()
+  })
+
   it('OccurrencesAreScopedToTheWorkspace', async () => {
     await svc.createSeries(db, wsA, idA, {
       kind: 'focus',

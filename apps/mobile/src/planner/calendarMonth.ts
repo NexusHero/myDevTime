@@ -28,6 +28,8 @@ export interface DayTask {
   readonly lenMin: number
   /** The entry's own description, verbatim from the occurrence (issue #372); null when empty. */
   readonly note: string | null
+  /** The series this occurrence came from (issue #375) — the handle its detail is patched by. */
+  readonly seriesId: string
   /** Meeting detail carried from the occurrence (issue #375): where, who, how to join. */
   readonly location: string | null
   readonly attendees: readonly MeetingAttendee[]
@@ -94,6 +96,7 @@ export function buildMonthDays(
       startMin: occ.startMin,
       lenMin: occ.lenMin,
       note: occ.note !== null && occ.note.trim() !== '' ? occ.note : null,
+      seriesId: occ.seriesId,
       location: occ.location != null && occ.location.trim() !== '' ? occ.location : null,
       attendees: occ.attendees ?? [],
       conferenceUrl: occ.conferenceUrl ?? null,

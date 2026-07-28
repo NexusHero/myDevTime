@@ -1,4 +1,4 @@
-import { deleteJson, getJson, postJson } from './http.js'
+import { deleteJson, getJson, patchJson, postJson } from './http.js'
 import { z } from 'zod'
 
 /**
@@ -117,6 +117,28 @@ export async function createSeries(
   fetchImpl: typeof fetch = fetch,
 ): Promise<Series> {
   return parseSeries(await postJson(baseUrl, '/api/recurrence', input, fetchImpl))
+}
+
+/**
+ * Patch a series' authored detail (issue #375). Every field is optional; `null` clears one, so a
+ * wrong location can be taken back rather than only overwritten. Attendees are **not** patchable —
+ * they are third-party people mirrored from a calendar, not a guest list this app authors.
+ */
+export interface UpdateSeriesInput {
+  readonly title?: string
+  readonly location?: string | null
+  readonly conferenceUrl?: string | null
+  readonly conferenceProvider?: string | null
+  readonly note?: string | null
+}
+
+export async function updateSeries(
+  baseUrl: string,
+  id: string,
+  patch: UpdateSeriesInput,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Series> {
+  return parseSeries(await patchJson(baseUrl, `/api/recurrence/${id}`, patch, fetchImpl))
 }
 
 /** Delete a series. */

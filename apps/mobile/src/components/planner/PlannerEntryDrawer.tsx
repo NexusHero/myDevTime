@@ -56,6 +56,12 @@ export interface DrawerEntry {
   readonly conferenceUrl?: string
   readonly conferenceProvider?: string
   /**
+   * The series this entry was projected from (issue #375). Present only for occurrence-derived
+   * entries; a canvas block is local state with no series behind it, which is exactly why the
+   * detail editor is offered for the former and not the latter.
+   */
+  readonly seriesId?: string
+  /**
    * The entry's own description (issue #372) — the occurrence's note, verbatim. Absent when the
    * entry has none: an honest detail says nothing rather than showing a "no description" label.
    */
@@ -133,6 +139,18 @@ export interface PlannerEntryDrawerProps {
   }) => void
   /** Meeting: open the conference link (issue #375). The drawer never opens a URL itself. */
   readonly onJoin?: (url: string) => void
+  /**
+   * Meeting: save the edited detail (issue #375). Set to offer the editor; omit for a read-only
+   * entry. `null` clears a field, so a wrong location can be taken back, not only overwritten.
+   * Attendees are deliberately **not** editable — they are third-party people mirrored from a
+   * calendar, and with no invite mechanism an app-authored guest list would store names nobody
+   * is ever told about.
+   */
+  readonly onMeetingDetail?: (detail: {
+    location: string | null
+    conferenceUrl: string | null
+    conferenceProvider: string | null
+  }) => void
   /** Ghost: accept the Co-Planner proposal. */
   readonly onAccept?: () => void
   /** Ghost: dismiss the proposal. */
@@ -158,6 +176,7 @@ export function PlannerEntryDrawer({
   onDuplicate,
   onTravelDetail,
   onJoin,
+  onMeetingDetail,
   onAccept,
   onDismiss,
   onProtect,
@@ -177,6 +196,10 @@ export function PlannerEntryDrawer({
   )
   // Mode decides the worktime fraction, so it is the user's choice, never inferred (issue #374).
   const [travelMode, setTravelMode] = useState<TravelMode>(entry?.travelMode ?? 'car')
+  // Meeting detail draft (issue #375), seeded from the entry; saved as a patch on the user's tap.
+  const [meetLocation, setMeetLocation] = useState(entry?.location ?? '')
+  const [meetUrl, setMeetUrl] = useState(entry?.conferenceUrl ?? '')
+  const [meetProvider, setMeetProvider] = useState(entry?.conferenceProvider ?? '')
   // Focus management (REQ-043): on open, keyboard focus moves into the drawer (web).
   const panelRef = useModalFocus(entry !== null)
   if (entry === null) return null
@@ -301,6 +324,48 @@ export function PlannerEntryDrawer({
                   )}
                 </View>
               ))}
+            </View>
+          )}
+
+          {/* Correcting the detail (issue #375): a meeting moves rooms, a call gets a new link.
+              Offered only when the caller can persist it — a read-only entry keeps the read-out
+              and nothing more. Emptying a field clears it, so a wrong value can be taken back. */}
+          {entry.kind === 'meeting' && onMeetingDetail !== undefined && (
+            <View style={{ gap: t.spacing.s3 }}>
+              <Input
+                label="Location"
+                placeholder="e.g. Room 3 · Berlin"
+                value={meetLocation}
+                onChangeText={setMeetLocation}
+              />
+              <Input
+                label="Join link"
+                placeholder="https://…"
+                value={meetUrl}
+                onChangeText={setMeetUrl}
+              />
+              <Input
+                label="Provider"
+                placeholder="e.g. Teams"
+                value={meetProvider}
+                onChangeText={setMeetProvider}
+              />
+              <View style={{ flexDirection: 'row' }}>
+                <Button
+                  size="sm"
+                  onPress={() => {
+                    const trimmed = (v: string): string | null =>
+                      v.trim() === '' ? null : v.trim()
+                    onMeetingDetail({
+                      location: trimmed(meetLocation),
+                      conferenceUrl: trimmed(meetUrl),
+                      conferenceProvider: trimmed(meetProvider),
+                    })
+                  }}
+                >
+                  Save meeting detail
+                </Button>
+              </View>
             </View>
           )}
 

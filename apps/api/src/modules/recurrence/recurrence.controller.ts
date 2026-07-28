@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -19,6 +20,7 @@ import {
   IdParamDto,
   OccurrencesQueryDto,
   TruncateSeriesDto,
+  UpdateSeriesDto,
 } from './recurrence.dto.js'
 
 /**
@@ -73,6 +75,16 @@ export class RecurrenceController {
       conferenceUrl: body.conferenceUrl,
       conferenceProvider: body.conferenceProvider,
     })
+  }
+
+  @Patch(':id')
+  async update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param() params: IdParamDto,
+    @Body() body: UpdateSeriesDto,
+  ) {
+    const { db, workspaceId } = await this.ctx.workspaceOf(user)
+    return svc.updateSeries(db, workspaceId, params.id, body)
   }
 
   @Delete(':id')
