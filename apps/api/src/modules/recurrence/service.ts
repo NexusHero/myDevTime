@@ -7,7 +7,7 @@ import {
   type RecurrenceRule,
 } from '@mydevtime/domain'
 import type { Db } from '../../db/client.js'
-import { recurringEntries } from '../../db/schema.js'
+import { recurringEntries, type MeetingAttendee } from '../../db/schema.js'
 import { NotFoundError } from '../../errors.js'
 
 /**
@@ -53,6 +53,12 @@ export interface Occurrence {
   /** Planning metadata carried from the series (design v19): task priority + free-text note. */
   readonly priority: number | null
   readonly note: string | null
+  /** Meeting detail carried from the series (REQ-075): where, who, how to join. */
+  readonly location: string | null
+  /** Always a list — an entry with no attendees has an empty one, never a null to special-case. */
+  readonly attendees: readonly MeetingAttendee[]
+  readonly conferenceUrl: string | null
+  readonly conferenceProvider: string | null
 }
 
 /**
@@ -78,6 +84,10 @@ export function seriesToOccurrences(
         projectId: row.projectId,
         priority: row.priority,
         note: row.note,
+        location: row.location,
+        attendees: row.attendees ?? [],
+        conferenceUrl: row.conferenceUrl,
+        conferenceProvider: row.conferenceProvider,
       })
     }
   }
@@ -97,6 +107,10 @@ export interface CreateSeriesInput {
   projectId?: string | null | undefined
   priority?: number | null | undefined
   note?: string | null | undefined
+  location?: string | null | undefined
+  attendees?: readonly MeetingAttendee[] | null | undefined
+  conferenceUrl?: string | null | undefined
+  conferenceProvider?: string | null | undefined
 }
 
 /** Create a recurring series in the caller's workspace. */
@@ -123,6 +137,11 @@ export async function createSeries(
       projectId: input.projectId ?? null,
       priority: input.priority ?? null,
       note: input.note ?? null,
+      location: input.location ?? null,
+      attendees:
+        input.attendees === null || input.attendees === undefined ? null : [...input.attendees],
+      conferenceUrl: input.conferenceUrl ?? null,
+      conferenceProvider: input.conferenceProvider ?? null,
     })
     .returning()
   return first(rows)

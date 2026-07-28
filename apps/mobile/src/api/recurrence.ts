@@ -16,6 +16,23 @@ export type SeriesEndKind = z.infer<typeof seriesEndKindSchema>
 export const seriesKindSchema = z.enum(['meeting', 'focus', 'break', 'life', 'travel'])
 export type SeriesKind = z.infer<typeof seriesKindSchema>
 
+/** One invited person on a meeting (REQ-075, issue #375). Only the name is guaranteed — a
+ *  connector that supplies no address or response status must not force an invented one. */
+export const attendeeSchema = z.object({
+  name: z.string(),
+  email: z.string().optional(),
+  response: z.enum(['accepted', 'tentative', 'declined', 'needsAction']).optional(),
+})
+export type MeetingAttendee = z.infer<typeof attendeeSchema>
+
+/** The meeting-detail fields both a series and its occurrences carry. */
+const meetingDetailShape = {
+  location: z.string().nullish().catch(null),
+  attendees: z.array(attendeeSchema).optional().catch(undefined),
+  conferenceUrl: z.string().nullish().catch(null),
+  conferenceProvider: z.string().nullish().catch(null),
+}
+
 export const seriesSchema = z.object({
   id: z.string(),
   kind: seriesKindSchema.catch('focus'),
@@ -30,6 +47,7 @@ export const seriesSchema = z.object({
   projectId: z.string().nullable(),
   priority: z.number().nullable().catch(null).default(null),
   note: z.string().nullable().catch(null).default(null),
+  ...meetingDetailShape,
 })
 export type Series = z.infer<typeof seriesSchema>
 
@@ -43,6 +61,7 @@ export const occurrenceSchema = z.object({
   projectId: z.string().nullable(),
   priority: z.number().nullable().catch(null).default(null),
   note: z.string().nullable().catch(null).default(null),
+  ...meetingDetailShape,
 })
 export type Occurrence = z.infer<typeof occurrenceSchema>
 

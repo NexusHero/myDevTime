@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
-import { detailPanelForWidth, type DetailPanel } from '@mydevtime/design'
-import type { RecurrenceRule } from '@mydevtime/domain'
+import { detailPanelForWidth, formatDuration, type DetailPanel } from '@mydevtime/design'
+import type { RecurrenceRule, TravelMode } from '@mydevtime/domain'
+import { previewLeg } from '../../travel/travelForm'
+import type { MeetingAttendee } from '../../api/recurrence'
 import { Text } from '../core/Text'
 import { Badge, Button, Icon, IconButton, Input, SegmentedControl, Switch } from '../index'
 import { RecurrenceEditor } from './RecurrenceEditor'
@@ -44,6 +46,15 @@ export interface DrawerEntry {
   readonly routeTo?: string
   /** Travel: the user-entered one-way distance in km (never inferred — ADR-0005). */
   readonly distanceKm?: number | null
+  /** Travel: how the trip was made. Drives the worktime fraction; defaults to `car` (issue #374). */
+  readonly travelMode?: TravelMode
+  /** Meeting: where it is, verbatim from the series. Absent when the meeting has no place. */
+  readonly location?: string
+  /** Meeting: who is in it (issue #375). Third-party personal data — never in a Free/Busy view. */
+  readonly attendees?: readonly MeetingAttendee[] | undefined
+  /** Meeting: how to join it, plus the provider label shown beside the action. */
+  readonly conferenceUrl?: string
+  readonly conferenceProvider?: string
   /**
    * The entry's own description (issue #372) — the occurrence's note, verbatim. Absent when the
    * entry has none: an honest detail says nothing rather than showing a "no description" label.
@@ -57,6 +68,29 @@ export interface DrawerEntry {
 function effortLabel(min: number): string {
   return `${String(Math.floor(min / 60))}:${String(min % 60).padStart(2, '0')} h`
 }
+
+/** An attendee's reply, in words — never colour alone (REQ-043). `needsAction` reads as nothing:
+ *  "no reply yet" is the absence of an answer, not an answer. */
+const RESPONSE_LABEL: Record<NonNullable<MeetingAttendee['response']>, string> = {
+  accepted: 'Going',
+  tentative: 'Tentative',
+  declined: 'Declined',
+  needsAction: 'No reply',
+}
+
+const MODE_LABEL: Record<TravelMode, string> = {
+  car: 'Car',
+  train: 'Train',
+  transit: 'Transit',
+  bike: 'Bike',
+  walk: 'Walk',
+  other: 'Other',
+}
+
+/** The modes offered in the drawer — `other` exists in the domain but is nothing to pick. */
+const MODE_SEGMENTS: readonly { readonly value: TravelMode; readonly label: string }[] = (
+  ['car', 'train', 'transit', 'bike', 'walk'] as const
+).map(value => ({ value, label: MODE_LABEL[value] }))
 
 const KIND_LABEL: Record<EntryKind, string> = {
   meeting: 'Meeting',
@@ -90,8 +124,15 @@ export interface PlannerEntryDrawerProps {
   readonly onNudge?: (deltaMin: number) => void
   /** Duplicate the block on the same day (design v20 drawer). */
   readonly onDuplicate?: () => void
-  /** Travel (design v20 §G4): save the entered route + distance onto the trip. */
-  readonly onTravelDetail?: (detail: { from: string; to: string; km: number | null }) => void
+  /** Travel (design v20 §G4): save the entered route, distance and mode onto the trip. */
+  readonly onTravelDetail?: (detail: {
+    from: string
+    to: string
+    km: number | null
+    mode: TravelMode
+  }) => void
+  /** Meeting: open the conference link (issue #375). The drawer never opens a URL itself. */
+  readonly onJoin?: (url: string) => void
   /** Ghost: accept the Co-Planner proposal. */
   readonly onAccept?: () => void
   /** Ghost: dismiss the proposal. */
@@ -116,6 +157,7 @@ export function PlannerEntryDrawer({
   onNudge,
   onDuplicate,
   onTravelDetail,
+  onJoin,
   onAccept,
   onDismiss,
   onProtect,
@@ -133,6 +175,8 @@ export function PlannerEntryDrawer({
   const [distance, setDistance] = useState(
     entry?.distanceKm != null ? String(entry.distanceKm) : '',
   )
+  // Mode decides the worktime fraction, so it is the user's choice, never inferred (issue #374).
+  const [travelMode, setTravelMode] = useState<TravelMode>(entry?.travelMode ?? 'car')
   // Focus management (REQ-043): on open, keyboard focus moves into the drawer (web).
   const panelRef = useModalFocus(entry !== null)
   if (entry === null) return null
@@ -211,6 +255,55 @@ export function PlannerEntryDrawer({
             </Text>
           )}
 
+          {/* What makes a meeting a meeting (issue #375): where it is, who is in it, how to join.
+              Each block appears only when the entry actually carries it — an absent location or an
+              empty attendee list renders nothing at all, never a "0 attendees" placeholder. */}
+          {entry.kind === 'meeting' && entry.location !== undefined && entry.location !== '' && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}>
+              <Icon name="pin" size={14} color={t.color.ink3} />
+              <Text style={{ flex: 1, fontSize: t.fontSize.sm, color: t.color.ink2 }}>
+                {entry.location}
+              </Text>
+            </View>
+          )}
+
+          {entry.kind === 'meeting' &&
+            entry.conferenceUrl !== undefined &&
+            entry.conferenceUrl !== '' &&
+            onJoin !== undefined && (
+              <View style={{ flexDirection: 'row' }}>
+                <Button
+                  size="sm"
+                  onPress={() => {
+                    onJoin(entry.conferenceUrl ?? '')
+                  }}
+                >
+                  {`Join ${entry.conferenceProvider ?? 'call'}`}
+                </Button>
+              </View>
+            )}
+
+          {entry.kind === 'meeting' && (entry.attendees?.length ?? 0) > 0 && (
+            <View style={{ gap: t.spacing.s2 }}>
+              <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>Attendees</Text>
+              {(entry.attendees ?? []).map(a => (
+                <View
+                  key={a.email ?? a.name}
+                  style={{ flexDirection: 'row', alignItems: 'baseline', gap: t.spacing.s2 }}
+                >
+                  <Text style={{ flex: 1, fontSize: t.fontSize.sm, color: t.color.ink2 }}>
+                    {a.name}
+                  </Text>
+                  {a.response !== undefined && a.response !== 'needsAction' && (
+                    <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
+                      {RESPONSE_LABEL[a.response]}
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+
           {entry.kind === 'meeting' && (
             <View style={{ gap: t.spacing.s3 }}>
               <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>Attendance</Text>
@@ -286,7 +379,46 @@ export function PlannerEntryDrawer({
             </Text>
           )}
 
-          {/* Travel route card (design v20 §G4): a trip's From → To and distance. The distance is
+          {/* Travel route read-out (issue #374, design v20 §G4). What the trip *is*, before any
+              form: the route, its distance and mode, and the worktime it actually earns. The
+              credited duration is priced by `@mydevtime/domain` from the entry's own length and
+              mode (ADR-0005) — a train counts in full, a car at the reduced fraction. Shown for a
+              read-only travel entry too; only the form below needs an edit handler. Nothing is
+              rendered when neither place is known: silence, never a bare arrow. */}
+          {entry.kind === 'travel' &&
+            (entry.routeFrom !== undefined || entry.routeTo !== undefined) && (
+              <View style={{ gap: t.spacing.s1 }}>
+                <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink }}>
+                  {`${entry.routeFrom ?? '?'} → ${entry.routeTo ?? '?'}`}
+                </Text>
+                <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
+                  {[
+                    entry.distanceKm != null && entry.distanceKm > 0
+                      ? `${String(entry.distanceKm)} km`
+                      : null,
+                    MODE_LABEL[entry.travelMode ?? 'car'],
+                  ]
+                    .filter((s): s is string => s !== null)
+                    .join(' · ')}
+                </Text>
+                {entry.plannedMin !== undefined && (
+                  <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
+                    {`Worktime credited: ${formatDuration(
+                      previewLeg({
+                        from: entry.routeFrom ?? '',
+                        to: entry.routeTo ?? '',
+                        distanceKm: entry.distanceKm ?? 0,
+                        mode: entry.travelMode ?? 'car',
+                        durationMin: entry.plannedMin,
+                        billable: true,
+                      }).worktimeMs,
+                    )} h`}
+                  </Text>
+                )}
+              </View>
+            )}
+
+          {/* Travel route form (design v20 §G4): a trip's From → To and distance. The distance is
               yours to enter — we never infer a number that could reach a report (ADR-0005). Saving
               hands the route back to the Planner, which persists it and titles the block. */}
           {entry.kind === 'travel' && onTravelDetail !== undefined && (
@@ -310,6 +442,11 @@ export function PlannerEntryDrawer({
                 onChangeText={setDistance}
                 keyboardType="numeric"
               />
+              <SegmentedControl
+                segments={MODE_SEGMENTS}
+                active={travelMode}
+                onChange={setTravelMode}
+              />
               <View style={{ flexDirection: 'row' }}>
                 <Button
                   size="sm"
@@ -319,6 +456,7 @@ export function PlannerEntryDrawer({
                       from: routeFrom.trim(),
                       to: routeTo.trim(),
                       km: Number.isFinite(parsed) && parsed > 0 ? parsed : null,
+                      mode: travelMode,
                     })
                   }}
                 >

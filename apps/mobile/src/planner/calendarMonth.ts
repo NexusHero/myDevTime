@@ -1,5 +1,5 @@
 import { dayLoad, weekIntensity, type Priority } from '@mydevtime/design'
-import type { Occurrence, SeriesKind } from '../api/recurrence'
+import type { MeetingAttendee, Occurrence, SeriesKind } from '../api/recurrence'
 
 /**
  * Pure month/year aggregation for the Planner calendar facet (design v18 PlannerViews). The
@@ -28,6 +28,11 @@ export interface DayTask {
   readonly lenMin: number
   /** The entry's own description, verbatim from the occurrence (issue #372); null when empty. */
   readonly note: string | null
+  /** Meeting detail carried from the occurrence (issue #375): where, who, how to join. */
+  readonly location: string | null
+  readonly attendees: readonly MeetingAttendee[]
+  readonly conferenceUrl: string | null
+  readonly conferenceProvider: string | null
 }
 
 /** A non-counting event in a calendar cell (holiday / company event / absence). */
@@ -89,6 +94,10 @@ export function buildMonthDays(
       startMin: occ.startMin,
       lenMin: occ.lenMin,
       note: occ.note !== null && occ.note.trim() !== '' ? occ.note : null,
+      location: occ.location != null && occ.location.trim() !== '' ? occ.location : null,
+      attendees: occ.attendees ?? [],
+      conferenceUrl: occ.conferenceUrl ?? null,
+      conferenceProvider: occ.conferenceProvider ?? null,
     })
     tasksByDay.set(day, list)
   }

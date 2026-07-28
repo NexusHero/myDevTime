@@ -95,7 +95,12 @@ describe('PlannerEntryDrawer', () => {
     // The seeded route + distance read back, and saving hands the parsed values to the Planner —
     // the km is exactly what was entered, never inferred (ADR-0005).
     pressByLabel(r, 'Save route')
-    expect(onTravelDetail).toHaveBeenCalledWith({ from: 'Office', to: 'Client site', km: 42 })
+    expect(onTravelDetail).toHaveBeenCalledWith({
+      from: 'Office',
+      to: 'Client site',
+      km: 42,
+      mode: 'car',
+    })
   })
 
   it('PlannerEntryDrawer_protectToggle_firesOnProtect_D14', () => {
@@ -296,5 +301,167 @@ describe('PlannerEntryDrawer · description and effort', () => {
     expect(
       texts(render(<PlannerEntryDrawer entry={base} onClose={() => undefined} />)),
     ).not.toContain('Effort')
+  })
+})
+
+/**
+ * Travel route read-out (issue #374, design v20 §G4). The travel detail was a bare form — two
+ * text inputs and a km field, showing the user what they typed back at them. What a trip *is*
+ * — the route, its mode, and the worktime it actually earns — was nowhere, even though
+ * `@mydevtime/domain` prices a leg deterministically. The read-out leads; the form stays below it.
+ */
+describe('PlannerEntryDrawer · travel route', () => {
+  const trip: DrawerEntry = {
+    kind: 'travel',
+    title: 'Trip',
+    timeLabel: '08:00–09:00',
+    color: '#e8a33d',
+    routeFrom: 'Office',
+    routeTo: 'Client site',
+    distanceKm: 42,
+    plannedMin: 60,
+  }
+
+  it('ShowsTheRouteAndDistanceAsAReadOut_notOnlyAsInputs', () => {
+    const out = texts(render(<PlannerEntryDrawer entry={trip} onClose={() => undefined} />))
+    expect(out).toContain('Office → Client site')
+    expect(out).toContain('42 km')
+  })
+
+  it('CreditsACarTripAtTheReducedFraction', () => {
+    // The policy bills car travel time at 50 % — an hour of driving credits half an hour.
+    // The number comes from the domain (ADR-0005), never from the view.
+    const out = texts(
+      render(
+        <PlannerEntryDrawer entry={{ ...trip, travelMode: 'car' }} onClose={() => undefined} />,
+      ),
+    )
+    expect(out).toContain('Worktime credited')
+    expect(out).toContain('0:30 h')
+  })
+
+  it('CreditsATrainTripAsFullWorktime', () => {
+    // You can work on a train, so the reduced fraction does not apply.
+    const out = texts(
+      render(
+        <PlannerEntryDrawer entry={{ ...trip, travelMode: 'train' }} onClose={() => undefined} />,
+      ),
+    )
+    expect(out).toContain('1:00 h')
+  })
+
+  it('SaysNothingAboutTheRouteWhenNeitherPlaceIsKnown', () => {
+    // An honest empty state is silence — never a "→" with nothing on either side of it.
+    const out = texts(
+      render(
+        <PlannerEntryDrawer
+          entry={{ kind: 'travel', title: 'Trip', timeLabel: '08:00–09:00', color: '#e8a33d' }}
+          onClose={() => undefined}
+        />,
+      ),
+    )
+    expect(out).not.toContain('→')
+    expect(out).not.toContain('Worktime credited')
+  })
+
+  it('SavesTheChosenModeAlongWithTheRoute', () => {
+    // Mode is not cosmetic — it decides the worktime fraction, so it must be the user's choice
+    // and travel with the route when it is saved.
+    const onTravelDetail = vi.fn()
+    const r = render(
+      <PlannerEntryDrawer entry={trip} onClose={() => undefined} onTravelDetail={onTravelDetail} />,
+    )
+    pressByLabel(r, 'Train')
+    pressByLabel(r, 'Save route')
+    expect(onTravelDetail).toHaveBeenCalledWith({
+      from: 'Office',
+      to: 'Client site',
+      km: 42,
+      mode: 'train',
+    })
+  })
+
+  it('ShowsTheReadOutEvenWithoutAnEditHandler', () => {
+    // A read-only travel entry (a Month chip, a series occurrence) still says what the trip is;
+    // only the form below it needs `onTravelDetail`.
+    const out = texts(render(<PlannerEntryDrawer entry={trip} onClose={() => undefined} />))
+    expect(out).toContain('Office → Client site')
+  })
+})
+
+/**
+ * Meeting detail (issue #375). A meeting's detail showed a title, a span and an RSVP control —
+ * none of the three things that make a meeting a meeting: where it is, who is in it, and how to
+ * join it. Each appears only when the entry actually carries it.
+ */
+describe('PlannerEntryDrawer · meeting detail', () => {
+  const base: DrawerEntry = {
+    kind: 'meeting',
+    title: 'Sprint planning',
+    timeLabel: '09:00–10:00',
+    color: '#3e97dd',
+  }
+
+  it('ShowsTheLocationWhenTheMeetingHasOne', () => {
+    const out = texts(
+      render(
+        <PlannerEntryDrawer entry={{ ...base, location: 'Room 3 · Berlin' }} onClose={() => {}} />,
+      ),
+    )
+    expect(out).toContain('Room 3 · Berlin')
+  })
+
+  it('ListsAttendeesWithTheirResponse', () => {
+    const out = texts(
+      render(
+        <PlannerEntryDrawer
+          entry={{
+            ...base,
+            attendees: [
+              { name: 'Ada', response: 'accepted' },
+              { name: 'Grace', response: 'declined' },
+              { name: 'Alan' },
+            ],
+          }}
+          onClose={() => {}}
+        />,
+      ),
+    )
+    expect(out).toContain('Ada')
+    expect(out).toContain('Grace')
+    expect(out).toContain('Alan')
+    // The response is stated in words — a screen reader must hear it, not infer it from a colour.
+    expect(out).toContain('Declined')
+  })
+
+  it('SaysNothingWhenThereAreNoAttendees', () => {
+    // An empty list is silence, not "0 attendees".
+    expect(texts(render(<PlannerEntryDrawer entry={base} onClose={() => {}} />))).not.toContain(
+      'Attendees',
+    )
+  })
+
+  it('OffersAJoinActionForAConferenceLink', () => {
+    const onJoin = vi.fn()
+    const r = render(
+      <PlannerEntryDrawer
+        entry={{
+          ...base,
+          conferenceUrl: 'https://meet.example.com/abc',
+          conferenceProvider: 'Meet',
+        }}
+        onClose={() => {}}
+        onJoin={onJoin}
+      />,
+    )
+    expect(texts(r)).toContain('Meet')
+    pressByLabel(r, 'Join Meet')
+    expect(onJoin).toHaveBeenCalledWith('https://meet.example.com/abc')
+  })
+
+  it('ShowsNoJoinActionWithoutALink', () => {
+    expect(
+      texts(render(<PlannerEntryDrawer entry={base} onClose={() => {}} onJoin={() => {}} />)),
+    ).not.toContain('Join')
   })
 })
