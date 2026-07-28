@@ -40,7 +40,7 @@ Salih must:
 - [ ] Tap Pause → the counter freezes, the PauseCounter (warn) stacks under it and climbs.
 - [ ] Tap Resume → the counter resumes, the PauseCounter disappears.
 - [ ] Tap Stop → the toast fires: `Timer stopped — X tracked.` (the snapshot is correct).
-- [ ] The [`PlannerDayTracker`](../apps/mobile/src/components/planner/PlannerDayTracker.tsx) is
+- [ ] The `PlannerDayTracker` is
       **gone** — no dead code, no second tracker row.
 
 #### A3 — Clock-in / clock-out (Ausstempeln) works

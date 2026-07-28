@@ -28,7 +28,7 @@ Splitting them means you plan in one place, track in another, and close the day 
 Meanwhile [ADR-0072](0072-planner-daily-loop.md) already moved the day-repair drift chip and the
 calm-canvas work into the Planner Day view — the merge is the natural completion of "the day stage
 of the Planner." The Planner already has a `Day` view with a small
-[`PlannerDayTracker`](../apps/mobile/src/components/planner/PlannerDayTracker.tsx:28); elevating it
+`PlannerDayTracker`; elevating it
 into the full tracking home removes the split without losing any capability.
 
 Separately, the calendar's month/year views look dated:
@@ -67,7 +67,7 @@ billable € toggle, worked-time display, [`PauseCounter`](../apps/mobile/src/co
 big orange breathing [`LiveButton`](../apps/mobile/src/components/canvas/LiveButton.tsx:73)) and the
 [`shutdownCard`](../apps/mobile/src/screens/TodayScreen.tsx:938) (Feierabend summary + `git commit -m
 "Feierabend"` button) become reusable components (`HeroTrackerBar`, `ShutdownCard`), consumed by the
-Planner Day view. The [`PlannerDayTracker`](../apps/mobile/src/components/planner/PlannerDayTracker.tsx:28)
+Planner Day view. The `PlannerDayTracker`
 is **removed** — the `HeroTrackerBar` fully replaces it.
 
 Only **view code** moves. The pure logic — [`todayShutdown`](../apps/mobile/src/today/shutdown.ts:52),
