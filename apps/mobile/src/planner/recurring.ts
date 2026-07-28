@@ -25,6 +25,8 @@ export interface RecurringBlock {
   readonly rec: true
   /** The series this occurrence came from (for edit / split). */
   readonly seriesId: string
+  /** The entry's own description, verbatim from the occurrence (issue #372). Absent when empty. */
+  readonly note?: string
 }
 
 const KIND_MAP: Record<SeriesKind, RecurringBlockKind> = {
@@ -58,6 +60,7 @@ export function occurrencesToBlocks(
       ...(occ.projectId !== null ? { project: occ.projectId } : {}),
       rec: true,
       seriesId: occ.seriesId,
+      ...(occ.note !== null && occ.note.trim() !== '' ? { note: occ.note } : {}),
     })
   }
   return out

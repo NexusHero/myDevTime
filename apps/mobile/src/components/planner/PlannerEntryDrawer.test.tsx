@@ -254,3 +254,47 @@ describe('PlannerEntryDrawer · presentation mode', () => {
     expect(r.toJSON()).toBeNull()
   })
 })
+
+/**
+ * Depth per kind (issue #372). A task's detail was only a title and a span — the two things a
+ * person actually asks ("what is this?" and "how much is it?") were missing, even though the
+ * occurrence carries a description and the block knows its own length.
+ */
+describe('PlannerEntryDrawer · description and effort', () => {
+  const base: DrawerEntry = {
+    kind: 'actual',
+    title: 'Sync engine',
+    timeLabel: '09:00–11:00',
+    color: '#8b7bf5',
+  }
+
+  it('ShowsTheDescriptionWhenTheEntryHasOne', () => {
+    const r = render(
+      <PlannerEntryDrawer
+        entry={{ ...base, note: 'Ports first, then the adapter.' }}
+        onClose={() => undefined}
+      />,
+    )
+    expect(texts(r)).toContain('Ports first, then the adapter.')
+  })
+
+  it('SaysNothingAtAllWhenThereIsNoDescription', () => {
+    // An honest empty state is silence, not a "no description" placeholder.
+    const out = texts(render(<PlannerEntryDrawer entry={base} onClose={() => undefined} />))
+    expect(out).not.toContain('Description')
+  })
+
+  it('ShowsTheEffortAsAReadableDuration', () => {
+    const out = texts(
+      render(<PlannerEntryDrawer entry={{ ...base, plannedMin: 150 }} onClose={() => undefined} />),
+    )
+    expect(out).toContain('Effort')
+    expect(out).toContain('2:30 h')
+  })
+
+  it('OmitsEffortWhenTheEntryCarriesNoLength', () => {
+    expect(
+      texts(render(<PlannerEntryDrawer entry={base} onClose={() => undefined} />)),
+    ).not.toContain('Effort')
+  })
+})

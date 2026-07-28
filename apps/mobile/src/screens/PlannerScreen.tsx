@@ -1663,10 +1663,11 @@ export function PlannerScreen(): React.JSX.Element {
   // every action mutates the real block state — attendance, delete, accept/dismiss a
   // Co-Planner proposal. The block is the entry; the drawer is its detail.
   const [openIndex, setOpenIndex] = useState<number | null>(null)
-  // An entry opened from the Month grid (issue #370). It is not a canvas block, so it is held as
-  // a resolved view-model rather than an index — and it opens **read-only**: editing a month entry
-  // would need the day canvas's block, which the month has no handle on. Honest over half-wired.
-  const [monthEntry, setMonthEntry] = useState<DrawerEntry | null>(null)
+  // An entry opened from a source that is not a canvas block (issue #370: a Month chip; issue
+  // #372: a recurring occurrence in the day list). It is held as a resolved view-model rather than
+  // an index — and it opens **read-only**: every mutation is indexed into `blocks`, which these
+  // sources have no handle on. Honest over half-wired.
+  const [refEntry, setRefEntry] = useState<DrawerEntry | null>(null)
   const openBlock = openIndex === null ? undefined : blocks[openIndex]
   const blockEntry: DrawerEntry | null =
     openBlock === undefined
@@ -1682,13 +1683,17 @@ export function PlannerScreen(): React.JSX.Element {
           ...(openBlock.routeFrom !== undefined ? { routeFrom: openBlock.routeFrom } : {}),
           ...(openBlock.routeTo !== undefined ? { routeTo: openBlock.routeTo } : {}),
           ...(openBlock.distanceKm !== undefined ? { distanceKm: openBlock.distanceKm } : {}),
+          // Effort = the block's own length, taken verbatim (issue #372) — never re-derived.
+          plannedMin: openBlock.len,
           protected: openBlock.protectedFlag === true,
         }
-  // The month detail wins while it is open — the two never coexist (different views).
-  const drawerEntry: DrawerEntry | null = monthEntry ?? blockEntry
+  // A referenced (non-block) detail wins while it is open — the two never coexist.
+  const drawerEntry: DrawerEntry | null = refEntry ?? blockEntry
+  // …and it carries no actions: they would all act on `openIndex`, which such an entry has not got.
+  const readOnly = refEntry !== null
   const closeDrawer = (): void => {
     setOpenIndex(null)
-    setMonthEntry(null)
+    setRefEntry(null)
   }
   const setOpenRsvp = (rsvp: Rsvp): void =>
     setBlocks(bs => bs.map((b, i) => (i === openIndex ? { ...b, rsvp } : b)))
@@ -2131,11 +2136,14 @@ export function PlannerScreen(): React.JSX.Element {
     )?.tasks[taskIndex]
     if (task === undefined) return
     setOpenIndex(null)
-    setMonthEntry({
+    setRefEntry({
       kind: task.kind === 'focus' ? 'actual' : task.kind,
       title: task.label,
       timeLabel: `${clockAbs(task.startMin)}–${clockAbs((task.startMin + task.lenMin) % 1440)}`,
       color: task.isLife ? t.color.life : projectColor(task.projectId ?? task.label, t.mode),
+      // Description + effort come straight from the occurrence (issue #372).
+      ...(task.note !== null ? { note: task.note } : {}),
+      plannedMin: task.lenMin,
     })
   }
 
@@ -2654,6 +2662,21 @@ export function PlannerScreen(): React.JSX.Element {
                                 lenMin: rb.len,
                                 color: canvasBlockColor(t, rb),
                                 typeLabel: `↻ ${canvasKindLabel(rb.kind)}`,
+                                // Read-only detail (issue #372): a series occurrence carries the
+                                // description the day list has no room for. It is not a canvas
+                                // block, so it opens without actions.
+                                onOpen: () => {
+                                  setOpenIndex(null)
+                                  setRefEntry({
+                                    kind: rb.kind,
+                                    title: rb.label,
+                                    timeLabel: `${clock(rb.start)}–${clock(rb.start + rb.len)}`,
+                                    color: canvasBlockColor(t, rb),
+                                    rec: true,
+                                    ...(rb.note !== undefined ? { note: rb.note } : {}),
+                                    plannedMin: rb.len,
+                                  })
+                                },
                               })),
                           ].sort((a, b) => a.timeLabel.localeCompare(b.timeLabel))}
                         />
@@ -2996,15 +3019,18 @@ export function PlannerScreen(): React.JSX.Element {
           panel={detailPanel}
           entry={drawerEntry}
           onClose={closeDrawer}
-          {...(drawerEntry?.kind === 'meeting' ? { onRsvp: setOpenRsvp } : {})}
-          {...(drawerEntry?.kind === 'actual'
+          {...(!readOnly && drawerEntry?.kind === 'meeting' ? { onRsvp: setOpenRsvp } : {})}
+          {...(!readOnly && drawerEntry?.kind === 'actual'
             ? { onDelete: removeOpen, onNudge: nudgeOpen, onDuplicate: duplicateOpen }
             : {})}
-          {...(drawerEntry?.kind === 'travel' ? { onTravelDetail: saveTravelDetail } : {})}
-          {...(drawerEntry?.kind === 'ghost'
+          {...(!readOnly && drawerEntry?.kind === 'travel'
+            ? { onTravelDetail: saveTravelDetail }
+            : {})}
+          {...(!readOnly && drawerEntry?.kind === 'ghost'
             ? { onAccept: acceptOpen, onDismiss: removeOpen }
             : {})}
-          {...(drawerEntry !== null &&
+          {...(!readOnly &&
+          drawerEntry !== null &&
           (drawerEntry.kind === 'meeting' ||
             drawerEntry.kind === 'actual' ||
             drawerEntry.kind === 'life')

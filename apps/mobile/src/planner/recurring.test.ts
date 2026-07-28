@@ -59,4 +59,19 @@ describe('occurrencesToBlocks', () => {
     const [b] = occurrencesToBlocks([occ({ startMin: 450 })], WEEK)
     expect(b?.start).toBe(0)
   })
+
+  it('CarriesTheOccurrenceNote_soTheEntryDetailCanShowItsDescription', () => {
+    // Issue #372: the detail panel shows an entry's description. The note is the only place a
+    // description lives, and it was dropped here — so every path into the drawer lost it.
+    const [b] = occurrencesToBlocks(
+      [occ({ date: '2026-07-13', title: 'Sync engine', note: 'Ports first, then the adapter.' })],
+      ['2026-07-13'],
+    )
+    expect(b?.note).toBe('Ports first, then the adapter.')
+  })
+
+  it('OmitsTheNoteWhenTheOccurrenceHasNone', () => {
+    const [b] = occurrencesToBlocks([occ({ date: '2026-07-13', note: null })], ['2026-07-13'])
+    expect(b?.note).toBeUndefined()
+  })
 })
