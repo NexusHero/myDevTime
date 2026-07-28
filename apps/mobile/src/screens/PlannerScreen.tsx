@@ -10,6 +10,7 @@ import {
   compressedRect,
   compressedTotalWeight,
   compressedY,
+  detailPanelForWidth,
   dropTarget,
   findFreeSlot,
   cascadeFreeSlots,
@@ -95,6 +96,7 @@ import { findProject } from './projectsData'
 import { loadDaySpans, localDayKey } from '../autotracker/dayActivityStore'
 import type { PlanBlock } from '../api/planner'
 import { INBOX_PROJECTS, INBOX_TASKS, type InboxTask } from './plannerInboxData'
+import { buildMonthDays } from '../planner/calendarMonth'
 
 /**
  * Planner — the week view of day canvases (ux-vision §2.1/§3, issue #11), ported
@@ -1549,6 +1551,10 @@ export function PlannerScreen(): React.JSX.Element {
   const t = useTheme()
   const { width } = useWindowDimensions()
   const stacked = width < STACK_BREAKPOINT
+  // Entry detail (issue #370): on a wide viewport the detail is a docked column beside the
+  // calendar — the canvas narrows instead of being covered. Narrow viewports keep the sheet.
+  // One computation, shared: the row reserves exactly what the panel renders.
+  const detailPanel = detailPanelForWidth(width)
   // KW navigation (design v20): the header's ‹ › shift the visible week; 0 = this week. The whole
   // canvas + the occurrence queries re-key off `weekDays`, so nothing else needs to know the offset.
   const [weekOffset, setWeekOffset] = useState(0)
@@ -1657,8 +1663,12 @@ export function PlannerScreen(): React.JSX.Element {
   // every action mutates the real block state — attendance, delete, accept/dismiss a
   // Co-Planner proposal. The block is the entry; the drawer is its detail.
   const [openIndex, setOpenIndex] = useState<number | null>(null)
+  // An entry opened from the Month grid (issue #370). It is not a canvas block, so it is held as
+  // a resolved view-model rather than an index — and it opens **read-only**: editing a month entry
+  // would need the day canvas's block, which the month has no handle on. Honest over half-wired.
+  const [monthEntry, setMonthEntry] = useState<DrawerEntry | null>(null)
   const openBlock = openIndex === null ? undefined : blocks[openIndex]
-  const drawerEntry: DrawerEntry | null =
+  const blockEntry: DrawerEntry | null =
     openBlock === undefined
       ? null
       : {
@@ -1674,6 +1684,12 @@ export function PlannerScreen(): React.JSX.Element {
           ...(openBlock.distanceKm !== undefined ? { distanceKm: openBlock.distanceKm } : {}),
           protected: openBlock.protectedFlag === true,
         }
+  // The month detail wins while it is open — the two never coexist (different views).
+  const drawerEntry: DrawerEntry | null = monthEntry ?? blockEntry
+  const closeDrawer = (): void => {
+    setOpenIndex(null)
+    setMonthEntry(null)
+  }
   const setOpenRsvp = (rsvp: Rsvp): void =>
     setBlocks(bs => bs.map((b, i) => (i === openIndex ? { ...b, rsvp } : b)))
   // Toggle the 🛡 protection flag (design v14 D14) on the open block — communication only;
@@ -2104,6 +2120,24 @@ export function PlannerScreen(): React.JSX.Element {
   const calOccurrences = monthOccResource.data ?? []
   const shownCalOccurrences = calOccurrences.filter(o => inLayer(o.kind, layer))
   const DAILY_TARGET_HOURS = 8.33
+  /**
+   * Open a month entry's detail (issue #370). The calendar reports `(day-of-month, task index)`
+   * into the same deterministic `buildMonthDays` bucketing it renders, so re-deriving it here
+   * resolves the very entry that was tapped — no ids threaded through the view layer.
+   */
+  const openMonthTask = (day: number, taskIndex: number): void => {
+    const task = buildMonthDays(shownCalOccurrences, [], { year: calYear, month0: calMonth0 }).get(
+      day,
+    )?.tasks[taskIndex]
+    if (task === undefined) return
+    setOpenIndex(null)
+    setMonthEntry({
+      kind: task.kind === 'focus' ? 'actual' : task.kind,
+      title: task.label,
+      timeLabel: `${clockAbs(task.startMin)}–${clockAbs((task.startMin + task.lenMin) % 1440)}`,
+      color: task.isLife ? t.color.life : projectColor(task.projectId ?? task.label, t.mode),
+    })
+  }
 
   // New-Entry dialog (design v19): create a real Task or Life entry by hand. Projects come live
   // from the workspace catalog (hoisted above for the hero bar); a new entry persists as a
@@ -2213,753 +2247,771 @@ export function PlannerScreen(): React.JSX.Element {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView
-        style={{ flex: 1, backgroundColor: t.color.bg }}
-        contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s4 }}
-      >
-        {/* Header — title · KW week selector · week total · plan action */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: t.spacing.s3,
-            rowGap: t.spacing.s2,
-          }}
+      {/* Master–detail row (issue #370): the calendar scrolls on the left, the entry detail docks
+          on the right when there is room for both. In overlay mode the drawer positions itself
+          absolutely over this row, so the markup is the same either way. */}
+      <View style={{ flex: 1, flexDirection: 'row' }}>
+        <ScrollView
+          style={{ flex: 1, backgroundColor: t.color.bg }}
+          contentContainerStyle={{ padding: t.spacing.s5, gap: t.spacing.s4 }}
         >
-          <Text
+          {/* Header — title · KW week selector · week total · plan action */}
+          <View
             style={{
-              flex: 1,
-              minWidth: 140,
-              fontWeight: '700',
-              fontSize: t.fontSize.xl,
-              color: t.color.ink,
-              fontFamily: t.fontFamily.display,
-              letterSpacing: t.fontSize.xl * t.letterSpacing.tight,
+              flexDirection: 'row',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: t.spacing.s3,
+              rowGap: t.spacing.s2,
             }}
           >
-            Planner
-          </Text>
-          <View style={{ maxWidth: 260, minWidth: 200, flexGrow: 1 }}>
-            <SegmentedControl
-              segments={[
-                { value: 'Day', label: 'Day' },
-                { value: 'Week', label: 'Week' },
-                { value: 'Month', label: 'Month' },
-                { value: 'Year', label: 'Year' },
-              ]}
-              active={view}
-              onChange={setView}
-            />
-          </View>
-          {(view === 'Week' || view === 'Day') && (
-            <View
+            <Text
               style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                borderWidth: 1,
-                borderColor: t.color.border,
-                borderRadius: t.radius.pill,
-                backgroundColor: t.color.surface,
+                flex: 1,
+                minWidth: 140,
+                fontWeight: '700',
+                fontSize: t.fontSize.xl,
+                color: t.color.ink,
+                fontFamily: t.fontFamily.display,
+                letterSpacing: t.fontSize.xl * t.letterSpacing.tight,
               }}
             >
-              {/* KW ‹ › navigation (design v20): step the visible week; a middle tap returns to now. */}
-              <Pressable
-                onPress={() => setWeekOffset(o => o - 1)}
-                accessibilityRole="button"
-                accessibilityLabel="Previous week"
-                style={{ paddingVertical: 6, paddingHorizontal: 12 }}
-              >
-                <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>‹</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setWeekOffset(0)}
-                accessibilityRole="button"
-                accessibilityLabel="This week"
-                disabled={weekOffset === 0}
-              >
-                <Text style={{ fontSize: t.fontSize.xs, fontWeight: '600', color: t.color.ink }}>
-                  {weekOffset === 0 ? `This week · KW ${String(week)}` : `KW ${String(week)}`}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setWeekOffset(o => o + 1)}
-                accessibilityRole="button"
-                accessibilityLabel="Next week"
-                style={{ paddingVertical: 6, paddingHorizontal: 12 }}
-              >
-                <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>›</Text>
-              </Pressable>
+              Planner
+            </Text>
+            <View style={{ maxWidth: 260, minWidth: 200, flexGrow: 1 }}>
+              <SegmentedControl
+                segments={[
+                  { value: 'Day', label: 'Day' },
+                  { value: 'Week', label: 'Week' },
+                  { value: 'Month', label: 'Month' },
+                  { value: 'Year', label: 'Year' },
+                ]}
+                active={view}
+                onChange={setView}
+              />
             </View>
-          )}
-          {/* New-Entry dialog trigger (design v19) — create a Task or Life entry by hand. */}
-          <Button size="sm" variant="primary" onPress={() => setNewEntryOpen(true)}>
-            + New
-          </Button>
-          {view === 'Week' && (
-            <Button
-              size="sm"
-              variant={inboxOpen ? 'primary' : 'ghost'}
-              onPress={() => setInboxOpen(o => !o)}
-            >
-              {`Inbox · ${String(tasks.length)}`}
+            {(view === 'Week' || view === 'Day') && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  borderWidth: 1,
+                  borderColor: t.color.border,
+                  borderRadius: t.radius.pill,
+                  backgroundColor: t.color.surface,
+                }}
+              >
+                {/* KW ‹ › navigation (design v20): step the visible week; a middle tap returns to now. */}
+                <Pressable
+                  onPress={() => setWeekOffset(o => o - 1)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Previous week"
+                  style={{ paddingVertical: 6, paddingHorizontal: 12 }}
+                >
+                  <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>‹</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setWeekOffset(0)}
+                  accessibilityRole="button"
+                  accessibilityLabel="This week"
+                  disabled={weekOffset === 0}
+                >
+                  <Text style={{ fontSize: t.fontSize.xs, fontWeight: '600', color: t.color.ink }}>
+                    {weekOffset === 0 ? `This week · KW ${String(week)}` : `KW ${String(week)}`}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setWeekOffset(o => o + 1)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Next week"
+                  style={{ paddingVertical: 6, paddingHorizontal: 12 }}
+                >
+                  <Text style={{ fontSize: t.fontSize.sm, color: t.color.ink2 }}>›</Text>
+                </Pressable>
+              </View>
+            )}
+            {/* New-Entry dialog trigger (design v19) — create a Task or Life entry by hand. */}
+            <Button size="sm" variant="primary" onPress={() => setNewEntryOpen(true)}>
+              + New
             </Button>
-          )}
-          {view === 'Week' && tasks.length > 0 && (
-            <Button size="sm" variant="ghost" onPress={fillWeek}>
-              ✦ Fill week
+            {view === 'Week' && (
+              <Button
+                size="sm"
+                variant={inboxOpen ? 'primary' : 'ghost'}
+                onPress={() => setInboxOpen(o => !o)}
+              >
+                {`Inbox · ${String(tasks.length)}`}
+              </Button>
+            )}
+            {view === 'Week' && tasks.length > 0 && (
+              <Button size="sm" variant="ghost" onPress={fillWeek}>
+                ✦ Fill week
+              </Button>
+            )}
+            <Button size="sm">
+              {view === 'Year'
+                ? 'Plan year'
+                : view === 'Month'
+                  ? 'Plan month'
+                  : view === 'Day'
+                    ? 'Plan day'
+                    : 'Plan week'}
             </Button>
-          )}
-          <Button size="sm">
-            {view === 'Year'
-              ? 'Plan year'
-              : view === 'Month'
-                ? 'Plan month'
-                : view === 'Day'
-                  ? 'Plan day'
-                  : 'Plan week'}
-          </Button>
-        </View>
+          </View>
 
-        {/* Layer chips (ADR-0072 D3, ux-vision §2.7): Ruhe als Default — the canvas
+          {/* Layer chips (ADR-0072 D3, ux-vision §2.7): Ruhe als Default — the canvas
             shows the accepted plan + now-line; every extra layer is one explicit tap,
             persisted per user. Replaces the old "View" popover on the canvas views. */}
-        {(view === 'Week' || view === 'Day') && <PlannerLayerChips chips={layerChips} />}
+          {(view === 'Week' || view === 'Day') && <PlannerLayerChips chips={layerChips} />}
 
-        {/* Backlog rail + "Fülle meine Woche" (REQ-073, ADR-0072 D2, #340): the rail
+          {/* Backlog rail + "Fülle meine Woche" (REQ-073, ADR-0072 D2, #340): the rail
             claims the calm canvas's reserved Backlog layer slot — its own self-contained
             closed-by-default pill sits in the layer-controls region, a peer of the
             reality/ghosts/life/capacity chips (ux-vision §2.7). Every feed, the packWeek
             run, the plan-apply confirm and the persisted read-back live inside it. */}
-        {view === 'Week' && <PlannerBacklogRail weekDates={weekDates} />}
+          {view === 'Week' && <PlannerBacklogRail weekDates={weekDates} />}
 
-        {/* Sevi first run (REQ-074): the empty planner is Sevi's stage, not a dead
+          {/* Sevi first run (REQ-074): the empty planner is Sevi's stage, not a dead
             wall — three answers → the first ghost week → one tap through the seam
             (provenance `planner-firstrun`). Skippable; never returns once done. */}
-        {(view === 'Week' || view === 'Day') && showFirstRun && (
-          <SeviFirstRun
-            weekDates={weekDates}
-            todayKey={todayMidnightKey}
-            onAccepted={() => {
-              setPref('plannerFirstRunDone', true)
-              weekPlans.reload()
-            }}
-            onSkip={() => setPref('plannerFirstRunDone', true)}
-          />
-        )}
+          {(view === 'Week' || view === 'Day') && showFirstRun && (
+            <SeviFirstRun
+              weekDates={weekDates}
+              todayKey={todayMidnightKey}
+              onAccepted={() => {
+                setPref('plannerFirstRunDone', true)
+                weekPlans.reload()
+              }}
+              onSkip={() => setPref('plannerFirstRunDone', true)}
+            />
+          )}
 
-        {/* In-bar start-picker (design v20 day-tracker row): pick a project + optional task and
+          {/* In-bar start-picker (design v20 day-tracker row): pick a project + optional task and
             start the shared live timer straight from the Planner — real catalog, real timer,
             start/stop toasts. Additive: the week canvas, ghosts and reality overlay are untouched. */}
-        {view === 'Week' && <PlannerStartPicker clients={catalog.data ?? []} />}
+          {view === 'Week' && <PlannerStartPicker clients={catalog.data ?? []} />}
 
-        {/* Capacity head-trace (design v14 §F Stufe 2): the week's TRUE plannable capacity —
+          {/* Capacity head-trace (design v14 §F Stufe 2): the week's TRUE plannable capacity —
             the contracted target minus your own life/protected commitments ("KW32 nur 24h"),
             from the deterministic `weekCapacity` core (ADR-0005). Honest by construction: with
             no life blocks it reads the full target, and the sage segment grows as life does.
             A chip layer since the calm default (issue #341) — open Capacity to see it. */}
-        {view === 'Week' &&
-          prefs.plannerLayerCapacity &&
-          (() => {
-            const cap = weekCapacityFromBlocks(blocks)
-            if (cap.targetMs <= 0) return null
-            const committedH = cap.committedMs / 3_600_000
-            const plannableH = cap.plannableMs / 3_600_000
-            const targetH = cap.targetMs / 3_600_000
-            const committedPct = Math.round((cap.committedMs / cap.targetMs) * 100)
-            return (
-              <View style={{ gap: 6, maxWidth: 680 }} accessibilityRole="summary">
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: t.spacing.s2 }}>
-                  <Text style={{ fontSize: t.fontSize.xs, fontWeight: '600', color: t.color.ink }}>
-                    Plannable this week
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: t.fontFamily.numeric,
-                      fontSize: t.fontSize.xs,
-                      color: committedPct > 0 ? t.color.life : t.color.ink2,
-                    }}
-                    accessibilityLabel={`${plannableH.toFixed(1)} of ${targetH.toFixed(1)} hours plannable, ${committedH.toFixed(1)} hours of life or protected time`}
-                  >
-                    {`${plannableH.toFixed(1)}h of ${targetH.toFixed(1)}h`}
-                    {committedH > 0 ? ` · ${committedH.toFixed(1)}h life/protected` : ''}
-                  </Text>
-                  <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
-                    assuming 8h × 5 days
-                  </Text>
-                </View>
-                {/* Slim two-part bar: sage life/protected, then the plannable remainder. */}
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    height: 6,
-                    borderRadius: 3,
-                    overflow: 'hidden',
-                    backgroundColor: t.color.sunk,
-                  }}
-                >
-                  <View style={{ flex: Math.max(0, committedH), backgroundColor: t.color.life }} />
-                  <View
-                    style={{ flex: Math.max(0, plannableH), backgroundColor: t.color.accent }}
-                  />
-                </View>
-              </View>
-            )
-          })()}
-
-        {/* Sevi Scrum-Master at planning time (REQ-070, ADR-0071): ONE calm banner when the
-            week's planned load exceeds the honest plannable capacity, with confirm-gated
-            relief routed through the plan-apply seam. Renders nothing when the plan fits. */}
-        {view === 'Week' && (
-          <SeviAdvisory blocks={blocks} weekDates={weekDates} occurrences={occurrences} />
-        )}
-
-        {view === 'Day' &&
-          (() => {
-            // "Today" is the day stage of the Planner (design v20): the tracker row starts the
-            // shared timer, and one full-width DayColumn shows the day's plan + reality on the same
-            // 08–18 canvas the week uses — same blocks, same deterministic geometry (ADR-0005), so
-            // nothing is duplicated or mocked. Today (in another visible day) falls back to column 0.
-            const dayIdx = weekDays.findIndex(d => d.today === true)
-            const dayI = dayIdx >= 0 ? dayIdx : 0
-            const day = weekDays[dayI]
-            if (day === undefined) return null
-            // All-day banner (design v20): if a real absence covers the shown day, surface it above
-            // the grid — vacation/sick/holiday is not a plannable slot. From live absences, no mock.
-            const dayKey = localDayKey(day.dateMs)
-            const dayAbsence = (absences.data?.upcoming ?? []).find(
-              a => dayKey >= a.startDate && dayKey <= a.endDate,
-            )
-            return (
-              <>
-                {dayAbsence && (
+          {view === 'Week' &&
+            prefs.plannerLayerCapacity &&
+            (() => {
+              const cap = weekCapacityFromBlocks(blocks)
+              if (cap.targetMs <= 0) return null
+              const committedH = cap.committedMs / 3_600_000
+              const plannableH = cap.plannableMs / 3_600_000
+              const targetH = cap.targetMs / 3_600_000
+              const committedPct = Math.round((cap.committedMs / cap.targetMs) * 100)
+              return (
+                <View style={{ gap: 6, maxWidth: 680 }} accessibilityRole="summary">
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: t.spacing.s2 }}>
+                    <Text
+                      style={{ fontSize: t.fontSize.xs, fontWeight: '600', color: t.color.ink }}
+                    >
+                      Plannable this week
+                    </Text>
+                    <Text
+                      style={{
+                        fontFamily: t.fontFamily.numeric,
+                        fontSize: t.fontSize.xs,
+                        color: committedPct > 0 ? t.color.life : t.color.ink2,
+                      }}
+                      accessibilityLabel={`${plannableH.toFixed(1)} of ${targetH.toFixed(1)} hours plannable, ${committedH.toFixed(1)} hours of life or protected time`}
+                    >
+                      {`${plannableH.toFixed(1)}h of ${targetH.toFixed(1)}h`}
+                      {committedH > 0 ? ` · ${committedH.toFixed(1)}h life/protected` : ''}
+                    </Text>
+                    <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
+                      assuming 8h × 5 days
+                    </Text>
+                  </View>
+                  {/* Slim two-part bar: sage life/protected, then the plannable remainder. */}
                   <View
                     style={{
                       flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: t.spacing.s2,
-                      paddingHorizontal: t.spacing.s3,
-                      paddingVertical: t.spacing.s2,
-                      borderRadius: t.radius.block,
-                      borderLeftWidth: 3,
-                      borderLeftColor: t.color.warn,
-                      backgroundColor: t.color.warnSoft,
+                      height: 6,
+                      borderRadius: 3,
+                      overflow: 'hidden',
+                      backgroundColor: t.color.sunk,
                     }}
                   >
-                    <Text
-                      style={{ fontSize: t.fontSize.xs, fontWeight: '700', color: t.color.ink }}
-                    >
-                      {`◦ ${dayAbsence.kind.charAt(0).toUpperCase()}${dayAbsence.kind.slice(1)}`}
-                    </Text>
-                    <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>
-                      all day — not a plannable slot
-                    </Text>
+                    <View
+                      style={{ flex: Math.max(0, committedH), backgroundColor: t.color.life }}
+                    />
+                    <View
+                      style={{ flex: Math.max(0, plannableH), backgroundColor: t.color.accent }}
+                    />
                   </View>
-                )}
-                {/* Unified Day Canvas (issue #364): the hero tracker bar — the big orange
+                </View>
+              )
+            })()}
+
+          {/* Sevi Scrum-Master at planning time (REQ-070, ADR-0071): ONE calm banner when the
+            week's planned load exceeds the honest plannable capacity, with confirm-gated
+            relief routed through the plan-apply seam. Renders nothing when the plan fits. */}
+          {view === 'Week' && (
+            <SeviAdvisory blocks={blocks} weekDates={weekDates} occurrences={occurrences} />
+          )}
+
+          {view === 'Day' &&
+            (() => {
+              // "Today" is the day stage of the Planner (design v20): the tracker row starts the
+              // shared timer, and one full-width DayColumn shows the day's plan + reality on the same
+              // 08–18 canvas the week uses — same blocks, same deterministic geometry (ADR-0005), so
+              // nothing is duplicated or mocked. Today (in another visible day) falls back to column 0.
+              const dayIdx = weekDays.findIndex(d => d.today === true)
+              const dayI = dayIdx >= 0 ? dayIdx : 0
+              const day = weekDays[dayI]
+              if (day === undefined) return null
+              // All-day banner (design v20): if a real absence covers the shown day, surface it above
+              // the grid — vacation/sick/holiday is not a plannable slot. From live absences, no mock.
+              const dayKey = localDayKey(day.dateMs)
+              const dayAbsence = (absences.data?.upcoming ?? []).find(
+                a => dayKey >= a.startDate && dayKey <= a.endDate,
+              )
+              return (
+                <>
+                  {dayAbsence && (
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: t.spacing.s2,
+                        paddingHorizontal: t.spacing.s3,
+                        paddingVertical: t.spacing.s2,
+                        borderRadius: t.radius.block,
+                        borderLeftWidth: 3,
+                        borderLeftColor: t.color.warn,
+                        backgroundColor: t.color.warnSoft,
+                      }}
+                    >
+                      <Text
+                        style={{ fontSize: t.fontSize.xs, fontWeight: '700', color: t.color.ink }}
+                      >
+                        {`◦ ${dayAbsence.kind.charAt(0).toUpperCase()}${dayAbsence.kind.slice(1)}`}
+                      </Text>
+                      <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink2 }}>
+                        all day — not a plannable slot
+                      </Text>
+                    </View>
+                  )}
+                  {/* Unified Day Canvas (issue #364): the hero tracker bar — the big orange
                     LiveButton + PauseCounter + worked time + billable + clock-in/out —
                     replaces the old PlannerDayTracker. Controlled view over the shared
                     timer; never a second clock (ux-vision §2.3). */}
-                <HeroTrackerBar
-                  task={heroTask}
-                  setTask={setHeroTask}
-                  runningProject={heroRunningProject}
-                  billable={timer.billable}
-                  busy={timer.busy}
-                  running={timer.running}
-                  accumulatedMs={timer.accumulatedMs}
-                  elapsed={timer.elapsed}
-                  paused={heroPaused}
-                  pausedSinceMs={timer.pausedSinceMs}
-                  active={heroActive}
-                  isRunning={heroIsRunning}
-                  setBillable={timer.setBillable}
-                  onPause={timer.pause}
-                  onResume={timer.resume}
-                  onStart={() => {
-                    const note = heroTask.trim()
-                    startTracking(note ? { note } : undefined)
-                    setHeroTask('')
-                    setAskMood(false)
-                  }}
-                  onStop={() => {
-                    stopTracking()
-                    setAskMood(true)
-                  }}
-                  punchedIn={worktime.running !== null}
-                  punchBusy={worktime.busy}
-                  onClockIn={() => {
-                    worktime.clockIn()
-                    toast.show('Clocked in.')
-                  }}
-                  onClockOut={() => {
-                    worktime.clockOut()
-                    toast.show('Clocked out.')
-                  }}
-                />
+                  <HeroTrackerBar
+                    task={heroTask}
+                    setTask={setHeroTask}
+                    runningProject={heroRunningProject}
+                    billable={timer.billable}
+                    busy={timer.busy}
+                    running={timer.running}
+                    accumulatedMs={timer.accumulatedMs}
+                    elapsed={timer.elapsed}
+                    paused={heroPaused}
+                    pausedSinceMs={timer.pausedSinceMs}
+                    active={heroActive}
+                    isRunning={heroIsRunning}
+                    setBillable={timer.setBillable}
+                    onPause={timer.pause}
+                    onResume={timer.resume}
+                    onStart={() => {
+                      const note = heroTask.trim()
+                      startTracking(note ? { note } : undefined)
+                      setHeroTask('')
+                      setAskMood(false)
+                    }}
+                    onStop={() => {
+                      stopTracking()
+                      setAskMood(true)
+                    }}
+                    punchedIn={worktime.running !== null}
+                    punchBusy={worktime.busy}
+                    onClockIn={() => {
+                      worktime.clockIn()
+                      toast.show('Clocked in.')
+                    }}
+                    onClockOut={() => {
+                      worktime.clockOut()
+                      toast.show('Clocked out.')
+                    }}
+                  />
 
-                {/* Punch-out mood (REQ-068): the transient one-tap row after stopping the
+                  {/* Punch-out mood (REQ-068): the transient one-tap row after stopping the
                     timer. Consent-first — without the stored `moodConsent` opt-in the word
                     never leaves the device (no API call at all; the server's 409 stays the
                     backstop). A failed save surfaces via the screen's usual transient toast. */}
-                {askMood && (
-                  <MoodCheck
-                    onDone={() => setAskMood(false)}
-                    onChange={mood => {
-                      if (!prefs.moodConsent || apiBaseUrl === null) return
-                      postMood(apiBaseUrl, mood).catch((e: unknown) => {
-                        toast.show(
-                          e instanceof Error && e.message
-                            ? `Mood not saved — ${e.message}`
-                            : 'Mood not saved.',
-                        )
-                      })
-                    }}
-                  />
-                )}
+                  {askMood && (
+                    <MoodCheck
+                      onDone={() => setAskMood(false)}
+                      onChange={mood => {
+                        if (!prefs.moodConsent || apiBaseUrl === null) return
+                        postMood(apiBaseUrl, mood).catch((e: unknown) => {
+                          toast.show(
+                            e instanceof Error && e.message
+                              ? `Mood not saved — ${e.message}`
+                              : 'Mood not saved.',
+                          )
+                        })
+                      }}
+                    />
+                  )}
 
-                <SmartAdd />
+                  <SmartAdd />
 
-                {/* The actual canvas. */}
-                {/* One-tap day repair (ADR-0072 D1): drift chip → ghost preview → one tap. */}
-                <DayRepairSheet repair={dayRepair} />
-                {/* Co-Planner card on the Day view (issue #369): "today's plan" is a Today
+                  {/* The actual canvas. */}
+                  {/* One-tap day repair (ADR-0072 D1): drift chip → ghost preview → one tap. */}
+                  <DayRepairSheet repair={dayRepair} />
+                  {/* Co-Planner card on the Day view (issue #369): "today's plan" is a Today
                     capability the Day-canvas merge must carry — it re-reads the plan in place
                     after a one-tap repair (REQ-072) and shows the re-laid block's time, mirroring
                     the old Today card. It was previously only in the Week view. */}
-                <CoPlannerProposal planner={planner} />
-                {/* Feierabend ritual (issue #364): the ShutdownCard sits below the day
+                  <CoPlannerProposal planner={planner} />
+                  {/* Feierabend ritual (issue #364): the ShutdownCard sits below the day
                     canvas — Booked / Tracked reality / Still open + the git commit gesture.
                     Renders nothing when the day is idle or already closed. */}
-                <ShutdownCard
-                  shutdown={plannerShutdown}
-                  closed={dayClosed}
-                  onClose={() => setDayClosed(true)}
-                />
-                {/* Today-only companions moved to the Planner Day view (ADR-0075, issue
+                  <ShutdownCard
+                    shutdown={plannerShutdown}
+                    closed={dayClosed}
+                    onClose={() => setDayClosed(true)}
+                  />
+                  {/* Today-only companions moved to the Planner Day view (ADR-0075, issue
                     #365): SeviWatch, MoodEaseCard, and EveningCompanionCard sit below the
                     Feierabend card — the whole day-close ritual in one place. */}
-                <SeviWatch />
-                <MoodEaseCard baseUrl={apiBaseUrl} date={localDayKey(NOW.getTime())} />
-                <EveningCompanionCard
-                  baseUrl={apiBaseUrl}
-                  date={localDayKey(NOW.getTime())}
-                  tz={Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'}
-                  day={{
-                    plannedMinutes: Math.max(0, Math.round(planner.review?.plannedFocusMin ?? 0)),
-                    actualMinutes: Math.max(
-                      0,
-                      Math.round(
-                        planner.review?.trackedFocusMin ??
-                          plannerShutdown.summary.trackedMs / 60_000,
+                  <SeviWatch />
+                  <MoodEaseCard baseUrl={apiBaseUrl} date={localDayKey(NOW.getTime())} />
+                  <EveningCompanionCard
+                    baseUrl={apiBaseUrl}
+                    date={localDayKey(NOW.getTime())}
+                    tz={Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'}
+                    day={{
+                      plannedMinutes: Math.max(0, Math.round(planner.review?.plannedFocusMin ?? 0)),
+                      actualMinutes: Math.max(
+                        0,
+                        Math.round(
+                          planner.review?.trackedFocusMin ??
+                            plannerShutdown.summary.trackedMs / 60_000,
+                        ),
                       ),
-                    ),
-                    overtimeMinutes: 0,
-                    breakShortfallMinutes: 0,
-                    meetingCount: 0,
-                    backToBackMeetingCount: 0,
-                    planDriftMinutes: Math.round(planner.review?.driftMin ?? 0),
-                    isAbsenceDay: false,
-                  }}
-                  onConfirmSuggestion={() =>
-                    toast.show(
-                      'Noted — set it up in the Planner when you plan tomorrow. Nothing was booked.',
-                    )
-                  }
-                />
-                {/* Canvas ⇄ List toggle (REQ-040): the same day, geometry or flat list. */}
-                <View style={{ maxWidth: 220 }}>
-                  <SegmentedControl<'canvas' | 'list'>
-                    segments={[
-                      { value: 'canvas', label: 'Canvas' },
-                      { value: 'list', label: 'List' },
-                    ]}
-                    active={dayMode}
-                    onChange={setDayMode}
+                      overtimeMinutes: 0,
+                      breakShortfallMinutes: 0,
+                      meetingCount: 0,
+                      backToBackMeetingCount: 0,
+                      planDriftMinutes: Math.round(planner.review?.driftMin ?? 0),
+                      isAbsenceDay: false,
+                    }}
+                    onConfirmSuggestion={() =>
+                      toast.show(
+                        'Noted — set it up in the Planner when you plan tomorrow. Nothing was booked.',
+                      )
+                    }
                   />
-                </View>
-                <View
-                  style={{
-                    flexDirection: stacked ? 'column' : 'row',
-                    gap: t.spacing.s4,
-                    alignItems: 'flex-start',
-                  }}
-                >
-                  {dayMode === 'list' ? (
-                    // Classic day list (REQ-040): the day's editable blocks + read-only recurring
-                    // occurrences, sorted by start; a tap opens the same drawer as the canvas.
-                    <View style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}>
-                      <PlannerDayList
-                        items={[
-                          ...shownBlocks
-                            .map((b, index) => ({ b, index }))
-                            .filter(x => x.b.day === dayI)
-                            .map(({ b, index }): DayListItem => ({
-                              key: `b-${String(index)}`,
-                              label: b.label,
-                              timeLabel: `${clock(b.start)}–${clock(b.start + b.len)}`,
-                              lenMin: b.len,
-                              color: canvasBlockColor(t, b),
-                              typeLabel: canvasKindLabel(b.kind),
-                              onOpen: () => setOpenIndex(index),
-                            })),
-                          ...recurringBlocks
-                            .filter(rb => rb.day === dayI)
-                            .map((rb, ri): DayListItem => ({
-                              key: `r-${String(ri)}`,
-                              label: rb.label,
-                              timeLabel: `${clock(rb.start)}–${clock(rb.start + rb.len)}`,
-                              lenMin: rb.len,
-                              color: canvasBlockColor(t, rb),
-                              typeLabel: `↻ ${canvasKindLabel(rb.kind)}`,
-                            })),
-                        ].sort((a, b) => a.timeLabel.localeCompare(b.timeLabel))}
-                      />
-                    </View>
-                  ) : (
-                    <Card
-                      padding={false}
-                      style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}
-                    >
-                      {webTimegrid && weekStartMs !== undefined ? (
-                        // Web (design v20 §Cal): FullCalendar's editable timegrid for the single day —
-                        // drag/resize/create/open all route to the same handlers the RN canvas uses.
-                        <PlannerCalendar
-                          view="day"
-                          year={calYear}
-                          month0={calMonth0}
-                          today={calToday}
-                          anchorDate={localDayKey(day.dateMs)}
-                          occurrences={occurrences.filter(o => inLayer(o.kind, layer))}
-                          targetHours={DAILY_TARGET_HOURS}
-                          editableBlocks={timegridBlocks}
-                          planBlocks={planCanvasBlocks}
-                          weekStartMs={weekStartMs}
-                          {...(expandedBand !== undefined
-                            ? {
-                                windowStartMin: expandedBand.startMin,
-                                windowEndMin: expandedBand.endMin,
-                              }
-                            : {})}
-                          onBlockMove={moveBlock}
-                          onBlockResize={resizeBlock}
-                          onBlockOpen={setOpenIndex}
-                          onSlotCreate={(d, min) => createBlockAt(d, min)}
+                  {/* Canvas ⇄ List toggle (REQ-040): the same day, geometry or flat list. */}
+                  <View style={{ maxWidth: 220 }}>
+                    <SegmentedControl<'canvas' | 'list'>
+                      segments={[
+                        { value: 'canvas', label: 'Canvas' },
+                        { value: 'list', label: 'List' },
+                      ]}
+                      active={dayMode}
+                      onChange={setDayMode}
+                    />
+                  </View>
+                  <View
+                    style={{
+                      flexDirection: stacked ? 'column' : 'row',
+                      gap: t.spacing.s4,
+                      alignItems: 'flex-start',
+                    }}
+                  >
+                    {dayMode === 'list' ? (
+                      // Classic day list (REQ-040): the day's editable blocks + read-only recurring
+                      // occurrences, sorted by start; a tap opens the same drawer as the canvas.
+                      <View style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}>
+                        <PlannerDayList
+                          items={[
+                            ...shownBlocks
+                              .map((b, index) => ({ b, index }))
+                              .filter(x => x.b.day === dayI)
+                              .map(({ b, index }): DayListItem => ({
+                                key: `b-${String(index)}`,
+                                label: b.label,
+                                timeLabel: `${clock(b.start)}–${clock(b.start + b.len)}`,
+                                lenMin: b.len,
+                                color: canvasBlockColor(t, b),
+                                typeLabel: canvasKindLabel(b.kind),
+                                onOpen: () => setOpenIndex(index),
+                              })),
+                            ...recurringBlocks
+                              .filter(rb => rb.day === dayI)
+                              .map((rb, ri): DayListItem => ({
+                                key: `r-${String(ri)}`,
+                                label: rb.label,
+                                timeLabel: `${clock(rb.start)}–${clock(rb.start + rb.len)}`,
+                                lenMin: rb.len,
+                                color: canvasBlockColor(t, rb),
+                                typeLabel: `↻ ${canvasKindLabel(rb.kind)}`,
+                              })),
+                          ].sort((a, b) => a.timeLabel.localeCompare(b.timeLabel))}
                         />
-                      ) : (
-                        <View style={{ flexDirection: 'row' }}>
-                          <HourGutter bands={bands} />
-                          <View
-                            style={{ flex: 1 }}
-                            onLayout={e => {
-                              const w = e.nativeEvent.layout.width
-                              if (w > 0) setDayColW(w)
-                            }}
-                          >
-                            <DayColumn
-                              day={day}
-                              index={dayI}
-                              flex
-                              blocks={shownBlocks}
-                              planBlocks={planCanvasBlocks}
-                              recurring={recurringBlocks}
-                              bands={bands}
-                              colWidth={dayColW}
-                              onResizeBlock={resizeBlock}
-                              onMoveBlock={moveBlock}
-                              onOpenBlock={setOpenIndex}
-                              showReality={showReality}
-                              onCreateAt={min => createBlockAt(dayI, min)}
-                              eveningZone
-                              nonWorking={[0, 6].includes(new Date(day.dateMs).getDay())}
-                            />
+                      </View>
+                    ) : (
+                      <Card
+                        padding={false}
+                        style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}
+                      >
+                        {webTimegrid && weekStartMs !== undefined ? (
+                          // Web (design v20 §Cal): FullCalendar's editable timegrid for the single day —
+                          // drag/resize/create/open all route to the same handlers the RN canvas uses.
+                          <PlannerCalendar
+                            view="day"
+                            year={calYear}
+                            month0={calMonth0}
+                            today={calToday}
+                            anchorDate={localDayKey(day.dateMs)}
+                            occurrences={occurrences.filter(o => inLayer(o.kind, layer))}
+                            targetHours={DAILY_TARGET_HOURS}
+                            editableBlocks={timegridBlocks}
+                            planBlocks={planCanvasBlocks}
+                            weekStartMs={weekStartMs}
+                            {...(expandedBand !== undefined
+                              ? {
+                                  windowStartMin: expandedBand.startMin,
+                                  windowEndMin: expandedBand.endMin,
+                                }
+                              : {})}
+                            onBlockMove={moveBlock}
+                            onBlockResize={resizeBlock}
+                            onBlockOpen={setOpenIndex}
+                            onSlotCreate={(d, min) => createBlockAt(d, min)}
+                          />
+                        ) : (
+                          <View style={{ flexDirection: 'row' }}>
+                            <HourGutter bands={bands} />
+                            <View
+                              style={{ flex: 1 }}
+                              onLayout={e => {
+                                const w = e.nativeEvent.layout.width
+                                if (w > 0) setDayColW(w)
+                              }}
+                            >
+                              <DayColumn
+                                day={day}
+                                index={dayI}
+                                flex
+                                blocks={shownBlocks}
+                                planBlocks={planCanvasBlocks}
+                                recurring={recurringBlocks}
+                                bands={bands}
+                                colWidth={dayColW}
+                                onResizeBlock={resizeBlock}
+                                onMoveBlock={moveBlock}
+                                onOpenBlock={setOpenIndex}
+                                showReality={showReality}
+                                onCreateAt={min => createBlockAt(dayI, min)}
+                                eveningZone
+                                nonWorking={[0, 6].includes(new Date(day.dateMs).getDay())}
+                              />
+                            </View>
                           </View>
-                        </View>
-                      )}
-                    </Card>
-                  )}
-                  {/* Instruments rail — glanceable day signals from real data (design v20). */}
-                  <PlannerDayInstruments />
-                </View>
-                {/* No block-type Legend on the Day view: it duplicates the Week view's legend
+                        )}
+                      </Card>
+                    )}
+                    {/* Instruments rail — glanceable day signals from real data (design v20). */}
+                    <PlannerDayInstruments />
+                  </View>
+                  {/* No block-type Legend on the Day view: it duplicates the Week view's legend
                     and its static "Meeting" swatch label collided (strict-mode) with the NL
                     quick-add draft's "Meeting" kind badge on this merged screen (issue #369). */}
-              </>
-            )
-          })()}
+                </>
+              )
+            })()}
 
-        {view === 'Week' && (
-          <>
-            {/* AI in context — reachable here, not only in the Assistant tab */}
-            <View style={{ gap: t.spacing.s2, maxWidth: 680 }}>
-              <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
-                {scopeChip('Time')}
-                {scopeChip('Budgets')}
+          {view === 'Week' && (
+            <>
+              {/* AI in context — reachable here, not only in the Assistant tab */}
+              <View style={{ gap: t.spacing.s2, maxWidth: 680 }}>
+                <View style={{ flexDirection: 'row', gap: t.spacing.s2 }}>
+                  {scopeChip('Time')}
+                  {scopeChip('Budgets')}
+                </View>
+                <AIAskBar
+                  value={ask}
+                  onChange={setAsk}
+                  onSubmit={() => submitAsk(ask)}
+                  placeholder="Ask about your week…"
+                />
+                {answer !== null && <AICallout title="✦ Assistant">{answer}</AICallout>}
               </View>
-              <AIAskBar
-                value={ask}
-                onChange={setAsk}
-                onSubmit={() => submitAsk(ask)}
-                placeholder="Ask about your week…"
-              />
-              {answer !== null && <AICallout title="✦ Assistant">{answer}</AICallout>}
-            </View>
 
-            {/* Yesterday-healing banner (ADR-0064, K3): a proposal to book a stretch the
+              {/* Yesterday-healing banner (ADR-0064, K3): a proposal to book a stretch the
                 tracker saw yesterday but that was never booked. Adopt/Dismiss, once a day. */}
-            {/* Context banner (design v14 §M2): at most ONE banner shows, chosen by the
+              {/* Context banner (design v14 §M2): at most ONE banner shows, chosen by the
                 deterministic `pickBanner` in the fixed priority Conflict > Price > Healing >
                 Note. Each candidate is the same `ContextBanner`, only the variant differs; the
                 Price-of-week detail panel below is a separate follow-panel, not a banner. */}
-            {(() => {
-              const candidates: ContextBannerProps[] = []
-              if (healGap !== null) {
-                candidates.push({
-                  variant: 'healing',
-                  title: `Yesterday: ${String(Math.round((healGap.gap.endMs - healGap.gap.startMs) / 60_000))} min unbooked`,
-                  body: `The Auto-Tracker saw ${healGap.gap.source} but nothing was booked. Book it?`,
-                  actions: [
-                    { label: 'Adopt', onPress: adoptHeal },
-                    { label: 'Dismiss', onPress: dismissHeal, variant: 'ghost' },
-                  ],
-                })
-              }
-              if (inboxNote !== null) {
-                candidates.push({
-                  variant: 'note',
-                  title: inboxNote,
-                  leadGlyph: '✦',
-                  actions: [
-                    ...(fillUndo !== null
-                      ? [{ label: 'Undo', onPress: undoFill, variant: 'ghost' as const }]
-                      : []),
-                    {
-                      label: 'OK',
-                      onPress: () => {
-                        setInboxNote(null)
-                        setFillUndo(null)
+              {(() => {
+                const candidates: ContextBannerProps[] = []
+                if (healGap !== null) {
+                  candidates.push({
+                    variant: 'healing',
+                    title: `Yesterday: ${String(Math.round((healGap.gap.endMs - healGap.gap.startMs) / 60_000))} min unbooked`,
+                    body: `The Auto-Tracker saw ${healGap.gap.source} but nothing was booked. Book it?`,
+                    actions: [
+                      { label: 'Adopt', onPress: adoptHeal },
+                      { label: 'Dismiss', onPress: dismissHeal, variant: 'ghost' },
+                    ],
+                  })
+                }
+                if (inboxNote !== null) {
+                  candidates.push({
+                    variant: 'note',
+                    title: inboxNote,
+                    leadGlyph: '✦',
+                    actions: [
+                      ...(fillUndo !== null
+                        ? [{ label: 'Undo', onPress: undoFill, variant: 'ghost' as const }]
+                        : []),
+                      {
+                        label: 'OK',
+                        onPress: () => {
+                          setInboxNote(null)
+                          setFillUndo(null)
+                        },
+                        variant: 'ghost' as const,
                       },
-                      variant: 'ghost' as const,
-                    },
-                  ],
-                })
-              }
-              const active = pickBanner(candidates)
-              return active === null ? null : <ContextBanner {...active} />
-            })()}
-
-            {/* Sevi life-care voices (ADR-0071 P5, REQ-071) — renders only when delivered. */}
-            <LifeCareCard weekDates={weekDates} />
-
-            {/* Price of the week (G1): after Fill-week, what this planned week costs across
-              intensities — deterministic `priceWeek` over the planned blocks (ADR-0005). */}
-            {fillUndo !== null &&
-              (() => {
-                const prices = priceWeekFromBlocks(blocks)
-                if (prices.length === 0) return null
-                return (
-                  <View
-                    style={{
-                      gap: t.spacing.s2,
-                      paddingVertical: t.spacing.s3,
-                      paddingHorizontal: t.spacing.s3,
-                      borderRadius: t.radius.block,
-                      borderWidth: 1,
-                      borderColor: t.color.border,
-                      backgroundColor: t.color.surface,
-                    }}
-                  >
-                    <Text
-                      style={{ fontSize: t.fontSize.sm, fontWeight: '700', color: t.color.ink }}
-                    >
-                      Price of the week
-                    </Text>
-                    <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
-                      What this plan costs across intensities · assuming 8h × 5 days
-                    </Text>
-                    {prices.map(p => (
-                      <View
-                        key={p.intensity}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: t.fontSize.xs,
-                            color: t.color.ink,
-                            fontWeight: '600',
-                            width: 92,
-                            textTransform: 'capitalize',
-                          }}
-                        >
-                          {p.intensity}
-                        </Text>
-                        <Text
-                          style={{
-                            fontFamily: t.fontFamily.numeric,
-                            fontSize: t.fontSize['2xs'],
-                            color: t.color.ink2,
-                            flex: 1,
-                          }}
-                        >
-                          {`${String(p.activeDays)}d · ${formatDuration(p.perDayMs)}/day · ${p.freeDays > 0 ? `${String(p.freeDays)} free` : 'no free day'}`}
-                        </Text>
-                        <Text
-                          style={{
-                            fontFamily: t.fontFamily.numeric,
-                            fontSize: t.fontSize['2xs'],
-                            color: p.overtimeMs > 0 ? t.color.warn : t.color.ink3,
-                          }}
-                        >
-                          {p.overtimeMs > 0 ? `+${formatDuration(p.overtimeMs)} OT` : 'on target'}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                )
+                    ],
+                  })
+                }
+                const active = pickBanner(candidates)
+                return active === null ? null : <ContextBanner {...active} />
               })()}
 
-            {/* Week canvas + Task-Inbox rail — plan (dashed) and actuals share one
-              surface per day; the inbox sits beside it on wide screens. */}
-            <View
-              style={{
-                flexDirection: stacked ? 'column' : 'row',
-                gap: t.spacing.s4,
-                alignItems: 'flex-start',
-              }}
-            >
-              <Card padding={false} style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}>
-                {webTimegrid && weekStartMs !== undefined ? (
-                  // Web (design v20 §Cal): FullCalendar's editable 7-day timegrid — same blocks, same
-                  // move/resize/create/open handlers as the RN columns, so nothing behaves differently.
-                  <PlannerCalendar
-                    view="week"
-                    year={calYear}
-                    month0={calMonth0}
-                    today={calToday}
-                    anchorDate={localDayKey(weekStartMs)}
-                    occurrences={occurrences.filter(o => inLayer(o.kind, layer))}
-                    targetHours={DAILY_TARGET_HOURS}
-                    editableBlocks={timegridBlocks}
-                    planBlocks={planCanvasBlocks}
-                    weekStartMs={weekStartMs}
-                    {...(expandedBand !== undefined
-                      ? {
-                          windowStartMin: expandedBand.startMin,
-                          windowEndMin: expandedBand.endMin,
-                        }
-                      : {})}
-                    onBlockMove={moveBlock}
-                    onBlockResize={resizeBlock}
-                    onBlockOpen={setOpenIndex}
-                    onSlotCreate={(d, min) => createBlockAt(d, min)}
-                  />
-                ) : (
-                  <View style={{ flexDirection: 'row' }}>
-                    <HourGutter bands={bands} />
+              {/* Sevi life-care voices (ADR-0071 P5, REQ-071) — renders only when delivered. */}
+              <LifeCareCard weekDates={weekDates} />
+
+              {/* Price of the week (G1): after Fill-week, what this planned week costs across
+              intensities — deterministic `priceWeek` over the planned blocks (ADR-0005). */}
+              {fillUndo !== null &&
+                (() => {
+                  const prices = priceWeekFromBlocks(blocks)
+                  if (prices.length === 0) return null
+                  return (
                     <View
-                      style={{ flex: 1, flexDirection: 'row' }}
-                      onLayout={e => {
-                        if (!stacked) {
-                          const w = e.nativeEvent.layout.width / weekDays.length
-                          if (w > 0) setColWidth(w)
-                        }
+                      style={{
+                        gap: t.spacing.s2,
+                        paddingVertical: t.spacing.s3,
+                        paddingHorizontal: t.spacing.s3,
+                        borderRadius: t.radius.block,
+                        borderWidth: 1,
+                        borderColor: t.color.border,
+                        backgroundColor: t.color.surface,
                       }}
                     >
-                      <FlashList
-                        data={weekDays}
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        keyExtractor={(day: (typeof weekDays)[0]) => day.name}
-                        extraData={{
-                          shownBlocks,
-                          planCanvasBlocks,
-                          recurringBlocks,
-                          bands,
-                          colWidth,
-                          stacked,
-                          showReality,
-                        }}
-                        renderItem={({
-                          item: day,
-                          index: di,
-                        }: {
-                          item: (typeof weekDays)[0]
-                          index: number
-                        }) => (
-                          <View style={{ width: stacked ? COL_WIDTH : colWidth, height: '100%' }}>
-                            <DayColumn
-                              day={day}
-                              index={di}
-                              flex={false}
-                              blocks={shownBlocks}
-                              planBlocks={planCanvasBlocks}
-                              recurring={recurringBlocks}
-                              bands={bands}
-                              colWidth={stacked ? COL_WIDTH : colWidth}
-                              onResizeBlock={resizeBlock}
-                              onMoveBlock={moveBlock}
-                              onOpenBlock={setOpenIndex}
-                              showReality={showReality}
-                            />
-                          </View>
-                        )}
-                      />
+                      <Text
+                        style={{ fontSize: t.fontSize.sm, fontWeight: '700', color: t.color.ink }}
+                      >
+                        Price of the week
+                      </Text>
+                      <Text style={{ fontSize: t.fontSize['2xs'], color: t.color.ink3 }}>
+                        What this plan costs across intensities · assuming 8h × 5 days
+                      </Text>
+                      {prices.map(p => (
+                        <View
+                          key={p.intensity}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.s2 }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: t.fontSize.xs,
+                              color: t.color.ink,
+                              fontWeight: '600',
+                              width: 92,
+                              textTransform: 'capitalize',
+                            }}
+                          >
+                            {p.intensity}
+                          </Text>
+                          <Text
+                            style={{
+                              fontFamily: t.fontFamily.numeric,
+                              fontSize: t.fontSize['2xs'],
+                              color: t.color.ink2,
+                              flex: 1,
+                            }}
+                          >
+                            {`${String(p.activeDays)}d · ${formatDuration(p.perDayMs)}/day · ${p.freeDays > 0 ? `${String(p.freeDays)} free` : 'no free day'}`}
+                          </Text>
+                          <Text
+                            style={{
+                              fontFamily: t.fontFamily.numeric,
+                              fontSize: t.fontSize['2xs'],
+                              color: p.overtimeMs > 0 ? t.color.warn : t.color.ink3,
+                            }}
+                          >
+                            {p.overtimeMs > 0 ? `+${formatDuration(p.overtimeMs)} OT` : 'on target'}
+                          </Text>
+                        </View>
+                      ))}
                     </View>
-                  </View>
-                )}
-              </Card>
-              {inboxOpen && <TaskInbox tasks={tasks} onPlan={planTask} onDone={doneTask} />}
-            </View>
+                  )
+                })()}
 
-            <Legend />
+              {/* Week canvas + Task-Inbox rail — plan (dashed) and actuals share one
+              surface per day; the inbox sits beside it on wide screens. */}
+              <View
+                style={{
+                  flexDirection: stacked ? 'column' : 'row',
+                  gap: t.spacing.s4,
+                  alignItems: 'flex-start',
+                }}
+              >
+                <Card
+                  padding={false}
+                  style={{ flex: stacked ? undefined : 1, alignSelf: 'stretch' }}
+                >
+                  {webTimegrid && weekStartMs !== undefined ? (
+                    // Web (design v20 §Cal): FullCalendar's editable 7-day timegrid — same blocks, same
+                    // move/resize/create/open handlers as the RN columns, so nothing behaves differently.
+                    <PlannerCalendar
+                      view="week"
+                      year={calYear}
+                      month0={calMonth0}
+                      today={calToday}
+                      anchorDate={localDayKey(weekStartMs)}
+                      occurrences={occurrences.filter(o => inLayer(o.kind, layer))}
+                      targetHours={DAILY_TARGET_HOURS}
+                      editableBlocks={timegridBlocks}
+                      planBlocks={planCanvasBlocks}
+                      weekStartMs={weekStartMs}
+                      {...(expandedBand !== undefined
+                        ? {
+                            windowStartMin: expandedBand.startMin,
+                            windowEndMin: expandedBand.endMin,
+                          }
+                        : {})}
+                      onBlockMove={moveBlock}
+                      onBlockResize={resizeBlock}
+                      onBlockOpen={setOpenIndex}
+                      onSlotCreate={(d, min) => createBlockAt(d, min)}
+                    />
+                  ) : (
+                    <View style={{ flexDirection: 'row' }}>
+                      <HourGutter bands={bands} />
+                      <View
+                        style={{ flex: 1, flexDirection: 'row' }}
+                        onLayout={e => {
+                          if (!stacked) {
+                            const w = e.nativeEvent.layout.width / weekDays.length
+                            if (w > 0) setColWidth(w)
+                          }
+                        }}
+                      >
+                        <FlashList
+                          data={weekDays}
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          keyExtractor={(day: (typeof weekDays)[0]) => day.name}
+                          extraData={{
+                            shownBlocks,
+                            planCanvasBlocks,
+                            recurringBlocks,
+                            bands,
+                            colWidth,
+                            stacked,
+                            showReality,
+                          }}
+                          renderItem={({
+                            item: day,
+                            index: di,
+                          }: {
+                            item: (typeof weekDays)[0]
+                            index: number
+                          }) => (
+                            <View style={{ width: stacked ? COL_WIDTH : colWidth, height: '100%' }}>
+                              <DayColumn
+                                day={day}
+                                index={di}
+                                flex={false}
+                                blocks={shownBlocks}
+                                planBlocks={planCanvasBlocks}
+                                recurring={recurringBlocks}
+                                bands={bands}
+                                colWidth={stacked ? COL_WIDTH : colWidth}
+                                onResizeBlock={resizeBlock}
+                                onMoveBlock={moveBlock}
+                                onOpenBlock={setOpenIndex}
+                                showReality={showReality}
+                              />
+                            </View>
+                          )}
+                        />
+                      </View>
+                    </View>
+                  )}
+                </Card>
+                {inboxOpen && <TaskInbox tasks={tasks} onPlan={planTask} onDone={doneTask} />}
+              </View>
 
-            <CoPlannerProposal planner={planner} />
+              <Legend />
 
-            <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, lineHeight: 18 }}>
-              Drag blocks (across days &amp; times) or change their duration at the bottom edge —
-              both snap to 15 min. Overlapping blocks share the column (lanes); the &quot;N×&quot;
-              chip in the day header counts real conflicts (breaks &amp; FYI don&apos;t count). ↻
-              recurring · ⇄ OL = Outlook · ? = tentative · FYI = no attendance. Dashed blocks are
-              Co-Planner proposals.
-            </Text>
-          </>
-        )}
+              <CoPlannerProposal planner={planner} />
 
-        {/* Month view (design v18 PlannerViews): tasks = filled chips (project color + priority
+              <Text style={{ fontSize: t.fontSize.xs, color: t.color.ink3, lineHeight: 18 }}>
+                Drag blocks (across days &amp; times) or change their duration at the bottom edge —
+                both snap to 15 min. Overlapping blocks share the column (lanes); the &quot;N×&quot;
+                chip in the day header counts real conflicts (breaks &amp; FYI don&apos;t count). ↻
+                recurring · ⇄ OL = Outlook · ? = tentative · FYI = no attendance. Dashed blocks are
+                Co-Planner proposals.
+              </Text>
+            </>
+          )}
+
+          {/* Month view (design v18 PlannerViews): tasks = filled chips (project color + priority
             dot), events = hollow banners that never count, day-load bar vs the daily target. Real
             occurrences; an empty month renders an honest empty grid. */}
-        {(view === 'Month' || view === 'Year') && (
-          <PlannerCalendar
-            view={view === 'Month' ? 'month' : 'year'}
-            year={calYear}
-            month0={calMonth0}
-            today={calToday}
-            occurrences={shownCalOccurrences}
-            targetHours={DAILY_TARGET_HOURS}
-            // Woche ⇄ Monat navigation (REQ-037): a month day drills into the Day view; a year
-            // month drills into the Month view. The segmented control is the reverse zoom out.
-            onDrillDay={() => setView('Day')}
-            onDrillMonth={() => setView('Month')}
-          />
-        )}
-      </ScrollView>
-      <PlannerEntryDrawer
-        key={openIndex ?? 'none'}
-        entry={drawerEntry}
-        onClose={() => setOpenIndex(null)}
-        {...(drawerEntry?.kind === 'meeting' ? { onRsvp: setOpenRsvp } : {})}
-        {...(drawerEntry?.kind === 'actual'
-          ? { onDelete: removeOpen, onNudge: nudgeOpen, onDuplicate: duplicateOpen }
-          : {})}
-        {...(drawerEntry?.kind === 'travel' ? { onTravelDetail: saveTravelDetail } : {})}
-        {...(drawerEntry?.kind === 'ghost' ? { onAccept: acceptOpen, onDismiss: removeOpen } : {})}
-        {...(drawerEntry !== null &&
-        (drawerEntry.kind === 'meeting' ||
-          drawerEntry.kind === 'actual' ||
-          drawerEntry.kind === 'life')
-          ? { onProtect: setOpenProtected, onRecurrence: makeOpenRecurring }
-          : {})}
-      />
+          {(view === 'Month' || view === 'Year') && (
+            <PlannerCalendar
+              view={view === 'Month' ? 'month' : 'year'}
+              year={calYear}
+              month0={calMonth0}
+              today={calToday}
+              occurrences={shownCalOccurrences}
+              targetHours={DAILY_TARGET_HOURS}
+              // Woche ⇄ Monat navigation (REQ-037): a month day drills into the Day view; a year
+              // month drills into the Month view. The segmented control is the reverse zoom out.
+              onDrillDay={() => setView('Day')}
+              onDrillMonth={() => setView('Month')}
+              // A month chip IS its entry (issue #370): tapping one opens that entry's detail in
+              // the same panel the day canvas uses. The Year view has no entry chips.
+              {...(view === 'Month' ? { onOpenTask: openMonthTask } : {})}
+            />
+          )}
+        </ScrollView>
+        <PlannerEntryDrawer
+          key={openIndex ?? 'none'}
+          panel={detailPanel}
+          entry={drawerEntry}
+          onClose={closeDrawer}
+          {...(drawerEntry?.kind === 'meeting' ? { onRsvp: setOpenRsvp } : {})}
+          {...(drawerEntry?.kind === 'actual'
+            ? { onDelete: removeOpen, onNudge: nudgeOpen, onDuplicate: duplicateOpen }
+            : {})}
+          {...(drawerEntry?.kind === 'travel' ? { onTravelDetail: saveTravelDetail } : {})}
+          {...(drawerEntry?.kind === 'ghost'
+            ? { onAccept: acceptOpen, onDismiss: removeOpen }
+            : {})}
+          {...(drawerEntry !== null &&
+          (drawerEntry.kind === 'meeting' ||
+            drawerEntry.kind === 'actual' ||
+            drawerEntry.kind === 'life')
+            ? { onProtect: setOpenProtected, onRecurrence: makeOpenRecurring }
+            : {})}
+        />
+      </View>
       <PlannerNewEntryDialog
         visible={newEntryOpen}
         projects={dialogProjects}

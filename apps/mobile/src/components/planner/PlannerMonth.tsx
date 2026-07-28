@@ -41,6 +41,18 @@ export interface PlannerMonthProps {
   /** The daily target hours the heat scale compares against. */
   readonly targetHours: number
   readonly onDrill?: (day: number) => void
+  /**
+   * Open one entry's detail straight from its chip (issue #370) — `(day-of-month, task index)`,
+   * which the screen resolves against the same `days` map it passed in. Omit to keep the chips
+   * inert and the month a pure drill-down surface.
+   */
+  readonly onOpenTask?: (day: number, taskIndex: number) => void
+}
+
+/** Minutes from midnight → `HH:MM`, the calendar's shared time-label convention. */
+function hhmm(min: number): string {
+  const p = (n: number): string => String(n).padStart(2, '0')
+  return `${p(Math.floor(min / 60) % 24)}:${p(min % 60)}`
 }
 
 const PRIO_DOT = (t: Theme, prio: number): string =>
@@ -61,6 +73,7 @@ export function PlannerMonth({
   today,
   days,
   targetHours,
+  onOpenTask,
   onDrill,
 }: PlannerMonthProps): React.JSX.Element {
   const t = useTheme()
@@ -219,8 +232,23 @@ export function PlannerMonth({
                     the heat fill with a subtle surface background so they stay legible. Life is
                     personal (design v19 §F): sage left-border, no priority dot, never counted. */}
                 {shown.map((task, ti) => (
-                  <View
+                  <Pressable
                     key={ti}
+                    // The chip IS the entry (issue #370): tapping it opens that entry's detail.
+                    // `stopPropagation` keeps the surrounding cell's day-drill from also firing —
+                    // one tap, one outcome. Without a handler the chip stays inert, as before.
+                    {...(onOpenTask
+                      ? {
+                          accessibilityRole: 'button' as const,
+                          accessibilityLabel: `Open ${task.label}, ${hhmm(task.startMin)}–${hhmm(
+                            task.startMin + task.lenMin,
+                          )}`,
+                          onPress: (e: { stopPropagation?: () => void }) => {
+                            e.stopPropagation?.()
+                            onOpenTask(cell.date, ti)
+                          },
+                        }
+                      : {})}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -257,7 +285,7 @@ export function PlannerMonth({
                     >
                       {task.label}
                     </Text>
-                  </View>
+                  </Pressable>
                 ))}
                 {tasks.length > 3 && (
                   <Text style={{ fontSize: 9, fontWeight: '700', color: t.color.ink3 }}>
