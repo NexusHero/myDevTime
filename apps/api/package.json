@@ -43,7 +43,7 @@
   },
   "devDependencies": {
     "@nestjs/testing": "^11.1.28",
-    "@swc/core": "^1.15.46",
+    "@swc/core": "^1.15.47",
     "@types/nodemailer": "^8.0.1",
     "@types/pdfkit": "^0.17.6",
     "drizzle-kit": "^0.31.10",
