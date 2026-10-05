@@ -191,6 +191,9 @@ network-level DoS protection is an edge/infra concern that is out of scope for t
 
 ## 8. Dependency & supply chain
 
+- The full pipeline — which gate checks what, and what it does *not* cover — is mapped in
+  [`devsecops.md`](devsecops.md) (ADR-0078). The production rollout waits for every
+  quality and security workflow of the same commit.
 - CI runs **OSV-Scanner** over the pnpm lockfile (`.github/workflows/security.yml`,
   ADR-0016); npm's retired audit endpoints are deliberately not relied on.
 - Where an upstream fix lives only in a release the tree cannot take, it is backported as a

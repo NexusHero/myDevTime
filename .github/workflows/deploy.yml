@@ -5,6 +5,15 @@ on:
     branches:
       - main
 
+# Least privilege by default; each job widens only what it needs (ADR-0078).
+permissions:
+  contents: read
+
+# Never run two rollouts at once, and never cancel one mid-rollout.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 env:
   REGISTRY: ghcr.io
   # github.repository is <owner>/<repo>, e.g. NexusHero/myDevTime. GHCR paths must
@@ -12,8 +21,36 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-push-images:
+  # Deploy gate (ADR-0078): this workflow fires on the same push as the quality
+  # and security workflows, in parallel with them. Nothing is built, pushed or
+  # rolled out until every one of them is green for this exact commit.
+  gate:
+    name: Wait for CI, security and acceptance to pass
     runs-on: ubuntu-latest
+    timeout-minutes: 50
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Wait for the required workflows of this push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          node scripts/wait-for-checks.mjs
+          --workflow CI
+          --workflow Security
+          --workflow CodeQL
+          --workflow "Container smoke"
+          --workflow "Acceptance (E2E)"
+          --timeout-minutes 45
+
+  build-and-push-images:
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -68,6 +105,9 @@ jobs:
   deploy:
     needs: build-and-push-images
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout repository
