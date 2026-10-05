@@ -54,7 +54,11 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['{packages,apps}/*/src/**/*.test.{ts,tsx}'],
+    include: [
+      '{packages,apps}/*/src/**/*.test.{ts,tsx}',
+      // CI helper scripts that carry real decision logic (e.g. the deploy gate).
+      'scripts/**/*.test.mjs',
+    ],
     browser: {
       instances: [],
     },

@@ -1,5 +1,8 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+patchedDependencies:
+  decode-uri-component@0.2.2: patches/decode-uri-component@0.2.2.patch
+
 # spikes/ are intentionally NOT part of the workspace — they are throwaway
 # prototypes with their own toolchains (see spikes/ui-prototype).
