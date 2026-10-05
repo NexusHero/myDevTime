@@ -68,6 +68,9 @@ carry the `uuid` advisory).
 | GHSA-86w9-cpqp-85rv | node-forge (1.4.0) | 8.7 High | expo > @expo/cli (dev-server certificates). **No patched release exists.** Neither the app nor the server verifies RSA signatures with it. |
 | GHSA-83w8-p2f5-377r · GHSA-8pvw-jcv7-9cmj | @fastify/static (9.3.0) | 7.5 High · 5.3 Med | optionalDependency of `fastify` and `@nestjs/swagger` (Swagger UI static assets) — **not** a build tool. Accepted, not fixed, because the patched line is v10 and `@nestjs/swagger`'s peer range is strictly `v8 \|\| v9`; adopting v10 breaks Swagger UI init. Low risk: no wildcard/user-controlled static paths are served through it. Revisit when `@nestjs/swagger` supports `@fastify/static@10`. (Replaces the now-resolved GHSA-mh99-v99m-4gvg.) |
 
+The **image scan gate** (Trivy, `deploy.yml`) carries the same `@fastify/static` exception
+by CVE id in [`.trivyignore`](../../.trivyignore); keep the two lists in step.
+
 **Revisit when:** the Expo SDK, `drizzle-kit`, or `better-auth` is upgraded (each
 tends to move the pinned sub-package onto a patched line). At that point, re-run
 the scan and remove any GHSA that no longer resolves from both `osv-scanner.toml`
