@@ -1,0 +1,9 @@
+# Trivy ignore list for the image scan gate in .github/workflows/deploy.yml (ADR-0078 #4).
+# Same discipline as osv-scanner.toml: every entry names the package, the reason, and
+# when to revisit; docs/security/audit-exceptions.md carries the full rationale.
+
+# @fastify/static@9.3.0 (API image) — the patched line is v10, which @nestjs/swagger's
+# peer range (v8 || v9) rejects; adopting it breaks Swagger UI. No wildcard or
+# user-controlled static path is served through it. Revisit when @nestjs/swagger
+# supports @fastify/static@10. (OSV: GHSA-83w8-p2f5-377r / GHSA-8pvw-jcv7-9cmj.)
+CVE-2026-15074

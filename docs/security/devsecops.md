@@ -16,7 +16,7 @@ a stage is ✅ only when it can actually stop a bad change.
 | 4 | SCA (dependencies) | OSV-Scanner over `pnpm-lock.yaml`; Dependabot; dependency review | `security.yml` | PR, deploy | ✅ (dependency review informational until the Dependency Graph is on) |
 | 5 | Build & test | `./test.sh`, Postgres integration, container smoke, browser E2E | `ci.yml`, `container-smoke.yml`, `acceptance-e2e.yml` | PR, deploy | ✅ |
 | 6 | Fuzzing / DAST | — | — | — | ⏳ planned (ADR-0078 #7, #8) |
-| 7 | SBOM, signing, provenance | — | — | — | ⏳ planned (ADR-0078 #4, #6) |
+| 7 | SBOM, signing, provenance | per image: Trivy scan **before** push (HIGH/CRITICAL with a fix fails; exceptions in [`.trivyignore`](../../.trivyignore)), CycloneDX SBOM, cosign keyless signature, SBOM as signed attestation, GitHub build-provenance attestation; the cluster gets the image **by digest** only after `cosign verify` against this repo's deploy identity | `deploy.yml` | the push and the rollout | ✅ images · ⏳ release SBOM (ADR-0078 #6) |
 | 8 | Gate & release | `gate` job waits for CI, Security, CodeQL, Container smoke, Acceptance (E2E) of the same push | `deploy.yml` + [`scripts/wait-for-checks.mjs`](../../scripts/wait-for-checks.mjs) | the rollout | ✅ |
 | — | Workflow hardening | every action pinned to a commit SHA (Dependabot updates the pins), `persist-credentials: false`, untrusted context via `env:`, no cache in the release, `gh` instead of a third-party release action; `zizmor` audit (online: verifies the pinned SHAs) | all workflows; gate in `security.yml` | PR, deploy | ✅ |
 | — | Lean runtime images | runtime stages run `apk upgrade` and ship no npm/corepack/yarn; [`.pnpmfile.cjs`](../../.pnpmfile.cjs) drops optional build-tool peers (drizzle-kit, vitest, react, expo-sqlite) so `pnpm deploy --prod` no longer copies Expo, Metro and esbuild into the API image (1.08 GB → 492 MB) | `apps/*/Dockerfile`, `.pnpmfile.cjs` | — (prerequisite for the image scan gate) | ✅ |
@@ -36,6 +36,18 @@ triggered by this push**, and:
 Required workflows are named explicitly (`--workflow …` in `deploy.yml`). Renaming one of them
 without updating the list makes the gate wait until its timeout and fail — it fails closed. To
 add a gate, add its workflow name there.
+
+## Verifying a running image yourself
+
+Any image in the cluster can be checked from a laptop with `cosign`:
+
+```sh
+cosign verify ghcr.io/nexushero/mydevtime-api@sha256:<digest> \
+  --certificate-identity-regexp '^https://github.com/NexusHero/myDevTime/\.github/workflows/deploy\.yml@refs/heads/main$' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+cosign verify-attestation --type cyclonedx …   # the signed SBOM, same flags
+gh attestation verify oci://ghcr.io/nexushero/mydevtime-api@sha256:<digest> -R NexusHero/myDevTime
+```
 
 ## One-time repository settings (manual — not expressible in code)
 

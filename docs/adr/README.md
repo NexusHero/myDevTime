@@ -167,6 +167,8 @@ One line per technology so the stack's shape stays visible without re-reading th
 | GitHub Actions pinned to full commit SHAs (version in a comment, kept current by Dependabot) | Adopt | ADR-0078 |
 | zizmor workflow audit (CI gate over `.github/workflows`) | Adopt | ADR-0078 |
 | Lean runtime images: `apk upgrade` in the runtime stage, no package managers shipped, optional build-tool peers dropped by `.pnpmfile.cjs` | Adopt | ADR-0078 |
+| Trivy image gate before push + CycloneDX SBOM (digest-pinned `aquasec/trivy`) | Adopt | ADR-0078 |
+| cosign keyless signing + signed SBOM attestation + GitHub build provenance; rollout by digest after `cosign verify` | Adopt | ADR-0078 |
 | Provider-agnostic `LlmPort` (ports & adapters for the LLM) | Adopt | ADR-0029 |
 | Anthropic (Claude) LLM adapter | Trial (launch rail, behind the port) | ADR-0029 |
 | OpenAI LLM adapter | Trial (launch rail, behind the port) | ADR-0029 |

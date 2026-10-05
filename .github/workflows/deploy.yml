@@ -48,19 +48,38 @@ jobs:
           --workflow "Acceptance (E2E)"
           --timeout-minutes 45
 
+  # Image supply chain (ADR-0078 #4). Each image is built exactly once, scanned
+  # *before* it can reach the registry, then pushed, given a CycloneDX SBOM, signed
+  # keyless with cosign (GitHub OIDC — no key to manage), and given a build-provenance
+  # attestation. No build cache: a publishing workflow must not restore a cache an
+  # earlier, possibly untrusted run wrote. The deploy job rolls out by digest only.
   build-and-push-images:
     needs: gate
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     permissions:
       contents: read
       packages: write
+      id-token: write # cosign keyless signing + attestations (OIDC)
+      attestations: write
+    outputs:
+      api: ${{ steps.push-api.outputs.ref }}
+      web: ${{ steps.push-web.outputs.ref }}
+    env:
+      TRIVY_IMAGE: aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
       - name: Log in to the Container registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
@@ -68,7 +87,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for API
+      # ---- API image ------------------------------------------------------
+      - name: Image metadata (api)
         id: meta-api
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
@@ -77,16 +97,64 @@ jobs:
             type=sha
             type=raw,value=latest
 
-      - name: Build and push API Docker image
+      - name: Build (api)
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: apps/api/Dockerfile
-          push: true
+          load: true
+          push: false
+          provenance: false
           tags: ${{ steps.meta-api.outputs.tags }}
           labels: ${{ steps.meta-api.outputs.labels }}
 
-      - name: Extract metadata (tags, labels) for Web
+      - name: Scan before push (api) — HIGH/CRITICAL with a fix breaks the deploy
+        env:
+          IMAGE: ${{ steps.meta-api.outputs.tags }}
+        run: |
+          ref=$(printf '%s\n' "$IMAGE" | head -n1)
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD/.trivyignore:/.trivyignore:ro" "$TRIVY_IMAGE" \
+            image --no-progress --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed \
+            --ignorefile /.trivyignore "$ref"
+
+      - name: Push (api) and record the digest
+        id: push-api
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api
+        run: |
+          repo="${IMAGE,,}"
+          docker push --all-tags "$repo"
+          ref=$(docker inspect --format '{{index .RepoDigests 0}}' "$repo:latest")
+          {
+            echo "ref=$ref"
+            echo "name=$repo"
+            echo "digest=${ref#*@}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: SBOM (api, CycloneDX)
+        env:
+          REF: ${{ steps.push-api.outputs.ref }}
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/out" \
+            "$TRIVY_IMAGE" image --no-progress --format cyclonedx --output /out/sbom-api.cdx.json "$REF"
+
+      - name: Sign (api) and attach the SBOM as a signed attestation
+        env:
+          REF: ${{ steps.push-api.outputs.ref }}
+        run: |
+          cosign sign --yes "$REF"
+          cosign attest --yes --type cyclonedx --predicate sbom-api.cdx.json "$REF"
+
+      - name: Build provenance (api)
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.push-api.outputs.name }}
+          subject-digest: ${{ steps.push-api.outputs.digest }}
+          push-to-registry: true
+
+      # ---- Web image ------------------------------------------------------
+      - name: Image metadata (web)
         id: meta-web
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
@@ -95,14 +163,68 @@ jobs:
             type=sha
             type=raw,value=latest
 
-      - name: Build and push Web Docker image
+      - name: Build (web)
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: apps/mobile/Dockerfile
-          push: true
+          load: true
+          push: false
+          provenance: false
           tags: ${{ steps.meta-web.outputs.tags }}
           labels: ${{ steps.meta-web.outputs.labels }}
+
+      - name: Scan before push (web) — HIGH/CRITICAL with a fix breaks the deploy
+        env:
+          IMAGE: ${{ steps.meta-web.outputs.tags }}
+        run: |
+          ref=$(printf '%s\n' "$IMAGE" | head -n1)
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD/.trivyignore:/.trivyignore:ro" "$TRIVY_IMAGE" \
+            image --no-progress --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed \
+            --ignorefile /.trivyignore "$ref"
+
+      - name: Push (web) and record the digest
+        id: push-web
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web
+        run: |
+          repo="${IMAGE,,}"
+          docker push --all-tags "$repo"
+          ref=$(docker inspect --format '{{index .RepoDigests 0}}' "$repo:latest")
+          {
+            echo "ref=$ref"
+            echo "name=$repo"
+            echo "digest=${ref#*@}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: SBOM (web, CycloneDX)
+        env:
+          REF: ${{ steps.push-web.outputs.ref }}
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/out" \
+            "$TRIVY_IMAGE" image --no-progress --format cyclonedx --output /out/sbom-web.cdx.json "$REF"
+
+      - name: Sign (web) and attach the SBOM as a signed attestation
+        env:
+          REF: ${{ steps.push-web.outputs.ref }}
+        run: |
+          cosign sign --yes "$REF"
+          cosign attest --yes --type cyclonedx --predicate sbom-web.cdx.json "$REF"
+
+      - name: Build provenance (web)
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.push-web.outputs.name }}
+          subject-digest: ${{ steps.push-web.outputs.digest }}
+          push-to-registry: true
+
+      - name: Keep the SBOMs with the run
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom
+          path: sbom-*.cdx.json
+          retention-days: 90
 
   deploy:
     needs: build-and-push-images
@@ -110,19 +232,46 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
+      packages: read
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Compute image refs (GHCR paths are lowercase)
+      # Roll out exactly what was scanned and signed above: by digest, never by tag,
+      # and only after the signature verifies against this repository's deploy
+      # workflow identity.
+      - name: Image refs (by digest)
         id: img
+        env:
+          API_REF: ${{ needs.build-and-push-images.outputs.api }}
+          WEB_REF: ${{ needs.build-and-push-images.outputs.web }}
         run: |
-          repo_lc="${IMAGE_NAME,,}"
-          sha7="${GITHUB_SHA::7}"
-          echo "api=${REGISTRY}/${repo_lc}-api:sha-${sha7}" >> "$GITHUB_OUTPUT"
-          echo "web=${REGISTRY}/${repo_lc}-web:sha-${sha7}" >> "$GITHUB_OUTPUT"
+          { echo "api=$API_REF"; echo "web=$WEB_REF"; } >> "$GITHUB_OUTPUT"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify signatures before rollout
+        env:
+          API_IMAGE: ${{ steps.img.outputs.api }}
+          WEB_IMAGE: ${{ steps.img.outputs.web }}
+          IDENTITY: ^https://github.com/${{ github.repository }}/\.github/workflows/deploy\.yml@refs/heads/main$
+        run: |
+          for ref in "$API_IMAGE" "$WEB_IMAGE"; do
+            cosign verify "$ref" \
+              --certificate-identity-regexp "$IDENTITY" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+            echo "✓ signature verified: $ref"
+          done
 
       - name: Set up kubeconfig
         run: |
