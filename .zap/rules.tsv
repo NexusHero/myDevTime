@@ -1,0 +1,11 @@
+# ZAP baseline rules for .github/workflows/dast.yml (ADR-0078 #8). Tab-separated:
+# <rule id>	<IGNORE|INFO|WARN|FAIL>	<why>. With -I only FAIL rules break the scan.
+# FAIL = a header we ship today; losing it is a regression. WARN = known, documented gap.
+10020	FAIL	(Anti-clickjacking header — nginx.conf X-Frame-Options)
+10021	FAIL	(X-Content-Type-Options — nginx.conf)
+10036	FAIL	(Server version leak — nginx.conf server_tokens off)
+10063	FAIL	(Permissions-Policy — nginx.conf)
+10038	WARN	(CSP not set yet: react-native-web injects inline styles; hardening.md §9)
+90004	WARN	(CORP is set; COEP require-corp would block cross-origin fonts/images)
+10049	IGNORE	(Static SPA assets are meant to be cacheable)
+10109	IGNORE	(Informational: modern JS app, the traditional spider sees little)
