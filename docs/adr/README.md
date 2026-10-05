@@ -163,6 +163,7 @@ One line per technology so the stack's shape stays visible without re-reading th
 | Dependabot (npm + github-actions, grouped) | Adopt | ADR-0016 |
 | GitHub Pages OpenAPI mirror (self-hosted Swagger UI) | Adopt | ADR-0016 |
 | Deploy gate: rollout waits for the named quality/security workflows of the same push (`wait-for-checks.mjs`) | Adopt | ADR-0078 |
+| gitleaks secret scanning (full history in CI, staged in pre-commit; digest-pinned image) | Adopt | ADR-0078 |
 | Provider-agnostic `LlmPort` (ports & adapters for the LLM) | Adopt | ADR-0029 |
 | Anthropic (Claude) LLM adapter | Trial (launch rail, behind the port) | ADR-0029 |
 | OpenAI LLM adapter | Trial (launch rail, behind the port) | ADR-0029 |

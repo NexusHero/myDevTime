@@ -10,8 +10,8 @@ a stage is ✅ only when it can actually stop a bad change.
 
 | # | Stage | Tooling | Where | Blocks | Status |
 |---|-------|---------|-------|--------|--------|
-| 1 | Pre-commit | full local gate (`./test.sh`) | `scripts/hooks/pre-commit` | the commit | ✅ |
-| 2 | Secrets | — | — | — | ⏳ planned (ADR-0078 #2) |
+| 1 | Pre-commit | staged secret scan (gitleaks, if installed) + full local gate (`./test.sh`) | `scripts/hooks/pre-commit` | the commit | ✅ |
+| 2 | Secrets | gitleaks (default rules, [`.gitleaks.toml`](../../.gitleaks.toml)), full history; staged changes in the hook | `security.yml`, `scripts/hooks/pre-commit` | PR, deploy, the commit (when installed locally) | ✅ |
 | 3 | SAST | CodeQL `security-and-quality` | `codeql.yml` | PR, deploy | ✅ |
 | 4 | SCA (dependencies) | OSV-Scanner over `pnpm-lock.yaml`; Dependabot; dependency review | `security.yml` | PR, deploy | ✅ (dependency review informational until the Dependency Graph is on) |
 | 5 | Build & test | `./test.sh`, Postgres integration, container smoke, browser E2E | `ci.yml`, `container-smoke.yml`, `acceptance-e2e.yml` | PR, deploy | ✅ |

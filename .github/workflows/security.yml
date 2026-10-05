@@ -31,6 +31,24 @@ jobs:
         --config=./osv-scanner.toml
       fail-on-vuln: true
 
+  # Secret scanning (ADR-0078 #2): every commit in the history, not just the diff —
+  # a key committed and "removed" later is still public. The image is pinned by
+  # digest; config and the empty-allowlist policy live in .gitleaks.toml.
+  secrets:
+    name: Secret scan (gitleaks, full history)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Scan every commit for secrets
+        run: >-
+          docker run --rm -v "$PWD:/repo" -w /repo
+          ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+          git . --config .gitleaks.toml --redact --no-banner --verbose
+
   dependency-review:
     name: Dependency review
     runs-on: ubuntu-latest
