@@ -38,3 +38,37 @@ reason = "@fastify/static via fastify/@nestjs/swagger — patched only in v10, w
 [[IgnoredVulns]]
 id = "GHSA-8pvw-jcv7-9cmj"
 reason = "@fastify/static via fastify/@nestjs/swagger — patched only in v10, which @nestjs/swagger's peer range (v8||v9) rejects; no wildcard paths served (docs/security/audit-exceptions.md)"
+
+# --- braces: no patched release exists. Reached only through micromatch inside
+# build/test tooling (jest/babel-jest, metro-file-map, fast-glob under @expo/cli and
+# expo-modules-autolinking, jscodeshift under @react-native/codegen). Its input is
+# glob patterns we author, never user input; never shipped.
+[[IgnoredVulns]]
+id = "GHSA-vfj7-8cjw-p6xm"
+reason = "braces via micromatch in jest/metro/expo build tooling — no fix released, patterns are ours, never shipped (docs/security/audit-exceptions.md)"
+
+# --- image-size: the fix is the 2.x major, which metro@0.81 (Expo SDK 52) does not
+# accept. Metro reads our own bundled image assets at build time; never shipped.
+[[IgnoredVulns]]
+id = "GHSA-5p2g-fcmc-qvqq"
+reason = "image-size via metro (Expo SDK 52 bundler) — build-time only, reads our own assets; fix is a major metro does not accept (docs/security/audit-exceptions.md)"
+
+[[IgnoredVulns]]
+id = "GHSA-w3rx-r6r6-pgpr"
+reason = "image-size via metro (Expo SDK 52 bundler) — build-time only, reads our own assets; fix is a major metro does not accept (docs/security/audit-exceptions.md)"
+
+# --- node-forge: no patched release exists. Reached only through the Expo build CLI
+# (@expo/cli dev-server certificates); the app and the server never verify RSA
+# signatures with it.
+[[IgnoredVulns]]
+id = "GHSA-86w9-cpqp-85rv"
+reason = "node-forge via expo > @expo/cli — build/dev CLI only, no fix released, never shipped (docs/security/audit-exceptions.md)"
+
+# --- decode-uri-component@0.2.2: FIXED by a local backport, not accepted. OSV reads
+# the version number only, so it still lists the advisory. The fix (0.5.0) is
+# ESM-only; query-string@7 (react-navigation / expo-router, shipped in the web
+# bundle) requires it, so patches/decode-uri-component@0.2.2.patch ports 0.5.0's
+# linear-time decoder; scripts/patches.test.mjs fails without it.
+[[IgnoredVulns]]
+id = "GHSA-vcc3-ghjq-m6fr"
+reason = "decode-uri-component@0.2.2 is patched with the 0.5.0 fix (patches/, regression-tested in scripts/patches.test.mjs)"

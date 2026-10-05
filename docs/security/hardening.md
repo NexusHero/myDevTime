@@ -193,6 +193,9 @@ network-level DoS protection is an edge/infra concern that is out of scope for t
 
 - CI runs **OSV-Scanner** over the pnpm lockfile (`.github/workflows/security.yml`,
   ADR-0016); npm's retired audit endpoints are deliberately not relied on.
+- Where an upstream fix lives only in a release the tree cannot take, it is backported as a
+  pnpm patch ([`patches/`](../../patches/README.md)) with a regression test that is red
+  without it — fixed, not accepted.
 - Every knowingly-accepted advisory is documented and revisited in
   [`audit-exceptions.md`](audit-exceptions.md) — no silent suppressions. The current
   accepted set is **build/CLI tooling only** (Expo build CLI, drizzle-kit), never shipped

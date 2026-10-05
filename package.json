@@ -36,7 +36,7 @@
     "@testing-library/react-native": "12.5.1",
     "@types/node": "^26.1.1",
     "@types/react-test-renderer": "18.3.0",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^10.7.0",
     "globals": "^17.7.0",
     "jsdom": "^29.1.1",
@@ -45,18 +45,20 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",
     "unplugin-swc": "^1.5.9",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "resolutions": {
     "vite": ">=6.4.3",
-    "@xmldom/xmldom": ">=0.8.13",
-    "@expo/plist>@xmldom/xmldom": "0.8.13",
+    "@xmldom/xmldom": ">=0.8.15",
+    "@expo/plist>@xmldom/xmldom": "0.8.15",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "tar": ">=7.5.21",
     "fast-uri": "^3.1.4",
     "brace-expansion": ">=5.0.8",
     "find-my-way": ">=9.7.0",
-    "postcss": ">=8.5.18"
+    "postcss": ">=8.5.18",
+    "fastify": "^5.12.5",
+    "js-yaml@4": "^4.3.2"
   }
 }

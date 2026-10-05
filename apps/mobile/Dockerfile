@@ -7,6 +7,8 @@ WORKDIR /app
 
 # Copy workspace configuration and lockfile
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./
+# Security backports applied by pnpm at install time (pnpm-workspace.yaml patchedDependencies).
+COPY patches ./patches
 
 # Copy all packages and apps
 COPY packages ./packages

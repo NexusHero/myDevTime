@@ -7,6 +7,8 @@ WORKDIR /app
 
 # Copy workspace configuration and lockfile
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./
+# Security backports applied by pnpm at install time (pnpm-workspace.yaml patchedDependencies).
+COPY patches ./patches
 
 # Copy all packages and apps (we need the source to build)
 COPY packages ./packages
@@ -23,7 +25,10 @@ RUN cp -r apps/api/src/db/migrations apps/api/dist/db/migrations
 RUN cp -r apps/api/src/modules/billing/export/fonts apps/api/dist/modules/billing/export/fonts
 
 # Deploy only the API and its prod dependencies into a clean directory
-RUN pnpm deploy --legacy --filter @mydevtime/api --prod /prod/api
+# The API's prod subtree contains none of the patched packages (patches/ backports
+# client-bundle deps), so allow unused patches for this one step only — globally a
+# patch that silently stops applying must stay an error.
+RUN pnpm deploy --legacy --filter @mydevtime/api --prod --config.allow-unused-patches=true /prod/api
 
 # ---------------------------------------------------------
 FROM node:22-alpine AS runner
