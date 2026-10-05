@@ -7,8 +7,10 @@ WORKDIR /app
 
 # Copy workspace configuration and lockfile
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./
-# Security backports applied by pnpm at install time (pnpm-workspace.yaml patchedDependencies).
+# Security backports applied by pnpm at install time (pnpm-workspace.yaml patchedDependencies),
+# and the install hook that keeps optional build-tool peers out of the tree (.pnpmfile.cjs).
 COPY patches ./patches
+COPY .pnpmfile.cjs ./
 
 # Copy all packages and apps
 COPY packages ./packages
@@ -37,6 +39,10 @@ RUN pnpm run export:web
 
 # ---------------------------------------------------------
 FROM nginx:alpine AS runner
+
+# Pull Alpine's security fixes, which land before the official nginx image is
+# rebuilt (ADR-0078).
+RUN apk upgrade --no-cache
 
 # Copy nginx config
 COPY apps/mobile/nginx.conf /etc/nginx/conf.d/default.conf
