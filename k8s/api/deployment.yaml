@@ -12,6 +12,15 @@ spec:
       labels:
         app: api
     spec:
+      # Least privilege (ADR-0078 #5): non-root (the image's `node` user, uid 1000),
+      # default seccomp profile. Verified with docker run --read-only --cap-drop ALL
+      # --security-opt no-new-privileges --user 1000:1000 (boot, auth, migrations).
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: api
           # Bootstrap tag; the deploy workflow pins the exact SHA via `kubectl set image`.
@@ -51,6 +60,14 @@ spec:
                 secretKeyRef:
                   name: api-secrets
                   key: TRUSTED_ORIGINS
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ['ALL']
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
           ports:
             - containerPort: 3000
           resources:
@@ -74,3 +91,6 @@ spec:
               port: 3000
             initialDelaySeconds: 15
             periodSeconds: 20
+      volumes:
+        - name: tmp
+          emptyDir: {}

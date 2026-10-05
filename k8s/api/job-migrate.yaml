@@ -9,6 +9,15 @@ spec:
   backoffLimit: 4
   template:
     spec:
+      # Least privilege (ADR-0078 #5): non-root (the image's `node` user, uid 1000),
+      # default seccomp profile. Verified with docker run --read-only --cap-drop ALL
+      # --security-opt no-new-privileges --user 1000:1000 (boot, auth, migrations).
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: api-migrate
           # ${API_IMAGE} is substituted with the freshly built SHA by the deploy
@@ -25,4 +34,28 @@ spec:
               value: 'postgres://mydevtime:$(POSTGRES_PASSWORD)@postgres:5432/mydevtime'
             - name: NODE_ENV
               value: 'production'
+            # The API's production config check runs before any migration and
+            # refuses to start without these (the compose migrate service sets
+            # them too); without them this Job failed and blocked every rollout.
+            - name: AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: api-secrets
+                  key: AUTH_SECRET
+            - name: AUTH_BASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: api-secrets
+                  key: AUTH_BASE_URL
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ['ALL']
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
       restartPolicy: Never
+      volumes:
+        - name: tmp
+          emptyDir: {}

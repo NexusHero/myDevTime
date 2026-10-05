@@ -20,7 +20,7 @@ a stage is ✅ only when it can actually stop a bad change.
 | 8 | Gate & release | `gate` job waits for CI, Security, CodeQL, Container smoke, Acceptance (E2E) of the same push | `deploy.yml` + [`scripts/wait-for-checks.mjs`](../../scripts/wait-for-checks.mjs) | the rollout | ✅ |
 | — | Workflow hardening | every action pinned to a commit SHA (Dependabot updates the pins), `persist-credentials: false`, untrusted context via `env:`, no cache in the release, `gh` instead of a third-party release action; `zizmor` audit (online: verifies the pinned SHAs) | all workflows; gate in `security.yml` | PR, deploy | ✅ |
 | — | Lean runtime images | runtime stages run `apk upgrade` and ship no npm/corepack/yarn; [`.pnpmfile.cjs`](../../.pnpmfile.cjs) drops optional build-tool peers (drizzle-kit, vitest, react, expo-sqlite) so `pnpm deploy --prod` no longer copies Expo, Metro and esbuild into the API image (1.08 GB → 492 MB) | `apps/*/Dockerfile`, `.pnpmfile.cjs` | — (prerequisite for the image scan gate) | ✅ |
-| — | IaC (Dockerfiles, `k8s/`) | — | — | — | ⏳ planned (ADR-0078 #5) |
+| — | IaC (Dockerfiles, `k8s/`) | `trivy config` (HIGH/CRITICAL); path-scoped exceptions with reasons in [`trivy-iac-ignore.yaml`](../../trivy-iac-ignore.yaml). API and migration Job run non-root, read-only root, all capabilities dropped, `RuntimeDefault` seccomp; web keeps only the four capabilities nginx needs | `security.yml` | PR, deploy | ✅ (Postgres/Redis hardening: follow-up, needs a verified cluster rollout) |
 
 ## How the deploy gate works
 
