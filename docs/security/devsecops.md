@@ -18,7 +18,7 @@ a stage is ✅ only when it can actually stop a bad change.
 | 6 | Fuzzing / DAST | — | — | — | ⏳ planned (ADR-0078 #7, #8) |
 | 7 | SBOM, signing, provenance | — | — | — | ⏳ planned (ADR-0078 #4, #6) |
 | 8 | Gate & release | `gate` job waits for CI, Security, CodeQL, Container smoke, Acceptance (E2E) of the same push | `deploy.yml` + [`scripts/wait-for-checks.mjs`](../../scripts/wait-for-checks.mjs) | the rollout | ✅ |
-| — | Workflow hardening | — | — | — | ⏳ planned (ADR-0078 #3) |
+| — | Workflow hardening | every action pinned to a commit SHA (Dependabot updates the pins), `persist-credentials: false`, untrusted context via `env:`, no cache in the release, `gh` instead of a third-party release action; `zizmor` audit (online: verifies the pinned SHAs) | all workflows; gate in `security.yml` | PR, deploy | ✅ |
 | — | IaC (Dockerfiles, `k8s/`) | — | — | — | ⏳ planned (ADR-0078 #5) |
 
 ## How the deploy gate works

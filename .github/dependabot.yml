@@ -11,6 +11,8 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: development
+  # Actions are pinned to commit SHAs with the version in a trailing comment
+  # (ADR-0078); Dependabot bumps both together.
   - package-ecosystem: github-actions
     directory: '/'
     schedule:
