@@ -170,6 +170,7 @@ One line per technology so the stack's shape stays visible without re-reading th
 | Trivy image gate before push + CycloneDX SBOM (digest-pinned `aquasec/trivy`) | Adopt | ADR-0078 |
 | cosign keyless signing + signed SBOM attestation + GitHub build provenance; rollout by digest after `cosign verify` | Adopt | ADR-0078 |
 | `trivy config` IaC gate (Dockerfiles + k8s) with path-scoped exceptions; restrictive pod/container `securityContext`s | Adopt | ADR-0078 |
+| Release SBOM (CycloneDX, workspace) + provenance attestation on every GitHub Release | Adopt | ADR-0078 |
 | Provider-agnostic `LlmPort` (ports & adapters for the LLM) | Adopt | ADR-0029 |
 | Anthropic (Claude) LLM adapter | Trial (launch rail, behind the port) | ADR-0029 |
 | OpenAI LLM adapter | Trial (launch rail, behind the port) | ADR-0029 |
