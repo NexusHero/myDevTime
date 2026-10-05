@@ -21,6 +21,8 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      id-token: write # build-provenance attestation for the release assets (OIDC)
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -46,16 +48,33 @@ jobs:
       - name: Emit OpenAPI spec
         run: pnpm --filter @mydevtime/api openapi:emit
 
+      # Release SBOM (ADR-0078 #6): every dependency of the workspace, from the
+      # lockfile, as CycloneDX — what a consumer needs to answer "are we affected?"
+      # for this exact release. The deployed images carry their own SBOMs (deploy.yml).
+      - name: SBOM of the release (CycloneDX)
+        run: >-
+          docker run --rm -v "$PWD:/src" -w /src
+          aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa
+          fs --skip-dirs node_modules --skip-dirs spikes --skip-dirs e2e
+          --format cyclonedx --output /src/sbom.cdx.json .
+
+      - name: Attest the release assets
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            apps/api/openapi.json
+            sbom.cdx.json
+
       # The runner's own `gh` instead of a third-party action with write access.
       # Re-running for an existing tag refreshes its assets instead of failing.
-      - name: Publish release with the OpenAPI spec
+      - name: Publish release with the OpenAPI spec and SBOM
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" apps/api/openapi.json --clobber
+            gh release upload "$TAG" apps/api/openapi.json sbom.cdx.json --clobber
           else
-            gh release create "$TAG" apps/api/openapi.json --generate-notes --target "$GITHUB_SHA"
+            gh release create "$TAG" apps/api/openapi.json sbom.cdx.json --generate-notes --target "$GITHUB_SHA"
           fi
