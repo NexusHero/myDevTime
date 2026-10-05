@@ -164,6 +164,8 @@ One line per technology so the stack's shape stays visible without re-reading th
 | GitHub Pages OpenAPI mirror (self-hosted Swagger UI) | Adopt | ADR-0016 |
 | Deploy gate: rollout waits for the named quality/security workflows of the same push (`wait-for-checks.mjs`) | Adopt | ADR-0078 |
 | gitleaks secret scanning (full history in CI, staged in pre-commit; digest-pinned image) | Adopt | ADR-0078 |
+| GitHub Actions pinned to full commit SHAs (version in a comment, kept current by Dependabot) | Adopt | ADR-0078 |
+| zizmor workflow audit (CI gate over `.github/workflows`) | Adopt | ADR-0078 |
 | Provider-agnostic `LlmPort` (ports & adapters for the LLM) | Adopt | ADR-0029 |
 | Anthropic (Claude) LLM adapter | Trial (launch rail, behind the port) | ADR-0029 |
 | OpenAI LLM adapter | Trial (launch rail, behind the port) | ADR-0029 |

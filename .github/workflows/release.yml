@@ -22,12 +22,17 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-          cache: pnpm
+          # No dependency cache here: a tag-triggered release must not restore a
+          # cache an earlier, possibly untrusted run wrote (cache poisoning, ADR-0078).
+          # setup-node caches automatically when package.json names a packageManager.
+          package-manager-cache: false
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -41,11 +46,16 @@ jobs:
       - name: Emit OpenAPI spec
         run: pnpm --filter @mydevtime/api openapi:emit
 
+      # The runner's own `gh` instead of a third-party action with write access.
+      # Re-running for an existing tag refreshes its assets instead of failing.
       - name: Publish release with the OpenAPI spec
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ inputs.tag || github.ref_name }}
-          files: apps/api/openapi.json
-          generate_release_notes: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" apps/api/openapi.json --clobber
+          else
+            gh release create "$TAG" apps/api/openapi.json --generate-notes --target "$GITHUB_SHA"
+          fi
