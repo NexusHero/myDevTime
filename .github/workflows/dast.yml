@@ -1,0 +1,62 @@
+name: DAST (ZAP baseline)
+
+# Dynamic scan (ADR-0078 #8): start the production images exactly as the container
+# smoke test does, then run the OWASP ZAP baseline (passive) scan against the web
+# edge. Rules marked FAIL in .zap/rules.tsv break the run; WARN entries are known,
+# documented gaps. Nightly and on demand — never against production.
+on:
+  schedule:
+    - cron: '17 2 * * *' # nightly 02:17 UTC
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'apps/mobile/nginx.conf'
+      - '.zap/**'
+      - '.github/workflows/dast.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dast-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zap:
+    name: ZAP baseline vs the running stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build and start the stack
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --build
+
+      - name: Wait for the stack
+        run: bash scripts/container-smoke.sh
+
+      - name: ZAP baseline scan
+        run: |
+          mkdir -p zap-report && chmod 777 zap-report
+          docker run --rm --network host \
+            -v "$PWD/.zap:/zap/rules:ro" -v "$PWD/zap-report:/zap/wrk:rw" \
+            ghcr.io/zaproxy/zaproxy:stable@sha256:781a2bdaea47324e7bab583e2263f21d257b0aee61ed51521a5be45f5f5081ef \
+            zap-baseline.py -t http://localhost:8080 -m 3 -I \
+            -c /zap/rules/rules.tsv -r report.html -J report.json
+
+      - name: Upload the ZAP report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: zap-report
+          path: zap-report
+          retention-days: 30
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v

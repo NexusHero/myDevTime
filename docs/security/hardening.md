@@ -215,6 +215,9 @@ network-level DoS protection is an edge/infra concern that is out of scope for t
 
 - **Rate limiting** is single-tier and per-instance without Redis (`§7`). A production
   multi-node deploy should provision `REDIS_URL` and add an edge WAF.
+- **CSP** is the one edge header still missing (the nightly ZAP scan reports it as a known
+  `WARN`): react-native-web injects inline styles, so a policy needs its own tested change.
+  All other edge headers are set by nginx and guarded by `.zap/rules.tsv`.
 - **`/docs` (Swagger UI)** is the only HTML surface and the reason no CSP ships; gate or
   disable it in production if it need not be public.
 - **CSRF:** cookie-session flows rely on Better-Auth's protections + `SameSite`; verify the
