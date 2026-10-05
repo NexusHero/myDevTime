@@ -1,0 +1,11 @@
+# gitleaks configuration (ADR-0078 #2) — run by `.github/workflows/security.yml` over the
+# full history and by `scripts/hooks/pre-commit` over the staged changes.
+#
+# The default rule set is used unchanged. A full-history scan on 2026-10-05 found no
+# leaks, so there is no allowlist. If a false positive ever needs one, add the narrowest
+# possible `[[allowlists]]` entry (a single path or regex, never a directory) with a
+# comment saying why it is not a secret — the same discipline as osv-scanner.toml.
+title = "myDevTime"
+
+[extend]
+useDefault = true

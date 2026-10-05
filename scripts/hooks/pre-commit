@@ -39,4 +39,17 @@ if ! command -v pnpm >/dev/null 2>&1; then
   exit 0
 fi
 
+# 4) Secret scan of the staged changes (ADR-0078 #2) — cheap, so it runs before the
+#    gate. Optional locally (CI scans the full history regardless), but a found secret
+#    blocks the commit: once pushed to a public repo it must be rotated, not deleted.
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks git --pre-commit --staged --redact --no-banner --config .gitleaks.toml; then
+    echo "✗ pre-commit: gitleaks found a secret in the staged changes (see above)." >&2
+    echo "  Remove it from the change. If it is a false positive, see .gitleaks.toml." >&2
+    exit 1
+  fi
+else
+  echo "ℹ pre-commit: gitleaks not installed — staged secret scan skipped (CI still scans)." >&2
+fi
+
 exec ./test.sh
