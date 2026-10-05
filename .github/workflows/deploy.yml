@@ -273,10 +273,30 @@ jobs:
             echo "✓ signature verified: $ref"
           done
 
+      # No cluster credentials, no rollout: everything above (gate, scan, sign,
+      # attest, verify) has run and is the deliverable; the rollout is skipped with
+      # a visible warning instead of failing against an empty kubeconfig. Set the
+      # KUBECONFIG repository secret to enable it (k8s/README.md).
+      - name: Check for cluster credentials
+        id: cluster
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG }}
+        run: |
+          if [ -n "$KUBECONFIG_CONTENT" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Rollout skipped::No KUBECONFIG secret is set, so the verified images were not rolled out. Add the secret to deploy to the cluster."
+            echo "### ⚠️ Rollout skipped — no \`KUBECONFIG\` secret" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Set up kubeconfig
+        if: steps.cluster.outputs.configured == 'true'
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG }}
         run: |
           mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG }}" > ~/.kube/config
+          printf '%s\n' "$KUBECONFIG_CONTENT" > ~/.kube/config
           chmod 600 ~/.kube/config
 
       # Bootstrap/converge the cluster objects. Idempotent: safe on the first deploy
@@ -284,6 +304,7 @@ jobs:
       # applied here — they are managed out-of-band (see k8s/README.md), so the
       # tracked *.example.yaml templates never overwrite real credentials.
       - name: Apply manifests
+        if: steps.cluster.outputs.configured == 'true'
         run: |
           kubectl apply -f k8s/postgres/service.yaml -f k8s/postgres/statefulset.yaml
           kubectl apply -f k8s/redis/deployment.yaml -f k8s/redis/service.yaml
@@ -294,6 +315,7 @@ jobs:
       # Run migrations with the image being deployed (not :latest), before rolling
       # out the app. delete-before-apply + ttlSecondsAfterFinished keep re-runs clean.
       - name: Run database migrations
+        if: steps.cluster.outputs.configured == 'true'
         env:
           API_IMAGE: ${{ steps.img.outputs.api }}
         run: |
@@ -307,6 +329,7 @@ jobs:
           kubectl delete job/api-migrate --ignore-not-found
 
       - name: Roll out new images
+        if: steps.cluster.outputs.configured == 'true'
         env:
           API_IMAGE: ${{ steps.img.outputs.api }}
           WEB_IMAGE: ${{ steps.img.outputs.web }}

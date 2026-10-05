@@ -54,6 +54,7 @@ gh attestation verify oci://ghcr.io/nexushero/mydevtime-api@sha256:<digest> -R N
 
 | Setting | Where | Why |
 |---------|-------|-----|
+| `KUBECONFIG` repository secret | Settings → Secrets and variables → Actions | Without it the deploy workflow still gates, scans, signs, attests and verifies, then **skips the rollout with a warning** instead of failing. |
 | Branch protection on `main`: require PRs and the checks *Local gate*, *Integration (Postgres)*, *OSV vulnerability scan*, *Analyze (javascript-typescript)* | Settings → Branches | Stops a red change from reaching `main` at all; the deploy gate is the second line. |
 | Secret scanning + push protection | Settings → Code security | GitHub blocks a push containing a known token format, before it is public. |
 | Dependency Graph | Settings → Code security | Turns `dependency-review` from informational into a real gate. |
