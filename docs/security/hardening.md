@@ -196,6 +196,9 @@ network-level DoS protection is an edge/infra concern that is out of scope for t
   quality and security workflow of the same commit.
 - CI runs **OSV-Scanner** over the pnpm lockfile (`.github/workflows/security.yml`,
   ADR-0016); npm's retired audit endpoints are deliberately not relied on.
+- The production images carry only what runs: the API image ships no package manager
+  and none of the build tooling optional peers used to drag in (`.pnpmfile.cjs`); both
+  runtime stages pull Alpine's security fixes at build time.
 - Where an upstream fix lives only in a release the tree cannot take, it is backported as a
   pnpm patch ([`patches/`](../../patches/README.md)) with a regression test that is red
   without it — fixed, not accepted.
