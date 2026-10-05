@@ -12,11 +12,32 @@ spec:
       labels:
         app: web
     spec:
+      # Least privilege (ADR-0078 #5). The nginx master starts as root and drops
+      # its workers to the `nginx` user, so it keeps exactly the four capabilities
+      # that needs; everything else is dropped, the root filesystem is read-only
+      # and nginx's writable paths are emptyDirs. Verified with docker run
+      # --read-only --cap-drop ALL (+ these four) --security-opt no-new-privileges.
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: web
           # Bootstrap tag; the deploy workflow pins the exact SHA via `kubectl set image`.
           image: ghcr.io/nexushero/mydevtime-web:latest
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ['ALL']
+              add: ['CHOWN', 'SETUID', 'SETGID', 'NET_BIND_SERVICE']
+          volumeMounts:
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+            - name: tmp
+              mountPath: /tmp
           ports:
             - containerPort: 80
           resources:
@@ -38,3 +59,10 @@ spec:
               port: 80
             initialDelaySeconds: 5
             periodSeconds: 20
+      volumes:
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

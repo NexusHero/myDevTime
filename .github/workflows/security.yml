@@ -69,6 +69,23 @@ jobs:
           ghcr.io/zizmorcore/zizmor:1.30.1@sha256:a2eb396d886c053073405c7a980f2139ba2248ec172243cfa3841e57196e8101
           --format=github .github/workflows
 
+  # IaC gate (ADR-0078 #5): Dockerfiles and Kubernetes manifests. Accepted findings
+  # are path-scoped, with reasons, in trivy-iac-ignore.yaml.
+  iac:
+    name: IaC scan (Dockerfiles, k8s)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Scan Dockerfiles and k8s manifests
+        run: >-
+          docker run --rm -v "$PWD:/src:ro" -w /src
+          aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa
+          config --exit-code 1 --severity HIGH,CRITICAL
+          --ignorefile trivy-iac-ignore.yaml .
+
   dependency-review:
     name: Dependency review
     runs-on: ubuntu-latest

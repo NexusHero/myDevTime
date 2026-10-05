@@ -1,0 +1,29 @@
+# Accepted IaC findings for the `trivy config` gate in .github/workflows/security.yml
+# (ADR-0078 #5). Each entry is scoped to the exact files it applies to, with the
+# reason and the condition to revisit — never a blanket rule ID.
+misconfigurations:
+  # The stateful services run the official postgres/redis images, whose entrypoints
+  # start as root to fix data-directory ownership and then drop privileges. Giving
+  # them a read-only root and a restricted security context changes the pod spec of
+  # the production database, which restarts it on the next deploy — that needs a
+  # verified rollout on the cluster, not a blind change. Revisit: a dedicated
+  # change with the per-image writable paths, tested on a staging namespace.
+  - id: KSV-0014
+    paths:
+      - k8s/postgres/statefulset.yaml
+      - k8s/redis/deployment.yaml
+    statement: Stateful official images; hardening needs a verified cluster rollout (docs/security/devsecops.md)
+  - id: KSV-0118
+    paths:
+      - k8s/postgres/statefulset.yaml
+      - k8s/redis/deployment.yaml
+    statement: Stateful official images; hardening needs a verified cluster rollout (docs/security/devsecops.md)
+
+  # nginx's master process starts as root and drops its workers to the `nginx`
+  # user. In the cluster it runs with a read-only root, no privilege escalation and
+  # only CHOWN/SETUID/SETGID/NET_BIND_SERVICE (k8s/web/deployment.yaml). Revisit:
+  # switch to an unprivileged nginx on port 8080 (service + ingress + compose change).
+  - id: DS-0002
+    paths:
+      - apps/mobile/Dockerfile
+    statement: nginx master needs root to drop workers; contained by the pod securityContext
