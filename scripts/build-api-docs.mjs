@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 // Build a static, read-only mirror of the OpenAPI reference for GitHub Pages
 // (ADR-0016). The interactive docs for real calls live at the running server's
-// /documentation (served by @fastify/swagger-ui). This mirror is for browsing
+// docs (served by @nestjs/swagger, ADR-0025). This mirror is for browsing
 // only, so "Try it out" is disabled — it isn't authenticated against a live
 // server.
 //
-// Assets are copied from the @fastify/swagger-ui package we already depend on
-// (its bundled static/ folder), so there is no CDN and no extra dependency —
-// same self-hosting reasoning as the in-app docs.
+// Assets are copied from swagger-ui-dist, which @nestjs/swagger already depends
+// on, so there is no CDN and no extra dependency — same self-hosting reasoning
+// as the in-app docs. (The previous source, @fastify/swagger-ui, left with the
+// NestJS migration, which is what broke this workflow.)
 //
 // Usage: node scripts/build-api-docs.mjs [outDir]   (default: dist-pages)
 import { execFileSync } from 'node:child_process'
@@ -27,9 +28,11 @@ execFileSync('pnpm', ['--filter', '@mydevtime/api', 'openapi:emit'], {
   stdio: 'inherit',
 })
 
-// 2. Locate the self-hosted swagger-ui assets bundled with @fastify/swagger-ui.
-const require = createRequire(join(apiDir, 'package.json'))
-const swaggerUiStatic = join(dirname(require.resolve('@fastify/swagger-ui/package.json')), 'static')
+// 2. Locate the self-hosted swagger-ui assets: swagger-ui-dist, resolved through
+//    @nestjs/swagger exactly as the API itself loads it.
+const fromApi = createRequire(join(apiDir, 'package.json'))
+const fromNestSwagger = createRequire(fromApi.resolve('@nestjs/swagger/package.json'))
+const swaggerUiStatic = dirname(fromNestSwagger.resolve('swagger-ui-dist/package.json'))
 
 // 3. Assemble the static mirror.
 rmSync(out, { recursive: true, force: true })

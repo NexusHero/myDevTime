@@ -39,6 +39,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # apps/api imports @mydevtime/domain through its built `dist` entrypoint, so the
+      # workspace packages must be built first — exactly as ci.yml and release.yml do.
+      - name: Build workspace packages
+        run: pnpm --filter "./packages/*" build
+
       - name: Build the static Swagger-UI mirror
         run: node scripts/build-api-docs.mjs dist-pages
 
