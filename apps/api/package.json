@@ -32,7 +32,7 @@
     "exceljs": "^4.4.0",
     "fastify": "^5.5.0",
     "ioredis": "^5.11.1",
-    "nestjs-zod": "^5.4.0",
+    "nestjs-zod": "^5.5.0",
     "nodemailer": "^9.0.3",
     "pdfkit": "^0.19.1",
     "postgres": "^3.4.5",
