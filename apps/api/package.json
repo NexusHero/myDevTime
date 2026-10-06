@@ -42,13 +42,13 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
-    "@nestjs/testing": "^11.2.4",
-    "@swc/core": "^1.15.46",
-    "@types/nodemailer": "^8.0.1",
+    "@nestjs/testing": "^12.1.2",
+    "@swc/core": "^1.16.13",
+    "@types/nodemailer": "^8.0.2",
     "@types/pdfkit": "^0.17.6",
-    "drizzle-kit": "^0.31.10",
+    "drizzle-kit": "^0.31.11",
     "pdf-parse": "^2.4.5",
-    "tsx": "^4.23.1",
-    "unplugin-swc": "^1.5.9"
+    "tsx": "^4.23.15",
+    "unplugin-swc": "^2.0.0"
   }
 }
