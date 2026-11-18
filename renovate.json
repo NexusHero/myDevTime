@@ -1,0 +1,44 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["npm"],
+  "semanticCommits": "enabled",
+  "commitMessagePrefix": "chore(deps):",
+  "prConcurrentLimit": 5,
+  "schedule": ["before 6am on monday"],
+  "packageRules": [
+    {
+      "description": "Dev tooling travels as one weekly group (minor/patch); majors stay separate so a breaking one never blocks the rest.",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "dev tooling",
+      "commitMessagePrefix": "chore(deps-dev):"
+    },
+    {
+      "description": "Expo SDK-bound packages are pinned together by the SDK (bundledNativeModules.json). Moving one alone breaks the app (ADR-0080), so they only move with `expo` itself, via `expo install --fix`.",
+      "matchPackageNames": [
+        "react",
+        "react-dom",
+        "react-native",
+        "react-native-web",
+        "react-test-renderer",
+        "@types/react",
+        "@types/react-test-renderer",
+        "/^react-native-/",
+        "/^@react-native/",
+        "/^@react-native-async-storage//",
+        "/^expo-/",
+        "/^@expo//",
+        "@shopify/flash-list"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "An Expo SDK upgrade is its own reviewed migration (ADR-0080), never an automatic bump.",
+      "matchPackageNames": ["expo"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "labels": ["expo-sdk"]
+    }
+  ]
+}
