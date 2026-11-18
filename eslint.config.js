@@ -28,6 +28,12 @@ export default tseslint.config(
         'error',
         { 'ts-expect-error': 'allow-with-description' },
       ],
+      // New in typescript-eslint 8.72's strict preset, and option-less. It assumes a
+      // class-typed value must come from its constructor, which this codebase never
+      // does by design: nestjs-zod DTOs are plain objects the Zod pipe parses, Nest's
+      // `NestApplicationContextOptions` is an options bag, and a Drizzle transaction
+      // is passed where `Db` is expected. All 45 hits were these; none was a bug.
+      '@typescript-eslint/no-unsafe-class-instance-assignment': 'off',
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
