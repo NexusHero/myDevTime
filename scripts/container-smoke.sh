@@ -25,7 +25,7 @@ wait_ready() {
   local url="$API/health/ready"
   printf 'Waiting for %s ' "$url"
   for _ in $(seq 1 60); do
-    if [ "$(code_of "$url")" = "200" ]; then
+    if [[ "$(code_of "$url")" = "200" ]]; then
       printf ' ready\n'
       return 0
     fi
@@ -41,7 +41,7 @@ FAILED=0
 assert() {
   local name="$1" url="$2" want="$3" got
   got=$(code_of "$url")
-  if [ "$got" = "$want" ]; then
+  if [[ "$got" = "$want" ]]; then
     printf '  ✓ %-34s %s → %s\n' "$name" "$url" "$got"
   else
     printf '  ✗ %-34s %s → %s (expected %s)\n' "$name" "$url" "$got" "$want"
@@ -59,7 +59,7 @@ assert 'web SPA served'    "$WEB/"                        200
 # anonymous request. A 401 proves the whole path (nginx → NestJS → guard) is live.
 assert 'edge → api (guard)' "$WEB/api/billing/invoices"   401
 
-if [ "$FAILED" -ne 0 ]; then
+if [[ "$FAILED" -ne 0 ]]; then
   echo 'Container smoke test FAILED' >&2
   exit 1
 fi

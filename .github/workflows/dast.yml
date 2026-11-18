@@ -42,7 +42,9 @@ jobs:
 
       - name: ZAP baseline scan
         run: |
-          mkdir -p zap-report && chmod 777 zap-report
+          # The ZAP image writes as its `zap` user (uid 1000): hand it the report dir
+          # instead of making it world-writable.
+          sudo install -d -m 755 -o 1000 -g 1000 zap-report
           docker run --rm --network host \
             -v "$PWD/.zap:/zap/rules:ro" -v "$PWD/zap-report:/zap/wrk:rw" \
             ghcr.io/zaproxy/zaproxy:stable@sha256:781a2bdaea47324e7bab583e2263f21d257b0aee61ed51521a5be45f5f5081ef \

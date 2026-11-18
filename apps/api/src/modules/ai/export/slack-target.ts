@@ -1,3 +1,4 @@
+import { stripTrailingSlashes } from '@mydevtime/domain'
 import {
   ExportUnavailableError,
   type ExportItem,
@@ -42,7 +43,7 @@ export function readSlackExportConfig(
   return {
     botToken,
     channel,
-    ...(teamUrl === null ? {} : { teamUrl: teamUrl.replace(/\/+$/, '') }),
+    ...(teamUrl === null ? {} : { teamUrl: stripTrailingSlashes(teamUrl) }),
   }
 }
 

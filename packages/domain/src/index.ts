@@ -1,4 +1,4 @@
-export { assertNever, clamp } from './util.js'
+export { assertNever, clamp, compareStrings, stripTrailingSlashes } from './util.js'
 
 // Deterministic tracking core (REQ-003, ADR-0005).
 export type { Instant, DurationMs, TimeZone, LocalParts } from './tracking/time.js'

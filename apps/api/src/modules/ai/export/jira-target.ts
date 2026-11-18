@@ -1,3 +1,4 @@
+import { stripTrailingSlashes } from '@mydevtime/domain'
 import {
   ExportUnavailableError,
   type ExportItem,
@@ -43,7 +44,7 @@ export function readJiraExportConfig(
   const projectKey = str(env.EXPORT_JIRA_PROJECT_KEY)
   if (baseUrl === null || email === null || apiToken === null || projectKey === null) return null
   return {
-    baseUrl: baseUrl.replace(/\/+$/, ''),
+    baseUrl: stripTrailingSlashes(baseUrl),
     email,
     apiToken,
     projectKey,

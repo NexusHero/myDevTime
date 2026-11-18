@@ -1,4 +1,4 @@
-import type { TimedSpan } from '@mydevtime/domain'
+import { compareStrings, type TimedSpan } from '@mydevtime/domain'
 
 /**
  * Auto-Tracker per-day reality history (REQ-042, ADR-0064 — **local-only**). Unlike
@@ -99,7 +99,7 @@ function storedDayKeys(store: Storage | null): string[] {
 
 /** Drop days beyond the newest {@link KEEP_DAYS} (day keys sort chronologically). */
 function prune(store: Storage | null): void {
-  const keys = storedDayKeys(store).sort() // ascending → oldest first
+  const keys = storedDayKeys(store).sort(compareStrings) // ascending → oldest first
   const excess = keys.length - KEEP_DAYS
   if (excess <= 0) return
   for (const day of keys.slice(0, excess)) {

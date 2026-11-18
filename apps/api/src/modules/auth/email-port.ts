@@ -32,9 +32,13 @@ export function loggingEmailPort(log: EmailLogger): EmailPort {
   }
 }
 
-/** SMTP transport (nodemailer) built from a connection URL. */
+/**
+ * SMTP transport (nodemailer) built from a connection URL. TLS is mandatory: an
+ * `smtps://` URL connects over TLS, and a plain `smtp://` one must upgrade via
+ * STARTTLS or the send fails — magic links never cross the wire in clear text.
+ */
 export function smtpEmailPort(smtpUrl: string, from: string): EmailPort {
-  const transport = createTransport(smtpUrl)
+  const transport = createTransport({ url: smtpUrl, requireTLS: true })
   return {
     send: async (message: EmailMessage): Promise<void> => {
       await transport.sendMail({

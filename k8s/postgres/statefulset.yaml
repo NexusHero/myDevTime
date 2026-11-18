@@ -13,6 +13,8 @@ spec:
       labels:
         app: postgres
     spec:
+      # No workload talks to the Kubernetes API, so no service-account token is mounted.
+      automountServiceAccountToken: false
       containers:
         - name: postgres
           image: postgres:16-alpine
@@ -25,9 +27,11 @@ spec:
             requests:
               cpu: 100m
               memory: 256Mi
+              ephemeral-storage: 64Mi
             limits:
               cpu: '1'
               memory: 512Mi
+              ephemeral-storage: 256Mi
           # Gate dependents on the DB actually accepting connections.
           readinessProbe:
             exec:

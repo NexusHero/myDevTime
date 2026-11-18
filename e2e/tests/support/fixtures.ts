@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { type APIRequestContext, type Page, expect } from '@playwright/test'
 
 /**
@@ -17,7 +18,7 @@ let seq = 0
 /** A unique test user each call, so parallel/repeat runs never collide. */
 export function freshUser(prefix = 'e2e'): TestUser {
   seq += 1
-  const rand = Math.random().toString(36).slice(2, 8)
+  const rand = randomUUID().slice(0, 8)
   return {
     email: `${prefix}-${String(Date.now())}-${String(seq)}-${rand}@example.test`,
     password: 'E2e-passw0rd!',

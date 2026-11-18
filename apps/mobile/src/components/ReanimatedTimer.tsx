@@ -62,7 +62,7 @@ export function ReanimatedTimer({
   // arithmetic is inlined here rather than calling the JS-thread `formatHms` (a
   // worklet can't call it) — and no standalone `'worklet'` directive is needed.
   const text = useDerivedValue(() => {
-    ticker.value // read to establish the per-frame dependency
+    void ticker.value // read to establish the per-frame dependency
     const total = Math.max(0, Math.floor((accumulatedMs + (Date.now() - startMs)) / 1000))
     const hours = Math.floor(total / 3600)
     const minutes = Math.floor((total % 3600) / 60)

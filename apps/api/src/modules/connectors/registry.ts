@@ -1,3 +1,5 @@
+import { compareStrings } from '@mydevtime/domain'
+
 /**
  * The connector registry (M3, ADR-0032/0033): the dev-relevant integrations and,
  * per provider, the capabilities the product uses and the *least* OAuth scopes each
@@ -181,5 +183,5 @@ export function scopesForGrantedCapabilities(
   for (const cap of spec.capabilities) {
     if (granted.includes(cap.capability)) for (const s of cap.scopes) set.add(s)
   }
-  return [...set].sort()
+  return [...set].sort(compareStrings)
 }

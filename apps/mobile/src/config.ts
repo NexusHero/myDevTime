@@ -1,3 +1,5 @@
+import { stripTrailingSlashes } from '@mydevtime/domain'
+
 /**
  * App configuration read from Expo's public env (issue #11). `EXPO_PUBLIC_*`
  * variables are inlined at build time and safe to read on the client. When no API
@@ -7,7 +9,7 @@
 function readApiBaseUrl(): string | null {
   const raw: unknown = process.env.EXPO_PUBLIC_API_URL
   if (typeof raw !== 'string') return null
-  const trimmed = raw.trim().replace(/\/+$/, '')
+  const trimmed = stripTrailingSlashes(raw.trim())
   return trimmed.length > 0 ? trimmed : null
 }
 
