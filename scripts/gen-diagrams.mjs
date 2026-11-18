@@ -119,14 +119,14 @@ function mermaidBlocks(text) {
   return blocks
 }
 
-/** `text` with every managed region replaced by `fn(code, i)`. */
+/** `text` with every managed region replaced by `fn(code)`. */
 function replaceBlocks(text, fn) {
   let out = ''
   let last = 0
-  mermaidBlocks(text).forEach((b, i) => {
-    out += text.slice(last, b.index) + fn(b.code, i)
+  for (const b of mermaidBlocks(text)) {
+    out += text.slice(last, b.index) + fn(b.code)
     last = b.end
-  })
+  }
   return out + text.slice(last)
 }
 
