@@ -3,6 +3,7 @@ import type { NestFastifyApplication } from '@nestjs/platform-fastify'
 import { loadConfig } from './config.js'
 import { buildApp, createOpenApiDocument } from './app.js'
 import { MODULE_NAMES } from './core/module.js'
+import { createDb } from './db/client.js'
 
 describe('buildApp', () => {
   let app: NestFastifyApplication
@@ -51,5 +52,21 @@ describe('buildApp', () => {
       expect(spec.paths).toHaveProperty(`/api/${name}/status`)
     }
     expect(spec.paths).toHaveProperty('/health')
+  })
+
+  it('Swagger_WithEveryDbModule_EmitsValidSchemasWithoutNestjsZodMarkers', async () => {
+    // A lazy db handle registers every DB-backed controller (as `openapi:emit` does);
+    // postgres.js never connects because no query runs.
+    const handle = createDb('postgres://openapi@localhost:5432/openapi')
+    const full = await buildApp({ config: loadConfig({ LOG_LEVEL: 'silent' }), db: handle })
+    try {
+      const json = JSON.stringify(createOpenApiDocument(full))
+
+      expect(json).not.toContain('x-nestjs_zod')
+      expect(json).not.toContain('"type":""')
+    } finally {
+      await full.close()
+      await handle.close()
+    }
   })
 })
