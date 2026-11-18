@@ -11,8 +11,9 @@
 #   pnpm --filter @mydevtime/api db:seed   # populate demo data (admin@test.de)
 #
 # The bundled postgres is also the local dev database used by the app tests:
-#   DATABASE_URL=postgres://mydevtime:mydevtime@localhost:5433/mydevtime \
+#   DATABASE_URL=postgres://mydevtime@localhost:5433/mydevtime PGPASSWORD=mydevtime \
 #     pnpm --filter @mydevtime/api db:migrate
+# (The password travels in PGPASSWORD, which postgres.js reads, never inside the URL.)
 services:
   postgres:
     image: postgres:16-alpine
@@ -49,7 +50,8 @@ services:
       dockerfile: apps/api/Dockerfile
     command: ['node', 'dist/db/migrate.js']
     environment:
-      DATABASE_URL: postgres://mydevtime:mydevtime@postgres:5432/mydevtime
+      DATABASE_URL: postgres://mydevtime@postgres:5432/mydevtime
+      PGPASSWORD: mydevtime # local-only stack credential, same as POSTGRES_PASSWORD
       NODE_ENV: production
       AUTH_SECRET: dev-insecure-secret-not-for-production-use-only-32chars
       AUTH_BASE_URL: http://localhost:8080
@@ -63,7 +65,8 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     environment:
-      DATABASE_URL: postgres://mydevtime:mydevtime@postgres:5432/mydevtime
+      DATABASE_URL: postgres://mydevtime@postgres:5432/mydevtime
+      PGPASSWORD: mydevtime # local-only stack credential, same as POSTGRES_PASSWORD
       REDIS_URL: redis://redis:6379
       PORT: 3000
       NODE_ENV: production
@@ -89,7 +92,7 @@ services:
         # Same origin as the published port below; nginx proxies /api to the api service.
         EXPO_PUBLIC_API_URL: http://localhost:8080
     ports:
-      - '8080:80'
+      - '8080:8080'
     depends_on:
       - api
 

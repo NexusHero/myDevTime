@@ -148,14 +148,15 @@ export function detectUnbookedGap(
   const unbooked = subtractIntervals(coverage, booked).filter(
     g => g.endMs - g.startMs >= opts.minGapMs,
   )
-  if (unbooked.length === 0) return null
+  const [first, ...rest] = unbooked
+  if (first === undefined) return null
 
   // Longest wins; earlier start breaks ties (deterministic, stable).
-  const best = unbooked.reduce((a, b) => {
+  const best = rest.reduce((a, b) => {
     const la = a.endMs - a.startMs
     const lb = b.endMs - b.startMs
     return lb > la || (lb === la && b.startMs < a.startMs) ? b : a
-  })
+  }, first)
 
   return {
     startMs: best.startMs,

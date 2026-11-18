@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assertNever, clamp } from './util.js'
+import { assertNever, clamp, compareStrings, stripTrailingSlashes } from './util.js'
 
 describe('clamp', () => {
   it('Clamp_ValueInsideRange_ReturnsValueUnchanged', () => {
@@ -38,5 +38,37 @@ describe('assertNever', () => {
     const act = (): never => assertNever('unexpected' as never)
 
     expect(act).toThrow(/Unhandled case/)
+  })
+})
+
+describe('compareStrings', () => {
+  it('CompareStrings_SortsByCodeUnit_LocaleIndependent', () => {
+    const result = ['b', 'B', 'a', '2026-02-01', '2026-01-31', 'ä'].sort(compareStrings)
+
+    expect(result).toEqual(['2026-01-31', '2026-02-01', 'B', 'a', 'b', 'ä'])
+  })
+
+  it('CompareStrings_EqualStrings_ReturnsZero', () => {
+    expect(compareStrings('x', 'x')).toBe(0)
+  })
+})
+
+describe('stripTrailingSlashes', () => {
+  it('StripTrailingSlashes_RemovesEveryTrailingSlash', () => {
+    expect(stripTrailingSlashes('https://a.test/x///')).toBe('https://a.test/x')
+  })
+
+  it('StripTrailingSlashes_NoTrailingSlash_ReturnsInputUnchanged', () => {
+    expect(stripTrailingSlashes('https://a.test/x')).toBe('https://a.test/x')
+  })
+
+  it('StripTrailingSlashes_OnlySlashes_ReturnsEmpty', () => {
+    expect(stripTrailingSlashes('////')).toBe('')
+  })
+
+  it('StripTrailingSlashes_LongSlashRun_IsLinear', () => {
+    const input = `${'/'.repeat(200_000)}x${'/'.repeat(200_000)}`
+
+    expect(stripTrailingSlashes(input)).toHaveLength(200_001)
   })
 })

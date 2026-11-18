@@ -24,3 +24,26 @@ export function clamp(value: number, min: number, max: number): number {
   if (value > max) return max
   return value
 }
+
+/**
+ * Ordinal (UTF-16 code unit) string comparator for `Array.prototype.sort`.
+ * Deliberately locale-independent: `localeCompare` would make sort order — and
+ * therefore every derived number or export — depend on the host's ICU locale,
+ * which the deterministic core (ADR-0005) must not. ISO dates and day keys sort
+ * chronologically under it.
+ */
+export function compareStrings(a: string, b: string): number {
+  if (a < b) return -1
+  if (a > b) return 1
+  return 0
+}
+
+/**
+ * Remove every trailing `/` from a URL or path. Linear-time replacement for
+ * `s.replace(/\/+$/, '')`, whose backtracking is quadratic on slash runs.
+ */
+export function stripTrailingSlashes(value: string): string {
+  let end = value.length
+  while (end > 0 && value.codePointAt(end - 1) === 0x2f) end -= 1
+  return value.slice(0, end)
+}

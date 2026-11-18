@@ -64,7 +64,9 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgres://mydevtime:mydevtime@localhost:5432/mydevtime
+      # Throwaway service-container credential; kept out of the URL (postgres.js reads PGPASSWORD).
+      DATABASE_URL: postgres://mydevtime@localhost:5432/mydevtime
+      PGPASSWORD: mydevtime
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

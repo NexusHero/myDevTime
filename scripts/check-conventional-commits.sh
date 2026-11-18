@@ -22,7 +22,7 @@ while IFS= read -r sha; do
   fi
 done < <(git rev-list "$BASE..$HEAD")
 
-if [ "$fail" -ne 0 ]; then
+if [[ "$fail" -ne 0 ]]; then
   echo "Some commit messages are not Conventional Commits." >&2
   echo "Expected: type(scope): summary — types: feat fix docs style refactor perf test build ci chore revert" >&2
   exit 1

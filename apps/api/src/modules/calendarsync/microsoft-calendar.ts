@@ -56,7 +56,7 @@ type GraphDateTime = z.infer<typeof graphDateTimeSchema>
 function parseGraphDateTime(dt: GraphDateTime): number {
   const s = dt.dateTime
   if (s === undefined) return Number.NaN
-  const hasZone = /[zZ]|[+-]\d\d:?\d\d$/.test(s)
+  const hasZone = /(?:[zZ]|[+-]\d\d:?\d\d)$/.test(s)
   return Date.parse(hasZone ? s : `${s}Z`)
 }
 

@@ -1,3 +1,4 @@
+import { stripTrailingSlashes } from '@mydevtime/domain'
 import { z } from 'zod'
 import { AppError } from '../../errors.js'
 import type { Db } from '../../db/client.js'
@@ -65,7 +66,7 @@ export function redirectUriFor(
 ): string | null {
   const base = env.CONNECTOR_REDIRECT_BASE_URL ?? env.AUTH_BASE_URL
   if (base === undefined || base.length === 0) return null
-  return `${base.replace(/\/+$/, '')}/api/connectors/${id}/callback`
+  return `${stripTrailingSlashes(base)}/api/connectors/${id}/callback`
 }
 
 /** The OAuth client credentials for a provider, or null when not fully configured. */

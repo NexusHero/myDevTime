@@ -76,9 +76,68 @@ const sha256 = s => createHash('sha256').update(s).digest('hex')
 
 // A managed region is either a bare ```mermaid fence or one already wrapped by a
 // previous run (image + <details> … </details>). Matching both keeps the rewrite
-// idempotent. Non-greedy body stops at the first closing fence.
-const BLOCK_RE =
-  /(?:!\[[^\]]*\]\([^\n)]*\)\n\n<details>\n<summary>Mermaid source<\/summary>\n\n)?```mermaid\n([\s\S]*?)\n```(?:\n\n<\/details>)?/g
+// idempotent. The body stops at the first closing fence. Scanned with indexOf
+// rather than one big regex, so the cost stays linear on any input.
+const FENCE_OPEN = '```mermaid\n'
+const FENCE_CLOSE = '\n```'
+const DETAILS_OPEN = '\n\n<details>\n<summary>Mermaid source</summary>\n\n'
+const DETAILS_CLOSE = '\n\n</details>'
+
+/** Start of a `![alt](img)` that ends exactly at `end` (and starts at/after `from`), or -1. */
+function imageStart(text, from, end) {
+  if (end <= from || text[end - 1] !== ')') return -1
+  const paren = text.lastIndexOf('](', end - 2)
+  if (paren < from) return -1
+  const img = text.slice(paren + 2, end - 1)
+  if (img.includes('\n') || img.includes(')')) return -1
+  const lastBracket = text.lastIndexOf(']', paren - 1)
+  const bang = text.indexOf('![', Math.max(from, lastBracket + 1))
+  return bang !== -1 && bang < paren ? bang : -1
+}
+
+/** Every managed mermaid region in `text`: { index, end, code }, left to right. */
+function mermaidBlocks(text) {
+  const blocks = []
+  let from = 0
+  for (;;) {
+    const open = text.indexOf(FENCE_OPEN, from)
+    if (open === -1) break
+    const codeStart = open + FENCE_OPEN.length
+    const close = text.indexOf(FENCE_CLOSE, codeStart)
+    if (close === -1) break
+    let end = close + FENCE_CLOSE.length
+    if (text.startsWith(DETAILS_CLOSE, end)) end += DETAILS_CLOSE.length
+    let index = open
+    const detailsAt = open - DETAILS_OPEN.length
+    if (detailsAt >= from && text.startsWith(DETAILS_OPEN, detailsAt)) {
+      const image = imageStart(text, from, detailsAt)
+      if (image !== -1) index = image
+    }
+    blocks.push({ index, end, code: text.slice(codeStart, close) })
+    from = end
+  }
+  return blocks
+}
+
+/** `text` with every managed region replaced by `fn(code)`. */
+function replaceBlocks(text, fn) {
+  let out = ''
+  let last = 0
+  for (const b of mermaidBlocks(text)) {
+    out += text.slice(last, b.index) + fn(b.code)
+    last = b.end
+  }
+  return out + text.slice(last)
+}
+
+/** Drop a trailing `{#custom-id}` anchor from a heading. */
+function stripAnchor(heading) {
+  const t = heading.trimEnd()
+  if (!t.endsWith('}')) return t.trim()
+  const open = t.lastIndexOf('{#')
+  if (open === -1 || t.slice(open + 2, -1).includes('}')) return t.trim()
+  return t.slice(0, open).trim()
+}
 
 const HEADING_RE = /^#{1,6}\s+(.*)$/gm
 
@@ -87,7 +146,7 @@ function nearestHeading(text, index) {
   let title = ''
   for (const m of text.matchAll(HEADING_RE)) {
     if (m.index > index) break
-    title = m[1].replace(/\s*\{#[^}]*\}\s*$/, '').trim()
+    title = stripAnchor(m[1])
   }
   return title
 }
@@ -98,12 +157,12 @@ function blocksOf(file, text) {
   const relToDiagrams = relative(dirname(file), DIAGRAMS).split(sep).join('/')
   const blocks = []
   let n = 0
-  for (const m of text.matchAll(BLOCK_RE)) {
+  for (const m of mermaidBlocks(text)) {
     n += 1
     const svgName = `${slug}-${String(n)}.svg`
     const heading = nearestHeading(text, m.index)
     const alt = heading ? `${heading} — diagram` : `${slug} diagram ${String(n)}`
-    blocks.push({ code: m[1], svgName, alt, relImg: `${relToDiagrams}/${svgName}` })
+    blocks.push({ code: m.code, svgName, alt, relImg: `${relToDiagrams}/${svgName}` })
   }
   return blocks
 }
@@ -141,7 +200,7 @@ function render(code, outSvg) {
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
-  const svg = readFileSync(outSvg, 'utf8').replace(/\s*$/, '')
+  const svg = readFileSync(outSvg, 'utf8').trimEnd()
   writeFileSync(outSvg, `${svg}\n<!-- mermaid-src:sha256:${sha256(code)} -->\n`)
 }
 
@@ -169,7 +228,7 @@ function generate(files) {
       render(b.code, join(DIAGRAMS, b.svgName))
     }
     const queue = blocks.slice()
-    const rewritten = text.replace(BLOCK_RE, (_full, code) => embed({ ...queue.shift(), code }))
+    const rewritten = replaceBlocks(text, code => embed({ ...queue.shift(), code }))
     if (rewritten !== text) writeFileSync(file, rewritten)
   }
   console.log(
@@ -216,7 +275,7 @@ function main() {
     console.error('✗ @mermaid-js/mermaid-cli not installed — run `pnpm install` first.')
     process.exit(1)
   }
-  const files = walkMd(DOCS).sort()
+  const files = walkMd(DOCS).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
   if (CHECK) check(files)
   else generate(files)
 }

@@ -1,4 +1,5 @@
 import { writeFileSync } from 'node:fs'
+import { basename } from 'node:path'
 import { loadConfig } from './config.js'
 import { buildApp, createOpenApiDocument } from './app.js'
 import { createDb } from './db/client.js'
@@ -15,7 +16,9 @@ async function main(): Promise<void> {
   const handle = createDb(config.DATABASE_URL ?? 'postgres://openapi@localhost:5432/openapi')
   const app = await buildApp({ config, db: handle })
   const spec = createOpenApiDocument(app)
-  const out = process.argv[2] ?? 'openapi.json'
+  // A bare file name only: the spec always lands in the working directory, so a
+  // stray argument can never write outside it.
+  const out = basename(process.argv[2] ?? 'openapi.json')
   writeFileSync(out, JSON.stringify(spec, null, 2))
   await app.close()
   await handle.close()

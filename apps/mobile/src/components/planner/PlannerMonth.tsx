@@ -114,7 +114,6 @@ export function PlannerMonth({
       {weeks.map((week, wi) => (
         <View key={wi} style={{ flexDirection: 'row', gap: t.spacing.s1 }}>
           {week.map((cell, ci) => {
-            const weekend = ci >= 5
             if (!cell.inMonth) {
               return (
                 <View
@@ -171,7 +170,7 @@ export function PlannerMonth({
                       fontFamily: t.fontFamily.numeric,
                       fontSize: t.fontSize['2xs'],
                       fontWeight: isToday ? '700' : '500',
-                      color: isToday ? t.color.accentText : weekend ? t.color.ink3 : t.color.ink3,
+                      color: isToday ? t.color.accentText : t.color.ink3,
                     }}
                   >
                     {cell.date}

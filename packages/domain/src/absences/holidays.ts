@@ -12,6 +12,8 @@
  * aid, not a legal certification; canton/Land edge cases can be layered on.
  */
 
+import { compareStrings } from '../util.js'
+
 /** A supported holiday region. `DE`/`CH` are the national baselines. */
 export type HolidayRegion = 'DE' | 'DE-BW' | 'CH' | 'CH-BS' | 'CH-BL'
 
@@ -130,5 +132,5 @@ export function holidaysForRegion(region: HolidayRegion, year: number): string[]
   const dates = new Set<string>()
   for (const [month, day] of rule.fixed) dates.add(fixed(year, month, day))
   for (const name of rule.easter) dates.add(fromEaster(year, EASTER[name]))
-  return [...dates].sort()
+  return [...dates].sort(compareStrings)
 }

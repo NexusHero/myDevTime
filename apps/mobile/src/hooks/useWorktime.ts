@@ -131,25 +131,24 @@ export function useWorktime(): WorktimeResource {
   }, [base])
 
   const clockOut = useCallback(() => {
-    setRunning(previous => {
-      if (previous === null) return null
-      if (base === null) return null // demo: local stop
-      setBusy(true)
-      apiClockOut(base)
-        .then(() => {
-          setError(null)
-          setReloadKey(k => k + 1) // refresh the week + balance
-        })
-        .catch((cause: unknown) => {
-          setRunning(previous) // roll back
-          setError(cause instanceof Error ? cause : new Error(String(cause)))
-        })
-        .finally(() => {
-          setBusy(false)
-        })
-      return null // optimistic clear
-    })
-  }, [base])
+    const previous = running
+    if (previous === null) return
+    setRunning(null) // optimistic clear
+    if (base === null) return // demo: local stop
+    setBusy(true)
+    apiClockOut(base)
+      .then(() => {
+        setError(null)
+        setReloadKey(k => k + 1) // refresh the week + balance
+      })
+      .catch((cause: unknown) => {
+        setRunning(previous) // roll back
+        setError(cause instanceof Error ? cause : new Error(String(cause)))
+      })
+      .finally(() => {
+        setBusy(false)
+      })
+  }, [base, running])
 
   const elapsed =
     running === null ? '00:00:00' : formatStopwatch(nowMs - Date.parse(running.startedAt))

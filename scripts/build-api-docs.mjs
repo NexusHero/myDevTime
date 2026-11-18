@@ -14,12 +14,19 @@
 import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { cpSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, relative, resolve, isAbsolute } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = resolve(here, '..')
 const out = resolve(root, process.argv[2] ?? 'dist-pages')
+// The output dir is wiped below, so it must be a real subdirectory of the repo —
+// never the repo root itself or anything outside it.
+const outRel = relative(root, out)
+if (outRel === '' || outRel.startsWith('..') || isAbsolute(outRel)) {
+  console.error(`✗ output dir must be inside the repo: ${out}`)
+  process.exit(1)
+}
 
 // 1. Generate the OpenAPI spec fresh from the running app definition.
 const apiDir = join(root, 'apps', 'api')

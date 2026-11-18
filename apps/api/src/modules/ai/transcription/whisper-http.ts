@@ -1,4 +1,4 @@
-import type { TranscriptSegment } from '@mydevtime/domain'
+import { stripTrailingSlashes, type TranscriptSegment } from '@mydevtime/domain'
 import { TranscriptionUnavailableError, type AudioInput, type TranscriptionPort } from './port.js'
 
 /**
@@ -90,7 +90,7 @@ export class WhisperHttp implements TranscriptionPort {
   }
 
   async transcribe(audio: AudioInput): Promise<readonly TranscriptSegment[]> {
-    const url = `${this.config.baseUrl.replace(/\/+$/, '')}/v1/audio/transcriptions`
+    const url = `${stripTrailingSlashes(this.config.baseUrl)}/v1/audio/transcriptions`
     const bytes = new Uint8Array(Buffer.from(audio.base64, 'base64'))
     const form = new FormData()
     form.append('file', new Blob([bytes], { type: audio.mimeType }), fileName(audio.mimeType))

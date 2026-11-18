@@ -12,6 +12,8 @@ spec:
       labels:
         app: redis
     spec:
+      # No workload talks to the Kubernetes API, so no service-account token is mounted.
+      automountServiceAccountToken: false
       containers:
         - name: redis
           image: redis:7-alpine
@@ -21,9 +23,12 @@ spec:
             requests:
               cpu: 50m
               memory: 64Mi
+              ephemeral-storage: 64Mi
             limits:
               cpu: 250m
               memory: 128Mi
+              # /data is an emptyDir and counts against this; room for an RDB of max memory.
+              ephemeral-storage: 512Mi
           readinessProbe:
             exec:
               command: ['redis-cli', 'ping']

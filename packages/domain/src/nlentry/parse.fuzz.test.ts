@@ -19,7 +19,7 @@ const phrase = fc
       fc.constantFrom('h', 'std', 'min', 'm', ':', '.', ',', '@', '#', '-', '–', 'um ', 'at '),
       fc.constantFrom('yesterday', 'gestern', 'heute', 'today', 'billable', 'abrechenbar'),
       fc.integer({ min: 0, max: 99_999 }).map(String),
-      fc.constantFrom('PROJ-142', '(.*)+', '[a-z', '\\', '$&', '\u0000', '‮'),
+      fc.constantFrom('PROJ-142', '(.*)+', '[a-z', '\\', '$&', '\u0000', '\u202E'),
     ),
     { maxLength: 40 },
   )
@@ -35,7 +35,7 @@ describe('parseTimeEntry — properties over arbitrary input', () => {
   it('never throws, whatever the text or the catalog', () => {
     fc.assert(
       fc.property(phrase, knownProjects, (text, projects) => {
-        parseTimeEntry(text, { knownProjects: projects })
+        expect(() => parseTimeEntry(text, { knownProjects: projects })).not.toThrow()
       }),
       { numRuns: 2_000 },
     )

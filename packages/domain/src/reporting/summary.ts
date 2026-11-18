@@ -1,3 +1,4 @@
+import { compareStrings } from '../util.js'
 import { aggregate } from '../tracking/aggregation.js'
 import type { TimeEntry } from '../tracking/time-entry.js'
 import type { DurationMs, Instant, TimeZone } from '../tracking/time.js'
@@ -56,7 +57,7 @@ export function summarizeEntries(
     ...(opts.asOf === undefined ? {} : { asOf: opts.asOf }),
   })
 
-  const days = [...new Set(buckets.map(b => b.period))].sort()
+  const days = [...new Set(buckets.map(b => b.period))].sort(compareStrings)
   const dayIndex = new Map(days.map((d, i) => [d, i]))
 
   const byId = new Map<string, MutableProjectSummary>()

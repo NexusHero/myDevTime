@@ -38,11 +38,15 @@ WORKDIR /app/apps/mobile
 RUN pnpm run export:web
 
 # ---------------------------------------------------------
-FROM nginx:alpine AS runner
+# The unprivileged variant runs nginx as uid 101 on port 8080 — no root, no
+# NET_BIND_SERVICE/SETUID/SETGID/CHOWN at runtime (ADR-0078 #5).
+FROM nginxinc/nginx-unprivileged:alpine AS runner
 
-# Pull Alpine's security fixes, which land before the official nginx image is
-# rebuilt (ADR-0078).
+# Pull Alpine's security fixes, which land before the nginx image is rebuilt
+# (ADR-0078). Package installs need root; drop straight back afterwards.
+USER root
 RUN apk upgrade --no-cache
+USER 101
 
 # Copy nginx config
 COPY apps/mobile/nginx.conf /etc/nginx/conf.d/default.conf
@@ -50,6 +54,6 @@ COPY apps/mobile/nginx.conf /etc/nginx/conf.d/default.conf
 # Copy the built web static files to nginx html directory
 COPY --from=builder /app/apps/mobile/dist /usr/share/nginx/html
 
-EXPOSE 80
+EXPOSE 8080
 
 CMD ["nginx", "-g", "daemon off;"]

@@ -204,34 +204,32 @@ export function useTimer(): TimerResource {
   )
 
   const pause = useCallback(() => {
-    setRunning(previous => {
-      if (previous === null) return null
-      const segMs = entryDurationMs(previous, new Date())
-      setAccumulatedMs(a => a + segMs) // bank the worked segment
-      setPausedInput(resumeInput(previous))
-      setPausedSince(Date.now()) // start the pause counter
-      const rollback = (cause: unknown): void => {
-        setRunning(previous)
-        setAccumulatedMs(a => a - segMs)
-        setPausedInput(null)
-        setPausedSince(null)
-        setError(cause instanceof Error ? cause : new Error(String(cause)))
-      }
-      if (base !== null) {
-        setBusy(true)
-        stopTimer(base)
-          .then(() => {
-            setError(null)
-            setLastSync(k => k + 1)
-          })
-          .catch(rollback)
-          .finally(() => {
-            setBusy(false)
-          })
-      }
-      return null // optimistic pause: no running segment
-    })
-  }, [base])
+    const previous = running
+    if (previous === null) return
+    const segMs = entryDurationMs(previous, new Date())
+    setRunning(null) // optimistic pause: no running segment
+    setAccumulatedMs(a => a + segMs) // bank the worked segment
+    setPausedInput(resumeInput(previous))
+    setPausedSince(Date.now()) // start the pause counter
+    if (base === null) return
+    const rollback = (cause: unknown): void => {
+      setRunning(previous)
+      setAccumulatedMs(a => a - segMs)
+      setPausedInput(null)
+      setPausedSince(null)
+      setError(cause instanceof Error ? cause : new Error(String(cause)))
+    }
+    setBusy(true)
+    stopTimer(base)
+      .then(() => {
+        setError(null)
+        setLastSync(k => k + 1)
+      })
+      .catch(rollback)
+      .finally(() => {
+        setBusy(false)
+      })
+  }, [base, running])
 
   const resume = useCallback(() => {
     if (pausedInput === null) return
@@ -242,30 +240,28 @@ export function useTimer(): TimerResource {
 
   const punchOut = useCallback(
     (endedAt?: string) => {
+      const previous = running
       setAccumulatedMs(0)
       setPausedInput(null)
       setPausedSince(null)
-      setRunning(previous => {
-        if (previous === null) return null
-        if (base !== null) {
-          setBusy(true)
-          stopTimer(base, endedAt)
-            .then(() => {
-              setError(null)
-              setLastSync(k => k + 1)
-            })
-            .catch((cause: unknown) => {
-              setRunning(previous) // roll back
-              setError(cause instanceof Error ? cause : new Error(String(cause)))
-            })
-            .finally(() => {
-              setBusy(false)
-            })
-        }
-        return null // optimistic clear
-      })
+      if (previous === null) return
+      setRunning(null) // optimistic clear
+      if (base === null) return
+      setBusy(true)
+      stopTimer(base, endedAt)
+        .then(() => {
+          setError(null)
+          setLastSync(k => k + 1)
+        })
+        .catch((cause: unknown) => {
+          setRunning(previous) // roll back
+          setError(cause instanceof Error ? cause : new Error(String(cause)))
+        })
+        .finally(() => {
+          setBusy(false)
+        })
     },
-    [base],
+    [base, running],
   )
 
   const elapsed = formatStopwatch(sessionElapsedMs(accumulatedMs, running, new Date()))
