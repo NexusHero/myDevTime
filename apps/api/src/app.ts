@@ -3,7 +3,7 @@ import { NestFactory } from '@nestjs/core'
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify'
 import type { FastifyInstance } from 'fastify'
 import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from '@nestjs/swagger'
-import { ZodValidationPipe } from 'nestjs-zod'
+import { cleanupOpenApiDoc, ZodValidationPipe } from 'nestjs-zod'
 import type { Config } from './config.js'
 import type { DbHandle } from './db/client.js'
 import { AppModule } from './app.module.js'
@@ -60,10 +60,15 @@ export async function buildApp(deps: AppDeps): Promise<NestFastifyApplication> {
   return app
 }
 
-/** The OpenAPI document generated from the controllers/DTOs (nestjs-zod + swagger). */
+/**
+ * The OpenAPI document generated from the controllers/DTOs (nestjs-zod + swagger).
+ * `cleanupOpenApiDoc` is the step nestjs-zod v5 requires: it resolves the
+ * `x-nestjs_zod-*` markers its DTOs leave in the raw swagger output into valid
+ * schemas (5.5 happened to emit clean output without it; 5.6 does not).
+ */
 export function createOpenApiDocument(app: NestFastifyApplication): OpenAPIObject {
   const openapi = new DocumentBuilder().setTitle('myDevTime API').setVersion('0.0.0').build()
-  return SwaggerModule.createDocument(app, openapi)
+  return cleanupOpenApiDoc(SwaggerModule.createDocument(app, openapi))
 }
 
 /** An accepted inbound request id: printable token characters only, bounded length. */
