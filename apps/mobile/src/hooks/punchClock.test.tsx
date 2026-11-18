@@ -95,7 +95,7 @@ afterEach(() => {
 })
 
 describe('useTimer', () => {
-  it('pause stops the segment with exactly one request and banks its time', async () => {
+  it('Pause_RunningEntry_SendsOneStopAndBanksSegment', async () => {
     seams.stopTimer.mockResolvedValue(undefined)
     const timer = mount(useTimer)
     await flush()
@@ -111,7 +111,7 @@ describe('useTimer', () => {
     expect(timer.current().accumulatedMs).toBeGreaterThan(0)
   })
 
-  it('pause rolls back when the stop request fails', async () => {
+  it('Pause_StopRequestFails_RollsBackToRunning', async () => {
     seams.stopTimer.mockRejectedValue(new Error('offline'))
     const timer = mount(useTimer)
     await flush()
@@ -127,7 +127,7 @@ describe('useTimer', () => {
     expect(timer.current().error?.message).toBe('offline')
   })
 
-  it('punchOut stops with exactly one request and rolls back on failure', async () => {
+  it('PunchOut_StopRequestFails_SendsOneStopAndRollsBack', async () => {
     seams.stopTimer.mockRejectedValue(new Error('offline'))
     const timer = mount(useTimer)
     await flush()
@@ -142,7 +142,7 @@ describe('useTimer', () => {
     expect(timer.current().running?.id).toBe('e1')
   })
 
-  it('punchOut with nothing running sends no request', async () => {
+  it('PunchOut_NothingRunning_SendsNoRequest', async () => {
     seams.getRunning.mockResolvedValue(null)
     const timer = mount(useTimer)
     await flush()
@@ -157,7 +157,7 @@ describe('useTimer', () => {
 })
 
 describe('useWorktime', () => {
-  it('clockOut clears the shift with exactly one request', async () => {
+  it('ClockOut_OpenShift_SendsOneRequestAndClears', async () => {
     seams.clockOut.mockResolvedValue(undefined)
     const worktime = mount(useWorktime)
     await flush()
@@ -172,7 +172,7 @@ describe('useWorktime', () => {
     expect(worktime.current().running).toBeNull()
   })
 
-  it('clockOut rolls the shift back when the request fails', async () => {
+  it('ClockOut_RequestFails_RollsBackShift', async () => {
     seams.clockOut.mockRejectedValue(new Error('offline'))
     const worktime = mount(useWorktime)
     await flush()
