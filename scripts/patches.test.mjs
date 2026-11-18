@@ -46,6 +46,22 @@ describe.each(decodeUriCopies)('decode-uri-component at %s', file => {
     expect(performance.now() - started).toBeLessThan(1_000)
   })
 
+  it('decodes many distinct percent-encoded runs in linear time (GHSA-qr28-fpjm-wq7f)', () => {
+    // 0.5.0 replaced each distinct run with its own whole-input regex pass — quadratic:
+    // 20 000 distinct 3-byte runs + one invalid byte (forces the fallback) took ~1.6 s,
+    // 40 000 ~7.5 s. Linear, 20 000 take a few milliseconds.
+    let hostile = '%FF'
+    for (let cp = 0x800; cp < 0x800 + 20_000; cp += 1) {
+      hostile += `${encodeURIComponent(String.fromCodePoint(cp))}-`
+    }
+
+    const started = performance.now()
+    const decoded = decode(hostile)
+
+    expect(performance.now() - started).toBeLessThan(500)
+    expect(decoded.startsWith('%FF\u0800-\u0801-')).toBe(true)
+  })
+
   it.each([
     ['plain text', 'plain text'],
     ['a+b', 'a b'],
@@ -57,6 +73,9 @@ describe.each(decodeUriCopies)('decode-uri-component at %s', file => {
     ['%FE%FF', '��'],
     ['%C2', '�'],
     ['%C2x', '�x'],
+    ['%FF%FE', '��'],
+    ['%C3%A5%C2', 'å�'],
+    ['%FFst%C3%A5le%C2', '%FFståle�'],
   ])('keeps the 0.2.2 behaviour: %j → %j', (input, expected) => {
     expect(decode(input)).toBe(expected)
   })
