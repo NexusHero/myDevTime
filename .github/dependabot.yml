@@ -1,16 +1,7 @@
 version: 2
 updates:
-  - package-ecosystem: npm # covers the pnpm lockfile
-    directory: '/'
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: 'chore(deps)'
-      prefix-development: 'chore(deps-dev)'
-    groups:
-      dev-dependencies:
-        dependency-type: development
+  # npm updates come from Renovate (renovate.json), which understands Expo SDK-bound
+  # packages; Dependabot keeps the security alerts and the GitHub Actions bumps.
   # Actions are pinned to commit SHAs with the version in a trailing comment
   # (ADR-0078); Dependabot bumps both together.
   - package-ecosystem: github-actions
